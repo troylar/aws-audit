@@ -270,6 +270,9 @@ def snapshot_create(
 
             console.print(table)
 
+    except typer.Exit:
+        # Re-raise Exit exceptions (normal exit codes)
+        raise
     except CredentialValidationError as e:
         console.print(f"✗ Error: {e}", style="bold red")
         raise typer.Exit(code=3)
@@ -500,6 +503,9 @@ def delta(
         if not delta_report.has_changes:
             raise typer.Exit(code=0)
 
+    except typer.Exit:
+        # Re-raise Exit exceptions (normal exit codes)
+        raise
     except FileNotFoundError as e:
         console.print(f"✗ Snapshot not found: {e}", style="bold red")
         raise typer.Exit(code=1)
@@ -609,6 +615,9 @@ def cost(
             console.print("  3. Cost data typically has a 24-48 hour lag")
             raise typer.Exit(code=3)
 
+    except typer.Exit:
+        # Re-raise Exit exceptions (normal exit codes)
+        raise
     except FileNotFoundError as e:
         console.print(f"✗ Snapshot not found: {e}", style="bold red")
         raise typer.Exit(code=1)
