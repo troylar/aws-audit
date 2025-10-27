@@ -94,7 +94,7 @@ def create_snapshot(
     Returns:
         Snapshot instance with captured resources
     """
-    logger.info(f"Creating snapshot '{name}' for regions: {regions}")
+    logger.debug(f"Creating snapshot '{name}' for regions: {regions}")
 
     # Create session with optional profile
     session_kwargs = {}
@@ -168,7 +168,7 @@ def create_snapshot(
                         'region': 'global',
                         'error': error_msg[:100]
                     })
-                    logger.warning(f"⚠️  {service_name}: {error_msg[:80]}")
+                    logger.debug(f"Collection error - {service_name}: {error_msg[:80]}")
                 else:
                     logger.debug(f"Skipping {service_name} (not available): {error_msg[:80]}")
 
@@ -196,7 +196,7 @@ def create_snapshot(
                             'region': region,
                             'error': error_msg[:100]
                         })
-                        logger.warning(f"⚠️  {service_name} ({region}): {error_msg[:80]}")
+                        logger.debug(f"Collection error - {service_name} ({region}): {error_msg[:80]}")
                     else:
                         logger.debug(f"Skipping {service_name} in {region} (not available): {error_msg[:80]}")
 
@@ -206,7 +206,7 @@ def create_snapshot(
 
     # Log summary of collection errors if any (but not expected ones)
     if collection_errors:
-        logger.info(f"\nCollection completed with {len(collection_errors)} service(s) unavailable")
+        logger.debug(f"\nCollection completed with {len(collection_errors)} service(s) unavailable")
         logger.debug("Services that failed:")
         for error in collection_errors:
             logger.debug(f"  - {error['service']} ({error['region']}): {error['error']}")
@@ -216,7 +216,7 @@ def create_snapshot(
     filters_applied = None
 
     if resource_filter:
-        logger.info(f"Applying filters: {resource_filter.get_filter_summary()}")
+        logger.debug(f"Applying filters: {resource_filter.get_filter_summary()}")
         all_resources = resource_filter.apply(all_resources)
         filter_stats = resource_filter.get_statistics_summary()
 
@@ -229,7 +229,7 @@ def create_snapshot(
             'statistics': filter_stats,
         }
 
-        logger.info(
+        logger.debug(
             f"Filtering complete: {filter_stats['total_collected']} collected, "
             f"{filter_stats['final_count']} matched filters"
         )
@@ -258,7 +258,7 @@ def create_snapshot(
         total_resources_before_filter=total_before_filter if resource_filter else None,
     )
 
-    logger.info(f"Snapshot '{name}' created with {len(all_resources)} resources")
+    logger.debug(f"Snapshot '{name}' created with {len(all_resources)} resources")
 
     return snapshot
 

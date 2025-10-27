@@ -45,7 +45,7 @@ def main(
 
     # Setup logging
     log_level = "ERROR" if quiet else ("DEBUG" if verbose else config.log_level)
-    setup_logging(level=log_level)
+    setup_logging(level=log_level, verbose=verbose)
 
     # Disable colors if requested
     if no_color:

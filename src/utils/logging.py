@@ -5,15 +5,21 @@ import sys
 from typing import Optional
 
 
-def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
+def setup_logging(level: str = "INFO", log_file: Optional[str] = None, verbose: bool = False) -> None:
     """Configure logging for the application.
 
     Args:
         level: Log level (DEBUG, INFO, WARN, ERROR)
         log_file: Optional log file path
+        verbose: If True, show detailed logs; if False, suppress all but critical
     """
     # Convert string level to logging constant
     numeric_level = getattr(logging, level.upper(), logging.INFO)
+
+    # In non-verbose mode, suppress all logs except CRITICAL
+    # User will only see styled Rich console output
+    if not verbose:
+        numeric_level = logging.CRITICAL
 
     # Create formatter
     formatter = logging.Formatter(
@@ -29,27 +35,32 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> None:
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_handler.setLevel(numeric_level)
-    console_handler.setFormatter(formatter)
-    root_logger.addHandler(console_handler)
+    # Console handler (only add if verbose or log_file specified)
+    if verbose or log_file:
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_handler.setLevel(numeric_level)
+        console_handler.setFormatter(formatter)
+        root_logger.addHandler(console_handler)
 
     # File handler (if specified)
     if log_file:
         file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(numeric_level)
+        file_handler.setLevel(logging.DEBUG)  # Always log everything to file
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
 
     # Suppress noisy third-party loggers
-    logging.getLogger('boto3').setLevel(logging.WARNING)
-    logging.getLogger('botocore').setLevel(logging.WARNING)
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('boto3').setLevel(logging.CRITICAL)
+    logging.getLogger('botocore').setLevel(logging.CRITICAL)
+    logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+    logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
 
-    # Suppress collector INFO messages unless in verbose mode
-    # Users will see progress via the Rich progress bar instead
-    if numeric_level > logging.DEBUG:
-        logging.getLogger('src.snapshot.resource_collectors').setLevel(logging.WARNING)
-
-    logging.debug(f"Logging configured at {level} level")
+    # Suppress internal module logs unless verbose
+    if not verbose:
+        logging.getLogger('src').setLevel(logging.CRITICAL)
+        logging.getLogger('src.snapshot').setLevel(logging.CRITICAL)
+        logging.getLogger('src.snapshot.resource_collectors').setLevel(logging.CRITICAL)
+        logging.getLogger('src.snapshot.capturer').setLevel(logging.CRITICAL)
+        logging.getLogger('src.snapshot.storage').setLevel(logging.CRITICAL)
+        logging.getLogger('src.aws').setLevel(logging.CRITICAL)
+        logging.getLogger('src.aws.credentials').setLevel(logging.CRITICAL)

@@ -67,7 +67,7 @@ class ResourceFilter:
 
         self.stats['final_count'] = len(filtered)
 
-        logger.info(
+        logger.debug(
             f"Filtering complete: {self.stats['total_collected']} collected, "
             f"{self.stats['final_count']} matched filters"
         )
