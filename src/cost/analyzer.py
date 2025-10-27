@@ -52,9 +52,17 @@ class CostAnalyzer:
         # Default date range: from snapshot creation to today
         if not start_date:
             start_date = baseline_snapshot.created_at
+            # Remove timezone for Cost Explorer API (uses dates only, no time)
+            start_date = start_date.replace(tzinfo=None)
 
         if not end_date:
             end_date = datetime.now()
+
+        # Ensure both dates are timezone-naive for comparison
+        if hasattr(start_date, 'tzinfo') and start_date.tzinfo is not None:
+            start_date = start_date.replace(tzinfo=None)
+        if hasattr(end_date, 'tzinfo') and end_date.tzinfo is not None:
+            end_date = end_date.replace(tzinfo=None)
 
         # Ensure start_date is before end_date
         # AWS Cost Explorer requires at least 1 day difference
