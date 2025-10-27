@@ -56,7 +56,13 @@ class CostAnalyzer:
         if not end_date:
             end_date = datetime.now()
 
-        logger.info(
+        # Ensure start_date is before end_date
+        # AWS Cost Explorer requires at least 1 day difference
+        if start_date >= end_date:
+            # If dates are the same or inverted, set end_date to start_date + 1 day
+            end_date = start_date + timedelta(days=1)
+
+        logger.debug(
             f"Analyzing costs from {start_date.strftime('%Y-%m-%d')} "
             f"to {end_date.strftime('%Y-%m-%d')}"
         )

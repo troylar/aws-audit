@@ -466,12 +466,15 @@ def delta(
         resource_type_filter = [resource_type] if resource_type else None
         region_filter = [region] if region else None
 
+        # Use profile parameter if provided, otherwise use config
+        aws_profile = profile if profile else config.aws_profile
+
         # Calculate delta
         from ..delta.calculator import compare_to_current_state
 
         delta_report = compare_to_current_state(
             baseline_snapshot=baseline_snapshot,
-            profile_name=config.aws_profile,
+            profile_name=aws_profile,
             regions=None,  # Use baseline regions
             resource_type_filter=resource_type_filter,
             region_filter=region_filter,
@@ -568,8 +571,11 @@ def cost(
         from ..cost.explorer import CostExplorerClient, CostExplorerError
         from ..cost.analyzer import CostAnalyzer
 
+        # Use profile parameter if provided, otherwise use config
+        aws_profile = profile if profile else config.aws_profile
+
         try:
-            cost_explorer = CostExplorerClient(profile_name=config.aws_profile)
+            cost_explorer = CostExplorerClient(profile_name=aws_profile)
             analyzer = CostAnalyzer(cost_explorer)
 
             cost_report = analyzer.analyze(
