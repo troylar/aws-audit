@@ -573,29 +573,44 @@ def cost(
             console.print(f"✗ Invalid granularity. Use DAILY or MONTHLY", style="bold red")
             raise typer.Exit(code=1)
 
+        # Use profile parameter if provided, otherwise use config
+        aws_profile = profile if profile else config.aws_profile
+
+        # First, check if there are any deltas (new resources)
+        console.print("🔍 Checking for resource changes since baseline...\n")
+        from ..delta.calculator import compare_to_current_state
+
+        delta_report = compare_to_current_state(
+            baseline_snapshot=baseline_snapshot,
+            profile_name=aws_profile,
+            regions=None,
+        )
+
         # Analyze costs
         from ..cost.explorer import CostExplorerClient, CostExplorerError
         from ..cost.analyzer import CostAnalyzer
 
-        # Use profile parameter if provided, otherwise use config
-        aws_profile = profile if profile else config.aws_profile
-
         try:
             cost_explorer = CostExplorerClient(profile_name=aws_profile)
             analyzer = CostAnalyzer(cost_explorer)
+
+            # If no changes, only show baseline costs (no splitting)
+            has_deltas = delta_report.has_changes
 
             cost_report = analyzer.analyze(
                 baseline_snapshot=baseline_snapshot,
                 start_date=start_dt,
                 end_date=end_dt,
                 granularity=granularity,
+                has_deltas=has_deltas,
+                delta_report=delta_report,
             )
 
             # Display cost report
             from ..cost.reporter import CostReporter
 
             reporter = CostReporter(console)
-            reporter.display(cost_report, show_services=show_services)
+            reporter.display(cost_report, show_services=show_services, has_deltas=has_deltas)
 
             # Export if requested
             if export:

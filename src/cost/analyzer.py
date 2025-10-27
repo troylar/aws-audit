@@ -28,6 +28,8 @@ class CostAnalyzer:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         granularity: str = 'MONTHLY',
+        has_deltas: bool = False,
+        delta_report: Optional[any] = None,
     ) -> CostReport:
         """Analyze costs and separate baseline from non-baseline.
 
@@ -85,33 +87,29 @@ class CostAnalyzer:
             granularity=granularity,
         )
 
-        # Map AWS service names to our resource types
-        baseline_services = self._get_baseline_service_mapping(baseline_snapshot)
-
-        # Separate costs
-        baseline_costs = {}
-        non_baseline_costs = {}
-
-        for service_name, total_cost in service_costs.items():
-            if service_name in baseline_services:
-                # This service has baseline resources
-                # Simple heuristic: if snapshot has resources for this service,
-                # assume some portion is baseline
-                # In reality, this is an approximation
-                baseline_costs[service_name] = total_cost * 0.6  # Assume 60% baseline
-                non_baseline_costs[service_name] = total_cost * 0.4  # 40% new
-            else:
-                # No baseline resources for this service - all costs are non-baseline
-                non_baseline_costs[service_name] = total_cost
-
-        # Calculate totals
-        baseline_total = sum(baseline_costs.values())
-        non_baseline_total = sum(non_baseline_costs.values())
-        total_cost = baseline_total + non_baseline_total
-
-        # Calculate percentages
-        baseline_pct = (baseline_total / total_cost * 100) if total_cost > 0 else 0
-        non_baseline_pct = (non_baseline_total / total_cost * 100) if total_cost > 0 else 0
+        # If no deltas (no resource changes), ALL costs are baseline
+        if not has_deltas:
+            logger.debug("No resource changes detected - all costs are baseline")
+            baseline_costs = service_costs.copy()
+            non_baseline_costs = {}
+            baseline_total = sum(baseline_costs.values())
+            non_baseline_total = 0.0
+            total_cost = baseline_total
+            baseline_pct = 100.0
+            non_baseline_pct = 0.0
+        else:
+            # There are deltas - we can't accurately split costs without per-resource pricing
+            # Show total only with a note that we can't split accurately
+            logger.debug("Resource changes detected - showing total costs only")
+            baseline_costs = service_costs.copy()
+            non_baseline_costs = {}
+            baseline_total = sum(baseline_costs.values())
+            non_baseline_total = 0.0
+            total_cost = baseline_total
+            baseline_pct = 100.0
+            non_baseline_pct = 0.0
+            # Note: We could enhance this in the future to track specific resource costs
+            # For now, we show total and list the delta resources separately
 
         # Create cost breakdowns
         baseline_breakdown = CostBreakdown(

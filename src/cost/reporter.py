@@ -20,12 +20,13 @@ class CostReporter:
         """
         self.console = console or Console()
 
-    def display(self, report: CostReport, show_services: bool = True) -> None:
+    def display(self, report: CostReport, show_services: bool = True, has_deltas: bool = False) -> None:
         """Display cost report to console.
 
         Args:
             report: CostReport to display
             show_services: Whether to show service-level breakdown
+            has_deltas: Whether there are resource changes (deltas)
         """
         # Header
         self.console.print()
@@ -47,13 +48,25 @@ class CostReporter:
                 f"Data available through {report.data_through.strftime('%Y-%m-%d')}[/yellow]\n"
             )
 
-        # Summary table
-        self._display_summary(report)
+        # If no deltas, show simplified baseline-only view
+        if not has_deltas:
+            self.console.print("✓ [green]No resource changes detected - all costs are from baseline resources[/green]\n")
+            self._display_baseline_only(report)
+        else:
+            # Summary table with baseline/non-baseline split
+            self._display_summary(report)
 
         # Service breakdown
-        if show_services and (report.baseline_costs.by_service or report.non_baseline_costs.by_service):
+        if show_services and report.baseline_costs.by_service:
             self.console.print()
-            self._display_service_breakdown(report)
+            self._display_service_breakdown(report, has_deltas)
+
+    def _display_baseline_only(self, report: CostReport) -> None:
+        """Display baseline costs only (no splitting)."""
+        table = Table(title="Baseline Costs", show_header=True, header_style="bold cyan")
+        table.add_column("Total Cost", justify="right", style="bold green", width=20)
+        table.add_row(f"${report.baseline_costs.total:,.2f}")
+        self.console.print(table)
 
     def _display_summary(self, report: CostReport) -> None:
         """Display cost summary."""
@@ -94,18 +107,18 @@ class CostReporter:
 
         self.console.print(table)
 
-    def _display_service_breakdown(self, report: CostReport) -> None:
+    def _display_service_breakdown(self, report: CostReport, has_deltas: bool = False) -> None:
         """Display service-level cost breakdown."""
-        # Get top services for each category
-        top_baseline = report.get_top_services(limit=5, baseline=True)
-        top_non_baseline = report.get_top_services(limit=5, baseline=False)
+        # Get top services
+        top_baseline = report.get_top_services(limit=10, baseline=True)
 
         if top_baseline:
-            self.console.print("[bold cyan]Top Baseline Services:[/bold cyan]")
+            title = "Costs by Service" if not has_deltas else "Top Baseline Services"
+            self.console.print(f"[bold cyan]{title}:[/bold cyan]")
             baseline_table = Table(show_header=True, box=None, padding=(0, 2))
             baseline_table.add_column("Service", style="white")
             baseline_table.add_column("Cost", justify="right", style="green")
-            baseline_table.add_column("% of Baseline", justify="right", style="dim")
+            baseline_table.add_column("% of Total", justify="right", style="dim")
 
             for service, cost in top_baseline.items():
                 pct = (cost / report.baseline_costs.total * 100) if report.baseline_costs.total > 0 else 0
@@ -118,22 +131,25 @@ class CostReporter:
             self.console.print(baseline_table)
             self.console.print()
 
-        if top_non_baseline:
-            self.console.print("[bold yellow]Top Non-Baseline Services:[/bold yellow]")
-            non_baseline_table = Table(show_header=True, box=None, padding=(0, 2))
-            non_baseline_table.add_column("Service", style="white")
-            non_baseline_table.add_column("Cost", justify="right", style="green")
-            non_baseline_table.add_column("% of Non-Baseline", justify="right", style="dim")
+        # Only show non-baseline section if there are actual deltas
+        if has_deltas:
+            top_non_baseline = report.get_top_services(limit=5, baseline=False)
+            if top_non_baseline:
+                self.console.print("[bold yellow]Top Non-Baseline Services:[/bold yellow]")
+                non_baseline_table = Table(show_header=True, box=None, padding=(0, 2))
+                non_baseline_table.add_column("Service", style="white")
+                non_baseline_table.add_column("Cost", justify="right", style="green")
+                non_baseline_table.add_column("% of Non-Baseline", justify="right", style="dim")
 
-            for service, cost in top_non_baseline.items():
-                pct = (cost / report.non_baseline_costs.total * 100) if report.non_baseline_costs.total > 0 else 0
-                non_baseline_table.add_row(
-                    self._shorten_service_name(service),
-                    f"${cost:,.2f}",
-                    f"{pct:.1f}%"
-                )
+                for service, cost in top_non_baseline.items():
+                    pct = (cost / report.non_baseline_costs.total * 100) if report.non_baseline_costs.total > 0 else 0
+                    non_baseline_table.add_row(
+                        self._shorten_service_name(service),
+                        f"${cost:,.2f}",
+                        f"{pct:.1f}%"
+                    )
 
-            self.console.print(non_baseline_table)
+                self.console.print(non_baseline_table)
 
     def _create_progress_bar(self, percentage: float, color: str = "green") -> str:
         """Create a text-based progress bar.
