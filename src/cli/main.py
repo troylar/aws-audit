@@ -78,7 +78,9 @@ def snapshot_create(
     compress: bool = typer.Option(False, "--compress", help="Compress snapshot with gzip"),
     before_date: Optional[str] = typer.Option(None, "--before-date", help="Include only resources created before date (YYYY-MM-DD)"),
     after_date: Optional[str] = typer.Option(None, "--after-date", help="Include only resources created on/after date (YYYY-MM-DD)"),
-    filter_tags: Optional[str] = typer.Option(None, "--filter-tags", help="Include only resources with tags (Key=Value,Key2=Value2)"),
+    filter_tags: Optional[str] = typer.Option(None, "--filter-tags", help="DEPRECATED: use --include-tags instead"),
+    include_tags: Optional[str] = typer.Option(None, "--include-tags", help="Include only resources with ALL these tags (Key=Value,Key2=Value2)"),
+    exclude_tags: Optional[str] = typer.Option(None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"),
 ):
     """Create a new baseline snapshot of AWS resources.
 
@@ -108,9 +110,15 @@ def snapshot_create(
     - CodeBuild: Projects
     - Backup: Backup Plans, Backup Vaults
 
-    Historical Baselines:
-    Use --before-date, --after-date, and/or --filter-tags to create snapshots representing
-    resources as they existed at specific points in time or with specific characteristics.
+    Historical Baselines & Filtering:
+    Use --before-date, --after-date, --include-tags, and/or --exclude-tags to create
+    snapshots representing resources as they existed at specific points in time or with
+    specific characteristics.
+
+    Examples:
+    - Production only: --include-tags Environment=production
+    - Exclude test/dev: --exclude-tags Environment=test,Environment=dev
+    - Multiple filters: --include-tags Team=platform,Environment=prod --exclude-tags Status=archived
     """
     try:
         # Use profile parameter if provided, otherwise use config
@@ -141,7 +149,7 @@ def snapshot_create(
 
         # Parse filters
         resource_filter = None
-        if before_date or after_date or filter_tags:
+        if before_date or after_date or filter_tags or include_tags or exclude_tags:
             from ..snapshot.filter import ResourceFilter
             from datetime import datetime as dt
 
@@ -163,28 +171,53 @@ def snapshot_create(
                     console.print(f"✗ Invalid --after-date format. Use YYYY-MM-DD", style="bold red")
                     raise typer.Exit(code=1)
 
-            # Parse tags
-            required_tags = {}
+            # Helper function to parse tag strings
+            def parse_tags(tag_string: str) -> Dict[str, str]:
+                """Parse comma-separated Key=Value pairs into dict."""
+                tags = {}
+                for tag_pair in tag_string.split(','):
+                    if '=' not in tag_pair:
+                        console.print(f"✗ Invalid tag format. Use Key=Value", style="bold red")
+                        raise typer.Exit(code=1)
+                    key, value = tag_pair.split('=', 1)
+                    tags[key.strip()] = value.strip()
+                return tags
+
+            # Parse include tags (supports both --filter-tags and --include-tags)
+            include_tags_dict = {}
             if filter_tags:
+                console.print("⚠️  Note: --filter-tags is deprecated, use --include-tags", style="yellow")
                 try:
-                    for tag_pair in filter_tags.split(','):
-                        if '=' not in tag_pair:
-                            console.print(f"✗ Invalid tag format. Use Key=Value", style="bold red")
-                            raise typer.Exit(code=1)
-                        key, value = tag_pair.split('=', 1)
-                        required_tags[key.strip()] = value.strip()
+                    include_tags_dict = parse_tags(filter_tags)
                 except Exception as e:
-                    console.print(f"✗ Error parsing tags: {e}", style="bold red")
+                    console.print(f"✗ Error parsing filter-tags: {e}", style="bold red")
+                    raise typer.Exit(code=1)
+
+            if include_tags:
+                try:
+                    include_tags_dict.update(parse_tags(include_tags))
+                except Exception as e:
+                    console.print(f"✗ Error parsing include-tags: {e}", style="bold red")
+                    raise typer.Exit(code=1)
+
+            # Parse exclude tags
+            exclude_tags_dict = {}
+            if exclude_tags:
+                try:
+                    exclude_tags_dict = parse_tags(exclude_tags)
+                except Exception as e:
+                    console.print(f"✗ Error parsing exclude-tags: {e}", style="bold red")
                     raise typer.Exit(code=1)
 
             # Create filter
             resource_filter = ResourceFilter(
                 before_date=before_dt,
                 after_date=after_dt,
-                required_tags=required_tags,
+                include_tags=include_tags_dict if include_tags_dict else None,
+                exclude_tags=exclude_tags_dict if exclude_tags_dict else None,
             )
 
-            console.print(f"Filters: {resource_filter.get_filter_summary()}\n")
+            console.print(f"{resource_filter.get_filter_summary()}\n")
 
         # Import snapshot creation
         from ..snapshot.capturer import create_snapshot
