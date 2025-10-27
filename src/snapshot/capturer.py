@@ -106,6 +106,21 @@ def create_snapshot(
     # Collect resources
     all_resources = []
     resource_counts = {}  # Track counts per service for progress
+    collection_errors = []  # Track errors for summary
+
+    # Expected errors that we'll suppress (service not enabled, pagination issues, etc.)
+    EXPECTED_ERROR_PATTERNS = [
+        "Operation cannot be paginated",
+        "is not subscribed",
+        "AccessDenied",
+        "not authorized",
+        "InvalidAction",
+        "OptInRequired",
+    ]
+
+    def is_expected_error(error_msg: str) -> bool:
+        """Check if error is expected and can be safely ignored."""
+        return any(pattern in error_msg for pattern in EXPECTED_ERROR_PATTERNS)
 
     with Progress(
         SpinnerColumn(),
@@ -146,7 +161,16 @@ def create_snapshot(
                 resource_counts[service_name] = len(resources)
                 logger.debug(f"Collected {len(resources)} {service_name} resources")
             except Exception as e:
-                logger.warning(f"⚠️  {service_name}: {str(e)[:80]}")
+                error_msg = str(e)
+                if not is_expected_error(error_msg):
+                    collection_errors.append({
+                        'service': service_name,
+                        'region': 'global',
+                        'error': error_msg[:100]
+                    })
+                    logger.warning(f"⚠️  {service_name}: {error_msg[:80]}")
+                else:
+                    logger.debug(f"Skipping {service_name} (not available): {error_msg[:80]}")
 
             progress.advance(main_task)
 
@@ -165,11 +189,27 @@ def create_snapshot(
                     resource_counts[key] = len(resources)
                     logger.debug(f"Collected {len(resources)} {service_name} resources from {region}")
                 except Exception as e:
-                    logger.warning(f"⚠️  {service_name} ({region}): {str(e)[:80]}")
+                    error_msg = str(e)
+                    if not is_expected_error(error_msg):
+                        collection_errors.append({
+                            'service': service_name,
+                            'region': region,
+                            'error': error_msg[:100]
+                        })
+                        logger.warning(f"⚠️  {service_name} ({region}): {error_msg[:80]}")
+                    else:
+                        logger.debug(f"Skipping {service_name} in {region} (not available): {error_msg[:80]}")
 
                 progress.advance(main_task)
 
         progress.update(main_task, description=f"[bold green]✓ Successfully collected {len(all_resources)} resources")
+
+    # Log summary of collection errors if any (but not expected ones)
+    if collection_errors:
+        logger.info(f"\nCollection completed with {len(collection_errors)} service(s) unavailable")
+        logger.debug("Services that failed:")
+        for error in collection_errors:
+            logger.debug(f"  - {error['service']} ({error['region']}): {error['error']}")
 
     # Apply filters if specified
     total_before_filter = len(all_resources)
@@ -210,6 +250,7 @@ def create_snapshot(
             'tool': 'aws-baseline-snapshot',
             'version': '1.0.0',
             'collectors_used': [c(session, 'us-east-1').service_name for c in collectors_to_use],
+            'collection_errors': collection_errors if collection_errors else None,
         },
         is_active=set_active,
         service_counts=service_counts,
