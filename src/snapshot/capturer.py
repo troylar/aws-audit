@@ -105,10 +105,11 @@ def create_snapshot(
 
     # Collect resources
     all_resources = []
+    resource_counts = {}  # Track counts per service for progress
 
     with Progress(
         SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+        TextColumn("[bold blue]{task.description}"),
         BarColumn(),
         TaskProgressColumn(),
     ) as progress:
@@ -128,21 +129,24 @@ def create_snapshot(
 
         total_tasks = len(global_collectors) + (len(regional_collectors) * len(regions))
         main_task = progress.add_task(
-            f"Collecting resources...",
+            f"[bold]Collecting AWS resources from {len(regions)} region(s)...",
             total=total_tasks
         )
 
         # Collect global services first (only once)
-        for collector_class in global_collectors:
+        for idx, collector_class in enumerate(global_collectors, 1):
             collector = collector_class(session, 'us-east-1')
+            service_name = collector.service_name.upper()
 
-            progress.update(main_task, description=f"Collecting {collector.service_name.upper()}...")
+            progress.update(main_task, description=f"📦 {service_name} (global)")
 
             try:
                 resources = collector.collect()
                 all_resources.extend(resources)
+                resource_counts[service_name] = len(resources)
+                logger.debug(f"Collected {len(resources)} {service_name} resources")
             except Exception as e:
-                logger.error(f"Error collecting {collector.service_name}: {e}")
+                logger.warning(f"⚠️  {service_name}: {str(e)[:80]}")
 
             progress.advance(main_task)
 
@@ -150,18 +154,22 @@ def create_snapshot(
         for region in regions:
             for collector_class in regional_collectors:
                 collector = collector_class(session, region)
+                service_name = collector.service_name.upper()
 
-                progress.update(main_task, description=f"Collecting {collector.service_name.upper()} in {region}...")
+                progress.update(main_task, description=f"📦 {service_name} • {region}")
 
                 try:
                     resources = collector.collect()
                     all_resources.extend(resources)
+                    key = f"{service_name}_{region}"
+                    resource_counts[key] = len(resources)
+                    logger.debug(f"Collected {len(resources)} {service_name} resources from {region}")
                 except Exception as e:
-                    logger.error(f"Error collecting {collector.service_name} in {region}: {e}")
+                    logger.warning(f"⚠️  {service_name} ({region}): {str(e)[:80]}")
 
                 progress.advance(main_task)
 
-        progress.update(main_task, description=f"✓ Collected {len(all_resources)} resources")
+        progress.update(main_task, description=f"[bold green]✓ Successfully collected {len(all_resources)} resources")
 
     # Apply filters if specified
     total_before_filter = len(all_resources)
