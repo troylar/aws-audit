@@ -437,6 +437,7 @@ def delta(
     region: Optional[str] = typer.Option(None, "--region", help="Filter by region"),
     show_details: bool = typer.Option(False, "--show-details", help="Show detailed resource information"),
     export: Optional[str] = typer.Option(None, "--export", help="Export to file (JSON or CSV based on extension)"),
+    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
 ):
     """View resource changes since baseline snapshot.
 
@@ -514,6 +515,7 @@ def cost(
     granularity: str = typer.Option("MONTHLY", "--granularity", help="Cost granularity: DAILY or MONTHLY"),
     show_services: bool = typer.Option(True, "--show-services/--no-services", help="Show service breakdown"),
     export: Optional[str] = typer.Option(None, "--export", help="Export to file (JSON or CSV based on extension)"),
+    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
 ):
     """Analyze cost breakdown between baseline and non-baseline resources.
 
