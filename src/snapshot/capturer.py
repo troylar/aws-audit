@@ -226,7 +226,7 @@ def create_snapshot(
         metadata={
             'tool': 'aws-baseline-snapshot',
             'version': '1.0.0',
-            'collectors_used': [c().service_name for c in collectors_to_use],
+            'collectors_used': [c(session, 'us-east-1').service_name for c in collectors_to_use],
         },
         is_active=set_active,
         service_counts=service_counts,
