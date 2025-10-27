@@ -135,58 +135,33 @@ def create_snapshot(
         # Collect global services first (only once)
         for collector_class in global_collectors:
             collector = collector_class(session, 'us-east-1')
-            service_task = progress.add_task(
-                f"  {collector.service_name.upper()}...",
-                total=None,
-                transient=True
-            )
+
+            progress.update(main_task, description=f"Collecting {collector.service_name.upper()}...")
 
             try:
                 resources = collector.collect()
                 all_resources.extend(resources)
-                progress.update(
-                    service_task,
-                    description=f"  ✓ {collector.service_name.upper()} ({len(resources)} resources)",
-                    completed=True
-                )
             except Exception as e:
                 logger.error(f"Error collecting {collector.service_name}: {e}")
-                progress.update(
-                    service_task,
-                    description=f"  ✗ {collector.service_name.upper()} (error)",
-                    completed=True
-                )
 
             progress.advance(main_task)
-            progress.remove_task(service_task)
 
         # Collect regional services (for each region)
         for region in regions:
-            region_task = progress.add_task(
-                f"  {region}...",
-                total=len(regional_collectors),
-                transient=True
-            )
-
             for collector_class in regional_collectors:
                 collector = collector_class(session, region)
+
+                progress.update(main_task, description=f"Collecting {collector.service_name.upper()} in {region}...")
 
                 try:
                     resources = collector.collect()
                     all_resources.extend(resources)
-                    progress.advance(region_task)
                 except Exception as e:
                     logger.error(f"Error collecting {collector.service_name} in {region}: {e}")
-                    progress.advance(region_task)
 
                 progress.advance(main_task)
 
-            progress.update(
-                region_task,
-                description=f"  ✓ {region}",
-                completed=True
-            )
-            progress.remove_task(region_task)
+        progress.update(main_task, description=f"✓ Collected {len(all_resources)} resources")
 
     # Apply filters if specified
     total_before_filter = len(all_resources)
