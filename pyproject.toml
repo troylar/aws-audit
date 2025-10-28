@@ -3,18 +3,18 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aws-baseline-snapshot"
-version = "1.0.0"
-description = "AWS Baseline Snapshot & Delta Tracking CLI tool"
+name = "aws-audit"
+version = "0.1.0"
+description = "AWS Resource Audit & Delta Tracking CLI tool"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "AWS Baseline Team"}
+    {name = "AWS Audit Team"}
 ]
-keywords = ["aws", "cloud", "infrastructure", "snapshot", "baseline", "cost-tracking"]
+keywords = ["aws", "cloud", "infrastructure", "snapshot", "audit", "cost-tracking", "inventory"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
@@ -41,19 +41,21 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-mock>=3.12.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+    "invoke>=2.0.0",
 ]
 
 [project.scripts]
-aws-baseline = "src.cli:cli_main"
+aws-audit = "src.cli:cli_main"
 
 [project.urls]
-Homepage = "https://github.com/your-org/aws-baseline"
-Documentation = "https://github.com/your-org/aws-baseline#readme"
-Repository = "https://github.com/your-org/aws-baseline"
-Issues = "https://github.com/your-org/aws-baseline/issues"
+Homepage = "https://github.com/your-org/aws-audit"
+Documentation = "https://github.com/your-org/aws-audit#readme"
+Repository = "https://github.com/your-org/aws-audit"
+Issues = "https://github.com/your-org/aws-audit/issues"
 
 [tool.setuptools]
 packages = ["src"]
