@@ -478,7 +478,7 @@ def inventory_show(
             console.print("  (No snapshots taken yet)")
         console.print()
 
-        # Display active baseline
+        # Display active snapshot
         if inventory.active_snapshot:
             console.print(f"[bold]Active Baseline:[/bold] {inventory.active_snapshot}")
         else:
@@ -632,9 +632,9 @@ def inventory_delete(
             console.print(f"   {inventory.description}")
         console.print(f"   Snapshots: {len(inventory.snapshots)}")
 
-        # T029: Warn if this is the active baseline
+        # T029: Warn if this is the active snapshot
         if inventory.active_snapshot:
-            console.print("\n⚠️  Warning: This inventory has an active baseline snapshot!", style="bold yellow")
+            console.print("\n⚠️  Warning: This inventory has an active snapshot snapshot!", style="bold yellow")
             console.print("   Deleting it will prevent cost/delta analysis for this inventory.", style="yellow")
 
         # T028: Confirmation prompt
@@ -699,7 +699,7 @@ def snapshot_create(
     inventory: Optional[str] = typer.Option(
         None, "--inventory", help="Inventory name to use for filters (conflicts with --include-tags/--exclude-tags)"
     ),
-    set_active: bool = typer.Option(True, "--set-active/--no-set-active", help="Set as active baseline"),
+    set_active: bool = typer.Option(True, "--set-active/--no-set-active", help="Set as active snapshot"),
     compress: bool = typer.Option(False, "--compress", help="Compress snapshot with gzip"),
     before_date: Optional[str] = typer.Option(
         None, "--before-date", help="Include only resources created before date (YYYY-MM-DD)"
@@ -715,7 +715,7 @@ def snapshot_create(
         None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
     ),
 ):
-    """Create a new baseline snapshot of AWS resources.
+    """Create a new snapshot of AWS resources.
 
     Captures resources from 25 AWS services:
     - IAM: Roles, Users, Groups, Policies
@@ -933,7 +933,7 @@ def snapshot_create(
         # T017: User feedback about inventory
         console.print(f"\n✓ Added to inventory '[bold]{inventory_name}[/bold]'", style="green")
         if set_active:
-            console.print("  Marked as active baseline for this inventory", style="green")
+            console.print("  Marked as active snapshot for this inventory", style="green")
 
         # Display summary
         console.print("\n✓ Snapshot complete!", style="bold green")
@@ -1068,15 +1068,15 @@ def snapshot_show(name: str = typer.Argument(..., help="Snapshot name to display
 
 @snapshot_app.command("set-active")
 def snapshot_set_active(name: str = typer.Argument(..., help="Snapshot name to set as active")):
-    """Set a snapshot as the active baseline.
+    """Set a snapshot as the active snapshot.
 
-    The active baseline is used by default for delta and cost analysis.
+    The active snapshot is used by default for delta and cost analysis.
     """
     try:
         storage = SnapshotStorage(config.snapshot_dir)
         storage.set_active_snapshot(name)
 
-        console.print(f"✓ Set [bold]{name}[/bold] as active baseline", style="green")
+        console.print(f"✓ Set [bold]{name}[/bold] as active snapshot", style="green")
 
     except FileNotFoundError:
         console.print(f"✗ Snapshot '{name}' not found", style="bold red")
@@ -1093,7 +1093,7 @@ def snapshot_delete(
 ):
     """Delete a snapshot.
 
-    Cannot delete the active baseline - set another snapshot as active first.
+    Cannot delete the active snapshot - set another snapshot as active first.
     """
     try:
         storage = SnapshotStorage(config.snapshot_dir)
@@ -1125,7 +1125,7 @@ def snapshot_delete(
     except ValueError as e:
         console.print(f"✗ {e}", style="bold red")
         console.print("\nTip: Set another snapshot as active first:")
-        console.print("  aws-baseline snapshot set-active <other-snapshot-name>")
+        console.print("  aws-snapshot set-active <other-snapshot-name>")
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"✗ Error deleting snapshot: {e}", style="bold red")
@@ -1144,9 +1144,9 @@ def delta(
     export: Optional[str] = typer.Option(None, "--export", help="Export to file (JSON or CSV based on extension)"),
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
 ):
-    """View resource changes since baseline snapshot.
+    """View resource changes since snapshot.
 
-    Compares current AWS state to the baseline snapshot and shows added, deleted,
+    Compares current AWS state to the snapshot and shows added, deleted,
     and modified resources.
     """
     try:
@@ -1185,34 +1185,31 @@ def delta(
         # T024, T025: Validate inventory has snapshots and active snapshot
         if not active_inventory.snapshots:
             console.print(f"✗ No snapshots exist in inventory '{inventory_name}'", style="bold red")
-            console.print(
-                f"  Take a snapshot first: aws-baseline snapshot create --inventory {inventory_name}", style="yellow"
-            )
+            console.print(f"  Take a snapshot first: aws-snapshot create --inventory {inventory_name}", style="yellow")
             raise typer.Exit(code=1)
 
-        # Load baseline snapshot
+        # Load snapshot
         storage = SnapshotStorage(config.snapshot_dir)
 
         if snapshot:
             # User specified a snapshot explicitly
-            baseline_snapshot = storage.load_snapshot(snapshot)
+            reference_snapshot = storage.load_snapshot(snapshot)
         else:
             # Use inventory's active snapshot
             if not active_inventory.active_snapshot:
                 console.print(f"✗ No active snapshot in inventory '{inventory_name}'", style="bold red")
                 console.print(
-                    f"  Take a snapshot or set one as active: "
-                    f"aws-baseline snapshot create --inventory {inventory_name}",
+                    f"  Take a snapshot or set one as active: " f"aws-snapshot create --inventory {inventory_name}",
                     style="yellow",
                 )
                 raise typer.Exit(code=1)
 
             # Load the active snapshot (strip .yaml extension if present)
             snapshot_name = active_inventory.active_snapshot.replace(".yaml.gz", "").replace(".yaml", "")
-            baseline_snapshot = storage.load_snapshot(snapshot_name)
+            reference_snapshot = storage.load_snapshot(snapshot_name)
 
-        console.print(f"🔍 Comparing to baseline: [bold]{baseline_snapshot.name}[/bold]")
-        console.print(f"   Created: {baseline_snapshot.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
+        console.print(f"🔍 Comparing to baseline: [bold]{reference_snapshot.name}[/bold]")
+        console.print(f"   Created: {reference_snapshot.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
 
         # Prepare filters
         resource_type_filter = [resource_type] if resource_type else None
@@ -1225,9 +1222,9 @@ def delta(
         from ..delta.calculator import compare_to_current_state
 
         delta_report = compare_to_current_state(
-            baseline_snapshot=baseline_snapshot,
+            reference_snapshot,
             profile_name=aws_profile,
-            regions=None,  # Use baseline regions
+            regions=None,  # Use reference snapshot regions
             resource_type_filter=resource_type_filter,
             region_filter=region_filter,
         )
@@ -1322,33 +1319,30 @@ def cost(
         # T022, T023: Validate inventory has snapshots and active snapshot
         if not active_inventory.snapshots:
             console.print(f"✗ No snapshots exist in inventory '{inventory_name}'", style="bold red")
-            console.print(
-                f"  Take a snapshot first: aws-baseline snapshot create --inventory {inventory_name}", style="yellow"
-            )
+            console.print(f"  Take a snapshot first: aws-snapshot create --inventory {inventory_name}", style="yellow")
             raise typer.Exit(code=1)
 
-        # Load baseline snapshot
+        # Load snapshot
         storage = SnapshotStorage(config.snapshot_dir)
 
         if snapshot:
             # User specified a snapshot explicitly
-            baseline_snapshot = storage.load_snapshot(snapshot)
+            reference_snapshot = storage.load_snapshot(snapshot)
         else:
             # Use inventory's active snapshot
             if not active_inventory.active_snapshot:
                 console.print(f"✗ No active snapshot in inventory '{inventory_name}'", style="bold red")
                 console.print(
-                    f"  Take a snapshot or set one as active: "
-                    f"aws-baseline snapshot create --inventory {inventory_name}",
+                    f"  Take a snapshot or set one as active: " f"aws-snapshot create --inventory {inventory_name}",
                     style="yellow",
                 )
                 raise typer.Exit(code=1)
 
             # Load the active snapshot (strip .yaml extension if present)
             snapshot_name = active_inventory.active_snapshot.replace(".yaml.gz", "").replace(".yaml", "")
-            baseline_snapshot = storage.load_snapshot(snapshot_name)
+            reference_snapshot = storage.load_snapshot(snapshot_name)
 
-        console.print(f"💰 Analyzing costs for snapshot: [bold]{baseline_snapshot.name}[/bold]\n")
+        console.print(f"💰 Analyzing costs for snapshot: [bold]{reference_snapshot.name}[/bold]\n")
 
         # Parse dates
         from datetime import datetime as dt
@@ -1383,7 +1377,7 @@ def cost(
         from ..delta.calculator import compare_to_current_state
 
         delta_report = compare_to_current_state(
-            baseline_snapshot=baseline_snapshot,
+            reference_snapshot,
             profile_name=aws_profile,
             regions=None,
         )
@@ -1400,7 +1394,7 @@ def cost(
             has_deltas = delta_report.has_changes
 
             cost_report = analyzer.analyze(
-                baseline_snapshot=baseline_snapshot,
+                reference_snapshot,
                 start_date=start_dt,
                 end_date=end_dt,
                 granularity=granularity,

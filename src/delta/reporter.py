@@ -32,7 +32,7 @@ class DeltaReporter:
         self.console.print(
             Panel(
                 f"[bold]Resource Delta Report[/bold]\n"
-                f"Baseline: {report.baseline_snapshot_name}\n"
+                f"Reference Snapshot: {report.baseline_snapshot_name}\n"
                 f"Generated: {report.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}",
                 style="cyan",
             )
@@ -41,7 +41,9 @@ class DeltaReporter:
 
         # Check if there are any changes
         if not report.has_changes:
-            self.console.print("[green]✓ No changes detected - environment matches baseline[/green]", style="bold")
+            self.console.print(
+                "[green]✓ No changes detected - environment matches reference snapshot[/green]", style="bold"
+            )
             self.console.print()
             self.console.print(f"Total resources: {report.baseline_resource_count}")
             return
