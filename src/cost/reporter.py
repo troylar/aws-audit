@@ -42,10 +42,10 @@ class CostReporter:
         self.console.print()
 
         # Data completeness warning
-        if not report.data_complete:
+        if not report.data_complete and report.data_through:
             self.console.print(
                 f"⚠️  [yellow]Note: Cost data has {report.lag_days} day lag. "
-                f"Data available through {report.data_through.strftime('%Y-%m-%d')}[/yellow]\n"  # type: ignore
+                f"Data available through {report.data_through.strftime('%Y-%m-%d')}[/yellow]\n"
             )
 
         # If no deltas, show simplified view
