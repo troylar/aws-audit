@@ -4,6 +4,7 @@ from .snapshot import Snapshot
 from .resource import Resource
 from .delta_report import DeltaReport, ResourceChange
 from .cost_report import CostReport, CostBreakdown
+from .inventory import Inventory
 
 __all__ = [
     "Snapshot",
@@ -12,4 +13,5 @@ __all__ = [
     "ResourceChange",
     "CostReport",
     "CostBreakdown",
+    "Inventory",
 ]

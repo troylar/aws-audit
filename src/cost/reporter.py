@@ -33,7 +33,7 @@ class CostReporter:
         self.console.print(
             Panel(
                 f"[bold]Cost Analysis Report[/bold]\n"
-                f"Baseline: {report.baseline_snapshot_name}\n"
+                f"Snapshot: {report.baseline_snapshot_name}\n"
                 f"Period: {report.period_start.strftime('%Y-%m-%d')} to {report.period_end.strftime('%Y-%m-%d')}\n"
                 f"Generated: {report.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}",
                 style="cyan"
@@ -48,10 +48,10 @@ class CostReporter:
                 f"Data available through {report.data_through.strftime('%Y-%m-%d')}[/yellow]\n"
             )
 
-        # If no deltas, show simplified baseline-only view
+        # If no deltas, show simplified view
         if not has_deltas:
-            self.console.print("✓ [green]No resource changes detected - all costs are from baseline resources[/green]\n")
-            self._display_baseline_only(report)
+            self.console.print("✓ [green]No resource changes detected - all costs are from snapshot resources[/green]\n")
+            self._display_snapshot_costs(report)
         else:
             # Summary table with baseline/non-baseline split
             self._display_summary(report)
@@ -61,9 +61,9 @@ class CostReporter:
             self.console.print()
             self._display_service_breakdown(report, has_deltas)
 
-    def _display_baseline_only(self, report: CostReport) -> None:
-        """Display baseline costs only (no splitting)."""
-        table = Table(title="Baseline Costs", show_header=True, header_style="bold cyan")
+    def _display_snapshot_costs(self, report: CostReport) -> None:
+        """Display snapshot costs (no splitting since there are no changes)."""
+        table = Table(title="Snapshot Costs", show_header=True, header_style="bold cyan")
         table.add_column("Total Cost", justify="right", style="bold green", width=20)
         table.add_row(f"${report.baseline_costs.total:,.2f}")
         self.console.print(table)

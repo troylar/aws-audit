@@ -210,3 +210,8 @@ __marimo__/
 .snapshots/
 *.yaml.gz
 .aws-baseline.yaml
+
+# Universal ignores
+.DS_Store
+Thumbs.db
+*.swp

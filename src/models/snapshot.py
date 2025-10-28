@@ -23,6 +23,7 @@ class Snapshot:
     metadata: Dict[str, Any] = field(default_factory=dict)
     filters_applied: Optional[Dict[str, Any]] = None
     total_resources_before_filter: Optional[int] = None
+    inventory_name: str = "default"  # Name of inventory this snapshot belongs to
 
     def __post_init__(self) -> None:
         """Calculate derived fields after initialization."""
@@ -53,6 +54,7 @@ class Snapshot:
             'metadata': self.metadata,
             'filters_applied': self.filters_applied,
             'total_resources_before_filter': self.total_resources_before_filter,
+            'inventory_name': self.inventory_name,
             'resources': [r.to_dict() for r in self.resources],
         }
 
@@ -77,6 +79,7 @@ class Snapshot:
             metadata=data.get('metadata', {}),
             filters_applied=data.get('filters_applied'),
             total_resources_before_filter=data.get('total_resources_before_filter'),
+            inventory_name=data.get('inventory_name', 'default'),  # Default for backward compatibility
         )
 
     def validate(self) -> bool:

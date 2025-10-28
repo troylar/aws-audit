@@ -1,6 +1,6 @@
 # Quickstart Guide: AWS Baseline Snapshot
 
-**Feature**: 001-aws-baseline-snapshot
+**Feature**: 001-aws-audit-snapshot
 **Date**: 2025-10-26
 **Phase**: 1 - Design
 
@@ -50,27 +50,27 @@ Before you begin, ensure you have:
 ### Option 1: Install from PyPI (When Published)
 
 ```bash
-pip install aws-baseline-snapshot
+pip install aws-audit
 ```
 
 ### Option 2: Install from Source (Development)
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/aws-baseline.git
-cd aws-baseline
+git clone https://github.com/your-org/aws-audit.git
+cd aws-audit
 
 # Install in development mode
 pip install -e .
 
 # Verify installation
-aws-baseline --version
+aws-audit --version
 ```
 
 ### Option 3: Using pipx (Isolated Installation)
 
 ```bash
-pipx install aws-baseline-snapshot
+pipx install aws-audit
 ```
 
 ---
@@ -106,10 +106,10 @@ After your cloud landing zone is deployed, create a baseline snapshot:
 
 ```bash
 # Create snapshot with default name (auto-generated from timestamp)
-aws-baseline snapshot create
+aws-audit snapshot create
 
 # Or create with a custom name
-aws-baseline snapshot create my-baseline
+aws-audit snapshot create my-baseline
 ```
 
 **What happens**:
@@ -143,10 +143,10 @@ Inspect the snapshot you just created:
 
 ```bash
 # List all snapshots
-aws-baseline snapshot list
+aws-audit snapshot list
 
 # View detailed information about a snapshot
-aws-baseline snapshot show baseline-2025-10-26
+aws-audit snapshot show baseline-2025-10-26
 ```
 
 **Expected output**:
@@ -178,7 +178,7 @@ After some development work, see what resources have been added or changed:
 
 ```bash
 # Show all changes since baseline
-aws-baseline delta
+aws-audit delta
 ```
 
 **Expected output**:
@@ -209,56 +209,61 @@ Added Resources (5):
 **Filtering examples**:
 ```bash
 # Show only added Lambda functions
-aws-baseline delta --resource-type lambda --change-type added
+aws-audit delta --resource-type lambda --change-type added
 
 # Show changes in specific region
-aws-baseline delta --region us-east-1
+aws-audit delta --region us-east-1
 
 # Export delta report to JSON
-aws-baseline delta --export delta-report.json
+aws-audit delta --export delta-report.json
 ```
 
 ---
 
 ### Step 5: Analyze Costs
 
-See cost breakdown between baseline and project resources:
+See cost breakdown for resources in your inventory:
 
 ```bash
-# Show costs for last 30 days
-aws-baseline cost
+# Show costs for the default inventory (last 30 days)
+aws-audit cost
+
+# Show costs for a specific inventory
+aws-audit cost --inventory infrastructure
 
 # Show costs for specific month
-aws-baseline cost --start-date 2025-10-01 --end-date 2025-10-31
+aws-audit cost --inventory infrastructure --start-date 2025-10-01 --end-date 2025-10-31
 ```
 
 **Expected output**:
 ```
 Cost Report
-Baseline: baseline-2025-10-26
+Inventory: infrastructure
+Snapshot: 123456789012-infrastructure-2025-10-26
 Period:   2025-10-01 to 2025-10-31
 Currency: USD
 
-Cost Summary:
-┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓
-┃ Category          ┃ Cost      ┃ Percent  ┃
-┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩
-│ Baseline          │ $576.25   │ 63.9%    │
-│ Non-Baseline      │ $325.30   │ 36.1%    │
-│ Total             │ $901.55   │ 100%     │
-└───────────────────┴───────────┴──────────┘
+Total Cost: $576.25
 
-Baseline Costs (Dial Tone): $576.25
-Non-Baseline Costs (Projects): $325.30
+Service Breakdown:
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓
+┃ Service           ┃ Cost      ┃ Percent  ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩
+│ EC2               │ $285.50   │ 49.5%    │
+│ RDS               │ $180.25   │ 31.3%    │
+│ Lambda            │ $110.50   │ 19.2%    │
+└───────────────────┴───────────┴──────────┘
 ```
 
 **Advanced cost analysis**:
 ```bash
-# Group non-baseline costs by Project tag
-aws-baseline cost --group-by Project
+# Analyze costs for different inventories (teams, environments)
+aws-audit cost --inventory team-alpha
+aws-audit cost --inventory team-beta
+aws-audit cost --inventory production
 
 # Export to CSV for finance team
-aws-baseline cost --export october-costs.csv --start-date 2025-10-01 --end-date 2025-10-31
+aws-audit cost --inventory infrastructure --export october-costs.csv --start-date 2025-10-01 --end-date 2025-10-31
 ```
 
 ---
@@ -271,18 +276,18 @@ When testing new features, use the tool to clean up afterward:
 
 ```bash
 # 1. Capture baseline before testing
-aws-baseline snapshot create pre-test-baseline
+aws-audit snapshot create pre-test-baseline
 
 # 2. Do your testing (create EC2 instances, Lambda functions, etc.)
 
 # 3. Check what was created
-aws-baseline delta
+aws-audit delta
 
 # 4. Preview cleanup (dry-run)
-aws-baseline restore --dry-run
+aws-audit restore --dry-run
 
 # 5. Clean up test resources
-aws-baseline restore
+aws-audit restore
 ```
 
 ---
@@ -293,7 +298,7 @@ Generate monthly cost reports for finance:
 
 ```bash
 # Generate October cost report
-aws-baseline cost \
+aws-audit cost \
   --start-date 2025-10-01 \
   --end-date 2025-10-31 \
   --group-by Project \
@@ -310,16 +315,16 @@ Manage different baselines for different environments:
 
 ```bash
 # Create production baseline
-aws-baseline snapshot create prod-baseline --regions us-east-1,us-west-2
+aws-audit snapshot create prod-baseline --regions us-east-1,us-west-2
 
 # Create staging baseline (different account, use --profile)
-aws-baseline --profile staging snapshot create staging-baseline
+aws-audit --profile staging snapshot create staging-baseline
 
 # Compare staging to its baseline
-aws-baseline --profile staging delta
+aws-audit --profile staging delta
 
 # Switch active baseline
-aws-baseline snapshot set-active prod-baseline
+aws-audit snapshot set-active prod-baseline
 ```
 
 ---
@@ -330,17 +335,17 @@ Monitor drift from approved infrastructure:
 
 ```bash
 # Daily: Check for drift
-aws-baseline delta
+aws-audit delta
 
 # If unauthorized changes detected, investigate
-aws-baseline delta --change-type modified --show-details
+aws-audit delta --change-type modified --show-details
 
 # Option 1: Restore to baseline (destructive!)
-aws-baseline restore --dry-run  # Preview first
-aws-baseline restore            # Actual restoration
+aws-audit restore --dry-run  # Preview first
+aws-audit restore            # Actual restoration
 
 # Option 2: Create new baseline if changes are approved
-aws-baseline snapshot create updated-baseline
+aws-audit snapshot create updated-baseline
 ```
 
 ---
@@ -349,7 +354,7 @@ aws-baseline snapshot create updated-baseline
 
 ### Configuration File
 
-Create `.aws-baseline.yaml` in your project directory or `~/.aws-baseline.yaml` for global settings:
+Create `.aws-audit.yaml` in your project directory or `~/.aws-audit.yaml` for global settings:
 
 ```yaml
 # Default snapshot directory
@@ -415,7 +420,7 @@ Use the tool in scripts with JSON output:
 # Daily drift check script
 
 # Get delta in JSON format
-DELTA=$(aws-baseline delta --output json)
+DELTA=$(aws-audit delta --output json)
 
 # Count changes
 ADDED=$(echo "$DELTA" | jq '.added_resources | length')
@@ -427,7 +432,7 @@ TOTAL_CHANGES=$((ADDED + DELETED + MODIFIED))
 if [ "$TOTAL_CHANGES" -gt 0 ]; then
   echo "⚠ Drift detected: $TOTAL_CHANGES changes"
   # Send alert (email, Slack, PagerDuty, etc.)
-  aws-baseline delta --export "drift-$(date +%Y-%m-%d).json"
+  aws-audit delta --export "drift-$(date +%Y-%m-%d).json"
 else
   echo "✓ No drift detected"
 fi
@@ -506,8 +511,8 @@ aws ce get-cost-and-usage \
 
 **Solution**: Set a different snapshot as active first:
 ```bash
-aws-baseline snapshot set-active other-snapshot
-aws-baseline snapshot delete old-snapshot
+aws-audit snapshot set-active other-snapshot
+aws-audit snapshot delete old-snapshot
 ```
 
 ---
@@ -522,41 +527,41 @@ aws-baseline snapshot delete old-snapshot
 ### 2. Naming Conventions
 ```bash
 # Include date and environment
-aws-baseline snapshot create prod-baseline-2025-10-26
+aws-audit snapshot create prod-baseline-2025-10-26
 
 # Include purpose
-aws-baseline snapshot create post-security-audit-baseline
+aws-audit snapshot create post-security-audit-baseline
 ```
 
 ### 3. Regular Checks
 ```bash
 # Daily drift check (cron job)
-0 9 * * * cd /path/to/project && aws-baseline delta --quiet || echo "Drift detected"
+0 9 * * * cd /path/to/project && aws-audit delta --quiet || echo "Drift detected"
 
 # Weekly cost report (cron job)
-0 9 * * 1 cd /path/to/project && aws-baseline cost --export weekly-cost-$(date +%Y-%m-%d).csv
+0 9 * * 1 cd /path/to/project && aws-audit cost --export weekly-cost-$(date +%Y-%m-%d).csv
 ```
 
 ### 4. Multi-Region Strategy
 ```bash
 # If using multiple regions, be explicit
-aws-baseline snapshot create --regions us-east-1,us-west-2,eu-west-1
+aws-audit snapshot create --regions us-east-1,us-west-2,eu-west-1
 
-# Or configure in .aws-baseline.yaml
+# Or configure in .aws-audit.yaml
 ```
 
-### 5. Cost Attribution Tags
-- Tag all non-baseline resources with Project/Team tags
-- Use `--group-by` for chargeback reports
+### 5. Cost Attribution via Inventories
+- Create separate inventories per team/project using tag filters
+- Use `--inventory` to analyze costs independently per team/environment
 
 ### 6. Safe Restoration
 ```bash
 # ALWAYS dry-run first
-aws-baseline restore --dry-run
+aws-audit restore --dry-run
 
 # Review output carefully
 # Only then run actual restore
-aws-baseline restore
+aws-audit restore
 ```
 
 ---
@@ -566,7 +571,7 @@ aws-baseline restore
 Now that you're up and running, explore these advanced topics:
 
 1. **Automated Drift Detection**: Set up CI/CD integration to check for drift on every deployment
-2. **Cost Alerting**: Create scripts to alert when non-baseline costs exceed thresholds
+2. **Cost Alerting**: Create scripts to alert when inventory costs exceed thresholds
 3. **Multi-Account Management**: Use AWS Organizations with separate baselines per account
 4. **Compliance Reporting**: Combine with AWS Config for comprehensive compliance tracking
 5. **Baseline Evolution**: Establish processes for updating baselines as infrastructure evolves
@@ -576,7 +581,7 @@ Now that you're up and running, explore these advanced topics:
 ## Getting Help
 
 - **Documentation**: See full documentation in the repository
-- **Issues**: Report issues at https://github.com/your-org/aws-baseline/issues
+- **Issues**: Report issues at https://github.com/your-org/aws-audit/issues
 - **Examples**: Check `examples/` directory for more use cases
 
 ---
@@ -587,22 +592,22 @@ Quick reference of most-used commands:
 
 ```bash
 # Snapshot management
-aws-baseline snapshot create [NAME]
-aws-baseline snapshot list
-aws-baseline snapshot show NAME
-aws-baseline snapshot set-active NAME
+aws-audit snapshot create [NAME]
+aws-audit snapshot list
+aws-audit snapshot show NAME
+aws-audit snapshot set-active NAME
 
 # Tracking changes
-aws-baseline delta
-aws-baseline delta --export report.json
+aws-audit delta
+aws-audit delta --export report.json
 
 # Cost analysis
-aws-baseline cost
-aws-baseline cost --group-by Project --export costs.csv
+aws-audit cost
+aws-audit cost --group-by Project --export costs.csv
 
 # Restoration
-aws-baseline restore --dry-run
-aws-baseline restore
+aws-audit restore --dry-run
+aws-audit restore
 ```
 
 ---

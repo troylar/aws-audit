@@ -78,6 +78,7 @@ def create_snapshot(
     resource_types: Optional[List[str]] = None,
     parallel_workers: int = 10,
     resource_filter: Optional['ResourceFilter'] = None,
+    inventory_name: str = "default",
 ) -> Snapshot:
     """Create a comprehensive snapshot of AWS resources.
 
@@ -90,6 +91,7 @@ def create_snapshot(
         resource_types: Optional list of resource types to collect (e.g., ['iam', 'lambda'])
         parallel_workers: Number of parallel collection tasks
         resource_filter: Optional ResourceFilter for date/tag-based filtering
+        inventory_name: Name of inventory this snapshot belongs to (default: "default")
 
     Returns:
         Snapshot instance with captured resources
@@ -256,6 +258,7 @@ def create_snapshot(
         service_counts=service_counts,
         filters_applied=filters_applied,
         total_resources_before_filter=total_before_filter if resource_filter else None,
+        inventory_name=inventory_name,
     )
 
     logger.debug(f"Snapshot '{name}' created with {len(all_resources)} resources")

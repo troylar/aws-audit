@@ -5,13 +5,15 @@
 **Status**: Draft
 **Input**: User description: "Imagine an AWS environment where we have a cloud landing zone that pre-deploys several roles, lambdas, etc for cloud-custodian and other corporate baseline resources. I want a python cli that lets us take a 'snapshot' of the current baseline and from that we can do a delta both of resource and billing. The goal is to be able to restore back to baseline (remove newly created resources) and also see what the costs are for 'dial tone' (baseline resources) and the separate costs for non-baseline resources."
 
+**Note**: The actual implementation evolved to support **inventory-based cost tracking** rather than baseline vs non-baseline cost separation. Each inventory can be analyzed independently for costs, enabling per-team, per-environment, or per-project cost tracking through filtered inventories.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Capture Baseline Snapshot (Priority: P1)
 
-A cloud administrator needs to establish a reference point of the cloud landing zone's baseline resources immediately after deployment. This snapshot will serve as the foundation for all future delta tracking and cost analysis.
+A cloud administrator needs to establish a reference point of AWS resources at a specific point in time. This snapshot will serve as the foundation for all future delta tracking and cost analysis within that inventory.
 
-**Why this priority**: Without a baseline snapshot, no other functionality can work. This is the fundamental building block that enables delta detection and cost separation.
+**Why this priority**: Without a snapshot, no other functionality can work. This is the fundamental building block that enables delta detection and cost analysis.
 
 **Independent Test**: Can be fully tested by running the snapshot command on a fresh landing zone deployment and verifying that all baseline resources (roles, lambdas, policies, etc.) are catalogued. Delivers immediate value by providing visibility into what resources exist in the baseline.
 
@@ -42,36 +44,36 @@ A cloud administrator or developer needs to identify which resources have been a
 
 ---
 
-### User Story 3 - Analyze Cost Delta (Priority: P2)
+### User Story 3 - Analyze Inventory Costs (Priority: P2)
 
-A finance or operations team member needs to understand the cost breakdown between baseline "dial tone" resources and non-baseline resources to properly allocate cloud costs and track project spending.
+A finance or operations team member needs to understand costs for resources within a specific inventory to properly allocate cloud costs and track spending per team, environment, or project.
 
 **Why this priority**: Equal priority to resource delta as both are core value propositions. Cost tracking is independent of resource restoration, making it a separately valuable feature.
 
-**Independent Test**: Can be tested by capturing a baseline, creating some resources, then running cost analysis. Delivers value by showing total baseline costs vs. incremental costs, helping with budgeting and chargeback.
+**Independent Test**: Can be tested by creating inventories with different filters (team tags, environment tags), capturing snapshots, then running cost analysis per inventory. Delivers value by enabling cost tracking per inventory for budgeting and chargeback.
 
 **Acceptance Scenarios**:
 
-1. **Given** a baseline snapshot exists and AWS Cost Explorer data is available, **When** administrator runs the cost delta command, **Then** the system displays total baseline resource costs ("dial tone"), total non-baseline resource costs, and combined total with percentage breakdown
+1. **Given** an inventory with a snapshot exists and AWS Cost Explorer data is available, **When** administrator runs the cost command for that inventory, **Then** the system displays total costs for resources in that inventory's active snapshot
 2. **Given** cost analysis is requested for a specific time period, **When** specifying start and end dates, **Then** costs are calculated only for that period with daily or monthly breakdown
-3. **Given** multiple projects or teams are using the same account, **When** non-baseline resources have project tags, **Then** non-baseline costs can be grouped by tag value for chargeback purposes
+3. **Given** multiple inventories exist (e.g., team-alpha, team-beta, production, staging), **When** running cost analysis for each inventory, **Then** costs are separated per inventory for independent tracking and chargeback
 4. **Given** cost data is being retrieved, **When** AWS Cost Explorer API returns incomplete data, **Then** system warns the user about data gaps and shows estimated costs with clear indication of data quality
 5. **Given** administrator wants to export cost data, **When** requesting cost report export, **Then** data is available in CSV or JSON format with resource-level cost details
 
 ---
 
-### User Story 4 - Restore to Baseline (Priority: P3)
+### User Story 4 - Restore to Snapshot State (Priority: P3)
 
-A cloud administrator needs to remove all non-baseline resources to return the environment to its original state, typically for cleaning up after testing or when decommissioning a project.
+A cloud administrator needs to remove all resources added since a snapshot to return the environment to that snapshot's state, typically for cleaning up after testing or when decommissioning a project.
 
 **Why this priority**: This is a destructive operation that should only be performed with caution. While valuable for cleanup, it's less frequently used than viewing deltas and costs, making it P3.
 
-**Independent Test**: Can be tested by creating a baseline, adding test resources, then running restore command in dry-run mode followed by actual execution. Delivers value by automating cleanup that would otherwise be manual and error-prone.
+**Independent Test**: Can be tested by creating a snapshot, adding test resources, then running restore command in dry-run mode followed by actual execution. Delivers value by automating cleanup that would otherwise be manual and error-prone.
 
 **Acceptance Scenarios**:
 
-1. **Given** a baseline snapshot exists and non-baseline resources are present, **When** administrator runs restore command in dry-run mode, **Then** system displays all resources that would be deleted without actually deleting them, and prompts for confirmation
-2. **Given** administrator confirms restoration, **When** restore operation executes, **Then** all non-baseline resources are deleted in proper dependency order (e.g., EC2 instances before security groups) and progress is displayed
+1. **Given** a snapshot exists and resources have been added since that snapshot, **When** administrator runs restore command in dry-run mode, **Then** system displays all resources that would be deleted without actually deleting them, and prompts for confirmation
+2. **Given** administrator confirms restoration, **When** restore operation executes, **Then** all resources added since the snapshot are deleted in proper dependency order (e.g., EC2 instances before security groups) and progress is displayed
 3. **Given** restore operation is in progress, **When** a resource deletion fails due to dependencies or permissions, **Then** system logs the error, continues with other deletions, and provides a summary of failed deletions at the end
 4. **Given** certain resources should be preserved, **When** administrator specifies exclusion tags or resource IDs, **Then** those resources are skipped during restoration even if not in baseline
 5. **Given** restore operation completes, **When** administrator reviews the results, **Then** a detailed log shows all deleted resources, any errors encountered, and final environment state compared to baseline
@@ -142,9 +144,9 @@ A cloud administrator needs to manage multiple baseline snapshots over time as t
 - **FR-002**: System MUST store baseline snapshots with sufficient detail to identify each resource uniquely (ARN, resource ID) and detect configuration changes (resource tags, policy documents, configuration parameters)
 - **FR-003**: System MUST calculate delta between current AWS state and baseline snapshot, identifying added resources, deleted resources, and modified resources
 - **FR-004**: System MUST integrate with AWS Cost Explorer or similar billing APIs to retrieve cost data for resources
-- **FR-005**: System MUST separate costs into baseline resource costs and non-baseline resource costs based on resource inventory comparison
+- **FR-005**: System MUST calculate costs for resources within a specified inventory based on the inventory's active snapshot
 - **FR-006**: System MUST provide cost breakdown over configurable time periods (daily, weekly, monthly)
-- **FR-007**: System MUST support deletion of non-baseline resources with dependency-aware ordering to avoid deletion failures
+- **FR-007**: System MUST support deletion of resources added since a snapshot with dependency-aware ordering to avoid deletion failures
 - **FR-008**: System MUST implement dry-run mode for destructive operations showing what would be changed without making changes
 - **FR-009**: System MUST require explicit confirmation before executing destructive operations
 - **FR-010**: System MUST handle AWS API rate limiting gracefully with automatic retry and backoff
@@ -173,7 +175,7 @@ A cloud administrator needs to manage multiple baseline snapshots over time as t
 
 - **Delta Report**: Represents the differences between current AWS state and a baseline snapshot. Contains list of added resources (with creation dates), deleted resources (with baseline references), modified resources (with change details), and generation timestamp.
 
-- **Cost Report**: Represents cost analysis for a time period. Contains baseline resource costs (itemized and total), non-baseline resource costs (itemized and total), time period covered, cost groupings (by tag or project), and data completeness indicators.
+- **Cost Report**: Represents cost analysis for an inventory over a time period. Contains resource costs for the inventory's snapshot (itemized and total), time period covered, cost groupings (by service or tag), and data completeness indicators.
 
 - **Resource Dependency**: Represents relationships between resources for deletion ordering. Contains dependent resource identifier, dependency resource identifier, and dependency type (e.g., EC2 instance depends on security group).
 
@@ -183,13 +185,13 @@ A cloud administrator needs to manage multiple baseline snapshots over time as t
 
 - **SC-001**: Administrators can capture a complete baseline snapshot of a typical landing zone (100-500 resources) in under 5 minutes
 - **SC-002**: Delta calculation comparing current state to baseline completes in under 2 minutes for environments with up to 1000 resources
-- **SC-003**: Cost reports accurately separate baseline vs. non-baseline costs with less than 1% margin of error compared to manual AWS Cost Explorer analysis
-- **SC-004**: Restore operations successfully remove 95% of non-baseline resources without manual intervention, with clear reporting of any failures
+- **SC-003**: Cost reports accurately calculate costs for inventory resources with less than 1% margin of error compared to manual AWS Cost Explorer analysis
+- **SC-004**: Restore operations successfully remove 95% of resources added since snapshot without manual intervention, with clear reporting of any failures
 - **SC-005**: Users can identify all resources created in the last 7 days within 30 seconds using delta filtering
 - **SC-006**: Cost allocation for project chargeback can be completed in under 5 minutes (compared to hours of manual cost analysis)
 - **SC-007**: System handles AWS API throttling without user intervention and completes operations successfully despite rate limits
 - **SC-008**: Zero baseline resources are accidentally deleted during restore operations when following documented procedures
-- **SC-009**: Finance teams can generate monthly baseline vs. project cost reports in under 2 minutes
+- **SC-009**: Finance teams can generate monthly cost reports per inventory in under 2 minutes
 - **SC-010**: All operations provide clear progress indication so users can estimate completion time for long-running tasks
 
 ## Assumptions
