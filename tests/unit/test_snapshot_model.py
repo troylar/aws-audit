@@ -1,9 +1,11 @@
 """Unit tests for Snapshot model."""
 
-import pytest
 from datetime import datetime, timezone
-from src.models.snapshot import Snapshot
+
+import pytest
+
 from src.models.resource import Resource
+from src.models.snapshot import Snapshot
 
 
 class TestSnapshotModel:

@@ -1,6 +1,6 @@
 """Snapshot capture and storage functionality."""
 
+from .inventory_storage import InventoryNotFoundError, InventoryStorage
 from .storage import SnapshotStorage
-from .inventory_storage import InventoryStorage, InventoryNotFoundError
 
 __all__ = ["SnapshotStorage", "InventoryStorage", "InventoryNotFoundError"]

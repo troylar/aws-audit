@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class CloudWatchCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class CloudWatchCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'cloudwatch'
+        return "cloudwatch"
 
     def collect(self) -> List[Resource]:
         """Collect CloudWatch resources.
@@ -38,16 +38,16 @@ class CloudWatchCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_alarms')
+            paginator = client.get_paginator("describe_alarms")
             for page in paginator.paginate():
-                for alarm in page.get('MetricAlarms', []) + page.get('CompositeAlarms', []):
-                    alarm_name = alarm['AlarmName']
-                    alarm_arn = alarm['AlarmArn']
+                for alarm in page.get("MetricAlarms", []) + page.get("CompositeAlarms", []):
+                    alarm_name = alarm["AlarmName"]
+                    alarm_arn = alarm["AlarmArn"]
 
                     # Extract alarm type
-                    alarm_type = 'AWS::CloudWatch::Alarm'
-                    if 'CompositeAlarms' in str(type(alarm)):
-                        alarm_type = 'AWS::CloudWatch::CompositeAlarm'
+                    alarm_type = "AWS::CloudWatch::Alarm"
+                    if "CompositeAlarms" in str(type(alarm)):
+                        alarm_type = "AWS::CloudWatch::CompositeAlarm"
 
                     # Create resource (CloudWatch alarms don't support tags directly)
                     resource = Resource(
@@ -57,7 +57,7 @@ class CloudWatchCollector(BaseResourceCollector):
                         region=self.region,
                         tags={},
                         config_hash=compute_config_hash(alarm),
-                        created_at=alarm.get('AlarmConfigurationUpdatedTimestamp'),
+                        created_at=alarm.get("AlarmConfigurationUpdatedTimestamp"),
                         raw_config=alarm,
                     )
                     resources.append(resource)
@@ -72,28 +72,28 @@ class CloudWatchCollector(BaseResourceCollector):
         resources = []
 
         try:
-            logs_client = self._create_client('logs')
+            logs_client = self._create_client("logs")
 
-            paginator = logs_client.get_paginator('describe_log_groups')
+            paginator = logs_client.get_paginator("describe_log_groups")
             for page in paginator.paginate():
-                for log_group in page.get('logGroups', []):
-                    log_group_name = log_group['logGroupName']
+                for log_group in page.get("logGroups", []):
+                    log_group_name = log_group["logGroupName"]
 
                     # Build ARN
-                    arn = log_group.get('arn', f"arn:aws:logs:{self.region}:{account_id}:log-group:{log_group_name}")
+                    arn = log_group.get("arn", f"arn:aws:logs:{self.region}:{account_id}:log-group:{log_group_name}")
 
                     # Get tags
                     tags = {}
                     try:
                         tag_response = logs_client.list_tags_log_group(logGroupName=log_group_name)
-                        tags = tag_response.get('tags', {})
+                        tags = tag_response.get("tags", {})
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for log group {log_group_name}: {e}")
 
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::Logs::LogGroup',
+                        resource_type="AWS::Logs::LogGroup",
                         name=log_group_name,
                         region=self.region,
                         tags=tags,

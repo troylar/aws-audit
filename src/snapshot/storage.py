@@ -1,11 +1,12 @@
 """Snapshot storage manager for saving and loading snapshots."""
 
-import yaml
 import gzip
-from pathlib import Path
-from typing import Optional, List, Dict, Any
-from datetime import datetime
 import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
 
 from ..models.snapshot import Snapshot
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 class SnapshotStorage:
     """Manages snapshot persistence to local filesystem."""
 
-    def __init__(self, storage_dir: str = '.snapshots'):
+    def __init__(self, storage_dir: str = ".snapshots"):
         """Initialize snapshot storage.
 
         Args:
@@ -23,8 +24,8 @@ class SnapshotStorage:
         """
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(exist_ok=True)
-        self.active_file = self.storage_dir / '.active'
-        self.index_file = self.storage_dir / '.index.yaml'
+        self.active_file = self.storage_dir / ".active"
+        self.index_file = self.storage_dir / ".index.yaml"
 
     def save_snapshot(self, snapshot: Snapshot, compress: bool = False) -> Path:
         """Save snapshot to YAML file, optionally compressed.
@@ -50,16 +51,16 @@ class SnapshotStorage:
             snapshot_dict,
             default_flow_style=False,  # Block style (more readable)
             sort_keys=False,  # Preserve insertion order
-            allow_unicode=True
+            allow_unicode=True,
         )
 
         # Save (compressed or uncompressed)
         if compress:
-            with gzip.open(filepath, 'wt', encoding='utf-8') as f:
+            with gzip.open(filepath, "wt", encoding="utf-8") as f:
                 f.write(yaml_str)
             logger.debug(f"Saved compressed snapshot to {filepath}")
         else:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(yaml_str)
             logger.debug(f"Saved snapshot to {filepath}")
 
@@ -87,7 +88,7 @@ class SnapshotStorage:
         # Try compressed first
         filepath_gz = self.storage_dir / f"{snapshot_name}.yaml.gz"
         if filepath_gz.exists():
-            with gzip.open(filepath_gz, 'rt', encoding='utf-8') as f:
+            with gzip.open(filepath_gz, "rt", encoding="utf-8") as f:
                 snapshot_dict = yaml.safe_load(f)
             logger.debug(f"Loaded compressed snapshot from {filepath_gz}")
             return Snapshot.from_dict(snapshot_dict)
@@ -95,7 +96,7 @@ class SnapshotStorage:
         # Try uncompressed
         filepath = self.storage_dir / f"{snapshot_name}.yaml"
         if filepath.exists():
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 snapshot_dict = yaml.safe_load(f)
             logger.debug(f"Loaded snapshot from {filepath}")
             return Snapshot.from_dict(snapshot_dict)
@@ -113,27 +114,29 @@ class SnapshotStorage:
 
         # Find all snapshot files
         for filepath in self.storage_dir.glob("*.yaml*"):
-            if filepath.name.startswith('.'):
+            if filepath.name.startswith("."):
                 continue  # Skip hidden files
 
             name = filepath.stem
-            if name.endswith('.yaml'):  # Handle .yaml.gz case
+            if name.endswith(".yaml"):  # Handle .yaml.gz case
                 name = name[:-5]
 
             # Get file stats
             stats = filepath.stat()
             size_mb = stats.st_size / (1024 * 1024)
 
-            snapshots.append({
-                'name': name,
-                'filepath': str(filepath),
-                'size_mb': round(size_mb, 2),
-                'modified': datetime.fromtimestamp(stats.st_mtime),
-                'is_active': (name == active_name),
-            })
+            snapshots.append(
+                {
+                    "name": name,
+                    "filepath": str(filepath),
+                    "size_mb": round(size_mb, 2),
+                    "modified": datetime.fromtimestamp(stats.st_mtime),
+                    "is_active": (name == active_name),
+                }
+            )
 
         # Sort by modified date (newest first)
-        snapshots.sort(key=lambda x: x['modified'], reverse=True)
+        snapshots.sort(key=lambda x: x["modified"], reverse=True)  # type: ignore
 
         logger.debug(f"Found {len(snapshots)} snapshots")
         return snapshots
@@ -154,8 +157,7 @@ class SnapshotStorage:
         # Check if it's the active snapshot
         if snapshot_name == self.get_active_snapshot_name():
             raise ValueError(
-                f"Cannot delete active snapshot '{snapshot_name}'. "
-                "Set another snapshot as active first."
+                f"Cannot delete active snapshot '{snapshot_name}'. " "Set another snapshot as active first."
             )
 
         # Try to delete both compressed and uncompressed versions
@@ -221,12 +223,12 @@ class SnapshotStorage:
 
         # Update entry
         index[snapshot.name] = {
-            'name': snapshot.name,
-            'created_at': snapshot.created_at.isoformat(),
-            'account_id': snapshot.account_id,
-            'regions': snapshot.regions,
-            'resource_count': snapshot.resource_count,
-            'service_counts': snapshot.service_counts,
+            "name": snapshot.name,
+            "created_at": snapshot.created_at.isoformat(),
+            "account_id": snapshot.account_id,
+            "regions": snapshot.regions,
+            "resource_count": snapshot.resource_count,
+            "service_counts": snapshot.service_counts,
         }
 
         # Save index
@@ -246,11 +248,11 @@ class SnapshotStorage:
     def _load_index(self) -> Dict[str, Any]:
         """Load snapshot index from file."""
         if self.index_file.exists():
-            with open(self.index_file, 'r') as f:
+            with open(self.index_file, "r") as f:
                 return yaml.safe_load(f) or {}
         return {}
 
     def _save_index(self, index: Dict[str, Any]) -> None:
         """Save snapshot index to file."""
-        with open(self.index_file, 'w') as f:
+        with open(self.index_file, "w") as f:
             yaml.dump(index, f, default_flow_style=False)

@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class SNSCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class SNSCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'sns'
+        return "sns"
 
     def collect(self) -> List[Resource]:
         """Collect SNS resources.
@@ -24,31 +24,31 @@ class SNSCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_topics')
+            paginator = client.get_paginator("list_topics")
             for page in paginator.paginate():
-                for topic in page.get('Topics', []):
-                    topic_arn = topic['TopicArn']
+                for topic in page.get("Topics", []):
+                    topic_arn = topic["TopicArn"]
 
                     # Get topic name from ARN
-                    topic_name = topic_arn.split(':')[-1]
+                    topic_name = topic_arn.split(":")[-1]
 
                     # Get topic attributes
                     try:
                         attrs_response = client.get_topic_attributes(TopicArn=topic_arn)
-                        attributes = attrs_response.get('Attributes', {})
+                        attributes = attrs_response.get("Attributes", {})
 
                         # Get tags
                         tags = {}
                         try:
                             tag_response = client.list_tags_for_resource(ResourceArn=topic_arn)
-                            tags = {tag['Key']: tag['Value'] for tag in tag_response.get('Tags', [])}
+                            tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("Tags", [])}
                         except Exception as e:
                             self.logger.debug(f"Could not get tags for SNS topic {topic_name}: {e}")
 
                         # Create resource
                         resource = Resource(
                             arn=topic_arn,
-                            resource_type='AWS::SNS::Topic',
+                            resource_type="AWS::SNS::Topic",
                             name=topic_name,
                             region=self.region,
                             tags=tags,

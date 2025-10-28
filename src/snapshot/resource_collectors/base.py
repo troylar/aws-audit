@@ -1,9 +1,10 @@
 """Base resource collector interface."""
 
+import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
+
 import boto3
-import logging
 
 from ...models.resource import Resource
 
@@ -54,7 +55,7 @@ class BaseResourceCollector(ABC):
         """
         return False
 
-    def _create_client(self, service_name: Optional[str] = None):
+    def _create_client(self, service_name: Optional[str] = None):  # type: ignore
         """Create a boto3 client for this service.
 
         Args:
@@ -66,13 +67,9 @@ class BaseResourceCollector(ABC):
         from ...aws.client import create_boto_client
 
         svc = service_name or self.service_name
-        profile = self.session.profile_name if hasattr(self.session, 'profile_name') else None
+        profile = self.session.profile_name if hasattr(self.session, "profile_name") else None
 
-        return create_boto_client(
-            service_name=svc,
-            region_name=self.region,
-            profile_name=profile
-        )
+        return create_boto_client(service_name=svc, region_name=self.region, profile_name=profile)
 
     def _get_account_id(self) -> str:
         """Get the AWS account ID from the session.
@@ -80,5 +77,5 @@ class BaseResourceCollector(ABC):
         Returns:
             12-digit AWS account ID
         """
-        sts = self._create_client('sts')
-        return sts.get_caller_identity()['Account']
+        sts = self._create_client("sts")
+        return sts.get_caller_identity()["Account"]

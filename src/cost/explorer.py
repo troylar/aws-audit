@@ -1,8 +1,9 @@
 """Cost Explorer integration for retrieving cost data."""
 
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
 import boto3
 from botocore.exceptions import ClientError
 
@@ -20,15 +21,15 @@ class CostExplorerClient:
         """
         if profile_name:
             session = boto3.Session(profile_name=profile_name)
-            self.client = session.client('ce', region_name='us-east-1')  # Cost Explorer is global
+            self.client = session.client("ce", region_name="us-east-1")  # Cost Explorer is global
         else:
-            self.client = boto3.client('ce', region_name='us-east-1')
+            self.client = boto3.client("ce", region_name="us-east-1")
 
     def get_cost_and_usage(
         self,
         start_date: datetime,
         end_date: datetime,
-        granularity: str = 'MONTHLY',
+        granularity: str = "MONTHLY",
         metrics: Optional[List[str]] = None,
         group_by: Optional[List[Dict[str, str]]] = None,
         filter_expression: Optional[Dict] = None,
@@ -50,44 +51,43 @@ class CostExplorerClient:
             CostExplorerError: If Cost Explorer is not enabled or API call fails
         """
         if metrics is None:
-            metrics = ['UnblendedCost']
+            metrics = ["UnblendedCost"]
 
         try:
             params = {
-                'TimePeriod': {
-                    'Start': start_date.strftime('%Y-%m-%d'),
-                    'End': end_date.strftime('%Y-%m-%d'),
+                "TimePeriod": {
+                    "Start": start_date.strftime("%Y-%m-%d"),
+                    "End": end_date.strftime("%Y-%m-%d"),
                 },
-                'Granularity': granularity,
-                'Metrics': metrics,
+                "Granularity": granularity,
+                "Metrics": metrics,
             }
 
             if group_by:
-                params['GroupBy'] = group_by
+                params["GroupBy"] = group_by  # type: ignore[assignment]
 
             if filter_expression:
-                params['Filter'] = filter_expression
+                params["Filter"] = filter_expression
 
             logger.info(
-                f"Retrieving cost data from {start_date.strftime('%Y-%m-%d')} "
-                f"to {end_date.strftime('%Y-%m-%d')}"
+                f"Retrieving cost data from {start_date.strftime('%Y-%m-%d')} " f"to {end_date.strftime('%Y-%m-%d')}"
             )
 
             response = self.client.get_cost_and_usage(**params)
 
             logger.info(f"Retrieved {len(response.get('ResultsByTime', []))} time periods")
 
-            return response
+            return response  # type: ignore[return-value]
 
         except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
 
-            if error_code == 'AccessDeniedException':
+            if error_code == "AccessDeniedException":
                 raise CostExplorerError(
                     "Access denied to Cost Explorer. Ensure your IAM user/role has the "
                     "'ce:GetCostAndUsage' permission."
                 )
-            elif error_code == 'DataUnavailableException':
+            elif error_code == "DataUnavailableException":
                 raise CostExplorerError(
                     "Cost data is not yet available for the specified time period. "
                     "Cost Explorer data typically has a 24-48 hour delay."
@@ -103,7 +103,7 @@ class CostExplorerClient:
         self,
         start_date: datetime,
         end_date: datetime,
-        granularity: str = 'MONTHLY',
+        granularity: str = "MONTHLY",
     ) -> Dict[str, float]:
         """Get total costs grouped by AWS service.
 
@@ -119,15 +119,15 @@ class CostExplorerClient:
             start_date=start_date,
             end_date=end_date,
             granularity=granularity,
-            group_by=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}],
+            group_by=[{"Type": "DIMENSION", "Key": "SERVICE"}],
         )
 
-        service_costs = {}
+        service_costs: Dict[str, float] = {}
 
-        for time_period in response.get('ResultsByTime', []):
-            for group in time_period.get('Groups', []):
-                service_name = group['Keys'][0]
-                cost = float(group['Metrics']['UnblendedCost']['Amount'])
+        for time_period in response.get("ResultsByTime", []):
+            for group in time_period.get("Groups", []):
+                service_name = group["Keys"][0]
+                cost = float(group["Metrics"]["UnblendedCost"]["Amount"])
 
                 if service_name in service_costs:
                     service_costs[service_name] += cost
@@ -153,13 +153,13 @@ class CostExplorerClient:
         response = self.get_cost_and_usage(
             start_date=start_date,
             end_date=end_date,
-            granularity='MONTHLY',
+            granularity="MONTHLY",
         )
 
         total_cost = 0.0
 
-        for time_period in response.get('ResultsByTime', []):
-            cost = float(time_period['Total']['UnblendedCost']['Amount'])
+        for time_period in response.get("ResultsByTime", []):
+            cost = float(time_period["Total"]["UnblendedCost"]["Amount"])
             total_cost += cost
 
         return total_cost
@@ -190,10 +190,7 @@ class CostExplorerClient:
 
         # Estimate data available through date
         if lag_days < 2:
-            data_available_through = datetime.combine(
-                today - timedelta(days=2),
-                datetime.min.time()
-            )
+            data_available_through = datetime.combine(today - timedelta(days=2), datetime.min.time())
         else:
             data_available_through = end_date
 
@@ -208,4 +205,5 @@ class CostExplorerClient:
 
 class CostExplorerError(Exception):
     """Exception raised for Cost Explorer errors."""
+
     pass

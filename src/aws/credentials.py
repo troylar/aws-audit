@@ -1,15 +1,17 @@
 """AWS credential validation and permission checking."""
 
+import logging
+from typing import Any, Dict, List, Optional
+
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError, PartialCredentialsError
-from typing import Dict, Any, Optional, List
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class CredentialValidationError(Exception):
     """Raised when AWS credentials are invalid or missing."""
+
     pass
 
 
@@ -28,9 +30,9 @@ def validate_credentials(profile_name: Optional[str] = None) -> Dict[str, Any]:
     try:
         if profile_name:
             session = boto3.Session(profile_name=profile_name)
-            sts_client = session.client('sts')
+            sts_client = session.client("sts")
         else:
-            sts_client = boto3.client('sts')
+            sts_client = boto3.client("sts")
 
         # Get caller identity to validate credentials
         identity = sts_client.get_caller_identity()
@@ -38,9 +40,9 @@ def validate_credentials(profile_name: Optional[str] = None) -> Dict[str, Any]:
         logger.debug(f"Validated credentials for account {identity['Account']}")
 
         return {
-            'account_id': identity['Account'],
-            'user_id': identity['UserId'],
-            'arn': identity['Arn'],
+            "account_id": identity["Account"],
+            "user_id": identity["UserId"],
+            "arn": identity["Arn"],
         }
 
     except NoCredentialsError:
@@ -60,12 +62,12 @@ def validate_credentials(profile_name: Optional[str] = None) -> Dict[str, Any]:
         raise CredentialValidationError(error_msg)
 
     except ClientError as e:
-        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
-        if error_code == 'InvalidClientTokenId':
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        if error_code == "InvalidClientTokenId":
             error_msg = "AWS credentials are invalid. Please check your access key ID."
-        elif error_code == 'SignatureDoesNotMatch':
+        elif error_code == "SignatureDoesNotMatch":
             error_msg = "AWS credentials signature mismatch. Please check your secret access key."
-        elif error_code == 'ExpiredToken':
+        elif error_code == "ExpiredToken":
             error_msg = "AWS credentials have expired. Please refresh your temporary credentials."
         else:
             error_msg = f"AWS credential validation failed: {e}"
@@ -80,8 +82,7 @@ def validate_credentials(profile_name: Optional[str] = None) -> Dict[str, Any]:
 
 
 def check_required_permissions(
-    profile_name: Optional[str] = None,
-    required_actions: Optional[List[str]] = None
+    profile_name: Optional[str] = None, required_actions: Optional[List[str]] = None
 ) -> Dict[str, bool]:
     """Check if credentials have required IAM permissions.
 
@@ -98,11 +99,11 @@ def check_required_permissions(
     if required_actions is None:
         # Default minimum required permissions for snapshot operations
         required_actions = [
-            'ec2:DescribeInstances',
-            'ec2:DescribeRegions',
-            'iam:ListRoles',
-            'lambda:ListFunctions',
-            's3:ListAllMyBuckets',
+            "ec2:DescribeInstances",
+            "ec2:DescribeRegions",
+            "iam:ListRoles",
+            "lambda:ListFunctions",
+            "s3:ListAllMyBuckets",
         ]
 
     try:
@@ -111,9 +112,9 @@ def check_required_permissions(
 
         if profile_name:
             session = boto3.Session(profile_name=profile_name)
-            iam_client = session.client('iam')
+            iam_client = session.client("iam")
         else:
-            iam_client = boto3.client('iam')
+            iam_client = boto3.client("iam")
 
         results = {}
 
@@ -121,15 +122,15 @@ def check_required_permissions(
         for action in required_actions:
             try:
                 response = iam_client.simulate_principal_policy(
-                    PolicySourceArn=identity['arn'],
+                    PolicySourceArn=identity["arn"],
                     ActionNames=[action],
                 )
 
                 # Check if action is allowed
-                eval_results = response.get('EvaluationResults', [])
+                eval_results = response.get("EvaluationResults", [])
                 if eval_results:
-                    decision = eval_results[0].get('EvalDecision', 'deny')
-                    results[action] = (decision.lower() == 'allowed')
+                    decision = eval_results[0].get("EvalDecision", "deny")
+                    results[action] = decision.lower() == "allowed"
                 else:
                     results[action] = False
 
@@ -143,7 +144,7 @@ def check_required_permissions(
 
     except Exception as e:
         logger.warning(f"Permission check failed: {e}")
-        return {action: None for action in required_actions}
+        return {action: None for action in required_actions}  # type: ignore
 
 
 def get_account_id(profile_name: Optional[str] = None) -> str:
@@ -159,7 +160,7 @@ def get_account_id(profile_name: Optional[str] = None) -> str:
         CredentialValidationError: If credentials are invalid
     """
     identity = validate_credentials(profile_name)
-    return identity['account_id']
+    return identity["account_id"]
 
 
 def get_credential_summary(profile_name: Optional[str] = None) -> str:

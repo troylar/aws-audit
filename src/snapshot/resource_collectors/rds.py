@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class RDSCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class RDSCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'rds'
+        return "rds"
 
     def collect(self) -> List[Resource]:
         """Collect RDS resources.
@@ -38,29 +38,29 @@ class RDSCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_db_instances')
+            paginator = client.get_paginator("describe_db_instances")
             for page in paginator.paginate():
-                for db_instance in page['DBInstances']:
-                    db_id = db_instance['DBInstanceIdentifier']
-                    db_arn = db_instance['DBInstanceArn']
+                for db_instance in page["DBInstances"]:
+                    db_id = db_instance["DBInstanceIdentifier"]
+                    db_arn = db_instance["DBInstanceArn"]
 
                     # Extract tags
                     tags = {}
                     try:
                         tag_response = client.list_tags_for_resource(ResourceName=db_arn)
-                        tags = {tag['Key']: tag['Value'] for tag in tag_response.get('TagList', [])}
+                        tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("TagList", [])}
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for DB instance {db_id}: {e}")
 
                     # Create resource
                     resource = Resource(
                         arn=db_arn,
-                        resource_type='AWS::RDS::DBInstance',
+                        resource_type="AWS::RDS::DBInstance",
                         name=db_id,
                         region=self.region,
                         tags=tags,
                         config_hash=compute_config_hash(db_instance),
-                        created_at=db_instance.get('InstanceCreateTime'),
+                        created_at=db_instance.get("InstanceCreateTime"),
                         raw_config=db_instance,
                     )
                     resources.append(resource)
@@ -76,29 +76,29 @@ class RDSCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_db_clusters')
+            paginator = client.get_paginator("describe_db_clusters")
             for page in paginator.paginate():
-                for db_cluster in page['DBClusters']:
-                    cluster_id = db_cluster['DBClusterIdentifier']
-                    cluster_arn = db_cluster['DBClusterArn']
+                for db_cluster in page["DBClusters"]:
+                    cluster_id = db_cluster["DBClusterIdentifier"]
+                    cluster_arn = db_cluster["DBClusterArn"]
 
                     # Extract tags
                     tags = {}
                     try:
                         tag_response = client.list_tags_for_resource(ResourceName=cluster_arn)
-                        tags = {tag['Key']: tag['Value'] for tag in tag_response.get('TagList', [])}
+                        tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("TagList", [])}
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for DB cluster {cluster_id}: {e}")
 
                     # Create resource
                     resource = Resource(
                         arn=cluster_arn,
-                        resource_type='AWS::RDS::DBCluster',
+                        resource_type="AWS::RDS::DBCluster",
                         name=cluster_id,
                         region=self.region,
                         tags=tags,
                         config_hash=compute_config_hash(db_cluster),
-                        created_at=db_cluster.get('ClusterCreateTime'),
+                        created_at=db_cluster.get("ClusterCreateTime"),
                         raw_config=db_cluster,
                     )
                     resources.append(resource)

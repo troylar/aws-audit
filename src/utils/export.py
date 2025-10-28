@@ -1,10 +1,10 @@
 """Export utilities for JSON and CSV formats."""
 
-import json
 import csv
+import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def export_to_json(data: Any, filepath: str) -> Path:
     """
     path = Path(filepath)
 
-    with open(path, 'w', encoding='utf-8') as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, default=str)
 
     logger.info(f"Exported data to JSON: {path}")
@@ -52,7 +52,7 @@ def export_to_csv(data: List[Dict[str, Any]], filepath: str) -> Path:
     # Get fieldnames from first item
     fieldnames = list(data[0].keys())
 
-    with open(path, 'w', newline='', encoding='utf-8') as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
@@ -61,7 +61,7 @@ def export_to_csv(data: List[Dict[str, Any]], filepath: str) -> Path:
     return path
 
 
-def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = "_") -> Dict[str, Any]:
     """Flatten a nested dictionary for CSV export.
 
     Args:
@@ -72,14 +72,16 @@ def flatten_dict(d: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dic
     Returns:
         Flattened dictionary
     """
-    items = []
+    from typing import Any, List, Tuple
+
+    items: List[Tuple[str, Any]] = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, dict):
             items.extend(flatten_dict(v, new_key, sep=sep).items())
         elif isinstance(v, list):
             # Convert lists to comma-separated strings
-            items.append((new_key, ', '.join(str(x) for x in v)))
+            items.append((new_key, ", ".join(str(x) for x in v)))
         else:
             items.append((new_key, v))
     return dict(items)

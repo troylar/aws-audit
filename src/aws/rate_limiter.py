@@ -1,9 +1,9 @@
 """Rate limiter utility using token bucket algorithm."""
 
+import logging
 import time
 from threading import Lock
-from typing import Dict
-import logging
+from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 # Service-specific rate limits (calls per second)
 # Based on AWS API throttling limits
 SERVICE_RATE_LIMITS: Dict[str, float] = {
-    'iam': 5.0,  # IAM has strict rate limits (global service)
-    'cloudformation': 2.0,  # CloudFormation is particularly slow
-    'sts': 10.0,  # STS is also rate-limited
-    'default': 10.0,  # Conservative default for other services
+    "iam": 5.0,  # IAM has strict rate limits (global service)
+    "cloudformation": 2.0,  # CloudFormation is particularly slow
+    "sts": 10.0,  # STS is also rate-limited
+    "default": 10.0,  # Conservative default for other services
 }
 
 
@@ -92,7 +92,7 @@ class RateLimiter:
 class ServiceRateLimiter:
     """Manages rate limiters for different AWS services."""
 
-    def __init__(self, rate_limits: Dict[str, float] = None):
+    def __init__(self, rate_limits: Optional[Dict[str, float]] = None):
         """Initialize service rate limiter.
 
         Args:
@@ -113,7 +113,7 @@ class ServiceRateLimiter:
         """
         with self._lock:
             if service_name not in self._limiters:
-                rate = self.rate_limits.get(service_name, self.rate_limits['default'])
+                rate = self.rate_limits.get(service_name, self.rate_limits["default"])
                 self._limiters[service_name] = RateLimiter(rate)
                 logger.debug(f"Created rate limiter for {service_name} ({rate} calls/sec)")
 
@@ -145,7 +145,7 @@ class ServiceRateLimiter:
 
 
 # Global service rate limiter instance
-_global_limiter: ServiceRateLimiter = None
+_global_limiter: Optional[ServiceRateLimiter] = None
 
 
 def get_global_rate_limiter() -> ServiceRateLimiter:
@@ -160,7 +160,7 @@ def get_global_rate_limiter() -> ServiceRateLimiter:
     return _global_limiter
 
 
-def rate_limited_call(service_name: str, func, *args, **kwargs):
+def rate_limited_call(service_name: str, func, *args, **kwargs):  # type: ignore[no-untyped-def]
     """Execute a function with rate limiting applied.
 
     Args:

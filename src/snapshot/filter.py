@@ -1,8 +1,8 @@
 """Resource filtering for creating historical and tagged baselines."""
 
-from typing import Dict, List, Optional, Set
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from ..models.resource import Resource
 
@@ -39,14 +39,14 @@ class ResourceFilter:
 
         # Statistics
         self.stats = {
-            'total_collected': 0,
-            'date_matched': 0,
-            'tag_matched': 0,
-            'final_count': 0,
-            'filtered_out_by_date': 0,
-            'filtered_out_by_tags': 0,
-            'filtered_out_by_exclude_tags': 0,
-            'missing_creation_date': 0,
+            "total_collected": 0,
+            "date_matched": 0,
+            "tag_matched": 0,
+            "final_count": 0,
+            "filtered_out_by_date": 0,
+            "filtered_out_by_tags": 0,
+            "filtered_out_by_exclude_tags": 0,
+            "missing_creation_date": 0,
         }
 
     def apply(self, resources: List[Resource]) -> List[Resource]:
@@ -58,14 +58,14 @@ class ResourceFilter:
         Returns:
             Filtered list of resources
         """
-        self.stats['total_collected'] = len(resources)
+        self.stats["total_collected"] = len(resources)
         filtered = []
 
         for resource in resources:
             if self._matches_filters(resource):
                 filtered.append(resource)
 
-        self.stats['final_count'] = len(filtered)
+        self.stats["final_count"] = len(filtered)
 
         logger.debug(
             f"Filtering complete: {self.stats['total_collected']} collected, "
@@ -85,22 +85,22 @@ class ResourceFilter:
         """
         # Check date filters
         if not self._matches_date_filter(resource):
-            self.stats['filtered_out_by_date'] += 1
+            self.stats["filtered_out_by_date"] += 1
             return False
 
-        self.stats['date_matched'] += 1
+        self.stats["date_matched"] += 1
 
         # Check exclude tags first (if resource has any excluded tags, reject immediately)
         if not self._matches_exclude_filter(resource):
-            self.stats['filtered_out_by_exclude_tags'] += 1
+            self.stats["filtered_out_by_exclude_tags"] += 1
             return False
 
         # Check include tag filters
         if not self._matches_tag_filter(resource):
-            self.stats['filtered_out_by_tags'] += 1
+            self.stats["filtered_out_by_tags"] += 1
             return False
 
-        self.stats['tag_matched'] += 1
+        self.stats["tag_matched"] += 1
 
         return True
 
@@ -119,7 +119,7 @@ class ResourceFilter:
 
         # If resource has no creation date, we can't filter by date
         if not resource.created_at:
-            self.stats['missing_creation_date'] += 1
+            self.stats["missing_creation_date"] += 1
             # For resources without creation dates, include them if we're being permissive
             # This is a design choice - could also exclude them
             logger.debug(f"Resource {resource.arn} has no creation date - including by default")
@@ -130,6 +130,7 @@ class ResourceFilter:
         if resource_date.tzinfo is None:
             # Assume UTC if no timezone
             from datetime import timezone as tz
+
             resource_date = resource_date.replace(tzinfo=tz.utc)
 
         # Check before_date filter (exclusive)
@@ -138,13 +139,11 @@ class ResourceFilter:
             before_date_aware = self.before_date
             if before_date_aware.tzinfo is None:
                 from datetime import timezone as tz
+
                 before_date_aware = before_date_aware.replace(tzinfo=tz.utc)
 
             if resource_date >= before_date_aware:
-                logger.debug(
-                    f"Resource {resource.name} created {resource_date} "
-                    f"is not before {before_date_aware}"
-                )
+                logger.debug(f"Resource {resource.name} created {resource_date} " f"is not before {before_date_aware}")
                 return False
 
         # Check after_date filter (inclusive)
@@ -153,13 +152,11 @@ class ResourceFilter:
             after_date_aware = self.after_date
             if after_date_aware.tzinfo is None:
                 from datetime import timezone as tz
+
                 after_date_aware = after_date_aware.replace(tzinfo=tz.utc)
 
             if resource_date < after_date_aware:
-                logger.debug(
-                    f"Resource {resource.name} created {resource_date} "
-                    f"is before {after_date_aware}"
-                )
+                logger.debug(f"Resource {resource.name} created {resource_date} " f"is before {after_date_aware}")
                 return False
 
         return True
@@ -185,8 +182,7 @@ class ResourceFilter:
 
             if resource.tags[key] != value:
                 logger.debug(
-                    f"Resource {resource.name} tag {key}={resource.tags[key]} "
-                    f"does not match required value {value}"
+                    f"Resource {resource.name} tag {key}={resource.tags[key]} " f"does not match required value {value}"
                 )
                 return False
 
@@ -208,9 +204,7 @@ class ResourceFilter:
         # Check if resource has ANY of the exclude tags (OR logic)
         for key, value in self.exclude_tags.items():
             if key in resource.tags and resource.tags[key] == value:
-                logger.debug(
-                    f"Resource {resource.name} has exclude tag {key}={value}"
-                )
+                logger.debug(f"Resource {resource.name} has exclude tag {key}={value}")
                 return False
 
         return True

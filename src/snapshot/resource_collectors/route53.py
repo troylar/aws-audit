@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class Route53Collector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class Route53Collector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'route53'
+        return "route53"
 
     @property
     def is_global_service(self) -> bool:
@@ -34,28 +34,25 @@ class Route53Collector(BaseResourceCollector):
 
         try:
             # Collect hosted zones
-            paginator = client.get_paginator('list_hosted_zones')
+            paginator = client.get_paginator("list_hosted_zones")
             for page in paginator.paginate():
-                for zone in page.get('HostedZones', []):
-                    zone_id = zone['Id'].split('/')[-1]  # Extract ID from '/hostedzone/Z123'
-                    zone_name = zone['Name']
+                for zone in page.get("HostedZones", []):
+                    zone_id = zone["Id"].split("/")[-1]  # Extract ID from '/hostedzone/Z123'
+                    zone_name = zone["Name"]
 
                     # Get tags
                     tags = {}
                     try:
-                        tag_response = client.list_tags_for_resource(
-                            ResourceType='hostedzone',
-                            ResourceId=zone_id
-                        )
-                        for tag in tag_response.get('Tags', []):
-                            tags[tag['Key']] = tag['Value']
+                        tag_response = client.list_tags_for_resource(ResourceType="hostedzone", ResourceId=zone_id)
+                        for tag in tag_response.get("Tags", []):
+                            tags[tag["Key"]] = tag["Value"]
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for hosted zone {zone_id}: {e}")
 
                     # Get record count and additional details
                     try:
-                        zone_details = client.get_hosted_zone(Id=zone['Id'])
-                        hosted_zone_info = zone_details.get('HostedZone', {})
+                        zone_details = client.get_hosted_zone(Id=zone["Id"])
+                        hosted_zone_info = zone_details.get("HostedZone", {})
                         # Merge basic info with detailed info
                         full_zone = {**zone, **hosted_zone_info}
                     except Exception as e:
@@ -72,9 +69,9 @@ class Route53Collector(BaseResourceCollector):
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::Route53::HostedZone',
+                        resource_type="AWS::Route53::HostedZone",
                         name=zone_name,
-                        region='global',  # Route53 is global
+                        region="global",  # Route53 is global
                         tags=tags,
                         config_hash=compute_config_hash(full_zone),
                         created_at=created_at,

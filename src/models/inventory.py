@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -39,19 +39,19 @@ class Inventory:
             Dictionary representation suitable for YAML serialization
         """
         return {
-            'name': self.name,
-            'account_id': self.account_id,
-            'description': self.description,
-            'include_tags': self.include_tags,
-            'exclude_tags': self.exclude_tags,
-            'snapshots': self.snapshots,
-            'active_snapshot': self.active_snapshot,
-            'created_at': self.created_at.isoformat(),
-            'last_updated': self.last_updated.isoformat(),
+            "name": self.name,
+            "account_id": self.account_id,
+            "description": self.description,
+            "include_tags": self.include_tags,
+            "exclude_tags": self.exclude_tags,
+            "snapshots": self.snapshots,
+            "active_snapshot": self.active_snapshot,
+            "created_at": self.created_at.isoformat(),
+            "last_updated": self.last_updated.isoformat(),
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Inventory':
+    def from_dict(cls, data: Dict[str, Any]) -> "Inventory":
         """Deserialize from dictionary (YAML load).
 
         Args:
@@ -61,15 +61,15 @@ class Inventory:
             Inventory instance
         """
         return cls(
-            name=data['name'],
-            account_id=data['account_id'],
-            description=data.get('description', ''),
-            include_tags=data.get('include_tags', {}),
-            exclude_tags=data.get('exclude_tags', {}),
-            snapshots=data.get('snapshots', []),
-            active_snapshot=data.get('active_snapshot'),
-            created_at=datetime.fromisoformat(data['created_at']),
-            last_updated=datetime.fromisoformat(data['last_updated']),
+            name=data["name"],
+            account_id=data["account_id"],
+            description=data.get("description", ""),
+            include_tags=data.get("include_tags", {}),
+            exclude_tags=data.get("exclude_tags", {}),
+            snapshots=data.get("snapshots", []),
+            active_snapshot=data.get("active_snapshot"),
+            created_at=datetime.fromisoformat(data["created_at"]),
+            last_updated=datetime.fromisoformat(data["last_updated"]),
         )
 
     def add_snapshot(self, snapshot_filename: str, set_active: bool = False) -> None:
@@ -106,7 +106,7 @@ class Inventory:
         errors = []
 
         # Validate name format (alphanumeric + hyphens + underscores only)
-        if not self.name or not re.match(r'^[a-zA-Z0-9_-]+$', self.name):
+        if not self.name or not re.match(r"^[a-zA-Z0-9_-]+$", self.name):
             errors.append("Name must contain only alphanumeric characters, hyphens, and underscores")
 
         # Validate name length
@@ -114,7 +114,7 @@ class Inventory:
             errors.append("Name must be 50 characters or less")
 
         # Validate account ID format (12 digits)
-        if not self.account_id or not re.match(r'^\d{12}$', self.account_id):
+        if not self.account_id or not re.match(r"^\d{12}$", self.account_id):
             errors.append("Account ID must be 12 digits")
 
         # Validate active snapshot exists in snapshots list

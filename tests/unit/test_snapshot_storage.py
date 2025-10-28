@@ -1,13 +1,14 @@
 """Unit tests for SnapshotStorage."""
 
-import pytest
-import gzip
-import yaml
-from pathlib import Path
 from datetime import datetime, timezone
-from src.snapshot.storage import SnapshotStorage
-from src.models.snapshot import Snapshot
+from pathlib import Path
+
+import pytest
+import yaml
+
 from src.models.resource import Resource
+from src.models.snapshot import Snapshot
+from src.snapshot.storage import SnapshotStorage
 
 
 class TestSnapshotStorage:
@@ -18,13 +19,13 @@ class TestSnapshotStorage:
         storage = SnapshotStorage(temp_dir)
         assert storage.storage_dir == Path(temp_dir)
         assert storage.storage_dir.exists()
-        assert storage.active_file == storage.storage_dir / '.active'
-        assert storage.index_file == storage.storage_dir / '.index.yaml'
+        assert storage.active_file == storage.storage_dir / ".active"
+        assert storage.index_file == storage.storage_dir / ".index.yaml"
 
     def test_storage_creates_directory(self, tmp_path):
         """Test that storage creates directory if it doesn't exist."""
         storage_path = tmp_path / "new_snapshots"
-        storage = SnapshotStorage(storage_path)
+        SnapshotStorage(storage_path)
         assert storage_path.exists()
 
     def test_save_snapshot_uncompressed(self, temp_dir):
@@ -95,7 +96,7 @@ class TestSnapshotStorage:
         assert filepath.exists()
 
         # Verify file contents
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             data = yaml.safe_load(f)
 
         assert data["name"] == "with-resources"
@@ -437,7 +438,7 @@ class TestSnapshotStorage:
         storage.save_snapshot(snapshot)
 
         # Load index file
-        with open(storage.index_file, 'r') as f:
+        with open(storage.index_file, "r") as f:
             index = yaml.safe_load(f)
 
         assert "indexed" in index
@@ -460,14 +461,14 @@ class TestSnapshotStorage:
         storage.save_snapshot(snapshot)
 
         # Verify it's in the index
-        with open(storage.index_file, 'r') as f:
+        with open(storage.index_file, "r") as f:
             index = yaml.safe_load(f)
         assert "to-remove" in index
 
         storage.delete_snapshot("to-remove")
 
         # Verify it's removed from the index
-        with open(storage.index_file, 'r') as f:
+        with open(storage.index_file, "r") as f:
             index = yaml.safe_load(f)
         assert "to-remove" not in index
 

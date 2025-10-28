@@ -1,3 +1,5 @@
 """Cost analysis module for tracking baseline vs non-baseline costs."""
 
-__all__ = []
+from typing import List
+
+__all__: List[str] = []

@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class BackupCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class BackupCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'backup'
+        return "backup"
 
     def collect(self) -> List[Resource]:
         """Collect AWS Backup resources.
@@ -45,33 +45,33 @@ class BackupCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_backup_plans')
+            paginator = client.get_paginator("list_backup_plans")
             for page in paginator.paginate():
-                for plan_summary in page.get('BackupPlansList', []):
-                    plan_id = plan_summary['BackupPlanId']
-                    plan_name = plan_summary['BackupPlanName']
-                    plan_arn = plan_summary['BackupPlanArn']
+                for plan_summary in page.get("BackupPlansList", []):
+                    plan_id = plan_summary["BackupPlanId"]
+                    plan_name = plan_summary["BackupPlanName"]
+                    plan_arn = plan_summary["BackupPlanArn"]
 
                     try:
                         # Get detailed plan info
                         plan_response = client.get_backup_plan(BackupPlanId=plan_id)
-                        plan = plan_response.get('BackupPlan', {})
+                        plan = plan_response.get("BackupPlan", {})
 
                         # Get tags
                         tags = {}
                         try:
                             tag_response = client.list_tags(ResourceArn=plan_arn)
-                            tags = tag_response.get('Tags', {})
+                            tags = tag_response.get("Tags", {})
                         except Exception as e:
                             self.logger.debug(f"Could not get tags for backup plan {plan_name}: {e}")
 
                         # Extract creation date
-                        created_at = plan_summary.get('CreationDate')
+                        created_at = plan_summary.get("CreationDate")
 
                         # Create resource
                         resource = Resource(
                             arn=plan_arn,
-                            resource_type='AWS::Backup::BackupPlan',
+                            resource_type="AWS::Backup::BackupPlan",
                             name=plan_name,
                             region=self.region,
                             tags=tags,
@@ -100,27 +100,27 @@ class BackupCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_backup_vaults')
+            paginator = client.get_paginator("list_backup_vaults")
             for page in paginator.paginate():
-                for vault in page.get('BackupVaultList', []):
-                    vault_name = vault['BackupVaultName']
-                    vault_arn = vault['BackupVaultArn']
+                for vault in page.get("BackupVaultList", []):
+                    vault_name = vault["BackupVaultName"]
+                    vault_arn = vault["BackupVaultArn"]
 
                     # Get tags
                     tags = {}
                     try:
                         tag_response = client.list_tags(ResourceArn=vault_arn)
-                        tags = tag_response.get('Tags', {})
+                        tags = tag_response.get("Tags", {})
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for backup vault {vault_name}: {e}")
 
                     # Extract creation date
-                    created_at = vault.get('CreationDate')
+                    created_at = vault.get("CreationDate")
 
                     # Create resource
                     resource = Resource(
                         arn=vault_arn,
-                        resource_type='AWS::Backup::BackupVault',
+                        resource_type="AWS::Backup::BackupVault",
                         name=vault_name,
                         region=self.region,
                         tags=tags,

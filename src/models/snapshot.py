@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -37,29 +37,29 @@ class Snapshot:
         """Calculate resource counts by service type."""
         counts: Dict[str, int] = {}
         for resource in self.resources:
-            service = resource.resource_type.split(':')[0] if ':' in resource.resource_type else resource.resource_type
+            service = resource.resource_type.split(":")[0] if ":" in resource.resource_type else resource.resource_type
             counts[service] = counts.get(service, 0) + 1
         self.service_counts = counts
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert snapshot to dictionary for serialization."""
         return {
-            'name': self.name,
-            'created_at': self.created_at.isoformat(),
-            'account_id': self.account_id,
-            'regions': self.regions,
-            'is_active': self.is_active,
-            'resource_count': self.resource_count,
-            'service_counts': self.service_counts,
-            'metadata': self.metadata,
-            'filters_applied': self.filters_applied,
-            'total_resources_before_filter': self.total_resources_before_filter,
-            'inventory_name': self.inventory_name,
-            'resources': [r.to_dict() for r in self.resources],
+            "name": self.name,
+            "created_at": self.created_at.isoformat(),
+            "account_id": self.account_id,
+            "regions": self.regions,
+            "is_active": self.is_active,
+            "resource_count": self.resource_count,
+            "service_counts": self.service_counts,
+            "metadata": self.metadata,
+            "filters_applied": self.filters_applied,
+            "total_resources_before_filter": self.total_resources_before_filter,
+            "inventory_name": self.inventory_name,
+            "resources": [r.to_dict() for r in self.resources],
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Snapshot':
+    def from_dict(cls, data: Dict[str, Any]) -> "Snapshot":
         """Create snapshot from dictionary.
 
         Note: This requires Resource class to be imported at call time
@@ -68,18 +68,18 @@ class Snapshot:
         from .resource import Resource
 
         return cls(
-            name=data['name'],
-            created_at=datetime.fromisoformat(data['created_at']),
-            account_id=data['account_id'],
-            regions=data['regions'],
-            resources=[Resource.from_dict(r) for r in data['resources']],
-            is_active=data.get('is_active', True),
-            resource_count=data.get('resource_count', 0),
-            service_counts=data.get('service_counts', {}),
-            metadata=data.get('metadata', {}),
-            filters_applied=data.get('filters_applied'),
-            total_resources_before_filter=data.get('total_resources_before_filter'),
-            inventory_name=data.get('inventory_name', 'default'),  # Default for backward compatibility
+            name=data["name"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            account_id=data["account_id"],
+            regions=data["regions"],
+            resources=[Resource.from_dict(r) for r in data["resources"]],
+            is_active=data.get("is_active", True),
+            resource_count=data.get("resource_count", 0),
+            service_counts=data.get("service_counts", {}),
+            metadata=data.get("metadata", {}),
+            filters_applied=data.get("filters_applied"),
+            total_resources_before_filter=data.get("total_resources_before_filter"),
+            inventory_name=data.get("inventory_name", "default"),  # Default for backward compatibility
         )
 
     def validate(self) -> bool:
@@ -91,11 +91,14 @@ class Snapshot:
         import re
 
         # Validate name format (alphanumeric, hyphens, underscores)
-        if not re.match(r'^[a-zA-Z0-9_-]+$', self.name):
-            raise ValueError(f"Invalid snapshot name: {self.name}. Must contain only alphanumeric characters, hyphens, and underscores.")
+        if not re.match(r"^[a-zA-Z0-9_-]+$", self.name):
+            raise ValueError(
+                f"Invalid snapshot name: {self.name}. "
+                f"Must contain only alphanumeric characters, hyphens, and underscores."
+            )
 
         # Validate account ID (12-digit string)
-        if not re.match(r'^\d{12}$', self.account_id):
+        if not re.match(r"^\d{12}$", self.account_id):
             raise ValueError(f"Invalid AWS account ID: {self.account_id}. Must be a 12-digit string.")
 
         # Validate regions list is not empty

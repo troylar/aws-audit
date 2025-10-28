@@ -1,16 +1,15 @@
 """Progress indicator utilities using Rich library."""
 
+from contextlib import contextmanager
+
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    TextColumn,
-    BarColumn,
     TaskProgressColumn,
+    TextColumn,
     TimeRemainingColumn,
-    TaskID,
 )
-from typing import Optional
-from contextlib import contextmanager
 
 
 @contextmanager

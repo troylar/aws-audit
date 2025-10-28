@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -19,15 +19,15 @@ class ResourceChange:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
-            'arn': self.resource.arn,
-            'resource_type': self.resource.resource_type,
-            'name': self.resource.name,
-            'region': self.resource.region,
-            'change_type': self.change_type,
-            'tags': self.resource.tags,
-            'old_config_hash': self.old_config_hash,
-            'new_config_hash': self.new_config_hash,
-            'changes_summary': self.changes_summary,
+            "arn": self.resource.arn,
+            "resource_type": self.resource.resource_type,
+            "name": self.resource.name,
+            "region": self.resource.region,
+            "change_type": self.change_type,
+            "tags": self.resource.tags,
+            "old_config_hash": self.old_config_hash,
+            "new_config_hash": self.new_config_hash,
+            "changes_summary": self.changes_summary,
         }
 
 
@@ -47,21 +47,21 @@ class DeltaReport:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
-            'generated_at': self.generated_at.isoformat(),
-            'baseline_snapshot_name': self.baseline_snapshot_name,
-            'current_snapshot_name': self.current_snapshot_name,
-            'added_resources': [r.to_dict() for r in self.added_resources],
-            'deleted_resources': [r.to_dict() for r in self.deleted_resources],
-            'modified_resources': [r.to_dict() for r in self.modified_resources],
-            'baseline_resource_count': self.baseline_resource_count,
-            'current_resource_count': self.current_resource_count,
-            'summary': {
-                'added': len(self.added_resources),
-                'deleted': len(self.deleted_resources),
-                'modified': len(self.modified_resources),
-                'unchanged': self.unchanged_count,
-                'total_changes': self.total_changes,
-            }
+            "generated_at": self.generated_at.isoformat(),
+            "baseline_snapshot_name": self.baseline_snapshot_name,
+            "current_snapshot_name": self.current_snapshot_name,
+            "added_resources": [r.to_dict() for r in self.added_resources],
+            "deleted_resources": [r.to_dict() for r in self.deleted_resources],
+            "modified_resources": [r.to_dict() for r in self.modified_resources],
+            "baseline_resource_count": self.baseline_resource_count,
+            "current_resource_count": self.current_resource_count,
+            "summary": {
+                "added": len(self.added_resources),
+                "deleted": len(self.deleted_resources),
+                "modified": len(self.modified_resources),
+                "unchanged": self.unchanged_count,
+                "total_changes": self.total_changes,
+            },
         }
 
     @property
@@ -86,24 +86,26 @@ class DeltaReport:
         Returns:
             Dictionary mapping service type to changes dict with 'added', 'deleted', 'modified' lists
         """
-        grouped = {}
+        from typing import Any, Dict, List
+
+        grouped: Dict[str, Dict[str, List[Any]]] = {}
 
         for resource in self.added_resources:
             service = resource.resource_type
             if service not in grouped:
-                grouped[service] = {'added': [], 'deleted': [], 'modified': []}
-            grouped[service]['added'].append(resource)
+                grouped[service] = {"added": [], "deleted": [], "modified": []}
+            grouped[service]["added"].append(resource)
 
         for resource in self.deleted_resources:
             service = resource.resource_type
             if service not in grouped:
-                grouped[service] = {'added': [], 'deleted': [], 'modified': []}
-            grouped[service]['deleted'].append(resource)
+                grouped[service] = {"added": [], "deleted": [], "modified": []}
+            grouped[service]["deleted"].append(resource)
 
         for change in self.modified_resources:
             service = change.resource.resource_type
             if service not in grouped:
-                grouped[service] = {'added': [], 'deleted': [], 'modified': []}
-            grouped[service]['modified'].append(change)
+                grouped[service] = {"added": [], "deleted": [], "modified": []}
+            grouped[service]["modified"].append(change)
 
         return grouped

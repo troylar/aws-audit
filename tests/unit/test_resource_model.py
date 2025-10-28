@@ -1,7 +1,9 @@
 """Unit tests for Resource model."""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+
 from src.models.resource import Resource
 
 

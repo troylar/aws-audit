@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class LambdaCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class LambdaCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'lambda'
+        return "lambda"
 
     def collect(self) -> List[Resource]:
         """Collect Lambda resources.
@@ -38,17 +38,17 @@ class LambdaCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_functions')
+            paginator = client.get_paginator("list_functions")
             for page in paginator.paginate():
-                for function in page['Functions']:
-                    function_name = function['FunctionName']
-                    function_arn = function['FunctionArn']
+                for function in page["Functions"]:
+                    function_name = function["FunctionName"]
+                    function_arn = function["FunctionArn"]
 
                     # Get full function configuration (includes tags)
                     try:
                         full_config = client.get_function(FunctionName=function_name)
-                        tags = full_config.get('Tags', {})
-                        config_data = full_config.get('Configuration', function)
+                        tags = full_config.get("Tags", {})
+                        config_data = full_config.get("Configuration", function)
                     except Exception as e:
                         self.logger.debug(f"Could not get full config for {function_name}: {e}")
                         tags = {}
@@ -57,7 +57,7 @@ class LambdaCollector(BaseResourceCollector):
                     # Create resource
                     resource = Resource(
                         arn=function_arn,
-                        resource_type='AWS::Lambda::Function',
+                        resource_type="AWS::Lambda::Function",
                         name=function_name,
                         region=self.region,
                         tags=tags,
@@ -78,22 +78,22 @@ class LambdaCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_layers')
+            paginator = client.get_paginator("list_layers")
             for page in paginator.paginate():
-                for layer in page['Layers']:
-                    layer_name = layer['LayerName']
-                    layer_arn = layer['LayerArn']
+                for layer in page["Layers"]:
+                    layer_name = layer["LayerName"]
+                    layer_arn = layer["LayerArn"]
 
                     # Get latest version info
                     try:
-                        latest_version = layer.get('LatestMatchingVersion', {})
-                        layer_version_arn = latest_version.get('LayerVersionArn', layer_arn)
-                        created_date = latest_version.get('CreatedDate')
+                        latest_version = layer.get("LatestMatchingVersion", {})
+                        layer_version_arn = latest_version.get("LayerVersionArn", layer_arn)
+                        created_date = latest_version.get("CreatedDate")
 
                         # Create resource
                         resource = Resource(
                             arn=layer_version_arn,
-                            resource_type='AWS::Lambda::LayerVersion',
+                            resource_type="AWS::Lambda::LayerVersion",
                             name=layer_name,
                             region=self.region,
                             tags={},  # Layers don't support tags

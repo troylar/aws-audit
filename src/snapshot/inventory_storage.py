@@ -1,9 +1,10 @@
 """Storage service for inventory management."""
 
-import os
 import logging
+import os
 from pathlib import Path
 from typing import List, Optional
+
 import yaml
 
 from ..models.inventory import Inventory
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class InventoryNotFoundError(Exception):
     """Raised when an inventory cannot be found."""
+
     pass
 
 
@@ -23,17 +25,17 @@ class InventoryStorage:
     Uses atomic writes (temp file + rename) for crash safety.
     """
 
-    def __init__(self, storage_dir: Path = None):
+    def __init__(self, storage_dir: Optional[Path] = None):
         """Initialize inventory storage.
 
         Args:
             storage_dir: Directory containing inventories.yaml (default: .snapshots/)
         """
         if storage_dir is None:
-            storage_dir = Path('.snapshots')
+            storage_dir = Path(".snapshots")
 
         self.storage_dir = storage_dir
-        self.inventory_file = storage_dir / 'inventories.yaml'
+        self.inventory_file = storage_dir / "inventories.yaml"
 
         # Ensure storage directory exists
         self.storage_dir.mkdir(parents=True, exist_ok=True)
@@ -49,14 +51,14 @@ class InventoryStorage:
             return []
 
         try:
-            with open(self.inventory_file, 'r') as f:
+            with open(self.inventory_file, "r") as f:
                 data = yaml.safe_load(f)
 
-            if not data or 'inventories' not in data:
+            if not data or "inventories" not in data:
                 logger.debug("Empty or invalid inventories.yaml, returning empty list")
                 return []
 
-            inventories = [Inventory.from_dict(inv_data) for inv_data in data['inventories']]
+            inventories = [Inventory.from_dict(inv_data) for inv_data in data["inventories"]]
             logger.debug(f"Loaded {len(inventories)} inventories from storage")
             return inventories
 
@@ -186,7 +188,7 @@ class InventoryStorage:
         # Delete snapshot files if requested
         deleted_count = 0
         if delete_snapshots:
-            snapshots_dir = self.storage_dir / 'snapshots'
+            snapshots_dir = self.storage_dir / "snapshots"
             for snapshot_file in inventory.snapshots:
                 snapshot_path = snapshots_dir / snapshot_file
                 try:
@@ -199,10 +201,7 @@ class InventoryStorage:
 
         # Remove inventory from list
         all_inventories = self.load_all()
-        all_inventories = [
-            inv for inv in all_inventories
-            if not (inv.name == name and inv.account_id == account_id)
-        ]
+        all_inventories = [inv for inv in all_inventories if not (inv.name == name and inv.account_id == account_id)]
 
         # Write atomically
         self._atomic_write(all_inventories)
@@ -248,21 +247,19 @@ class InventoryStorage:
             inventories: List of all inventories to write
         """
         # Prepare data structure
-        data = {
-            'inventories': [inv.to_dict() for inv in inventories]
-        }
+        data = {"inventories": [inv.to_dict() for inv in inventories]}
 
         # Write to temp file
-        temp_path = self.inventory_file.with_suffix('.tmp')
+        temp_path = self.inventory_file.with_suffix(".tmp")
         try:
-            with open(temp_path, 'w') as f:
+            with open(temp_path, "w") as f:
                 yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
             # Atomic rename (replaces existing file)
             os.replace(temp_path, self.inventory_file)
             logger.debug(f"Wrote {len(inventories)} inventories to storage")
 
-        except Exception as e:
+        except Exception:
             # Clean up temp file on error
             if temp_path.exists():
                 temp_path.unlink()

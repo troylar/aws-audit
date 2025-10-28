@@ -1,3 +1,5 @@
 """Delta tracking module for comparing snapshots to current state."""
 
-__all__ = []
+from typing import List
+
+__all__: List[str] = []

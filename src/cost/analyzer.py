@@ -1,12 +1,12 @@
 """Cost analyzer for separating baseline vs non-baseline costs."""
 
-from typing import Dict, List, Optional, Set
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional, Set
 
+from ..models.cost_report import CostBreakdown, CostReport
 from ..models.snapshot import Snapshot
-from ..models.cost_report import CostReport, CostBreakdown
-from .explorer import CostExplorerClient, CostExplorerError
+from .explorer import CostExplorerClient
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,9 @@ class CostAnalyzer:
         baseline_snapshot: Snapshot,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        granularity: str = 'MONTHLY',
+        granularity: str = "MONTHLY",
         has_deltas: bool = False,
-        delta_report: Optional[any] = None,
+        delta_report: Optional[Any] = None,
     ) -> CostReport:
         """Analyze costs and separate baseline from non-baseline.
 
@@ -61,9 +61,9 @@ class CostAnalyzer:
             end_date = datetime.now()
 
         # Ensure both dates are timezone-naive for comparison
-        if hasattr(start_date, 'tzinfo') and start_date.tzinfo is not None:
+        if hasattr(start_date, "tzinfo") and start_date.tzinfo is not None:
             start_date = start_date.replace(tzinfo=None)
-        if hasattr(end_date, 'tzinfo') and end_date.tzinfo is not None:
+        if hasattr(end_date, "tzinfo") and end_date.tzinfo is not None:
             end_date = end_date.replace(tzinfo=None)
 
         # Ensure start_date is before end_date
@@ -72,10 +72,7 @@ class CostAnalyzer:
             # If dates are the same or inverted, set end_date to start_date + 1 day
             end_date = start_date + timedelta(days=1)
 
-        logger.debug(
-            f"Analyzing costs from {start_date.strftime('%Y-%m-%d')} "
-            f"to {end_date.strftime('%Y-%m-%d')}"
-        )
+        logger.debug(f"Analyzing costs from {start_date.strftime('%Y-%m-%d')} " f"to {end_date.strftime('%Y-%m-%d')}")
 
         # Check data completeness
         is_complete, data_through, lag_days = self.cost_explorer.check_data_completeness(end_date)
@@ -91,7 +88,7 @@ class CostAnalyzer:
         if not has_deltas:
             logger.debug("No resource changes detected - all costs are baseline")
             baseline_costs = service_costs.copy()
-            non_baseline_costs = {}
+            non_baseline_costs: Dict[str, float] = {}
             baseline_total = sum(baseline_costs.values())
             non_baseline_total = 0.0
             total_cost = baseline_total
@@ -158,57 +155,57 @@ class CostAnalyzer:
             Set of AWS service names from Cost Explorer
         """
         # Mapping from our resource types to Cost Explorer service names
-        SERVICE_NAME_MAP = {
-            'AWS::EC2::Instance': 'Amazon Elastic Compute Cloud - Compute',
-            'AWS::EC2::Volume': 'Amazon Elastic Compute Cloud - Compute',
-            'AWS::EC2::VPC': 'Amazon Elastic Compute Cloud - Compute',
-            'AWS::EC2::SecurityGroup': 'Amazon Elastic Compute Cloud - Compute',
-            'AWS::EC2::Subnet': 'Amazon Elastic Compute Cloud - Compute',
-            'AWS::EC2::VPCEndpoint::Interface': 'Amazon Elastic Compute Cloud - Compute',
-            'AWS::EC2::VPCEndpoint::Gateway': 'Amazon Elastic Compute Cloud - Compute',
-            'AWS::Lambda::Function': 'AWS Lambda',
-            'AWS::Lambda::LayerVersion': 'AWS Lambda',
-            'AWS::S3::Bucket': 'Amazon Simple Storage Service',
-            'AWS::RDS::DBInstance': 'Amazon Relational Database Service',
-            'AWS::RDS::DBCluster': 'Amazon Relational Database Service',
-            'AWS::IAM::Role': 'AWS Identity and Access Management',
-            'AWS::IAM::User': 'AWS Identity and Access Management',
-            'AWS::IAM::Policy': 'AWS Identity and Access Management',
-            'AWS::IAM::Group': 'AWS Identity and Access Management',
-            'AWS::CloudWatch::Alarm': 'Amazon CloudWatch',
-            'AWS::CloudWatch::CompositeAlarm': 'Amazon CloudWatch',
-            'AWS::Logs::LogGroup': 'Amazon CloudWatch',
-            'AWS::SNS::Topic': 'Amazon Simple Notification Service',
-            'AWS::SQS::Queue': 'Amazon Simple Queue Service',
-            'AWS::DynamoDB::Table': 'Amazon DynamoDB',
-            'AWS::ElasticLoadBalancing::LoadBalancer': 'Elastic Load Balancing',
-            'AWS::ElasticLoadBalancingV2::LoadBalancer::Application': 'Elastic Load Balancing',
-            'AWS::ElasticLoadBalancingV2::LoadBalancer::Network': 'Elastic Load Balancing',
-            'AWS::ElasticLoadBalancingV2::LoadBalancer::Gateway': 'Elastic Load Balancing',
-            'AWS::CloudFormation::Stack': 'AWS CloudFormation',
-            'AWS::ApiGateway::RestApi': 'Amazon API Gateway',
-            'AWS::ApiGatewayV2::Api::HTTP': 'Amazon API Gateway',
-            'AWS::ApiGatewayV2::Api::WebSocket': 'Amazon API Gateway',
-            'AWS::Events::EventBus': 'Amazon EventBridge',
-            'AWS::Events::Rule': 'Amazon EventBridge',
-            'AWS::SecretsManager::Secret': 'AWS Secrets Manager',
-            'AWS::KMS::Key': 'AWS Key Management Service',
-            'AWS::SSM::Parameter': 'AWS Systems Manager',
-            'AWS::SSM::Document': 'AWS Systems Manager',
-            'AWS::Route53::HostedZone': 'Amazon Route 53',
-            'AWS::ECS::Cluster': 'Amazon EC2 Container Service',
-            'AWS::ECS::Service': 'Amazon EC2 Container Service',
-            'AWS::ECS::TaskDefinition': 'Amazon EC2 Container Service',
-            'AWS::StepFunctions::StateMachine': 'AWS Step Functions',
-            'AWS::WAFv2::WebACL::Regional': 'AWS WAF',
-            'AWS::WAFv2::WebACL::CloudFront': 'AWS WAF',
-            'AWS::EKS::Cluster': 'Amazon Elastic Kubernetes Service',
-            'AWS::EKS::Nodegroup': 'Amazon Elastic Kubernetes Service',
-            'AWS::EKS::FargateProfile': 'Amazon Elastic Kubernetes Service',
-            'AWS::CodePipeline::Pipeline': 'AWS CodePipeline',
-            'AWS::CodeBuild::Project': 'AWS CodeBuild',
-            'AWS::Backup::BackupPlan': 'AWS Backup',
-            'AWS::Backup::BackupVault': 'AWS Backup',
+        service_name_map = {
+            "AWS::EC2::Instance": "Amazon Elastic Compute Cloud - Compute",
+            "AWS::EC2::Volume": "Amazon Elastic Compute Cloud - Compute",
+            "AWS::EC2::VPC": "Amazon Elastic Compute Cloud - Compute",
+            "AWS::EC2::SecurityGroup": "Amazon Elastic Compute Cloud - Compute",
+            "AWS::EC2::Subnet": "Amazon Elastic Compute Cloud - Compute",
+            "AWS::EC2::VPCEndpoint::Interface": "Amazon Elastic Compute Cloud - Compute",
+            "AWS::EC2::VPCEndpoint::Gateway": "Amazon Elastic Compute Cloud - Compute",
+            "AWS::Lambda::Function": "AWS Lambda",
+            "AWS::Lambda::LayerVersion": "AWS Lambda",
+            "AWS::S3::Bucket": "Amazon Simple Storage Service",
+            "AWS::RDS::DBInstance": "Amazon Relational Database Service",
+            "AWS::RDS::DBCluster": "Amazon Relational Database Service",
+            "AWS::IAM::Role": "AWS Identity and Access Management",
+            "AWS::IAM::User": "AWS Identity and Access Management",
+            "AWS::IAM::Policy": "AWS Identity and Access Management",
+            "AWS::IAM::Group": "AWS Identity and Access Management",
+            "AWS::CloudWatch::Alarm": "Amazon CloudWatch",
+            "AWS::CloudWatch::CompositeAlarm": "Amazon CloudWatch",
+            "AWS::Logs::LogGroup": "Amazon CloudWatch",
+            "AWS::SNS::Topic": "Amazon Simple Notification Service",
+            "AWS::SQS::Queue": "Amazon Simple Queue Service",
+            "AWS::DynamoDB::Table": "Amazon DynamoDB",
+            "AWS::ElasticLoadBalancing::LoadBalancer": "Elastic Load Balancing",
+            "AWS::ElasticLoadBalancingV2::LoadBalancer::Application": "Elastic Load Balancing",
+            "AWS::ElasticLoadBalancingV2::LoadBalancer::Network": "Elastic Load Balancing",
+            "AWS::ElasticLoadBalancingV2::LoadBalancer::Gateway": "Elastic Load Balancing",
+            "AWS::CloudFormation::Stack": "AWS CloudFormation",
+            "AWS::ApiGateway::RestApi": "Amazon API Gateway",
+            "AWS::ApiGatewayV2::Api::HTTP": "Amazon API Gateway",
+            "AWS::ApiGatewayV2::Api::WebSocket": "Amazon API Gateway",
+            "AWS::Events::EventBus": "Amazon EventBridge",
+            "AWS::Events::Rule": "Amazon EventBridge",
+            "AWS::SecretsManager::Secret": "AWS Secrets Manager",
+            "AWS::KMS::Key": "AWS Key Management Service",
+            "AWS::SSM::Parameter": "AWS Systems Manager",
+            "AWS::SSM::Document": "AWS Systems Manager",
+            "AWS::Route53::HostedZone": "Amazon Route 53",
+            "AWS::ECS::Cluster": "Amazon EC2 Container Service",
+            "AWS::ECS::Service": "Amazon EC2 Container Service",
+            "AWS::ECS::TaskDefinition": "Amazon EC2 Container Service",
+            "AWS::StepFunctions::StateMachine": "AWS Step Functions",
+            "AWS::WAFv2::WebACL::Regional": "AWS WAF",
+            "AWS::WAFv2::WebACL::CloudFront": "AWS WAF",
+            "AWS::EKS::Cluster": "Amazon Elastic Kubernetes Service",
+            "AWS::EKS::Nodegroup": "Amazon Elastic Kubernetes Service",
+            "AWS::EKS::FargateProfile": "Amazon Elastic Kubernetes Service",
+            "AWS::CodePipeline::Pipeline": "AWS CodePipeline",
+            "AWS::CodeBuild::Project": "AWS CodeBuild",
+            "AWS::Backup::BackupPlan": "AWS Backup",
+            "AWS::Backup::BackupVault": "AWS Backup",
         }
 
         baseline_services = set()
@@ -220,8 +217,8 @@ class CostAnalyzer:
 
         # Map to Cost Explorer service names
         for resource_type in resource_types:
-            if resource_type in SERVICE_NAME_MAP:
-                baseline_services.add(SERVICE_NAME_MAP[resource_type])
+            if resource_type in service_name_map:
+                baseline_services.add(service_name_map[resource_type])
 
         logger.debug(f"Baseline services: {baseline_services}")
 

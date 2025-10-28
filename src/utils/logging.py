@@ -22,10 +22,7 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None, verbose: 
         numeric_level = logging.CRITICAL
 
     # Create formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
     # Configure root logger
     root_logger = logging.getLogger()
@@ -50,17 +47,17 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None, verbose: 
         root_logger.addHandler(file_handler)
 
     # Suppress noisy third-party loggers
-    logging.getLogger('boto3').setLevel(logging.CRITICAL)
-    logging.getLogger('botocore').setLevel(logging.CRITICAL)
-    logging.getLogger('urllib3').setLevel(logging.CRITICAL)
-    logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
+    logging.getLogger("boto3").setLevel(logging.CRITICAL)
+    logging.getLogger("botocore").setLevel(logging.CRITICAL)
+    logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+    logging.getLogger("s3transfer").setLevel(logging.CRITICAL)
 
     # Suppress internal module logs unless verbose
     if not verbose:
-        logging.getLogger('src').setLevel(logging.CRITICAL)
-        logging.getLogger('src.snapshot').setLevel(logging.CRITICAL)
-        logging.getLogger('src.snapshot.resource_collectors').setLevel(logging.CRITICAL)
-        logging.getLogger('src.snapshot.capturer').setLevel(logging.CRITICAL)
-        logging.getLogger('src.snapshot.storage').setLevel(logging.CRITICAL)
-        logging.getLogger('src.aws').setLevel(logging.CRITICAL)
-        logging.getLogger('src.aws.credentials').setLevel(logging.CRITICAL)
+        logging.getLogger("src").setLevel(logging.CRITICAL)
+        logging.getLogger("src.snapshot").setLevel(logging.CRITICAL)
+        logging.getLogger("src.snapshot.resource_collectors").setLevel(logging.CRITICAL)
+        logging.getLogger("src.snapshot.capturer").setLevel(logging.CRITICAL)
+        logging.getLogger("src.snapshot.storage").setLevel(logging.CRITICAL)
+        logging.getLogger("src.aws").setLevel(logging.CRITICAL)
+        logging.getLogger("src.aws.credentials").setLevel(logging.CRITICAL)

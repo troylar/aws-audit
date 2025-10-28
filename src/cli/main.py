@@ -1,17 +1,18 @@
 """Main CLI entry point using Typer."""
 
-import typer
+import logging
+import sys
+from datetime import datetime
 from typing import Optional
+
+import typer
 from rich.console import Console
 from rich.table import Table
-from datetime import datetime
-import sys
-import logging
 
-from .config import Config
-from ..utils.logging import setup_logging
+from ..aws.credentials import CredentialValidationError, validate_credentials
 from ..snapshot.storage import SnapshotStorage
-from ..aws.credentials import validate_credentials, CredentialValidationError
+from ..utils.logging import setup_logging
+from .config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +59,9 @@ def main(
 @app.command()
 def version():
     """Show version information."""
-    from .. import __version__
     import boto3
-    import sys
+
+    from .. import __version__
 
     console.print(f"aws-baseline-snapshot version {__version__}")
     console.print(f"Python {sys.version.split()[0]}")
@@ -76,11 +77,11 @@ app.add_typer(inventory_app, name="inventory")
 def parse_tags(tag_string: str) -> dict:
     """Parse comma-separated Key=Value pairs into dict."""
     tags = {}
-    for tag_pair in tag_string.split(','):
-        if '=' not in tag_pair:
-            console.print(f"✗ Invalid tag format. Use Key=Value", style="bold red")
+    for tag_pair in tag_string.split(","):
+        if "=" not in tag_pair:
+            console.print("✗ Invalid tag format. Use Key=Value", style="bold red")
             raise typer.Exit(code=1)
-        key, value = tag_pair.split('=', 1)
+        key, value = tag_pair.split("=", 1)
         tags[key.strip()] = value.strip()
     return tags
 
@@ -89,8 +90,12 @@ def parse_tags(tag_string: str) -> dict:
 def inventory_create(
     name: str = typer.Argument(..., help="Inventory name (alphanumeric, hyphens, underscores only)"),
     description: Optional[str] = typer.Option(None, "--description", "-d", help="Human-readable description"),
-    include_tags: Optional[str] = typer.Option(None, "--include-tags", help="Include only resources with ALL these tags (Key=Value,Key2=Value2)"),
-    exclude_tags: Optional[str] = typer.Option(None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"),
+    include_tags: Optional[str] = typer.Option(
+        None, "--include-tags", help="Include only resources with ALL these tags (Key=Value,Key2=Value2)"
+    ),
+    exclude_tags: Optional[str] = typer.Option(
+        None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
+    ),
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name to use"),
 ):
     """Create a new inventory for organizing snapshots.
@@ -109,10 +114,11 @@ def inventory_create(
             --exclude-tags "managed-by=terraform"
     """
     try:
-        from ..snapshot.inventory_storage import InventoryStorage, InventoryNotFoundError
-        from ..models.inventory import Inventory
-        from ..aws.credentials import get_account_id
         from datetime import datetime, timezone
+
+        from ..aws.credentials import get_account_id
+        from ..models.inventory import Inventory
+        from ..snapshot.inventory_storage import InventoryStorage
 
         # Use profile parameter if provided, otherwise use config
         aws_profile = profile if profile else config.aws_profile
@@ -124,7 +130,8 @@ def inventory_create(
 
         # Validate inventory name format
         import re
-        if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+
+        if not re.match(r"^[a-zA-Z0-9_-]+$", name):
             console.print("✗ Error: Invalid inventory name", style="bold red")
             console.print("Name must contain only alphanumeric characters, hyphens, and underscores\n")
             raise typer.Exit(code=1)
@@ -138,7 +145,7 @@ def inventory_create(
         storage = InventoryStorage()
         if storage.exists(name, account_id):
             console.print(f"✗ Error: Inventory '{name}' already exists for account {account_id}", style="bold red")
-            console.print(f"\nUse a different name or delete the existing inventory first:")
+            console.print("\nUse a different name or delete the existing inventory first:")
             console.print(f"  aws-baseline inventory delete {name}\n")
             raise typer.Exit(code=1)
 
@@ -169,7 +176,10 @@ def inventory_create(
         storage.save(inventory)
 
         # T042: Audit logging for create operation
-        logger.info(f"Created inventory '{name}' for account {account_id} with {len(include_tag_dict)} include filters and {len(exclude_tag_dict)} exclude filters")
+        logger.info(
+            f"Created inventory '{name}' for account {account_id} with "
+            f"{len(include_tag_dict)} include filters and {len(exclude_tag_dict)} exclude filters"
+        )
 
         # Display success message
         console.print(f"✓ Created inventory '[bold]{name}[/bold]' for account {account_id}", style="green")
@@ -191,7 +201,7 @@ def inventory_create(
         else:
             console.print("  Filters: None")
 
-        console.print(f"  Snapshots: 0")
+        console.print("  Snapshots: 0")
         console.print()
 
     except typer.Exit:
@@ -211,8 +221,8 @@ def inventory_list(
     filter settings, and descriptions.
     """
     try:
-        from ..snapshot.inventory_storage import InventoryStorage
         from ..aws.credentials import get_account_id
+        from ..snapshot.inventory_storage import InventoryStorage
 
         # Use profile parameter if provided, otherwise use config
         aws_profile = profile if profile else config.aws_profile
@@ -245,12 +255,7 @@ def inventory_list(
             else:
                 filter_text = "None"
 
-            table.add_row(
-                inv.name,
-                str(len(inv.snapshots)),
-                filter_text,
-                inv.description or "(no description)"
-            )
+            table.add_row(inv.name, str(len(inv.snapshots)), filter_text, inv.description or "(no description)")
 
         console.print()
         console.print(table)
@@ -273,8 +278,8 @@ def inventory_show(
     Displays full details including filters, snapshots, and timestamps.
     """
     try:
-        from ..snapshot.inventory_storage import InventoryStorage, InventoryNotFoundError
         from ..aws.credentials import get_account_id
+        from ..snapshot.inventory_storage import InventoryNotFoundError, InventoryStorage
 
         # Use profile parameter if provided, otherwise use config
         aws_profile = profile if profile else config.aws_profile
@@ -357,13 +362,13 @@ def inventory_migrate(
         # T035: Scan .snapshots/ directory for snapshot files
         storage = SnapshotStorage(config.snapshot_dir)
         from pathlib import Path
-        import glob
+        from typing import List
 
         snapshots_dir = Path(config.snapshot_dir)
-        snapshot_files = []
+        snapshot_files: List[Path] = []
 
         # Find all .yaml and .yaml.gz files
-        for pattern in ['*.yaml', '*.yaml.gz']:
+        for pattern in ["*.yaml", "*.yaml.gz"]:
             snapshot_files.extend(snapshots_dir.glob(pattern))
 
         if not snapshot_files:
@@ -377,7 +382,7 @@ def inventory_migrate(
         inventory_storage = InventoryStorage()
 
         # Get or create default inventory
-        default_inventory = inventory_storage.get_or_create_default(identity['account_id'])
+        default_inventory = inventory_storage.get_or_create_default(identity["account_id"])
 
         # T035: Check each snapshot for inventory assignment
         legacy_count = 0
@@ -385,7 +390,7 @@ def inventory_migrate(
 
         for snapshot_file in snapshot_files:
             snapshot_filename = snapshot_file.name
-            snapshot_name = snapshot_filename.replace('.yaml.gz', '').replace('.yaml', '')
+            snapshot_name = snapshot_filename.replace(".yaml.gz", "").replace(".yaml", "")
 
             # Skip if already in default inventory
             if snapshot_filename in default_inventory.snapshots:
@@ -396,11 +401,11 @@ def inventory_migrate(
                 snapshot = storage.load_snapshot(snapshot_name)
 
                 # Check if snapshot belongs to this account
-                if snapshot.account_id != identity['account_id']:
+                if snapshot.account_id != identity["account_id"]:
                     continue
 
                 # If inventory_name is 'default', it's a legacy snapshot
-                if snapshot.inventory_name == 'default':
+                if snapshot.inventory_name == "default":
                     legacy_count += 1
 
                     # Add to default inventory
@@ -420,15 +425,16 @@ def inventory_migrate(
         console.print(f"✓ Found {legacy_count} snapshot(s) without inventory assignment", style="green")
         if added_count > 0:
             console.print(f"✓ Added {added_count} snapshot(s) to 'default' inventory", style="green")
-            console.print(f"\n✓ Migration complete!", style="bold green")
+            console.print("\n✓ Migration complete!", style="bold green")
         else:
-            console.print(f"\n✓ All snapshots already assigned to inventories", style="green")
+            console.print("\n✓ All snapshots already assigned to inventories", style="green")
 
     except typer.Exit:
         raise
     except Exception as e:
         console.print(f"✗ Error during migration: {e}", style="bold red")
         import traceback
+
         traceback.print_exc()
         raise typer.Exit(code=2)
 
@@ -451,29 +457,23 @@ def inventory_delete(
         identity = validate_credentials(aws_profile)
 
         # Load inventory storage
-        from ..snapshot.inventory_storage import InventoryStorage, InventoryNotFoundError
+        from ..snapshot.inventory_storage import InventoryNotFoundError, InventoryStorage
 
         storage = InventoryStorage()
 
         # T027, T032: Load inventory or error if doesn't exist
         try:
-            inventory = storage.get_by_name(name, identity['account_id'])
+            inventory = storage.get_by_name(name, identity["account_id"])
         except InventoryNotFoundError:
             console.print(f"✗ Inventory '{name}' not found for account {identity['account_id']}", style="bold red")
-            console.print(f"  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+            console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
             raise typer.Exit(code=1)
 
         # T032: Check if this would leave account with zero inventories
-        all_inventories = storage.load_by_account(identity['account_id'])
+        all_inventories = storage.load_by_account(identity["account_id"])
         if len(all_inventories) == 1:
-            console.print(
-                f"✗ Cannot delete '{name}' - it is the only inventory for this account",
-                style="bold red"
-            )
-            console.print(
-                f"  At least one inventory must exist per account",
-                style="yellow"
-            )
+            console.print(f"✗ Cannot delete '{name}' - it is the only inventory for this account", style="bold red")
+            console.print("  At least one inventory must exist per account", style="yellow")
             raise typer.Exit(code=1)
 
         # T028: Display inventory details for confirmation
@@ -484,14 +484,8 @@ def inventory_delete(
 
         # T029: Warn if this is the active baseline
         if inventory.active_snapshot:
-            console.print(
-                f"\n⚠️  Warning: This inventory has an active baseline snapshot!",
-                style="bold yellow"
-            )
-            console.print(
-                f"   Deleting it will prevent cost/delta analysis for this inventory.",
-                style="yellow"
-            )
+            console.print("\n⚠️  Warning: This inventory has an active baseline snapshot!", style="bold yellow")
+            console.print("   Deleting it will prevent cost/delta analysis for this inventory.", style="yellow")
 
         # T028: Confirmation prompt
         if not force:
@@ -505,23 +499,23 @@ def inventory_delete(
         delete_snapshots = False
         if inventory.snapshots and not force:
             console.print()
-            delete_snapshots = typer.confirm(
-                f"Delete {len(inventory.snapshots)} snapshot file(s) too?",
-                default=False
-            )
+            delete_snapshots = typer.confirm(f"Delete {len(inventory.snapshots)} snapshot file(s) too?", default=False)
         elif inventory.snapshots and force:
             # With --force, don't delete snapshots by default (safer)
             delete_snapshots = False
 
         # T031, T032: Delete inventory (already implemented in InventoryStorage)
         try:
-            deleted_count = storage.delete(name, identity['account_id'], delete_snapshots=delete_snapshots)
+            deleted_count = storage.delete(name, identity["account_id"], delete_snapshots=delete_snapshots)
         except Exception as e:
             console.print(f"✗ Error deleting inventory: {e}", style="bold red")
             raise typer.Exit(code=2)
 
         # T042: Audit logging for delete operation
-        logger.info(f"Deleted inventory '{name}' for account {identity['account_id']}, deleted {deleted_count} snapshot files, snapshots_deleted={delete_snapshots}")
+        logger.info(
+            f"Deleted inventory '{name}' for account {identity['account_id']}, "
+            f"deleted {deleted_count} snapshot files, snapshots_deleted={delete_snapshots}"
+        )
 
         # T033: Display completion messages
         console.print(f"\n✓ Inventory '[bold]{name}[/bold]' deleted", style="green")
@@ -535,6 +529,7 @@ def inventory_delete(
     except Exception as e:
         console.print(f"✗ Error deleting inventory: {e}", style="bold red")
         import traceback
+
         traceback.print_exc()
         raise typer.Exit(code=2)
 
@@ -547,16 +542,28 @@ app.add_typer(snapshot_app, name="snapshot")
 @snapshot_app.command("create")
 def snapshot_create(
     name: Optional[str] = typer.Argument(None, help="Snapshot name (auto-generated if not provided)"),
-    regions: Optional[str] = typer.Option(None, "--regions", help="Comma-separated list of regions (default: us-east-1)"),
+    regions: Optional[str] = typer.Option(
+        None, "--regions", help="Comma-separated list of regions (default: us-east-1)"
+    ),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name to use"),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name to use for filters (conflicts with --include-tags/--exclude-tags)"),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Inventory name to use for filters (conflicts with --include-tags/--exclude-tags)"
+    ),
     set_active: bool = typer.Option(True, "--set-active/--no-set-active", help="Set as active baseline"),
     compress: bool = typer.Option(False, "--compress", help="Compress snapshot with gzip"),
-    before_date: Optional[str] = typer.Option(None, "--before-date", help="Include only resources created before date (YYYY-MM-DD)"),
-    after_date: Optional[str] = typer.Option(None, "--after-date", help="Include only resources created on/after date (YYYY-MM-DD)"),
+    before_date: Optional[str] = typer.Option(
+        None, "--before-date", help="Include only resources created before date (YYYY-MM-DD)"
+    ),
+    after_date: Optional[str] = typer.Option(
+        None, "--after-date", help="Include only resources created on/after date (YYYY-MM-DD)"
+    ),
     filter_tags: Optional[str] = typer.Option(None, "--filter-tags", help="DEPRECATED: use --include-tags instead"),
-    include_tags: Optional[str] = typer.Option(None, "--include-tags", help="Include only resources with ALL these tags (Key=Value,Key2=Value2)"),
-    exclude_tags: Optional[str] = typer.Option(None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"),
+    include_tags: Optional[str] = typer.Option(
+        None, "--include-tags", help="Include only resources with ALL these tags (Key=Value,Key2=Value2)"
+    ),
+    exclude_tags: Optional[str] = typer.Option(
+        None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
+    ),
 ):
     """Create a new baseline snapshot of AWS resources.
 
@@ -612,7 +619,7 @@ def snapshot_create(
                 "  Filters are defined in the inventory. Either:\n"
                 "  1. Use --inventory to apply inventory's filters, OR\n"
                 "  2. Use --include-tags/--exclude-tags for ad-hoc filtering",
-                style="bold red"
+                style="bold red",
             )
             raise typer.Exit(code=1)
 
@@ -626,19 +633,21 @@ def snapshot_create(
         if inventory:
             # Load specified inventory
             try:
-                active_inventory = inventory_storage.get_by_name(inventory, identity['account_id'])
+                active_inventory = inventory_storage.get_by_name(inventory, identity["account_id"])
                 inventory_name = inventory
                 console.print(f"📦 Using inventory: [bold]{inventory}[/bold]", style="cyan")
                 if active_inventory.description:
                     console.print(f"   {active_inventory.description}")
-            except Exception as e:
+            except Exception:
                 # T018: Handle nonexistent inventory
-                console.print(f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red")
-                console.print(f"  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+                console.print(
+                    f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red"
+                )
+                console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
                 raise typer.Exit(code=1)
         else:
             # Get or create default inventory (lazy creation)
-            active_inventory = inventory_storage.get_or_create_default(identity['account_id'])
+            active_inventory = inventory_storage.get_or_create_default(identity["account_id"])
             inventory_name = "default"
 
         # Generate snapshot name if not provided (T014: use inventory in naming)
@@ -649,12 +658,12 @@ def snapshot_create(
         # Parse regions - default to us-east-1
         region_list = []
         if regions:
-            region_list = [r.strip() for r in regions.split(',')]
+            region_list = [r.strip() for r in regions.split(",")]
         elif config.regions:
             region_list = config.regions
         else:
             # Default to us-east-1
-            region_list = ['us-east-1']
+            region_list = ["us-east-1"]
 
         console.print(f"📸 Creating snapshot: [bold]{name}[/bold]")
         console.print(f"Regions: {', '.join(region_list)}\n")
@@ -702,8 +711,9 @@ def snapshot_create(
 
         # Create filter if any filters or dates are specified
         if before_date or after_date or include_tags_dict or exclude_tags_dict:
-            from ..snapshot.filter import ResourceFilter
             from datetime import datetime as dt
+
+            from ..snapshot.filter import ResourceFilter
 
             # Parse dates
             before_dt = None
@@ -711,16 +721,16 @@ def snapshot_create(
 
             if before_date:
                 try:
-                    before_dt = dt.strptime(before_date, '%Y-%m-%d')
+                    before_dt = dt.strptime(before_date, "%Y-%m-%d")
                 except ValueError:
-                    console.print(f"✗ Invalid --before-date format. Use YYYY-MM-DD", style="bold red")
+                    console.print("✗ Invalid --before-date format. Use YYYY-MM-DD", style="bold red")
                     raise typer.Exit(code=1)
 
             if after_date:
                 try:
-                    after_dt = dt.strptime(after_date, '%Y-%m-%d')
+                    after_dt = dt.strptime(after_date, "%Y-%m-%d")
                 except ValueError:
-                    console.print(f"✗ Invalid --after-date format. Use YYYY-MM-DD", style="bold red")
+                    console.print("✗ Invalid --after-date format. Use YYYY-MM-DD", style="bold red")
                     raise typer.Exit(code=1)
 
             # Create filter
@@ -740,7 +750,7 @@ def snapshot_create(
         snapshot = create_snapshot(
             name=name,
             regions=region_list,
-            account_id=identity['account_id'],
+            account_id=identity["account_id"],
             profile_name=aws_profile,
             set_active=set_active,
             resource_filter=resource_filter,
@@ -749,17 +759,14 @@ def snapshot_create(
 
         # T018: Check for zero resources after filtering
         if snapshot.resource_count == 0:
-            console.print(
-                "⚠️  Warning: Snapshot contains 0 resources after filtering",
-                style="bold yellow"
-            )
+            console.print("⚠️  Warning: Snapshot contains 0 resources after filtering", style="bold yellow")
             if resource_filter:
                 console.print(
                     "  Your filters may be too restrictive. Consider:\n"
                     "  - Adjusting tag filters\n"
                     "  - Checking date ranges\n"
                     "  - Verifying resources exist in the specified regions",
-                    style="yellow"
+                    style="yellow",
                 )
             console.print("\nSnapshot was not saved.\n")
             raise typer.Exit(code=0)
@@ -776,27 +783,25 @@ def snapshot_create(
         # T017: User feedback about inventory
         console.print(f"\n✓ Added to inventory '[bold]{inventory_name}[/bold]'", style="green")
         if set_active:
-            console.print(f"  Marked as active baseline for this inventory", style="green")
+            console.print("  Marked as active baseline for this inventory", style="green")
 
         # Display summary
         console.print("\n✓ Snapshot complete!", style="bold green")
-        console.print(f"\nSummary:")
+        console.print("\nSummary:")
         console.print(f"  Name: {snapshot.name}")
         console.print(f"  Resources: {snapshot.resource_count}")
         console.print(f"  File: {filepath}")
         console.print(f"  Active: {'Yes' if snapshot.is_active else 'No'}")
 
         # Show collection errors if any
-        collection_errors = snapshot.metadata.get('collection_errors', [])
+        collection_errors = snapshot.metadata.get("collection_errors", [])
         if collection_errors:
             console.print(f"\n⚠️  Note: {len(collection_errors)} service(s) were unavailable", style="yellow")
-            if verbose:
-                console.print("  Run with --verbose for details")
 
         # Show filtering stats if filters were applied
         if snapshot.filters_applied:
-            stats = snapshot.filters_applied.get('statistics', {})
-            console.print(f"\nFiltering:")
+            stats = snapshot.filters_applied.get("statistics", {})
+            console.print("\nFiltering:")
             console.print(f"  Collected: {stats.get('total_collected', 0)}")
             console.print(f"  Matched filters: {stats.get('final_count', 0)}")
             console.print(f"  Filtered out: {stats.get('total_collected', 0) - stats.get('final_count', 0)}")
@@ -822,6 +827,7 @@ def snapshot_create(
     except Exception as e:
         console.print(f"✗ Error creating snapshot: {e}", style="bold red")
         import traceback
+
         traceback.print_exc()
         raise typer.Exit(code=2)
 
@@ -845,10 +851,10 @@ def snapshot_list():
         table.add_column("Active", justify="center")
 
         for snap in snapshots:
-            active_marker = "✓" if snap['is_active'] else ""
+            active_marker = "✓" if snap["is_active"] else ""
             table.add_row(
-                snap['name'],
-                snap['modified'].strftime("%Y-%m-%d %H:%M"),
+                snap["name"],
+                snap["modified"].strftime("%Y-%m-%d %H:%M"),
                 f"{snap['size_mb']:.2f}",
                 active_marker,
             )
@@ -878,12 +884,12 @@ def snapshot_show(name: str = typer.Argument(..., help="Snapshot name to display
         # Show filters if applied
         if snapshot.filters_applied:
             console.print("Filters applied:")
-            date_filters = snapshot.filters_applied.get('date_filters', {})
-            if date_filters.get('before_date'):
+            date_filters = snapshot.filters_applied.get("date_filters", {})
+            if date_filters.get("before_date"):
                 console.print(f"  Before: {date_filters['before_date']}")
-            if date_filters.get('after_date'):
+            if date_filters.get("after_date"):
                 console.print(f"  After: {date_filters['after_date']}")
-            tag_filters = snapshot.filters_applied.get('tag_filters', {})
+            tag_filters = snapshot.filters_applied.get("tag_filters", {})
             if tag_filters:
                 console.print(f"  Tags: {tag_filters}")
             console.print()
@@ -947,7 +953,7 @@ def snapshot_delete(
 
         # Confirm deletion
         if not yes:
-            console.print(f"\n[yellow]⚠️  About to delete snapshot:[/yellow]")
+            console.print("\n[yellow]⚠️  About to delete snapshot:[/yellow]")
             console.print(f"  Name: {snapshot.name}")
             console.print(f"  Created: {snapshot.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             console.print(f"  Resources: {snapshot.resource_count}")
@@ -969,7 +975,7 @@ def snapshot_delete(
     except ValueError as e:
         console.print(f"✗ {e}", style="bold red")
         console.print("\nTip: Set another snapshot as active first:")
-        console.print(f"  aws-baseline snapshot set-active <other-snapshot-name>")
+        console.print("  aws-baseline snapshot set-active <other-snapshot-name>")
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"✗ Error deleting snapshot: {e}", style="bold red")
@@ -978,7 +984,9 @@ def snapshot_delete(
 
 @app.command()
 def delta(
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", help="Baseline snapshot name (default: active from inventory)"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", help="Baseline snapshot name (default: active from inventory)"
+    ),
     inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')"),
     resource_type: Optional[str] = typer.Option(None, "--resource-type", help="Filter by resource type"),
     region: Optional[str] = typer.Option(None, "--region", help="Filter by region"),
@@ -1008,15 +1016,17 @@ def delta(
 
         if inventory:
             try:
-                active_inventory = inventory_storage.get_by_name(inventory, identity['account_id'])
+                active_inventory = inventory_storage.get_by_name(inventory, identity["account_id"])
             except Exception:
                 # T024: Inventory doesn't exist
-                console.print(f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red")
-                console.print(f"  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+                console.print(
+                    f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red"
+                )
+                console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
                 raise typer.Exit(code=1)
         else:
             # Get or create default inventory
-            active_inventory = inventory_storage.get_or_create_default(identity['account_id'])
+            active_inventory = inventory_storage.get_or_create_default(identity["account_id"])
             inventory_name = "default"
 
         # T026: User feedback about inventory
@@ -1024,13 +1034,9 @@ def delta(
 
         # T024, T025: Validate inventory has snapshots and active snapshot
         if not active_inventory.snapshots:
+            console.print(f"✗ No snapshots exist in inventory '{inventory_name}'", style="bold red")
             console.print(
-                f"✗ No snapshots exist in inventory '{inventory_name}'",
-                style="bold red"
-            )
-            console.print(
-                f"  Take a snapshot first: aws-baseline snapshot create --inventory {inventory_name}",
-                style="yellow"
+                f"  Take a snapshot first: aws-baseline snapshot create --inventory {inventory_name}", style="yellow"
             )
             raise typer.Exit(code=1)
 
@@ -1043,18 +1049,16 @@ def delta(
         else:
             # Use inventory's active snapshot
             if not active_inventory.active_snapshot:
+                console.print(f"✗ No active snapshot in inventory '{inventory_name}'", style="bold red")
                 console.print(
-                    f"✗ No active snapshot in inventory '{inventory_name}'",
-                    style="bold red"
-                )
-                console.print(
-                    f"  Take a snapshot or set one as active: aws-baseline snapshot create --inventory {inventory_name}",
-                    style="yellow"
+                    f"  Take a snapshot or set one as active: "
+                    f"aws-baseline snapshot create --inventory {inventory_name}",
+                    style="yellow",
                 )
                 raise typer.Exit(code=1)
 
             # Load the active snapshot (strip .yaml extension if present)
-            snapshot_name = active_inventory.active_snapshot.replace('.yaml.gz', '').replace('.yaml', '')
+            snapshot_name = active_inventory.active_snapshot.replace(".yaml.gz", "").replace(".yaml", "")
             baseline_snapshot = storage.load_snapshot(snapshot_name)
 
         console.print(f"🔍 Comparing to baseline: [bold]{baseline_snapshot.name}[/bold]")
@@ -1086,12 +1090,12 @@ def delta(
 
         # Export if requested
         if export:
-            if export.endswith('.json'):
+            if export.endswith(".json"):
                 reporter.export_json(delta_report, export)
-            elif export.endswith('.csv'):
+            elif export.endswith(".csv"):
                 reporter.export_csv(delta_report, export)
             else:
-                console.print(f"✗ Unsupported export format. Use .json or .csv", style="bold red")
+                console.print("✗ Unsupported export format. Use .json or .csv", style="bold red")
                 raise typer.Exit(code=1)
 
         # Exit with code 0 if no changes (for scripting)
@@ -1107,15 +1111,20 @@ def delta(
     except Exception as e:
         console.print(f"✗ Error calculating delta: {e}", style="bold red")
         import traceback
+
         traceback.print_exc()
         raise typer.Exit(code=2)
 
 
 @app.command()
 def cost(
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", help="Baseline snapshot name (default: active from inventory)"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", help="Baseline snapshot name (default: active from inventory)"
+    ),
     inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')"),
-    start_date: Optional[str] = typer.Option(None, "--start-date", help="Start date (YYYY-MM-DD, default: snapshot date)"),
+    start_date: Optional[str] = typer.Option(
+        None, "--start-date", help="Start date (YYYY-MM-DD, default: snapshot date)"
+    ),
     end_date: Optional[str] = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD, default: today)"),
     granularity: str = typer.Option("MONTHLY", "--granularity", help="Cost granularity: DAILY or MONTHLY"),
     show_services: bool = typer.Option(True, "--show-services/--no-services", help="Show service breakdown"),
@@ -1144,15 +1153,17 @@ def cost(
 
         if inventory:
             try:
-                active_inventory = inventory_storage.get_by_name(inventory, identity['account_id'])
+                active_inventory = inventory_storage.get_by_name(inventory, identity["account_id"])
             except Exception:
                 # T022: Inventory doesn't exist
-                console.print(f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red")
-                console.print(f"  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+                console.print(
+                    f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red"
+                )
+                console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
                 raise typer.Exit(code=1)
         else:
             # Get or create default inventory
-            active_inventory = inventory_storage.get_or_create_default(identity['account_id'])
+            active_inventory = inventory_storage.get_or_create_default(identity["account_id"])
             inventory_name = "default"
 
         # T026: User feedback about inventory
@@ -1160,13 +1171,9 @@ def cost(
 
         # T022, T023: Validate inventory has snapshots and active snapshot
         if not active_inventory.snapshots:
+            console.print(f"✗ No snapshots exist in inventory '{inventory_name}'", style="bold red")
             console.print(
-                f"✗ No snapshots exist in inventory '{inventory_name}'",
-                style="bold red"
-            )
-            console.print(
-                f"  Take a snapshot first: aws-baseline snapshot create --inventory {inventory_name}",
-                style="yellow"
+                f"  Take a snapshot first: aws-baseline snapshot create --inventory {inventory_name}", style="yellow"
             )
             raise typer.Exit(code=1)
 
@@ -1179,18 +1186,16 @@ def cost(
         else:
             # Use inventory's active snapshot
             if not active_inventory.active_snapshot:
+                console.print(f"✗ No active snapshot in inventory '{inventory_name}'", style="bold red")
                 console.print(
-                    f"✗ No active snapshot in inventory '{inventory_name}'",
-                    style="bold red"
-                )
-                console.print(
-                    f"  Take a snapshot or set one as active: aws-baseline snapshot create --inventory {inventory_name}",
-                    style="yellow"
+                    f"  Take a snapshot or set one as active: "
+                    f"aws-baseline snapshot create --inventory {inventory_name}",
+                    style="yellow",
                 )
                 raise typer.Exit(code=1)
 
             # Load the active snapshot (strip .yaml extension if present)
-            snapshot_name = active_inventory.active_snapshot.replace('.yaml.gz', '').replace('.yaml', '')
+            snapshot_name = active_inventory.active_snapshot.replace(".yaml.gz", "").replace(".yaml", "")
             baseline_snapshot = storage.load_snapshot(snapshot_name)
 
         console.print(f"💰 Analyzing costs for snapshot: [bold]{baseline_snapshot.name}[/bold]\n")
@@ -1203,21 +1208,21 @@ def cost(
 
         if start_date:
             try:
-                start_dt = dt.strptime(start_date, '%Y-%m-%d')
+                start_dt = dt.strptime(start_date, "%Y-%m-%d")
             except ValueError:
-                console.print(f"✗ Invalid start date format. Use YYYY-MM-DD", style="bold red")
+                console.print("✗ Invalid start date format. Use YYYY-MM-DD", style="bold red")
                 raise typer.Exit(code=1)
 
         if end_date:
             try:
-                end_dt = dt.strptime(end_date, '%Y-%m-%d')
+                end_dt = dt.strptime(end_date, "%Y-%m-%d")
             except ValueError:
-                console.print(f"✗ Invalid end date format. Use YYYY-MM-DD", style="bold red")
+                console.print("✗ Invalid end date format. Use YYYY-MM-DD", style="bold red")
                 raise typer.Exit(code=1)
 
         # Validate granularity
-        if granularity not in ['DAILY', 'MONTHLY']:
-            console.print(f"✗ Invalid granularity. Use DAILY or MONTHLY", style="bold red")
+        if granularity not in ["DAILY", "MONTHLY"]:
+            console.print("✗ Invalid granularity. Use DAILY or MONTHLY", style="bold red")
             raise typer.Exit(code=1)
 
         # Use profile parameter if provided, otherwise use config
@@ -1234,8 +1239,8 @@ def cost(
         )
 
         # Analyze costs
-        from ..cost.explorer import CostExplorerClient, CostExplorerError
         from ..cost.analyzer import CostAnalyzer
+        from ..cost.explorer import CostExplorerClient, CostExplorerError
 
         try:
             cost_explorer = CostExplorerClient(profile_name=aws_profile)
@@ -1261,12 +1266,12 @@ def cost(
 
             # Export if requested
             if export:
-                if export.endswith('.json'):
+                if export.endswith(".json"):
                     reporter.export_json(cost_report, export)
-                elif export.endswith('.csv'):
+                elif export.endswith(".csv"):
                     reporter.export_csv(cost_report, export)
                 else:
-                    console.print(f"✗ Unsupported export format. Use .json or .csv", style="bold red")
+                    console.print("✗ Unsupported export format. Use .json or .csv", style="bold red")
                     raise typer.Exit(code=1)
 
         except CostExplorerError as e:
@@ -1286,6 +1291,7 @@ def cost(
     except Exception as e:
         console.print(f"✗ Error analyzing costs: {e}", style="bold red")
         import traceback
+
         traceback.print_exc()
         raise typer.Exit(code=2)
 

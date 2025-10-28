@@ -1,12 +1,12 @@
 """Unit tests for InventoryStorage service."""
 
+from pathlib import Path
+
 import pytest
 import yaml
-from pathlib import Path
-from datetime import datetime, timezone
 
-from src.snapshot.inventory_storage import InventoryStorage, InventoryNotFoundError
 from src.models.inventory import Inventory
+from src.snapshot.inventory_storage import InventoryNotFoundError, InventoryStorage
 
 
 class TestInventoryStorage:

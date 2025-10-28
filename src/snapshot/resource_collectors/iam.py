@@ -1,11 +1,10 @@
 """IAM resource collector."""
 
 from typing import List
-from datetime import datetime
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class IAMCollector(BaseResourceCollector):
@@ -13,7 +12,7 @@ class IAMCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'iam'
+        return "iam"
 
     @property
     def is_global_service(self) -> bool:
@@ -49,29 +48,29 @@ class IAMCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_roles')
+            paginator = client.get_paginator("list_roles")
             for page in paginator.paginate():
-                for role in page['Roles']:
+                for role in page["Roles"]:
                     # Build ARN
-                    arn = role['Arn']
+                    arn = role["Arn"]
 
                     # Extract tags
                     tags = {}
                     try:
-                        tag_response = client.list_role_tags(RoleName=role['RoleName'])
-                        tags = {tag['Key']: tag['Value'] for tag in tag_response.get('Tags', [])}
+                        tag_response = client.list_role_tags(RoleName=role["RoleName"])
+                        tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("Tags", [])}
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for role {role['RoleName']}: {e}")
 
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::IAM::Role',
-                        name=role['RoleName'],
-                        region='global',
+                        resource_type="AWS::IAM::Role",
+                        name=role["RoleName"],
+                        region="global",
                         tags=tags,
                         config_hash=compute_config_hash(role),
-                        created_at=role.get('CreateDate'),
+                        created_at=role.get("CreateDate"),
                         raw_config=role,
                     )
                     resources.append(resource)
@@ -87,29 +86,29 @@ class IAMCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_users')
+            paginator = client.get_paginator("list_users")
             for page in paginator.paginate():
-                for user in page['Users']:
+                for user in page["Users"]:
                     # Build ARN
-                    arn = user['Arn']
+                    arn = user["Arn"]
 
                     # Extract tags
                     tags = {}
                     try:
-                        tag_response = client.list_user_tags(UserName=user['UserName'])
-                        tags = {tag['Key']: tag['Value'] for tag in tag_response.get('Tags', [])}
+                        tag_response = client.list_user_tags(UserName=user["UserName"])
+                        tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("Tags", [])}
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for user {user['UserName']}: {e}")
 
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::IAM::User',
-                        name=user['UserName'],
-                        region='global',
+                        resource_type="AWS::IAM::User",
+                        name=user["UserName"],
+                        region="global",
                         tags=tags,
                         config_hash=compute_config_hash(user),
-                        created_at=user.get('CreateDate'),
+                        created_at=user.get("CreateDate"),
                         raw_config=user,
                     )
                     resources.append(resource)
@@ -125,21 +124,21 @@ class IAMCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_groups')
+            paginator = client.get_paginator("list_groups")
             for page in paginator.paginate():
-                for group in page['Groups']:
+                for group in page["Groups"]:
                     # Build ARN
-                    arn = group['Arn']
+                    arn = group["Arn"]
 
                     # Create resource (groups don't support tags)
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::IAM::Group',
-                        name=group['GroupName'],
-                        region='global',
+                        resource_type="AWS::IAM::Group",
+                        name=group["GroupName"],
+                        region="global",
                         tags={},
                         config_hash=compute_config_hash(group),
-                        created_at=group.get('CreateDate'),
+                        created_at=group.get("CreateDate"),
                         raw_config=group,
                     )
                     resources.append(resource)
@@ -155,30 +154,30 @@ class IAMCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_policies')
+            paginator = client.get_paginator("list_policies")
             # Only get customer-managed policies (not AWS-managed)
-            for page in paginator.paginate(Scope='Local'):
-                for policy in page['Policies']:
+            for page in paginator.paginate(Scope="Local"):
+                for policy in page["Policies"]:
                     # Build ARN
-                    arn = policy['Arn']
+                    arn = policy["Arn"]
 
                     # Extract tags
                     tags = {}
                     try:
                         tag_response = client.list_policy_tags(PolicyArn=arn)
-                        tags = {tag['Key']: tag['Value'] for tag in tag_response.get('Tags', [])}
+                        tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("Tags", [])}
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for policy {policy['PolicyName']}: {e}")
 
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::IAM::Policy',
-                        name=policy['PolicyName'],
-                        region='global',
+                        resource_type="AWS::IAM::Policy",
+                        name=policy["PolicyName"],
+                        region="global",
                         tags=tags,
                         config_hash=compute_config_hash(policy),
-                        created_at=policy.get('CreateDate'),
+                        created_at=policy.get("CreateDate"),
                         raw_config=policy,
                     )
                     resources.append(resource)

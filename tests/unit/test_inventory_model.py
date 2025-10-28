@@ -1,6 +1,5 @@
 """Unit tests for Inventory model."""
 
-import pytest
 from datetime import datetime, timezone
 
 from src.models.inventory import Inventory
@@ -205,6 +204,7 @@ class TestInventoryModel:
 
         # Wait a tiny bit to ensure timestamp difference
         import time
+
         time.sleep(0.01)
 
         inventory.add_snapshot("snap1.yaml")
@@ -221,6 +221,7 @@ class TestInventoryModel:
 
         # Wait a tiny bit to ensure timestamp difference
         import time
+
         time.sleep(0.01)
 
         inventory.remove_snapshot("snap1.yaml")

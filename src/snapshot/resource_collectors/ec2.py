@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class EC2Collector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class EC2Collector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'ec2'
+        return "ec2"
 
     def collect(self) -> List[Resource]:
         """Collect EC2 resources.
@@ -47,19 +47,19 @@ class EC2Collector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_instances')
+            paginator = client.get_paginator("describe_instances")
             for page in paginator.paginate():
-                for reservation in page['Reservations']:
-                    for instance in reservation['Instances']:
-                        instance_id = instance['InstanceId']
+                for reservation in page["Reservations"]:
+                    for instance in reservation["Instances"]:
+                        instance_id = instance["InstanceId"]
 
                         # Extract tags
                         tags = {}
-                        for tag in instance.get('Tags', []):
-                            tags[tag['Key']] = tag['Value']
+                        for tag in instance.get("Tags", []):
+                            tags[tag["Key"]] = tag["Value"]
 
                         # Get instance name from tags
-                        name = tags.get('Name', instance_id)
+                        name = tags.get("Name", instance_id)
 
                         # Build ARN
                         arn = f"arn:aws:ec2:{self.region}:{account_id}:instance/{instance_id}"
@@ -67,12 +67,12 @@ class EC2Collector(BaseResourceCollector):
                         # Create resource
                         resource = Resource(
                             arn=arn,
-                            resource_type='AWS::EC2::Instance',
+                            resource_type="AWS::EC2::Instance",
                             name=name,
                             region=self.region,
                             tags=tags,
                             config_hash=compute_config_hash(instance),
-                            created_at=instance.get('LaunchTime'),
+                            created_at=instance.get("LaunchTime"),
                             raw_config=instance,
                         )
                         resources.append(resource)
@@ -88,18 +88,18 @@ class EC2Collector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_volumes')
+            paginator = client.get_paginator("describe_volumes")
             for page in paginator.paginate():
-                for volume in page['Volumes']:
-                    volume_id = volume['VolumeId']
+                for volume in page["Volumes"]:
+                    volume_id = volume["VolumeId"]
 
                     # Extract tags
                     tags = {}
-                    for tag in volume.get('Tags', []):
-                        tags[tag['Key']] = tag['Value']
+                    for tag in volume.get("Tags", []):
+                        tags[tag["Key"]] = tag["Value"]
 
                     # Get volume name from tags
-                    name = tags.get('Name', volume_id)
+                    name = tags.get("Name", volume_id)
 
                     # Build ARN
                     arn = f"arn:aws:ec2:{self.region}:{account_id}:volume/{volume_id}"
@@ -107,12 +107,12 @@ class EC2Collector(BaseResourceCollector):
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::EC2::Volume',
+                        resource_type="AWS::EC2::Volume",
                         name=name,
                         region=self.region,
                         tags=tags,
                         config_hash=compute_config_hash(volume),
-                        created_at=volume.get('CreateTime'),
+                        created_at=volume.get("CreateTime"),
                         raw_config=volume,
                     )
                     resources.append(resource)
@@ -129,16 +129,16 @@ class EC2Collector(BaseResourceCollector):
 
         try:
             response = client.describe_vpcs()
-            for vpc in response['Vpcs']:
-                vpc_id = vpc['VpcId']
+            for vpc in response["Vpcs"]:
+                vpc_id = vpc["VpcId"]
 
                 # Extract tags
                 tags = {}
-                for tag in vpc.get('Tags', []):
-                    tags[tag['Key']] = tag['Value']
+                for tag in vpc.get("Tags", []):
+                    tags[tag["Key"]] = tag["Value"]
 
                 # Get VPC name from tags
-                name = tags.get('Name', vpc_id)
+                name = tags.get("Name", vpc_id)
 
                 # Build ARN
                 arn = f"arn:aws:ec2:{self.region}:{account_id}:vpc/{vpc_id}"
@@ -146,7 +146,7 @@ class EC2Collector(BaseResourceCollector):
                 # Create resource
                 resource = Resource(
                     arn=arn,
-                    resource_type='AWS::EC2::VPC',
+                    resource_type="AWS::EC2::VPC",
                     name=name,
                     region=self.region,
                     tags=tags,
@@ -167,16 +167,16 @@ class EC2Collector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_security_groups')
+            paginator = client.get_paginator("describe_security_groups")
             for page in paginator.paginate():
-                for sg in page['SecurityGroups']:
-                    sg_id = sg['GroupId']
-                    sg_name = sg['GroupName']
+                for sg in page["SecurityGroups"]:
+                    sg_id = sg["GroupId"]
+                    sg_name = sg["GroupName"]
 
                     # Extract tags
                     tags = {}
-                    for tag in sg.get('Tags', []):
-                        tags[tag['Key']] = tag['Value']
+                    for tag in sg.get("Tags", []):
+                        tags[tag["Key"]] = tag["Value"]
 
                     # Build ARN
                     arn = f"arn:aws:ec2:{self.region}:{account_id}:security-group/{sg_id}"
@@ -184,7 +184,7 @@ class EC2Collector(BaseResourceCollector):
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::EC2::SecurityGroup',
+                        resource_type="AWS::EC2::SecurityGroup",
                         name=sg_name,
                         region=self.region,
                         tags=tags,
@@ -205,18 +205,18 @@ class EC2Collector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_subnets')
+            paginator = client.get_paginator("describe_subnets")
             for page in paginator.paginate():
-                for subnet in page['Subnets']:
-                    subnet_id = subnet['SubnetId']
+                for subnet in page["Subnets"]:
+                    subnet_id = subnet["SubnetId"]
 
                     # Extract tags
                     tags = {}
-                    for tag in subnet.get('Tags', []):
-                        tags[tag['Key']] = tag['Value']
+                    for tag in subnet.get("Tags", []):
+                        tags[tag["Key"]] = tag["Value"]
 
                     # Get subnet name from tags
-                    name = tags.get('Name', subnet_id)
+                    name = tags.get("Name", subnet_id)
 
                     # Build ARN
                     arn = f"arn:aws:ec2:{self.region}:{account_id}:subnet/{subnet_id}"
@@ -224,7 +224,7 @@ class EC2Collector(BaseResourceCollector):
                     # Create resource
                     resource = Resource(
                         arn=arn,
-                        resource_type='AWS::EC2::Subnet',
+                        resource_type="AWS::EC2::Subnet",
                         name=name,
                         region=self.region,
                         tags=tags,

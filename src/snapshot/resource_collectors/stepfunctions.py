@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class StepFunctionsCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class StepFunctionsCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'stepfunctions'
+        return "stepfunctions"
 
     def collect(self) -> List[Resource]:
         """Collect Step Functions state machines.
@@ -21,14 +21,14 @@ class StepFunctionsCollector(BaseResourceCollector):
             List of Step Functions state machine resources
         """
         resources = []
-        client = self._create_client('stepfunctions')
+        client = self._create_client("stepfunctions")
 
         try:
-            paginator = client.get_paginator('list_state_machines')
+            paginator = client.get_paginator("list_state_machines")
             for page in paginator.paginate():
-                for state_machine in page.get('stateMachines', []):
-                    sm_arn = state_machine['stateMachineArn']
-                    sm_name = state_machine['name']
+                for state_machine in page.get("stateMachines", []):
+                    sm_arn = state_machine["stateMachineArn"]
+                    sm_name = state_machine["name"]
 
                     try:
                         # Get detailed state machine info
@@ -38,22 +38,22 @@ class StepFunctionsCollector(BaseResourceCollector):
                         tags = {}
                         try:
                             tag_response = client.list_tags_for_resource(resourceArn=sm_arn)
-                            for tag in tag_response.get('tags', []):
-                                tags[tag['key']] = tag['value']
+                            for tag in tag_response.get("tags", []):
+                                tags[tag["key"]] = tag["value"]
                         except Exception as e:
                             self.logger.debug(f"Could not get tags for state machine {sm_name}: {e}")
 
                         # Extract creation date
-                        created_at = sm_details.get('creationDate')
+                        created_at = sm_details.get("creationDate")
 
                         # Remove the definition for config hash (can be large)
                         # but keep key metadata
-                        config = {k: v for k, v in sm_details.items() if k != 'definition'}
+                        config = {k: v for k, v in sm_details.items() if k != "definition"}
 
                         # Create resource
                         resource = Resource(
                             arn=sm_arn,
-                            resource_type='AWS::StepFunctions::StateMachine',
+                            resource_type="AWS::StepFunctions::StateMachine",
                             name=sm_name,
                             region=self.region,
                             tags=tags,

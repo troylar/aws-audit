@@ -1,11 +1,10 @@
 """S3 resource collector."""
 
 from typing import List
-from datetime import datetime
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class S3Collector(BaseResourceCollector):
@@ -17,7 +16,7 @@ class S3Collector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 's3'
+        return "s3"
 
     @property
     def is_global_service(self) -> bool:
@@ -31,32 +30,31 @@ class S3Collector(BaseResourceCollector):
             List of S3 bucket resources
         """
         resources = []
-        account_id = self._get_account_id()
         client = self._create_client()
 
         try:
             # List all buckets
             response = client.list_buckets()
 
-            for bucket in response.get('Buckets', []):
-                bucket_name = bucket['Name']
-                creation_date = bucket.get('CreationDate')
+            for bucket in response.get("Buckets", []):
+                bucket_name = bucket["Name"]
+                creation_date = bucket.get("CreationDate")
 
                 # Get bucket location to determine region
                 try:
                     location_response = client.get_bucket_location(Bucket=bucket_name)
-                    location = location_response.get('LocationConstraint')
+                    location = location_response.get("LocationConstraint")
                     # None means us-east-1
-                    bucket_region = location if location else 'us-east-1'
+                    bucket_region = location if location else "us-east-1"
                 except Exception as e:
                     self.logger.debug(f"Could not get location for bucket {bucket_name}: {e}")
-                    bucket_region = 'unknown'
+                    bucket_region = "unknown"
 
                 # Get bucket tags
                 tags = {}
                 try:
                     tag_response = client.get_bucket_tagging(Bucket=bucket_name)
-                    tags = {tag['Key']: tag['Value'] for tag in tag_response.get('TagSet', [])}
+                    tags = {tag["Key"]: tag["Value"] for tag in tag_response.get("TagSet", [])}
                 except client.exceptions.NoSuchTagSet:
                     # Bucket has no tags
                     pass
@@ -65,21 +63,21 @@ class S3Collector(BaseResourceCollector):
 
                 # Get additional bucket configuration for config hash
                 bucket_config = {
-                    'Name': bucket_name,
-                    'CreationDate': creation_date,
-                    'Region': bucket_region,
+                    "Name": bucket_name,
+                    "CreationDate": creation_date,
+                    "Region": bucket_region,
                 }
 
                 # Try to get versioning, encryption, etc.
                 try:
                     versioning = client.get_bucket_versioning(Bucket=bucket_name)
-                    bucket_config['Versioning'] = versioning.get('Status', 'Disabled')
+                    bucket_config["Versioning"] = versioning.get("Status", "Disabled")
                 except Exception:
                     pass
 
                 try:
                     encryption = client.get_bucket_encryption(Bucket=bucket_name)
-                    bucket_config['Encryption'] = encryption.get('ServerSideEncryptionConfiguration')
+                    bucket_config["Encryption"] = encryption.get("ServerSideEncryptionConfiguration")
                 except Exception:
                     # No encryption configured
                     pass
@@ -90,7 +88,7 @@ class S3Collector(BaseResourceCollector):
                 # Create resource
                 resource = Resource(
                     arn=arn,
-                    resource_type='AWS::S3::Bucket',
+                    resource_type="AWS::S3::Bucket",
                     name=bucket_name,
                     region=bucket_region,
                     tags=tags,

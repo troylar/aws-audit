@@ -1,10 +1,10 @@
 """Shared test fixtures for aws-baseline tests."""
 
-import pytest
 import tempfile
 from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
 
 
 @pytest.fixture

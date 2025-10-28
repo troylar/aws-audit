@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class SecretsManagerCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class SecretsManagerCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'secretsmanager'
+        return "secretsmanager"
 
     def collect(self) -> List[Resource]:
         """Collect Secrets Manager secrets.
@@ -24,11 +24,11 @@ class SecretsManagerCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_secrets')
+            paginator = client.get_paginator("list_secrets")
             for page in paginator.paginate():
-                for secret in page.get('SecretList', []):
-                    secret_name = secret['Name']
-                    secret_arn = secret['ARN']
+                for secret in page.get("SecretList", []):
+                    secret_name = secret["Name"]
+                    secret_arn = secret["ARN"]
 
                     # Get full secret details (but not the actual secret value)
                     try:
@@ -41,20 +41,19 @@ class SecretsManagerCollector(BaseResourceCollector):
 
                     # Extract tags
                     tags = {}
-                    for tag in secret.get('Tags', []):
-                        tags[tag['Key']] = tag['Value']
+                    for tag in secret.get("Tags", []):
+                        tags[tag["Key"]] = tag["Value"]
 
                     # Extract creation date
-                    created_at = secret.get('CreatedDate')
+                    created_at = secret.get("CreatedDate")
 
                     # Create resource (without secret value for security)
                     # Remove sensitive fields if present
-                    safe_config = {k: v for k, v in config_data.items()
-                                   if k not in ['SecretString', 'SecretBinary']}
+                    safe_config = {k: v for k, v in config_data.items() if k not in ["SecretString", "SecretBinary"]}
 
                     resource = Resource(
                         arn=secret_arn,
-                        resource_type='AWS::SecretsManager::Secret',
+                        resource_type="AWS::SecretsManager::Secret",
                         name=secret_name,
                         region=self.region,
                         tags=tags,

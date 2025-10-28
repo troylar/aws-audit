@@ -1,10 +1,10 @@
 """Cost report formatting and display."""
 
 from typing import Optional
+
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.progress_bar import ProgressBar
+from rich.table import Table
 
 from ..models.cost_report import CostReport
 
@@ -36,7 +36,7 @@ class CostReporter:
                 f"Snapshot: {report.baseline_snapshot_name}\n"
                 f"Period: {report.period_start.strftime('%Y-%m-%d')} to {report.period_end.strftime('%Y-%m-%d')}\n"
                 f"Generated: {report.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}",
-                style="cyan"
+                style="cyan",
             )
         )
         self.console.print()
@@ -45,12 +45,14 @@ class CostReporter:
         if not report.data_complete:
             self.console.print(
                 f"⚠️  [yellow]Note: Cost data has {report.lag_days} day lag. "
-                f"Data available through {report.data_through.strftime('%Y-%m-%d')}[/yellow]\n"
+                f"Data available through {report.data_through.strftime('%Y-%m-%d')}[/yellow]\n"  # type: ignore
             )
 
         # If no deltas, show simplified view
         if not has_deltas:
-            self.console.print("✓ [green]No resource changes detected - all costs are from snapshot resources[/green]\n")
+            self.console.print(
+                "✓ [green]No resource changes detected - all costs are from snapshot resources[/green]\n"
+            )
             self._display_snapshot_costs(report)
         else:
             # Summary table with baseline/non-baseline split
@@ -79,10 +81,10 @@ class CostReporter:
         # Baseline costs
         baseline_bar = self._create_progress_bar(report.baseline_percentage, color="blue")
         table.add_row(
-            "💰 Baseline (\"Dial Tone\")",
+            '💰 Baseline ("Dial Tone")',
             f"${report.baseline_costs.total:,.2f}",
             f"{report.baseline_percentage:.1f}%",
-            baseline_bar
+            baseline_bar,
         )
 
         # Non-baseline costs
@@ -91,19 +93,14 @@ class CostReporter:
             "📊 Non-Baseline (Projects)",
             f"${report.non_baseline_costs.total:,.2f}",
             f"{report.non_baseline_percentage:.1f}%",
-            non_baseline_bar
+            non_baseline_bar,
         )
 
         # Separator
         table.add_row("━" * 25, "━" * 15, "━" * 12, "━" * 30, style="dim")
 
         # Total
-        table.add_row(
-            "[bold]Total",
-            f"[bold]${report.total_cost:,.2f}",
-            "[bold]100.0%",
-            ""
-        )
+        table.add_row("[bold]Total", f"[bold]${report.total_cost:,.2f}", "[bold]100.0%", "")
 
         self.console.print(table)
 
@@ -122,11 +119,7 @@ class CostReporter:
 
             for service, cost in top_baseline.items():
                 pct = (cost / report.baseline_costs.total * 100) if report.baseline_costs.total > 0 else 0
-                baseline_table.add_row(
-                    self._shorten_service_name(service),
-                    f"${cost:,.2f}",
-                    f"{pct:.1f}%"
-                )
+                baseline_table.add_row(self._shorten_service_name(service), f"${cost:,.2f}", f"{pct:.1f}%")
 
             self.console.print(baseline_table)
             self.console.print()
@@ -143,11 +136,7 @@ class CostReporter:
 
                 for service, cost in top_non_baseline.items():
                     pct = (cost / report.non_baseline_costs.total * 100) if report.non_baseline_costs.total > 0 else 0
-                    non_baseline_table.add_row(
-                        self._shorten_service_name(service),
-                        f"${cost:,.2f}",
-                        f"{pct:.1f}%"
-                    )
+                    non_baseline_table.add_row(self._shorten_service_name(service), f"${cost:,.2f}", f"{pct:.1f}%")
 
                 self.console.print(non_baseline_table)
 
@@ -177,16 +166,16 @@ class CostReporter:
         """
         # Common abbreviations
         replacements = {
-            'Amazon Elastic Compute Cloud - Compute': 'EC2',
-            'Amazon Simple Storage Service': 'S3',
-            'AWS Lambda': 'Lambda',
-            'Amazon Relational Database Service': 'RDS',
-            'AWS Identity and Access Management': 'IAM',
-            'Amazon Virtual Private Cloud': 'VPC',
-            'Amazon CloudWatch': 'CloudWatch',
-            'Amazon Simple Notification Service': 'SNS',
-            'Amazon Simple Queue Service': 'SQS',
-            'Amazon DynamoDB': 'DynamoDB',
+            "Amazon Elastic Compute Cloud - Compute": "EC2",
+            "Amazon Simple Storage Service": "S3",
+            "AWS Lambda": "Lambda",
+            "Amazon Relational Database Service": "RDS",
+            "AWS Identity and Access Management": "IAM",
+            "Amazon Virtual Private Cloud": "VPC",
+            "Amazon CloudWatch": "CloudWatch",
+            "Amazon Simple Notification Service": "SNS",
+            "Amazon Simple Queue Service": "SQS",
+            "Amazon DynamoDB": "DynamoDB",
         }
 
         return replacements.get(service_name, service_name)
@@ -218,24 +207,28 @@ class CostReporter:
         # Baseline services
         for service, cost in report.baseline_costs.by_service.items():
             pct = (cost / report.baseline_costs.total * 100) if report.baseline_costs.total > 0 else 0
-            rows.append({
-                'category': 'baseline',
-                'service': service,
-                'cost': cost,
-                'percentage_of_category': pct,
-                'percentage_of_total': (cost / report.total_cost * 100) if report.total_cost > 0 else 0,
-            })
+            rows.append(
+                {
+                    "category": "baseline",
+                    "service": service,
+                    "cost": cost,
+                    "percentage_of_category": pct,
+                    "percentage_of_total": (cost / report.total_cost * 100) if report.total_cost > 0 else 0,
+                }
+            )
 
         # Non-baseline services
         for service, cost in report.non_baseline_costs.by_service.items():
             pct = (cost / report.non_baseline_costs.total * 100) if report.non_baseline_costs.total > 0 else 0
-            rows.append({
-                'category': 'non_baseline',
-                'service': service,
-                'cost': cost,
-                'percentage_of_category': pct,
-                'percentage_of_total': (cost / report.total_cost * 100) if report.total_cost > 0 else 0,
-            })
+            rows.append(
+                {
+                    "category": "non_baseline",
+                    "service": service,
+                    "cost": cost,
+                    "percentage_of_category": pct,
+                    "percentage_of_total": (cost / report.total_cost * 100) if report.total_cost > 0 else 0,
+                }
+            )
 
         if rows:
             export_to_csv(rows, filepath)

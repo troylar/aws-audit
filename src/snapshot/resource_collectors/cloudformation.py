@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class CloudFormationCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class CloudFormationCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'cloudformation'
+        return "cloudformation"
 
     def collect(self) -> List[Resource]:
         """Collect CloudFormation resources.
@@ -24,26 +24,26 @@ class CloudFormationCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('describe_stacks')
+            paginator = client.get_paginator("describe_stacks")
             for page in paginator.paginate():
-                for stack in page.get('Stacks', []):
-                    stack_name = stack['StackName']
-                    stack_id = stack['StackId']
+                for stack in page.get("Stacks", []):
+                    stack_name = stack["StackName"]
+                    stack_id = stack["StackId"]
 
                     # Extract tags
                     tags = {}
-                    for tag in stack.get('Tags', []):
-                        tags[tag['Key']] = tag['Value']
+                    for tag in stack.get("Tags", []):
+                        tags[tag["Key"]] = tag["Value"]
 
                     # Create resource
                     resource = Resource(
                         arn=stack_id,  # Stack ID is actually the ARN
-                        resource_type='AWS::CloudFormation::Stack',
+                        resource_type="AWS::CloudFormation::Stack",
                         name=stack_name,
                         region=self.region,
                         tags=tags,
                         config_hash=compute_config_hash(stack),
-                        created_at=stack.get('CreationTime'),
+                        created_at=stack.get("CreationTime"),
                         raw_config=stack,
                     )
                     resources.append(resource)

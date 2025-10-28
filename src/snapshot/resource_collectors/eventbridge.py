@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class EventBridgeCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class EventBridgeCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'eventbridge'
+        return "eventbridge"
 
     def collect(self) -> List[Resource]:
         """Collect EventBridge resources.
@@ -42,31 +42,31 @@ class EventBridgeCollector(BaseResourceCollector):
             List of Event Bus resources
         """
         resources = []
-        client = self._create_client('events')
+        client = self._create_client("events")
 
         try:
-            paginator = client.get_paginator('list_event_buses')
+            paginator = client.get_paginator("list_event_buses")
             for page in paginator.paginate():
-                for bus in page.get('EventBuses', []):
-                    bus_name = bus['Name']
-                    bus_arn = bus['Arn']
+                for bus in page.get("EventBuses", []):
+                    bus_name = bus["Name"]
+                    bus_arn = bus["Arn"]
 
                     # Get tags
                     tags = {}
                     try:
                         tag_response = client.list_tags_for_resource(ResourceARN=bus_arn)
-                        for tag in tag_response.get('Tags', []):
-                            tags[tag['Key']] = tag['Value']
+                        for tag in tag_response.get("Tags", []):
+                            tags[tag["Key"]] = tag["Value"]
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for event bus {bus_name}: {e}")
 
                     # Extract creation time (if available)
-                    created_at = bus.get('CreationTime')
+                    created_at = bus.get("CreationTime")
 
                     # Create resource
                     resource = Resource(
                         arn=bus_arn,
-                        resource_type='AWS::Events::EventBus',
+                        resource_type="AWS::Events::EventBus",
                         name=bus_name,
                         region=self.region,
                         tags=tags,
@@ -88,18 +88,18 @@ class EventBridgeCollector(BaseResourceCollector):
             List of Event Rule resources
         """
         resources = []
-        client = self._create_client('events')
+        client = self._create_client("events")
 
         try:
             # First, get all event buses to collect rules from each
-            event_buses = ['default']  # Start with default bus
+            event_buses = ["default"]  # Start with default bus
 
             try:
-                paginator = client.get_paginator('list_event_buses')
+                paginator = client.get_paginator("list_event_buses")
                 for page in paginator.paginate():
-                    for bus in page.get('EventBuses', []):
-                        bus_name = bus['Name']
-                        if bus_name != 'default':
+                    for bus in page.get("EventBuses", []):
+                        bus_name = bus["Name"]
+                        if bus_name != "default":
                             event_buses.append(bus_name)
             except Exception as e:
                 self.logger.debug(f"Error listing event buses: {e}")
@@ -107,27 +107,24 @@ class EventBridgeCollector(BaseResourceCollector):
             # Collect rules from each bus
             for bus_name in event_buses:
                 try:
-                    paginator = client.get_paginator('list_rules')
+                    paginator = client.get_paginator("list_rules")
                     for page in paginator.paginate(EventBusName=bus_name):
-                        for rule in page.get('Rules', []):
-                            rule_name = rule['Name']
-                            rule_arn = rule['Arn']
+                        for rule in page.get("Rules", []):
+                            rule_name = rule["Name"]
+                            rule_arn = rule["Arn"]
 
                             # Get tags
                             tags = {}
                             try:
                                 tag_response = client.list_tags_for_resource(ResourceARN=rule_arn)
-                                for tag in tag_response.get('Tags', []):
-                                    tags[tag['Key']] = tag['Value']
+                                for tag in tag_response.get("Tags", []):
+                                    tags[tag["Key"]] = tag["Value"]
                             except Exception as e:
                                 self.logger.debug(f"Could not get tags for rule {rule_name}: {e}")
 
                             # Get full rule details
                             try:
-                                rule_details = client.describe_rule(
-                                    Name=rule_name,
-                                    EventBusName=bus_name
-                                )
+                                rule_details = client.describe_rule(Name=rule_name, EventBusName=bus_name)
                                 # Merge with basic rule info
                                 full_rule = {**rule, **rule_details}
                             except Exception as e:
@@ -140,7 +137,7 @@ class EventBridgeCollector(BaseResourceCollector):
                             # Create resource
                             resource = Resource(
                                 arn=rule_arn,
-                                resource_type='AWS::Events::Rule',
+                                resource_type="AWS::Events::Rule",
                                 name=rule_name,
                                 region=self.region,
                                 tags=tags,

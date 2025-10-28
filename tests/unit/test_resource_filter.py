@@ -1,9 +1,9 @@
 """Unit tests for ResourceFilter."""
 
-import pytest
 from datetime import datetime, timezone
-from src.snapshot.filter import ResourceFilter
+
 from src.models.resource import Resource
+from src.snapshot.filter import ResourceFilter
 
 
 class TestResourceFilter:
@@ -354,9 +354,7 @@ class TestResourceFilter:
             ),
         ]
 
-        filter = ResourceFilter(
-            include_tags={"Environment": "production"}, exclude_tags={"Status": "archived"}
-        )
+        filter = ResourceFilter(include_tags={"Environment": "production"}, exclude_tags={"Status": "archived"})
         filtered = filter.apply(resources)
 
         assert len(filtered) == 1
@@ -449,7 +447,7 @@ class TestResourceFilter:
         ]
 
         filter = ResourceFilter(include_tags={"Environment": "production"})
-        filtered = filter.apply(resources)
+        filter.apply(resources)
 
         stats = filter.get_statistics_summary()
         assert stats["total_collected"] == 2

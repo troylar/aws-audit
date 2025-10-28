@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class KMSCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class KMSCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'kms'
+        return "kms"
 
     def collect(self) -> List[Resource]:
         """Collect KMS keys.
@@ -26,22 +26,22 @@ class KMSCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_keys')
+            paginator = client.get_paginator("list_keys")
             for page in paginator.paginate():
-                for key_item in page.get('Keys', []):
-                    key_id = key_item['KeyId']
-                    key_arn = key_item['KeyArn']
+                for key_item in page.get("Keys", []):
+                    key_id = key_item["KeyId"]
+                    key_arn = key_item["KeyArn"]
 
                     try:
                         # Get key metadata
-                        key_metadata = client.describe_key(KeyId=key_id)['KeyMetadata']
+                        key_metadata = client.describe_key(KeyId=key_id)["KeyMetadata"]
 
                         # Skip AWS-managed keys (we only want customer-managed keys)
-                        if key_metadata.get('KeyManager') == 'AWS':
+                        if key_metadata.get("KeyManager") == "AWS":
                             continue
 
                         # Skip keys that are pending deletion
-                        if key_metadata.get('KeyState') == 'PendingDeletion':
+                        if key_metadata.get("KeyState") == "PendingDeletion":
                             self.logger.debug(f"Skipping key {key_id} - pending deletion")
                             continue
 
@@ -50,10 +50,10 @@ class KMSCollector(BaseResourceCollector):
                         # Get key aliases
                         try:
                             aliases_response = client.list_aliases(KeyId=key_id)
-                            aliases = aliases_response.get('Aliases', [])
+                            aliases = aliases_response.get("Aliases", [])
                             if aliases:
                                 # Use first alias as the name
-                                key_alias = aliases[0]['AliasName']
+                                key_alias = aliases[0]["AliasName"]
                         except Exception as e:
                             self.logger.debug(f"Could not get aliases for key {key_id}: {e}")
 
@@ -61,8 +61,8 @@ class KMSCollector(BaseResourceCollector):
                         tags = {}
                         try:
                             tag_response = client.list_resource_tags(KeyId=key_id)
-                            for tag in tag_response.get('Tags', []):
-                                tags[tag['TagKey']] = tag['TagValue']
+                            for tag in tag_response.get("Tags", []):
+                                tags[tag["TagKey"]] = tag["TagValue"]
                         except Exception as e:
                             self.logger.debug(f"Could not get tags for key {key_id}: {e}")
 
@@ -70,19 +70,19 @@ class KMSCollector(BaseResourceCollector):
                         rotation_enabled = False
                         try:
                             rotation_response = client.get_key_rotation_status(KeyId=key_id)
-                            rotation_enabled = rotation_response.get('KeyRotationEnabled', False)
+                            rotation_enabled = rotation_response.get("KeyRotationEnabled", False)
                         except Exception as e:
                             self.logger.debug(f"Could not get rotation status for key {key_id}: {e}")
 
                         # Build config for hash
                         config = {
                             **key_metadata,
-                            'RotationEnabled': rotation_enabled,
-                            'Aliases': [key_alias] if key_alias else [],
+                            "RotationEnabled": rotation_enabled,
+                            "Aliases": [key_alias] if key_alias else [],
                         }
 
                         # Extract creation date
-                        created_at = key_metadata.get('CreationDate')
+                        created_at = key_metadata.get("CreationDate")
 
                         # Use alias as name if available, otherwise use key ID
                         name = key_alias if key_alias else key_id
@@ -90,7 +90,7 @@ class KMSCollector(BaseResourceCollector):
                         # Create resource
                         resource = Resource(
                             arn=key_arn,
-                            resource_type='AWS::KMS::Key',
+                            resource_type="AWS::KMS::Key",
                             name=name,
                             region=self.region,
                             tags=tags,

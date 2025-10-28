@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -16,9 +16,9 @@ class CostBreakdown:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
-            'total': self.total,
-            'by_service': self.by_service,
-            'percentage': self.percentage,
+            "total": self.total,
+            "by_service": self.by_service,
+            "percentage": self.percentage,
         }
 
 
@@ -40,23 +40,23 @@ class CostReport:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
-            'generated_at': self.generated_at.isoformat(),
-            'baseline_snapshot_name': self.baseline_snapshot_name,
-            'period_start': self.period_start.isoformat(),
-            'period_end': self.period_end.isoformat(),
-            'baseline_costs': self.baseline_costs.to_dict(),
-            'non_baseline_costs': self.non_baseline_costs.to_dict(),
-            'total_cost': self.total_cost,
-            'data_complete': self.data_complete,
-            'data_through': self.data_through.isoformat() if self.data_through else None,
-            'lag_days': self.lag_days,
-            'summary': {
-                'baseline_total': self.baseline_costs.total,
-                'baseline_percentage': self.baseline_costs.percentage,
-                'non_baseline_total': self.non_baseline_costs.total,
-                'non_baseline_percentage': self.non_baseline_costs.percentage,
-                'total': self.total_cost,
-            }
+            "generated_at": self.generated_at.isoformat(),
+            "baseline_snapshot_name": self.baseline_snapshot_name,
+            "period_start": self.period_start.isoformat(),
+            "period_end": self.period_end.isoformat(),
+            "baseline_costs": self.baseline_costs.to_dict(),
+            "non_baseline_costs": self.non_baseline_costs.to_dict(),
+            "total_cost": self.total_cost,
+            "data_complete": self.data_complete,
+            "data_through": self.data_through.isoformat() if self.data_through else None,
+            "lag_days": self.lag_days,
+            "summary": {
+                "baseline_total": self.baseline_costs.total,
+                "baseline_percentage": self.baseline_costs.percentage,
+                "non_baseline_total": self.non_baseline_costs.total,
+                "non_baseline_percentage": self.non_baseline_costs.percentage,
+                "total": self.total_cost,
+            },
         }
 
     @property

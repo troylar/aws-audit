@@ -1,23 +1,22 @@
 """Configuration hashing utility for change detection."""
 
-import json
 import hashlib
+import json
 from typing import Any, Dict, Set
-
 
 # Attributes to exclude from hashing (volatile data)
 EXCLUDE_ATTRIBUTES: Set[str] = {
-    'ResponseMetadata',
-    'LastModifiedDate',
-    'CreatedDate',
-    'CreateDate',
-    'State',
-    'Status',
-    'RequestId',
-    'VersionId',
-    'LastUpdateTime',
-    'LastUpdatedTime',
-    'ModifiedTime',
+    "ResponseMetadata",
+    "LastModifiedDate",
+    "CreatedDate",
+    "CreateDate",
+    "State",
+    "Status",
+    "RequestId",
+    "VersionId",
+    "LastUpdateTime",
+    "LastUpdatedTime",
+    "ModifiedTime",
 }
 
 
@@ -54,11 +53,7 @@ def _remove_volatile_attributes(data: Any, exclude_set: Set[str]) -> Any:
         Cleaned data structure
     """
     if isinstance(data, dict):
-        return {
-            k: _remove_volatile_attributes(v, exclude_set)
-            for k, v in data.items()
-            if k not in exclude_set
-        }
+        return {k: _remove_volatile_attributes(v, exclude_set) for k, v in data.items() if k not in exclude_set}
     elif isinstance(data, list):
         return [_remove_volatile_attributes(item, exclude_set) for item in data]
     else:

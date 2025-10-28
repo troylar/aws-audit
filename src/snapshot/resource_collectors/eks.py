@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class EKSCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class EKSCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'eks'
+        return "eks"
 
     def collect(self) -> List[Resource]:
         """Collect EKS resources.
@@ -40,7 +40,7 @@ class EKSCollector(BaseResourceCollector):
         self.logger.debug(f"Collected {len(resources)} EKS resources in {self.region}")
         return resources
 
-    def _collect_clusters(self) -> tuple[List[Resource], List[str]]:
+    def _collect_clusters(self) -> tuple[List[Resource], List[str]]:  # type: ignore
         """Collect EKS clusters.
 
         Returns:
@@ -51,28 +51,28 @@ class EKSCollector(BaseResourceCollector):
         client = self._create_client()
 
         try:
-            paginator = client.get_paginator('list_clusters')
+            paginator = client.get_paginator("list_clusters")
             for page in paginator.paginate():
-                for cluster_name in page.get('clusters', []):
+                for cluster_name in page.get("clusters", []):
                     cluster_names.append(cluster_name)
 
                     try:
                         # Get detailed cluster info
                         cluster_response = client.describe_cluster(name=cluster_name)
-                        cluster = cluster_response.get('cluster', {})
+                        cluster = cluster_response.get("cluster", {})
 
-                        cluster_arn = cluster.get('arn', '')
+                        cluster_arn = cluster.get("arn", "")
 
                         # Extract tags
-                        tags = cluster.get('tags', {})
+                        tags = cluster.get("tags", {})
 
                         # Extract creation date
-                        created_at = cluster.get('createdAt')
+                        created_at = cluster.get("createdAt")
 
                         # Create resource
                         resource = Resource(
                             arn=cluster_arn,
-                            resource_type='AWS::EKS::Cluster',
+                            resource_type="AWS::EKS::Cluster",
                             name=cluster_name,
                             region=self.region,
                             tags=tags,
@@ -105,29 +105,28 @@ class EKSCollector(BaseResourceCollector):
 
         for cluster_name in cluster_names:
             try:
-                paginator = client.get_paginator('list_nodegroups')
+                paginator = client.get_paginator("list_nodegroups")
                 for page in paginator.paginate(clusterName=cluster_name):
-                    for nodegroup_name in page.get('nodegroups', []):
+                    for nodegroup_name in page.get("nodegroups", []):
                         try:
                             # Get detailed node group info
                             ng_response = client.describe_nodegroup(
-                                clusterName=cluster_name,
-                                nodegroupName=nodegroup_name
+                                clusterName=cluster_name, nodegroupName=nodegroup_name
                             )
-                            nodegroup = ng_response.get('nodegroup', {})
+                            nodegroup = ng_response.get("nodegroup", {})
 
-                            ng_arn = nodegroup.get('nodegroupArn', '')
+                            ng_arn = nodegroup.get("nodegroupArn", "")
 
                             # Extract tags
-                            tags = nodegroup.get('tags', {})
+                            tags = nodegroup.get("tags", {})
 
                             # Extract creation date
-                            created_at = nodegroup.get('createdAt')
+                            created_at = nodegroup.get("createdAt")
 
                             # Create resource
                             resource = Resource(
                                 arn=ng_arn,
-                                resource_type='AWS::EKS::Nodegroup',
+                                resource_type="AWS::EKS::Nodegroup",
                                 name=f"{cluster_name}/{nodegroup_name}",
                                 region=self.region,
                                 tags=tags,
@@ -160,29 +159,28 @@ class EKSCollector(BaseResourceCollector):
 
         for cluster_name in cluster_names:
             try:
-                paginator = client.get_paginator('list_fargate_profiles')
+                paginator = client.get_paginator("list_fargate_profiles")
                 for page in paginator.paginate(clusterName=cluster_name):
-                    for profile_name in page.get('fargateProfileNames', []):
+                    for profile_name in page.get("fargateProfileNames", []):
                         try:
                             # Get detailed Fargate profile info
                             profile_response = client.describe_fargate_profile(
-                                clusterName=cluster_name,
-                                fargateProfileName=profile_name
+                                clusterName=cluster_name, fargateProfileName=profile_name
                             )
-                            profile = profile_response.get('fargateProfile', {})
+                            profile = profile_response.get("fargateProfile", {})
 
-                            profile_arn = profile.get('fargateProfileArn', '')
+                            profile_arn = profile.get("fargateProfileArn", "")
 
                             # Extract tags
-                            tags = profile.get('tags', {})
+                            tags = profile.get("tags", {})
 
                             # Extract creation date
-                            created_at = profile.get('createdAt')
+                            created_at = profile.get("createdAt")
 
                             # Create resource
                             resource = Resource(
                                 arn=profile_arn,
-                                resource_type='AWS::EKS::FargateProfile',
+                                resource_type="AWS::EKS::FargateProfile",
                                 name=f"{cluster_name}/{profile_name}",
                                 region=self.region,
                                 tags=tags,

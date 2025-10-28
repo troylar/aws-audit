@@ -1,10 +1,10 @@
 """Delta report formatting and display."""
 
 from typing import Optional
+
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
+from rich.table import Table
 
 from ..models.delta_report import DeltaReport
 
@@ -34,17 +34,14 @@ class DeltaReporter:
                 f"[bold]Resource Delta Report[/bold]\n"
                 f"Baseline: {report.baseline_snapshot_name}\n"
                 f"Generated: {report.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}",
-                style="cyan"
+                style="cyan",
             )
         )
         self.console.print()
 
         # Check if there are any changes
         if not report.has_changes:
-            self.console.print(
-                "[green]✓ No changes detected - environment matches baseline[/green]",
-                style="bold"
-            )
+            self.console.print("[green]✓ No changes detected - environment matches baseline[/green]", style="bold")
             self.console.print()
             self.console.print(f"Total resources: {report.baseline_resource_count}")
             return
@@ -87,12 +84,7 @@ class DeltaReporter:
         self.console.print(table)
         self.console.print()
 
-    def _display_service_changes(
-        self,
-        service_type: str,
-        changes: dict,
-        show_details: bool
-    ) -> None:
+    def _display_service_changes(self, service_type: str, changes: dict, show_details: bool) -> None:
         """Display changes for a specific service type.
 
         Args:
@@ -101,7 +93,7 @@ class DeltaReporter:
             show_details: Whether to show detailed information
         """
         # Count total changes for this service
-        total = len(changes['added']) + len(changes['deleted']) + len(changes['modified'])
+        total = len(changes["added"]) + len(changes["deleted"]) + len(changes["modified"])
         if total == 0:
             return
 
@@ -115,37 +107,22 @@ class DeltaReporter:
         table.add_column("ARN" if show_details else "Tags", style="dim")
 
         # Added resources
-        for resource in changes['added']:
+        for resource in changes["added"]:
             tags_str = self._format_tags(resource.tags)
             arn_or_tags = resource.arn if show_details else tags_str
-            table.add_row(
-                "[green]➕ Add[/green]",
-                resource.name,
-                resource.region,
-                arn_or_tags
-            )
+            table.add_row("[green]➕ Add[/green]", resource.name, resource.region, arn_or_tags)
 
         # Deleted resources
-        for resource in changes['deleted']:
+        for resource in changes["deleted"]:
             tags_str = self._format_tags(resource.tags)
             arn_or_tags = resource.arn if show_details else tags_str
-            table.add_row(
-                "[red]➖ Del[/red]",
-                resource.name,
-                resource.region,
-                arn_or_tags
-            )
+            table.add_row("[red]➖ Del[/red]", resource.name, resource.region, arn_or_tags)
 
         # Modified resources
-        for change in changes['modified']:
+        for change in changes["modified"]:
             tags_str = self._format_tags(change.resource.tags)
             arn_or_tags = change.resource.arn if show_details else tags_str
-            table.add_row(
-                "[yellow]🔄 Mod[/yellow]",
-                change.resource.name,
-                change.resource.region,
-                arn_or_tags
-            )
+            table.add_row("[yellow]🔄 Mod[/yellow]", change.resource.name, change.resource.region, arn_or_tags)
 
         self.console.print(table)
         self.console.print()
@@ -163,7 +140,7 @@ class DeltaReporter:
             return "-"
 
         # Show up to 3 most important tags
-        important_keys = ['Name', 'Environment', 'Project', 'Team', 'Application']
+        important_keys = ["Name", "Environment", "Project", "Team", "Application"]
         selected_tags = []
 
         # First add important tags if present
@@ -197,44 +174,50 @@ class DeltaReporter:
             report: DeltaReport to export
             filepath: Destination file path
         """
-        from ..utils.export import export_to_csv, flatten_dict
+        from ..utils.export import export_to_csv
 
         # Flatten the report into rows
         rows = []
 
         for resource in report.added_resources:
-            rows.append({
-                'change_type': 'added',
-                'resource_type': resource.resource_type,
-                'name': resource.name,
-                'arn': resource.arn,
-                'region': resource.region,
-                'tags': str(resource.tags),
-                'created_at': resource.created_at.isoformat() if resource.created_at else None,
-            })
+            rows.append(
+                {
+                    "change_type": "added",
+                    "resource_type": resource.resource_type,
+                    "name": resource.name,
+                    "arn": resource.arn,
+                    "region": resource.region,
+                    "tags": str(resource.tags),
+                    "created_at": resource.created_at.isoformat() if resource.created_at else None,
+                }
+            )
 
         for resource in report.deleted_resources:
-            rows.append({
-                'change_type': 'deleted',
-                'resource_type': resource.resource_type,
-                'name': resource.name,
-                'arn': resource.arn,
-                'region': resource.region,
-                'tags': str(resource.tags),
-                'created_at': resource.created_at.isoformat() if resource.created_at else None,
-            })
+            rows.append(
+                {
+                    "change_type": "deleted",
+                    "resource_type": resource.resource_type,
+                    "name": resource.name,
+                    "arn": resource.arn,
+                    "region": resource.region,
+                    "tags": str(resource.tags),
+                    "created_at": resource.created_at.isoformat() if resource.created_at else None,
+                }
+            )
 
         for change in report.modified_resources:
-            rows.append({
-                'change_type': 'modified',
-                'resource_type': change.resource.resource_type,
-                'name': change.resource.name,
-                'arn': change.resource.arn,
-                'region': change.resource.region,
-                'tags': str(change.resource.tags),
-                'old_hash': change.old_config_hash,
-                'new_hash': change.new_config_hash,
-            })
+            rows.append(
+                {
+                    "change_type": "modified",
+                    "resource_type": change.resource.resource_type,
+                    "name": change.resource.name,
+                    "arn": change.resource.arn,
+                    "region": change.resource.region,
+                    "tags": str(change.resource.tags),
+                    "old_hash": change.old_config_hash,
+                    "new_hash": change.new_config_hash,
+                }
+            )
 
         export_to_csv(rows, filepath)
         self.console.print(f"[green]✓ Delta report exported to {filepath}[/green]")

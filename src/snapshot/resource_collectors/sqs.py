@@ -2,9 +2,9 @@
 
 from typing import List
 
-from .base import BaseResourceCollector
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from .base import BaseResourceCollector
 
 
 class SQSCollector(BaseResourceCollector):
@@ -12,7 +12,7 @@ class SQSCollector(BaseResourceCollector):
 
     @property
     def service_name(self) -> str:
-        return 'sqs'
+        return "sqs"
 
     def collect(self) -> List[Resource]:
         """Collect SQS resources.
@@ -27,38 +27,32 @@ class SQSCollector(BaseResourceCollector):
         try:
             # List all queue URLs
             response = client.list_queues()
-            queue_urls = response.get('QueueUrls', [])
+            queue_urls = response.get("QueueUrls", [])
 
             for queue_url in queue_urls:
                 try:
                     # Get queue attributes
-                    attrs_response = client.get_queue_attributes(
-                        QueueUrl=queue_url,
-                        AttributeNames=['All']
-                    )
-                    attributes = attrs_response.get('Attributes', {})
+                    attrs_response = client.get_queue_attributes(QueueUrl=queue_url, AttributeNames=["All"])
+                    attributes = attrs_response.get("Attributes", {})
 
                     # Get queue name from URL
-                    queue_name = queue_url.split('/')[-1]
+                    queue_name = queue_url.split("/")[-1]
 
                     # Build ARN
-                    queue_arn = attributes.get(
-                        'QueueArn',
-                        f"arn:aws:sqs:{self.region}:{account_id}:{queue_name}"
-                    )
+                    queue_arn = attributes.get("QueueArn", f"arn:aws:sqs:{self.region}:{account_id}:{queue_name}")
 
                     # Get tags
                     tags = {}
                     try:
                         tag_response = client.list_queue_tags(QueueUrl=queue_url)
-                        tags = tag_response.get('Tags', {})
+                        tags = tag_response.get("Tags", {})
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for SQS queue {queue_name}: {e}")
 
                     # Create resource
                     resource = Resource(
                         arn=queue_arn,
-                        resource_type='AWS::SQS::Queue',
+                        resource_type="AWS::SQS::Queue",
                         name=queue_name,
                         region=self.region,
                         tags=tags,

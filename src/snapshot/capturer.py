@@ -2,39 +2,41 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Type
+from typing import TYPE_CHECKING, Dict, List, Optional, Type
+
 import boto3
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
 from ..models.snapshot import Snapshot
-from ..models.resource import Resource
+
+if TYPE_CHECKING:
+    from .filter import ResourceFilter
+from .resource_collectors.apigateway import APIGatewayCollector
+from .resource_collectors.backup import BackupCollector
 from .resource_collectors.base import BaseResourceCollector
-from .resource_collectors.iam import IAMCollector
-from .resource_collectors.lambda_func import LambdaCollector
-from .resource_collectors.s3 import S3Collector
-from .resource_collectors.ec2 import EC2Collector
-from .resource_collectors.rds import RDSCollector
+from .resource_collectors.cloudformation import CloudFormationCollector
 from .resource_collectors.cloudwatch import CloudWatchCollector
+from .resource_collectors.codebuild import CodeBuildCollector
+from .resource_collectors.codepipeline import CodePipelineCollector
+from .resource_collectors.dynamodb import DynamoDBCollector
+from .resource_collectors.ec2 import EC2Collector
+from .resource_collectors.ecs import ECSCollector
+from .resource_collectors.eks import EKSCollector
+from .resource_collectors.elb import ELBCollector
+from .resource_collectors.eventbridge import EventBridgeCollector
+from .resource_collectors.iam import IAMCollector
+from .resource_collectors.kms import KMSCollector
+from .resource_collectors.lambda_func import LambdaCollector
+from .resource_collectors.rds import RDSCollector
+from .resource_collectors.route53 import Route53Collector
+from .resource_collectors.s3 import S3Collector
+from .resource_collectors.secretsmanager import SecretsManagerCollector
 from .resource_collectors.sns import SNSCollector
 from .resource_collectors.sqs import SQSCollector
-from .resource_collectors.dynamodb import DynamoDBCollector
-from .resource_collectors.elb import ELBCollector
-from .resource_collectors.cloudformation import CloudFormationCollector
-from .resource_collectors.apigateway import APIGatewayCollector
-from .resource_collectors.eventbridge import EventBridgeCollector
-from .resource_collectors.secretsmanager import SecretsManagerCollector
-from .resource_collectors.kms import KMSCollector
 from .resource_collectors.ssm import SSMCollector
-from .resource_collectors.route53 import Route53Collector
-from .resource_collectors.ecs import ECSCollector
 from .resource_collectors.stepfunctions import StepFunctionsCollector
 from .resource_collectors.vpcendpoints import VPCEndpointsCollector
 from .resource_collectors.waf import WAFCollector
-from .resource_collectors.eks import EKSCollector
-from .resource_collectors.codepipeline import CodePipelineCollector
-from .resource_collectors.codebuild import CodeBuildCollector
-from .resource_collectors.backup import BackupCollector
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,7 @@ def create_snapshot(
     set_active: bool = True,
     resource_types: Optional[List[str]] = None,
     parallel_workers: int = 10,
-    resource_filter: Optional['ResourceFilter'] = None,
+    resource_filter: Optional["ResourceFilter"] = None,
     inventory_name: str = "default",
 ) -> Snapshot:
     """Create a comprehensive snapshot of AWS resources.
@@ -101,7 +103,7 @@ def create_snapshot(
     # Create session with optional profile
     session_kwargs = {}
     if profile_name:
-        session_kwargs['profile_name'] = profile_name
+        session_kwargs["profile_name"] = profile_name
 
     session = boto3.Session(**session_kwargs)
 
@@ -111,7 +113,7 @@ def create_snapshot(
     collection_errors = []  # Track errors for summary
 
     # Expected errors that we'll suppress (service not enabled, pagination issues, etc.)
-    EXPECTED_ERROR_PATTERNS = [
+    expected_error_patterns = [
         "Operation cannot be paginated",
         "is not subscribed",
         "AccessDenied",
@@ -122,7 +124,7 @@ def create_snapshot(
 
     def is_expected_error(error_msg: str) -> bool:
         """Check if error is expected and can be safely ignored."""
-        return any(pattern in error_msg for pattern in EXPECTED_ERROR_PATTERNS)
+        return any(pattern in error_msg for pattern in expected_error_patterns)
 
     with Progress(
         SpinnerColumn(),
@@ -138,7 +140,7 @@ def create_snapshot(
         global_collectors = []
         regional_collectors = []
         for c in collectors_to_use:
-            temp_instance = c(session, 'us-east-1')
+            temp_instance = c(session, "us-east-1")
             if temp_instance.is_global_service:
                 global_collectors.append(c)
             else:
@@ -146,13 +148,12 @@ def create_snapshot(
 
         total_tasks = len(global_collectors) + (len(regional_collectors) * len(regions))
         main_task = progress.add_task(
-            f"[bold]Collecting AWS resources from {len(regions)} region(s)...",
-            total=total_tasks
+            f"[bold]Collecting AWS resources from {len(regions)} region(s)...", total=total_tasks
         )
 
         # Collect global services first (only once)
         for idx, collector_class in enumerate(global_collectors, 1):
-            collector = collector_class(session, 'us-east-1')
+            collector = collector_class(session, "us-east-1")
             service_name = collector.service_name.upper()
 
             progress.update(main_task, description=f"📦 {service_name} (global)")
@@ -165,11 +166,7 @@ def create_snapshot(
             except Exception as e:
                 error_msg = str(e)
                 if not is_expected_error(error_msg):
-                    collection_errors.append({
-                        'service': service_name,
-                        'region': 'global',
-                        'error': error_msg[:100]
-                    })
+                    collection_errors.append({"service": service_name, "region": "global", "error": error_msg[:100]})
                     logger.debug(f"Collection error - {service_name}: {error_msg[:80]}")
                 else:
                     logger.debug(f"Skipping {service_name} (not available): {error_msg[:80]}")
@@ -193,11 +190,7 @@ def create_snapshot(
                 except Exception as e:
                     error_msg = str(e)
                     if not is_expected_error(error_msg):
-                        collection_errors.append({
-                            'service': service_name,
-                            'region': region,
-                            'error': error_msg[:100]
-                        })
+                        collection_errors.append({"service": service_name, "region": region, "error": error_msg[:100]})
                         logger.debug(f"Collection error - {service_name} ({region}): {error_msg[:80]}")
                     else:
                         logger.debug(f"Skipping {service_name} in {region} (not available): {error_msg[:80]}")
@@ -223,12 +216,12 @@ def create_snapshot(
         filter_stats = resource_filter.get_statistics_summary()
 
         filters_applied = {
-            'date_filters': {
-                'before_date': resource_filter.before_date.isoformat() if resource_filter.before_date else None,
-                'after_date': resource_filter.after_date.isoformat() if resource_filter.after_date else None,
+            "date_filters": {
+                "before_date": resource_filter.before_date.isoformat() if resource_filter.before_date else None,
+                "after_date": resource_filter.after_date.isoformat() if resource_filter.after_date else None,
             },
-            'tag_filters': resource_filter.required_tags,
-            'statistics': filter_stats,
+            "tag_filters": resource_filter.required_tags,
+            "statistics": filter_stats,
         }
 
         logger.debug(
@@ -249,10 +242,10 @@ def create_snapshot(
         regions=regions,
         resources=all_resources,
         metadata={
-            'tool': 'aws-baseline-snapshot',
-            'version': '1.0.0',
-            'collectors_used': [c(session, 'us-east-1').service_name for c in collectors_to_use],
-            'collection_errors': collection_errors if collection_errors else None,
+            "tool": "aws-baseline-snapshot",
+            "version": "1.0.0",
+            "collectors_used": [c(session, "us-east-1").service_name for c in collectors_to_use],
+            "collection_errors": collection_errors if collection_errors else None,
         },
         is_active=set_active,
         service_counts=service_counts,
@@ -312,7 +305,7 @@ def _get_collectors(resource_types: Optional[List[str]] = None) -> List[Type[Bas
     filtered = []
     for collector_class in COLLECTOR_REGISTRY:
         # Create temporary instance to check service name
-        temp_collector = collector_class(boto3.Session(), 'us-east-1')
+        temp_collector = collector_class(boto3.Session(), "us-east-1")
         if temp_collector.service_name in resource_types:
             filtered.append(collector_class)
 

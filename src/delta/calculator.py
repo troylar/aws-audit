@@ -1,12 +1,12 @@
 """Delta calculator for comparing baseline to current state."""
 
-from typing import List, Dict, Set, Optional
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
+from typing import List, Optional
 
-from ..models.snapshot import Snapshot
-from ..models.resource import Resource
 from ..models.delta_report import DeltaReport, ResourceChange
+from ..models.resource import Resource
+from ..models.snapshot import Snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class DeltaCalculator:
                     change = ResourceChange(
                         resource=current_resource,
                         baseline_resource=baseline_resource,
-                        change_type='modified',
+                        change_type="modified",
                         old_config_hash=baseline_resource.config_hash,
                         new_config_hash=current_resource.config_hash,
                     )
@@ -152,8 +152,8 @@ def compare_to_current_state(
     Returns:
         DeltaReport with changes
     """
-    from ..snapshot.capturer import create_snapshot
     from ..aws.credentials import get_account_id
+    from ..snapshot.capturer import create_snapshot
 
     # Use baseline regions if not specified
     if not regions:
