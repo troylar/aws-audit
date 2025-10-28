@@ -1,4 +1,4 @@
-"""Cost analyzer for separating baseline vs non-baseline costs."""
+"""Cost analyzer for inventory snapshots."""
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class CostAnalyzer:
-    """Analyze costs and separate baseline from non-baseline resources."""
+    """Analyze costs for inventory snapshots."""
 
     def __init__(self, cost_explorer: CostExplorerClient):
         """Initialize cost analyzer.
@@ -25,14 +25,14 @@ class CostAnalyzer:
 
     def analyze(
         self,
-        baseline_snapshot: Snapshot,
+        snapshot: Snapshot,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         granularity: str = "MONTHLY",
         has_deltas: bool = False,
         delta_report: Optional[Any] = None,
     ) -> CostReport:
-        """Analyze costs and separate baseline from non-baseline.
+        """Analyze costs and separate snapshot resources.
 
         This implementation uses a simplified heuristic approach:
         1. Get total costs by service
@@ -44,7 +44,7 @@ class CostAnalyzer:
         This gives a good approximation based on service-level costs.
 
         Args:
-            baseline_snapshot: The baseline snapshot
+            snapshot: The baseline snapshot
             start_date: Start date for cost analysis (default: snapshot date)
             end_date: End date for cost analysis (default: today)
             granularity: Cost granularity - DAILY or MONTHLY
@@ -54,7 +54,7 @@ class CostAnalyzer:
         """
         # Default date range: from snapshot creation to today
         if not start_date:
-            start_date = baseline_snapshot.created_at
+            start_date = snapshot.created_at
             # Remove timezone for Cost Explorer API (uses dates only, no time)
             start_date = start_date.replace(tzinfo=None)
 
@@ -87,7 +87,7 @@ class CostAnalyzer:
 
         # If no deltas (no resource changes), ALL costs are baseline
         if not has_deltas:
-            logger.debug("No resource changes detected - all costs are baseline")
+            logger.debug("No resource changes detected - all costs are from snapshot resources")
             baseline_costs = service_costs.copy()
             non_baseline_costs: Dict[str, float] = {}
             baseline_total = sum(baseline_costs.values())
@@ -125,7 +125,7 @@ class CostAnalyzer:
         # Create cost report
         report = CostReport(
             generated_at=datetime.now(),
-            baseline_snapshot_name=baseline_snapshot.name,
+            baseline_snapshot_name=snapshot.name,
             period_start=start_date,
             period_end=end_date,
             baseline_costs=baseline_breakdown,

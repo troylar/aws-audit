@@ -10,7 +10,7 @@ class ResourceChange:
     """Represents a modified resource in a delta report."""
 
     resource: Any  # Current Resource instance
-    baseline_resource: Any  # Baseline Resource instance
+    baseline_resource: Any  # Reference Resource instance (keeping field name for compatibility)
     change_type: str  # 'modified'
     old_config_hash: str
     new_config_hash: str
@@ -33,15 +33,15 @@ class ResourceChange:
 
 @dataclass
 class DeltaReport:
-    """Represents differences between current AWS state and a baseline snapshot."""
+    """Represents differences between two snapshots."""
 
     generated_at: datetime
-    baseline_snapshot_name: str
+    baseline_snapshot_name: str  # Reference snapshot name (keeping field name for compatibility)
     current_snapshot_name: str
     added_resources: List[Any] = field(default_factory=list)  # List[Resource]
     deleted_resources: List[Any] = field(default_factory=list)  # List[Resource]
     modified_resources: List[ResourceChange] = field(default_factory=list)
-    baseline_resource_count: int = 0
+    baseline_resource_count: int = 0  # Reference snapshot count (keeping field name for compatibility)
     current_resource_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,7 +72,7 @@ class DeltaReport:
     @property
     def unchanged_count(self) -> int:
         """Number of unchanged resources."""
-        # Resources that existed in baseline and still exist unchanged
+        # Resources that existed in reference snapshot and still exist unchanged
         return self.baseline_resource_count - len(self.deleted_resources) - len(self.modified_resources)
 
     @property
