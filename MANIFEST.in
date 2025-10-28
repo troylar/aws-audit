@@ -1,0 +1,27 @@
+# Include essential documentation
+include README.md
+include LICENSE
+include TESTING.md
+include CLAUDE.md
+
+# Include configuration files
+include pyproject.toml
+include requirements.txt
+
+# Include all Python source files
+recursive-include src *.py
+
+# Exclude test files and build artifacts
+recursive-exclude tests *
+recursive-exclude .github *
+recursive-exclude htmlcov *
+exclude .coverage
+exclude .gitignore
+exclude tasks.py
+
+# Exclude spec files (development only)
+recursive-exclude specs *
+recursive-exclude .specify *
+
+# Exclude snapshots directory
+recursive-exclude .snapshots *
