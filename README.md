@@ -460,6 +460,6 @@ MIT License - see LICENSE file for details
 
 ---
 
-**Version**: 0.1.0
+**Version**: 0.2.0
 **Status**: Alpha
 **Python**: 3.8 - 3.13
