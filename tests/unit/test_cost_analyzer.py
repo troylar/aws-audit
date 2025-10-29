@@ -72,10 +72,9 @@ class TestCostAnalyzer:
 
         report = analyzer.analyze(snapshot=sample_snapshot, start_date=start, end_date=end)
 
-        # Start should match
+        # Start and end should match the provided dates
         assert report.period_start == start.replace(tzinfo=None)
-        # End should be +1 day due to AWS exclusive end date behavior
-        assert report.period_end == (end.replace(tzinfo=None) + timedelta(days=1))
+        assert report.period_end == end.replace(tzinfo=None)
 
     def test_analyze_no_deltas(self, mock_cost_explorer, sample_snapshot):
         """Test analyze when has_deltas=False (all costs are from snapshot)."""
@@ -187,8 +186,8 @@ class TestCostAnalyzer:
 
         report = analyzer.analyze(sample_snapshot, start_date=same_date, end_date=same_date)
 
-        # Should adjust end_date to be start_date + 1 day, then +1 more for exclusive end
-        assert report.period_end == same_date + timedelta(days=2)
+        # Should adjust end_date to be start_date + 1 day (minimum range requirement)
+        assert report.period_end == same_date + timedelta(days=1)
 
     def test_analyze_date_range_inverted(self, mock_cost_explorer, sample_snapshot):
         """Test analyze when end_date is before start_date."""
@@ -199,8 +198,8 @@ class TestCostAnalyzer:
 
         report = analyzer.analyze(sample_snapshot, start_date=start, end_date=end)
 
-        # Should adjust end_date to be start_date + 1 day, then +1 more for exclusive end
-        assert report.period_end == start + timedelta(days=2)
+        # Should adjust end_date to be start_date + 1 day (minimum range requirement)
+        assert report.period_end == start + timedelta(days=1)
 
     def test_get_baseline_service_mapping(self, mock_cost_explorer):
         """Test _get_baseline_service_mapping helper method."""
