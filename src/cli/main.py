@@ -239,15 +239,15 @@ def inventory_create(
 ):
     """Create a new inventory for organizing snapshots.
 
-    Inventories allow you to organize snapshots by purpose (e.g., baseline, team-a-resources)
+    Inventories allow you to organize snapshots by purpose (e.g., production, team-a-resources)
     with optional tag-based filters that automatically apply to all snapshots in that inventory.
 
     Examples:
         # Create basic inventory with no filters
-        aws-baseline inventory create baseline --description "Production baseline resources"
+        awsinv inventory create production --description "Production resources"
 
         # Create filtered inventory for team resources
-        aws-baseline inventory create team-a-resources \\
+        awsinv inventory create team-a-resources \\
             --description "Team Alpha project resources" \\
             --include-tags "team=alpha,env=prod" \\
             --exclude-tags "managed-by=terraform"
@@ -285,7 +285,7 @@ def inventory_create(
         if storage.exists(name, account_id):
             console.print(f"✗ Error: Inventory '{name}' already exists for account {account_id}", style="bold red")
             console.print("\nUse a different name or delete the existing inventory first:")
-            console.print(f"  aws-baseline inventory delete {name}\n")
+            console.print(f"  awsinv inventory delete {name}\n")
             raise typer.Exit(code=1)
 
         # Parse tags if provided
@@ -375,7 +375,7 @@ def inventory_list(
 
         if not inventories:
             console.print(f"No inventories found for account {account_id}", style="yellow")
-            console.print("\nCreate one with: aws-baseline inventory create <name>")
+            console.print("\nCreate one with: awsinv inventory create <name>")
             return
 
         # Create table
@@ -469,9 +469,9 @@ def inventory_show(
 
         # Display active snapshot
         if inventory.active_snapshot:
-            console.print(f"[bold]Active Baseline:[/bold] {inventory.active_snapshot}")
+            console.print(f"[bold]Active Snapshot:[/bold] {inventory.active_snapshot}")
         else:
-            console.print("[bold]Active Baseline:[/bold] None")
+            console.print("[bold]Active Snapshot:[/bold] None")
         console.print()
 
     except typer.Exit:
@@ -605,7 +605,7 @@ def inventory_delete(
             inventory = storage.get_by_name(name, identity["account_id"])
         except InventoryNotFoundError:
             console.print(f"✗ Inventory '{name}' not found for account {identity['account_id']}", style="bold red")
-            console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+            console.print("  Use 'awsinv inventory list' to see available inventories", style="yellow")
             raise typer.Exit(code=1)
 
         # T032: Check if this would leave account with zero inventories
@@ -732,7 +732,7 @@ def snapshot_create(
     - CodeBuild: Projects
     - Backup: Backup Plans, Backup Vaults
 
-    Historical Baselines & Filtering:
+    Historical Snapshots & Filtering:
     Use --before-date, --after-date, --include-tags, and/or --exclude-tags to create
     snapshots representing resources as they existed at specific points in time or with
     specific characteristics.
@@ -782,7 +782,7 @@ def snapshot_create(
                 console.print(
                     f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red"
                 )
-                console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+                console.print("  Use 'awsinv inventory list' to see available inventories", style="yellow")
                 raise typer.Exit(code=1)
         else:
             # Get or create default inventory (lazy creation)
@@ -1023,7 +1023,7 @@ def snapshot_show(name: str = typer.Argument(..., help="Snapshot name to display
         console.print(f"Created: {snapshot.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         console.print(f"Account: {snapshot.account_id}")
         console.print(f"Regions: {', '.join(snapshot.regions)}")
-        console.print(f"Status: {'Active baseline' if snapshot.is_active else 'Inactive'}")
+        console.print(f"Status: {'Active' if snapshot.is_active else 'Inactive'}")
         console.print(f"Total resources: {snapshot.resource_count}\n")
 
         # Show filters if applied
@@ -1130,7 +1130,7 @@ def snapshot_delete(
 @app.command()
 def delta(
     snapshot: Optional[str] = typer.Option(
-        None, "--snapshot", help="Baseline snapshot name (default: active from inventory)"
+        None, "--snapshot", help="Reference snapshot name (default: active from inventory)"
     ),
     inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')"),
     resource_type: Optional[str] = typer.Option(None, "--resource-type", help="Filter by resource type"),
@@ -1167,7 +1167,7 @@ def delta(
                 console.print(
                     f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red"
                 )
-                console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+                console.print("  Use 'awsinv inventory list' to see available inventories", style="yellow")
                 raise typer.Exit(code=1)
         else:
             # Get or create default inventory
@@ -1203,7 +1203,7 @@ def delta(
             snapshot_name = active_inventory.active_snapshot.replace(".yaml.gz", "").replace(".yaml", "")
             reference_snapshot = storage.load_snapshot(snapshot_name)
 
-        console.print(f"🔍 Comparing to baseline: [bold]{reference_snapshot.name}[/bold]")
+        console.print(f"🔍 Comparing to reference: [bold]{reference_snapshot.name}[/bold]")
         console.print(f"   Created: {reference_snapshot.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
 
         # Prepare filters
@@ -1261,7 +1261,7 @@ def delta(
 @app.command()
 def cost(
     snapshot: Optional[str] = typer.Option(
-        None, "--snapshot", help="Baseline snapshot name (default: active from inventory)"
+        None, "--snapshot", help="Reference snapshot name (default: active from inventory)"
     ),
     inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')"),
     start_date: Optional[str] = typer.Option(
@@ -1301,7 +1301,7 @@ def cost(
                 console.print(
                     f"✗ Inventory '{inventory}' not found for account {identity['account_id']}", style="bold red"
                 )
-                console.print("  Use 'aws-baseline inventory list' to see available inventories", style="yellow")
+                console.print("  Use 'awsinv inventory list' to see available inventories", style="yellow")
                 raise typer.Exit(code=1)
         else:
             # Get or create default inventory
