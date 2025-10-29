@@ -1,7 +1,9 @@
 """Snapshot capture coordinator for AWS resources."""
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from threading import Lock
 from typing import TYPE_CHECKING, Dict, List, Optional, Type
 
 import boto3
@@ -151,51 +153,84 @@ def create_snapshot(
             f"[bold]Collecting AWS resources from {len(regions)} region(s)...", total=total_tasks
         )
 
-        # Collect global services first (only once)
-        for idx, collector_class in enumerate(global_collectors, 1):
-            collector = collector_class(session, "us-east-1")
-            service_name = collector.service_name.upper()
+        # Thread-safe lock for updating shared state
+        lock = Lock()
 
-            progress.update(main_task, description=f"📦 {service_name} (global)")
-
+        def collect_service(collector_class: Type[BaseResourceCollector], region: str, is_global: bool = False) -> Dict:
+            """Collect resources for a single service in a region (thread-safe)."""
             try:
-                resources = collector.collect()
-                all_resources.extend(resources)
-                resource_counts[service_name] = len(resources)
-                logger.debug(f"Collected {len(resources)} {service_name} resources")
-            except Exception as e:
-                error_msg = str(e)
-                if not is_expected_error(error_msg):
-                    collection_errors.append({"service": service_name, "region": "global", "error": error_msg[:100]})
-                    logger.debug(f"Collection error - {service_name}: {error_msg[:80]}")
-                else:
-                    logger.debug(f"Skipping {service_name} (not available): {error_msg[:80]}")
-
-            progress.advance(main_task)
-
-        # Collect regional services (for each region)
-        for region in regions:
-            for collector_class in regional_collectors:
                 collector = collector_class(session, region)
                 service_name = collector.service_name.upper()
+                region_label = "global" if is_global else region
 
-                progress.update(main_task, description=f"📦 {service_name} • {region}")
+                # Update progress (thread-safe)
+                with lock:
+                    progress.update(main_task, description=f"📦 {service_name} • {region_label}")
 
-                try:
-                    resources = collector.collect()
-                    all_resources.extend(resources)
-                    key = f"{service_name}_{region}"
-                    resource_counts[key] = len(resources)
-                    logger.debug(f"Collected {len(resources)} {service_name} resources from {region}")
-                except Exception as e:
-                    error_msg = str(e)
-                    if not is_expected_error(error_msg):
-                        collection_errors.append({"service": service_name, "region": region, "error": error_msg[:100]})
-                        logger.debug(f"Collection error - {service_name} ({region}): {error_msg[:80]}")
-                    else:
-                        logger.debug(f"Skipping {service_name} in {region} (not available): {error_msg[:80]}")
+                resources = collector.collect()
 
-                progress.advance(main_task)
+                logger.debug(f"Collected {len(resources)} {service_name} resources from {region_label}")
+
+                return {"success": True, "resources": resources, "service": service_name, "region": region_label}
+
+            except Exception as e:
+                error_msg = str(e)
+                service_name = collector_class.__name__.replace("Collector", "").upper()
+                region_label = "global" if is_global else region
+
+                if not is_expected_error(error_msg):
+                    logger.debug(f"Collection error - {service_name} ({region_label}): {error_msg[:80]}")
+                    return {
+                        "success": False,
+                        "error": {"service": service_name, "region": region_label, "error": error_msg[:100]},
+                    }
+                else:
+                    logger.debug(f"Skipping {service_name} in {region_label} (not available): {error_msg[:80]}")
+                    return {"success": False, "expected": True}
+
+        # Create list of collection tasks
+        collection_tasks = []
+
+        # Add global service tasks
+        for collector_class in global_collectors:
+            collection_tasks.append((collector_class, "us-east-1", True))
+
+        # Add regional service tasks
+        for region in regions:
+            for collector_class in regional_collectors:
+                collection_tasks.append((collector_class, region, False))
+
+        # Execute collections in parallel
+        with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+            # Submit all tasks
+            future_to_task = {
+                executor.submit(collect_service, collector_class, region, is_global): (
+                    collector_class,
+                    region,
+                    is_global,
+                )
+                for collector_class, region, is_global in collection_tasks
+            }
+
+            # Process completed tasks
+            for future in as_completed(future_to_task):
+                result = future.result()
+
+                if result["success"]:
+                    with lock:
+                        all_resources.extend(result["resources"])
+                        if result["region"] == "global":
+                            resource_counts[result["service"]] = len(result["resources"])
+                        else:
+                            key = f"{result['service']}_{result['region']}"
+                            resource_counts[key] = len(result["resources"])
+                elif not result.get("expected", False):
+                    with lock:
+                        collection_errors.append(result["error"])
+
+                # Advance progress (thread-safe)
+                with lock:
+                    progress.advance(main_task)
 
         progress.update(main_task, description=f"[bold green]✓ Successfully collected {len(all_resources)} resources")
 
