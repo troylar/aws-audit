@@ -510,11 +510,11 @@ def inventory_migrate(
         console.print("🔄 Scanning for legacy snapshots...\n")
 
         # T035: Scan .snapshots/ directory for snapshot files
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
         from pathlib import Path
         from typing import List
 
-        snapshots_dir = Path(config.snapshot_dir)
+        snapshots_dir = storage.storage_dir
         snapshot_files: List[Path] = []
 
         # Find all .yaml and .yaml.gz files
@@ -922,7 +922,7 @@ def snapshot_create(
             raise typer.Exit(code=0)
 
         # Save snapshot
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
         filepath = storage.save_snapshot(snapshot, compress=compress)
 
         # T016: Register snapshot with inventory
@@ -986,7 +986,7 @@ def snapshot_create(
 def snapshot_list():
     """List all available snapshots."""
     try:
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
         snapshots = storage.list_snapshots()
 
         if not snapshots:
@@ -1021,7 +1021,7 @@ def snapshot_list():
 def snapshot_show(name: str = typer.Argument(..., help="Snapshot name to display")):
     """Display detailed information about a snapshot."""
     try:
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
         snapshot = storage.load_snapshot(name)
 
         console.print(f"\n[bold]Snapshot: {snapshot.name}[/bold]")
@@ -1073,7 +1073,7 @@ def snapshot_set_active(name: str = typer.Argument(..., help="Snapshot name to s
     The active snapshot is used by default for delta and cost analysis.
     """
     try:
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
         storage.set_active_snapshot(name)
 
         console.print(f"✓ Set [bold]{name}[/bold] as active snapshot", style="green")
@@ -1096,7 +1096,7 @@ def snapshot_delete(
     Cannot delete the active snapshot - set another snapshot as active first.
     """
     try:
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
 
         # Load snapshot to show info
         snapshot = storage.load_snapshot(name)
@@ -1189,7 +1189,7 @@ def delta(
             raise typer.Exit(code=1)
 
         # Load snapshot
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
 
         if snapshot:
             # User specified a snapshot explicitly
@@ -1323,7 +1323,7 @@ def cost(
             raise typer.Exit(code=1)
 
         # Load snapshot
-        storage = SnapshotStorage(config.snapshot_dir)
+        storage = SnapshotStorage(config.storage_path)
 
         if snapshot:
             # User specified a snapshot explicitly

@@ -94,6 +94,20 @@ awsinv snapshot list --inventory prod-baseline
 awsinv snapshot show initial --inventory prod-baseline
 ```
 
+**Advanced: Use AWS profiles and tag filtering**
+```bash
+# Use a specific AWS profile
+awsinv --profile production snapshot create initial --regions us-east-1 --inventory prod-baseline
+
+# Filter snapshot by tags (only include resources with specific tags)
+awsinv snapshot create prod-only --regions us-east-1 \
+  --include-tags Environment=production,Team=platform
+
+# Exclude resources with certain tags
+awsinv snapshot create non-dev --regions us-east-1 \
+  --exclude-tags Environment=development
+```
+
 That's it! You're now tracking AWS resources, comparing changes, and analyzing costs.
 
 ### Configuration
