@@ -211,6 +211,10 @@ __marimo__/
 *.yaml.gz
 .aws-baseline.yaml
 
+# SpecKit - Feature specification tool
+specs/
+.specify/
+
 # Universal ignores
 .DS_Store
 Thumbs.db

@@ -152,16 +152,12 @@ awsinv cost --inventory staging
 
 ## Documentation
 
-For complete documentation including:
-- Installation guide
-- Command reference
-- Usage examples
-- Configuration options
-- Best practices
+For complete documentation including installation guide, command reference, usage examples, and best practices, run:
 
-See the documentation:
-- [Feature 001: AWS Resource Snapshot](specs/001-aws-baseline-snapshot/quickstart.md)
-- [Feature 002: Inventory Management](specs/002-inventory-management/quickstart.md)
+```bash
+awsinv --help
+awsinv quickstart
+```
 
 ## Supported AWS Services
 
@@ -296,12 +292,9 @@ aws-inventory-manager/
 ├── tests/
 │   ├── unit/               # Unit tests
 │   └── integration/        # Integration tests
-├── .snapshots/             # Default snapshot storage
-│   ├── inventories.yaml    # Inventory metadata
-│   └── snapshots/          # Individual snapshot files
-└── specs/                  # Feature specifications
-    ├── 001-aws-baseline-snapshot/
-    └── 002-inventory-management/
+└── .snapshots/             # Default snapshot storage
+    ├── inventories.yaml    # Inventory metadata
+    └── snapshots/          # Individual snapshot files
 ```
 
 ## Command Reference
