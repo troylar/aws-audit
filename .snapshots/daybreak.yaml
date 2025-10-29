@@ -1,0 +1,2419 @@
+name: daybreak
+created_at: '2025-10-28T13:06:10.077702+00:00'
+account_id: '480738299408'
+regions:
+- us-east-1
+is_active: true
+resource_count: 65
+service_counts:
+  AWS::IAM::Role: 11
+  AWS::IAM::User: 5
+  AWS::IAM::Group: 2
+  AWS::IAM::Policy: 4
+  AWS::S3::Bucket: 5
+  AWS::Lambda::Function: 1
+  AWS::EC2::Instance: 5
+  AWS::EC2::Volume: 6
+  AWS::EC2::VPC: 2
+  AWS::EC2::SecurityGroup: 7
+  AWS::EC2::Subnet: 7
+  AWS::Logs::LogGroup: 2
+  AWS::SNS::Topic: 1
+  AWS::SQS::Queue: 2
+  AWS::DynamoDB::Table: 2
+  AWS::Events::Rule: 1
+  AWS::KMS::Key: 2
+metadata:
+  tool: aws-baseline-snapshot
+  version: 1.0.0
+  collectors_used:
+  - iam
+  - lambda
+  - s3
+  - ec2
+  - rds
+  - cloudwatch
+  - sns
+  - sqs
+  - dynamodb
+  - elb
+  - cloudformation
+  - apigateway
+  - eventbridge
+  - secretsmanager
+  - kms
+  - ssm
+  - route53
+  - ecs
+  - stepfunctions
+  - vpc-endpoints
+  - waf
+  - eks
+  - codepipeline
+  - codebuild
+  - backup
+  collection_errors: null
+filters_applied: null
+total_resources_before_filter: null
+inventory_name: default
+resources:
+- arn: arn:aws:iam::480738299408:role/service-role/AmazonBedrockExecutionRoleForKnowledgeBase_jnwn1
+  type: AWS::IAM::Role
+  name: AmazonBedrockExecutionRoleForKnowledgeBase_jnwn1
+  region: global
+  tags: {}
+  config_hash: 9a193f5b9ae8c021b6c1c7d22a706303cfe263e6ae3e63189e18b9a4afb123f1
+  created_at: '2025-02-09T23:14:11+00:00'
+  raw_config:
+    Path: /service-role/
+    RoleName: AmazonBedrockExecutionRoleForKnowledgeBase_jnwn1
+    RoleId: AROAW73R4JYIHECMAYRGP
+    Arn: arn:aws:iam::480738299408:role/service-role/AmazonBedrockExecutionRoleForKnowledgeBase_jnwn1
+    CreateDate: 2025-02-09 23:14:11+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Sid: AmazonBedrockKnowledgeBaseTrustPolicy
+        Effect: Allow
+        Principal:
+          Service: bedrock.amazonaws.com
+        Action: sts:AssumeRole
+        Condition:
+          StringEquals:
+            aws:SourceAccount: '480738299408'
+          ArnLike:
+            aws:SourceArn: arn:aws:bedrock:us-east-1:480738299408:knowledge-base/*
+    Description: Bedrock Knowledge Base access
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/service-role/AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+  type: AWS::IAM::Role
+  name: AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+  region: global
+  tags: {}
+  config_hash: 682762b58a83e0f25477afa5ac22ec05fb5350ca9ddeaf8814c317ad76ed6636
+  created_at: '2025-02-09T23:13:50+00:00'
+  raw_config:
+    Path: /service-role/
+    RoleName: AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+    RoleId: AROAW73R4JYIOID5KKK2H
+    Arn: arn:aws:iam::480738299408:role/service-role/AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+    CreateDate: 2025-02-09 23:13:50+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: kendra.amazonaws.com
+        Action: sts:AssumeRole
+    Description: Bedrock Knowledge Base access
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/service-role/AmazonTranscribeServiceRole-TestRoleDeleteMe
+  type: AWS::IAM::Role
+  name: AmazonTranscribeServiceRole-TestRoleDeleteMe
+  region: global
+  tags: {}
+  config_hash: f152e73a354f70f51282564272148888829de996719bdf5ad2666a1fa4d0d90e
+  created_at: '2025-09-13T12:45:37+00:00'
+  raw_config:
+    Path: /service-role/
+    RoleName: AmazonTranscribeServiceRole-TestRoleDeleteMe
+    RoleId: AROAW73R4JYIOHYEAWSMX
+    Arn: arn:aws:iam::480738299408:role/service-role/AmazonTranscribeServiceRole-TestRoleDeleteMe
+    CreateDate: 2025-09-13 12:45:37+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: transcribe.amazonaws.com
+        Action: sts:AssumeRole
+    Description: Amazon Transcribe service role
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/aws-service-role/ops.apigateway.amazonaws.com/AWSServiceRoleForAPIGateway
+  type: AWS::IAM::Role
+  name: AWSServiceRoleForAPIGateway
+  region: global
+  tags: {}
+  config_hash: ffe9e35dd42c4cf9628ea8d8c67bd63c054dd8e9928829328c653b5f0718c418
+  created_at: '2025-02-18T13:20:04+00:00'
+  raw_config:
+    Path: /aws-service-role/ops.apigateway.amazonaws.com/
+    RoleName: AWSServiceRoleForAPIGateway
+    RoleId: AROAW73R4JYIFYUNSHY5E
+    Arn: arn:aws:iam::480738299408:role/aws-service-role/ops.apigateway.amazonaws.com/AWSServiceRoleForAPIGateway
+    CreateDate: 2025-02-18 13:20:04+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: ops.apigateway.amazonaws.com
+        Action: sts:AssumeRole
+    Description: The Service Linked Role is used by Amazon API Gateway.
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/aws-service-role/cost-optimization-hub.bcm.amazonaws.com/AWSServiceRoleForCostOptimizationHub
+  type: AWS::IAM::Role
+  name: AWSServiceRoleForCostOptimizationHub
+  region: global
+  tags: {}
+  config_hash: cadda377bcbf0196c2c5345858bc27b7a8933a43b3c05617aa7f5326a22315ef
+  created_at: '2025-02-04T09:37:26+00:00'
+  raw_config:
+    Path: /aws-service-role/cost-optimization-hub.bcm.amazonaws.com/
+    RoleName: AWSServiceRoleForCostOptimizationHub
+    RoleId: AROAW73R4JYIFJF2D6FTU
+    Arn: arn:aws:iam::480738299408:role/aws-service-role/cost-optimization-hub.bcm.amazonaws.com/AWSServiceRoleForCostOptimizationHub
+    CreateDate: 2025-02-04 09:37:26+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: cost-optimization-hub.bcm.amazonaws.com
+        Action: sts:AssumeRole
+    Description: Allows Cost Optimization Hub to retrieve organization information
+      and collect optimization-related data and metadata.
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing
+  type: AWS::IAM::Role
+  name: AWSServiceRoleForElasticLoadBalancing
+  region: global
+  tags: {}
+  config_hash: 6f1e7ed2003152a692a9c982f40b5205b2a546ae711fcc5256f6d6df1bdd5dd5
+  created_at: '2025-02-19T02:10:14+00:00'
+  raw_config:
+    Path: /aws-service-role/elasticloadbalancing.amazonaws.com/
+    RoleName: AWSServiceRoleForElasticLoadBalancing
+    RoleId: AROAW73R4JYIADDFTHFMB
+    Arn: arn:aws:iam::480738299408:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing
+    CreateDate: 2025-02-19 02:10:14+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: elasticloadbalancing.amazonaws.com
+        Action: sts:AssumeRole
+    Description: Allows ELB to call AWS services on your behalf.
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations
+  type: AWS::IAM::Role
+  name: AWSServiceRoleForOrganizations
+  region: global
+  tags: {}
+  config_hash: 3e05cb770f7b2f44419d4d372f3af3d4dc502515344c4323d93accfe8e705377
+  created_at: '2025-02-03T21:45:52+00:00'
+  raw_config:
+    Path: /aws-service-role/organizations.amazonaws.com/
+    RoleName: AWSServiceRoleForOrganizations
+    RoleId: AROAW73R4JYIE5THPTBFU
+    Arn: arn:aws:iam::480738299408:role/aws-service-role/organizations.amazonaws.com/AWSServiceRoleForOrganizations
+    CreateDate: 2025-02-03 21:45:52+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: organizations.amazonaws.com
+        Action: sts:AssumeRole
+    Description: Service-linked role used by AWS Organizations to enable integration
+      of other AWS services with Organizations.
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/aws-service-role/support.amazonaws.com/AWSServiceRoleForSupport
+  type: AWS::IAM::Role
+  name: AWSServiceRoleForSupport
+  region: global
+  tags: {}
+  config_hash: 6a293f2d41a10f978a2f6e361e8033225765c5cb5515c7f6d7bae4672c84067c
+  created_at: '2018-08-15T22:56:01+00:00'
+  raw_config:
+    Path: /aws-service-role/support.amazonaws.com/
+    RoleName: AWSServiceRoleForSupport
+    RoleId: AROAJSLIVIIYGRZ2HDIV4
+    Arn: arn:aws:iam::480738299408:role/aws-service-role/support.amazonaws.com/AWSServiceRoleForSupport
+    CreateDate: 2018-08-15 22:56:01+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: support.amazonaws.com
+        Action: sts:AssumeRole
+    Description: Enables resource access for AWS to provide billing, administrative
+      and support services
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/aws-service-role/trustedadvisor.amazonaws.com/AWSServiceRoleForTrustedAdvisor
+  type: AWS::IAM::Role
+  name: AWSServiceRoleForTrustedAdvisor
+  region: global
+  tags: {}
+  config_hash: a15ba7741d3c7eb80e08abf042a7603532bed3c24ea2462f0eeb3b534fadfb3f
+  created_at: '2018-08-18T02:20:38+00:00'
+  raw_config:
+    Path: /aws-service-role/trustedadvisor.amazonaws.com/
+    RoleName: AWSServiceRoleForTrustedAdvisor
+    RoleId: AROAJIERGYTFQQYQ2YEXY
+    Arn: arn:aws:iam::480738299408:role/aws-service-role/trustedadvisor.amazonaws.com/AWSServiceRoleForTrustedAdvisor
+    CreateDate: 2018-08-18 02:20:38+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: trustedadvisor.amazonaws.com
+        Action: sts:AssumeRole
+    Description: Access for the AWS Trusted Advisor Service to help reduce cost, increase
+      performance, and improve security of your AWS environment.
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/daybreak-transcribe-processor-role
+  type: AWS::IAM::Role
+  name: daybreak-transcribe-processor-role
+  region: global
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    ManagedBy: terraform
+  config_hash: a317d4063e61dc6868c978362d072877bf766fe94bc7ee0a30dabc4f3ab5edc9
+  created_at: '2025-09-13T13:33:05+00:00'
+  raw_config:
+    Path: /
+    RoleName: daybreak-transcribe-processor-role
+    RoleId: AROAW73R4JYIJCBHEK6FT
+    Arn: arn:aws:iam::480738299408:role/daybreak-transcribe-processor-role
+    CreateDate: 2025-09-13 13:33:05+00:00
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: lambda.amazonaws.com
+        Action: sts:AssumeRole
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:role/workspaces_DefaultRole
+  type: AWS::IAM::Role
+  name: workspaces_DefaultRole
+  region: global
+  tags: {}
+  config_hash: 81141411be3cc89004e4e8a8c73b022fc48faa42eb73a8f5c33418c848e9ae82
+  created_at: '2016-10-29T15:53:30+00:00'
+  raw_config:
+    Path: /
+    RoleName: workspaces_DefaultRole
+    RoleId: AROAJL5RUJV3CFP5CWKD4
+    Arn: arn:aws:iam::480738299408:role/workspaces_DefaultRole
+    CreateDate: 2016-10-29 15:53:30+00:00
+    AssumeRolePolicyDocument:
+      Version: '2008-10-17'
+      Statement:
+      - Effect: Allow
+        Principal:
+          Service: workspaces.amazonaws.com
+        Action: sts:AssumeRole
+    MaxSessionDuration: 3600
+- arn: arn:aws:iam::480738299408:user/pravindodia
+  type: AWS::IAM::User
+  name: pravindodia
+  region: global
+  tags: {}
+  config_hash: 564ae4501aa046afaba96cd61d479c68b774a0c8caacbb9799e8c3b136ac2393
+  created_at: '2016-03-08T11:18:13+00:00'
+  raw_config:
+    Path: /
+    UserName: pravindodia
+    UserId: AIDAJTPVDFXBDY6OGUMGK
+    Arn: arn:aws:iam::480738299408:user/pravindodia
+    CreateDate: 2016-03-08 11:18:13+00:00
+    PasswordLastUsed: 2025-06-04 13:43:13+00:00
+- arn: arn:aws:iam::480738299408:user/RitimaSood
+  type: AWS::IAM::User
+  name: RitimaSood
+  region: global
+  tags: {}
+  config_hash: 7b4c23161b41ee4077659aafc44518da298cea35e42aca5d25c5e3699e7eb3bb
+  created_at: '2025-05-29T18:24:38+00:00'
+  raw_config:
+    Path: /
+    UserName: RitimaSood
+    UserId: AIDAW73R4JYIMNDM6UDZX
+    Arn: arn:aws:iam::480738299408:user/RitimaSood
+    CreateDate: 2025-05-29 18:24:38+00:00
+    PasswordLastUsed: 2025-07-17 17:19:33+00:00
+- arn: arn:aws:iam::480738299408:user/terraform-user
+  type: AWS::IAM::User
+  name: terraform-user
+  region: global
+  tags:
+    AKIAW73R4JYIPX2KAEO5: daybreak-ai terraform user
+    project: daybreak-ai
+  config_hash: 1bf0ffad15411ad17b8fcbf8fb34c767900d395aecfffb2110123d29514f106f
+  created_at: '2025-02-08T23:50:25+00:00'
+  raw_config:
+    Path: /
+    UserName: terraform-user
+    UserId: AIDAW73R4JYIMVDN746AM
+    Arn: arn:aws:iam::480738299408:user/terraform-user
+    CreateDate: 2025-02-08 23:50:25+00:00
+- arn: arn:aws:iam::480738299408:user/troylarson
+  type: AWS::IAM::User
+  name: troylarson
+  region: global
+  tags:
+    troylarson: ''
+  config_hash: 389b77068100aa54fb10df290feeaded8467a59fbacb4aea063ae1bfc33b080e
+  created_at: '2025-02-03T21:37:38+00:00'
+  raw_config:
+    Path: /
+    UserName: troylarson
+    UserId: AIDAW73R4JYIET6KSM4AZ
+    Arn: arn:aws:iam::480738299408:user/troylarson
+    CreateDate: 2025-02-03 21:37:38+00:00
+    PasswordLastUsed: 2025-09-25 08:46:52+00:00
+- arn: arn:aws:iam::480738299408:user/workdocsuser
+  type: AWS::IAM::User
+  name: workdocsuser
+  region: global
+  tags: {}
+  config_hash: 31385bfbfe3ce24ef3a15b76843f579dffb6703023d9d5cc32e6d03b87d3d360
+  created_at: '2018-09-25T05:48:49+00:00'
+  raw_config:
+    Path: /
+    UserName: workdocsuser
+    UserId: AIDAJRCNLAR35UK5PPONY
+    Arn: arn:aws:iam::480738299408:user/workdocsuser
+    CreateDate: 2018-09-25 05:48:49+00:00
+- arn: arn:aws:iam::480738299408:group/Admin
+  type: AWS::IAM::Group
+  name: Admin
+  region: global
+  tags: {}
+  config_hash: 4399733772f71032ef41a2cea5a534c00b0ae668b22beb85bf18b41598a876d6
+  created_at: '2016-03-08T11:49:52+00:00'
+  raw_config:
+    Path: /
+    GroupName: Admin
+    GroupId: AGPAJDSZV2WRBSIIYTHVU
+    Arn: arn:aws:iam::480738299408:group/Admin
+    CreateDate: 2016-03-08 11:49:52+00:00
+- arn: arn:aws:iam::480738299408:group/workdocsGroup
+  type: AWS::IAM::Group
+  name: workdocsGroup
+  region: global
+  tags: {}
+  config_hash: 28d6b7132df5b6b4ca2db4b76a6ffe26856e42bf0de31f5b614c50ea56220314
+  created_at: '2018-09-25T05:48:34+00:00'
+  raw_config:
+    Path: /
+    GroupName: workdocsGroup
+    GroupId: AGPAI2CY6HZCA3D7JFH6U
+    Arn: arn:aws:iam::480738299408:group/workdocsGroup
+    CreateDate: 2018-09-25 05:48:34+00:00
+- arn: arn:aws:iam::480738299408:policy/workdocs
+  type: AWS::IAM::Policy
+  name: workdocs
+  region: global
+  tags: {}
+  config_hash: b53373a6068e03865e0dd2d208d878b05626a36f993b6d58aa1d7214db87db0f
+  created_at: '2018-09-25T05:47:46+00:00'
+  raw_config:
+    PolicyName: workdocs
+    PolicyId: ANPAJNKOF7IJC46WWSKYW
+    Arn: arn:aws:iam::480738299408:policy/workdocs
+    Path: /
+    DefaultVersionId: v1
+    AttachmentCount: 1
+    PermissionsBoundaryUsageCount: 0
+    IsAttachable: true
+    CreateDate: 2018-09-25 05:47:46+00:00
+    UpdateDate: 2018-09-25 05:47:46+00:00
+- arn: arn:aws:iam::480738299408:policy/service-role/AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+  type: AWS::IAM::Policy
+  name: AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+  region: global
+  tags: {}
+  config_hash: 3fbee959b5e4144fe1191baf278ae2285a136908d8e2e2d32a204c581795862c
+  created_at: '2025-02-09T23:13:50+00:00'
+  raw_config:
+    PolicyName: AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+    PolicyId: ANPAW73R4JYIAXPDCNSGP
+    Arn: arn:aws:iam::480738299408:policy/service-role/AmazonKendra-us-east-1-knowledge-base-genai-index-jnwn1
+    Path: /service-role/
+    DefaultVersionId: v1
+    AttachmentCount: 1
+    PermissionsBoundaryUsageCount: 0
+    IsAttachable: true
+    CreateDate: 2025-02-09 23:13:50+00:00
+    UpdateDate: 2025-02-09 23:13:50+00:00
+- arn: arn:aws:iam::480738299408:policy/service-role/AmazonTranscribeServicePolicy-TestRoleDeleteMe
+  type: AWS::IAM::Policy
+  name: AmazonTranscribeServicePolicy-TestRoleDeleteMe
+  region: global
+  tags: {}
+  config_hash: 1339d7855c2e89e905d426fa23c2112c7879aee48a1d137b182d03b1deaa2a47
+  created_at: '2025-09-13T12:45:37+00:00'
+  raw_config:
+    PolicyName: AmazonTranscribeServicePolicy-TestRoleDeleteMe
+    PolicyId: ANPAW73R4JYIIR5KX3HIL
+    Arn: arn:aws:iam::480738299408:policy/service-role/AmazonTranscribeServicePolicy-TestRoleDeleteMe
+    Path: /service-role/
+    DefaultVersionId: v1
+    AttachmentCount: 1
+    PermissionsBoundaryUsageCount: 0
+    IsAttachable: true
+    CreateDate: 2025-09-13 12:45:37+00:00
+    UpdateDate: 2025-09-13 12:45:37+00:00
+- arn: arn:aws:iam::480738299408:policy/service-role/AmazonBedrockKendraPolicyForKnowledgeBase_jnwn1
+  type: AWS::IAM::Policy
+  name: AmazonBedrockKendraPolicyForKnowledgeBase_jnwn1
+  region: global
+  tags: {}
+  config_hash: a240b983a29e5b9eb1c92daf719b0532e1528cca1f34b37f8e80edc8bf3e63cf
+  created_at: '2025-02-09T23:14:11+00:00'
+  raw_config:
+    PolicyName: AmazonBedrockKendraPolicyForKnowledgeBase_jnwn1
+    PolicyId: ANPAW73R4JYIMTLQUSNUW
+    Arn: arn:aws:iam::480738299408:policy/service-role/AmazonBedrockKendraPolicyForKnowledgeBase_jnwn1
+    Path: /service-role/
+    DefaultVersionId: v1
+    AttachmentCount: 1
+    PermissionsBoundaryUsageCount: 0
+    IsAttachable: true
+    CreateDate: 2025-02-09 23:14:11+00:00
+    UpdateDate: 2025-02-09 23:14:11+00:00
+- arn: arn:aws:s3:::daybreak-ai-tfstate-20250210
+  type: AWS::S3::Bucket
+  name: daybreak-ai-tfstate-20250210
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: production
+    ManagedBy: terraform
+    Name: terraform-state
+  config_hash: 3a5bffccf59719e450528d08820e118a60fa8c8ea9c9cd41d1dc0c46b14bccfa
+  created_at: '2025-02-10T12:56:05+00:00'
+  raw_config:
+    Name: daybreak-ai-tfstate-20250210
+    CreationDate: 2025-02-10 12:56:05+00:00
+    Region: us-east-1
+    Versioning: Enabled
+    Encryption:
+      Rules:
+      - ApplyServerSideEncryptionByDefault:
+          SSEAlgorithm: AES256
+        BucketKeyEnabled: false
+- arn: arn:aws:s3:::daybreak-logs-480738299408-us-east-1
+  type: AWS::S3::Bucket
+  name: daybreak-logs-480738299408-us-east-1
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    Purpose: central-access-logs
+    ManagedBy: terraform
+  config_hash: c53d5b09d11b1e4d09a727ebc97ee1793384c9c5d91de8d83a185e59bb3ea4aa
+  created_at: '2025-09-12T20:55:09+00:00'
+  raw_config:
+    Name: daybreak-logs-480738299408-us-east-1
+    CreationDate: 2025-09-12 20:55:09+00:00
+    Region: us-east-1
+    Versioning: Suspended
+    Encryption:
+      Rules:
+      - ApplyServerSideEncryptionByDefault:
+          SSEAlgorithm: AES256
+        BucketKeyEnabled: false
+- arn: arn:aws:s3:::daybreak-recordings-480738299408-us-east-1
+  type: AWS::S3::Bucket
+  name: daybreak-recordings-480738299408-us-east-1
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    Purpose: client-call-recordings
+    ManagedBy: terraform
+    DataClass: PHI
+  config_hash: f6cfb813711f946c13c383e91c25b2edb8dab86555efe2ddecb28ffd5770944e
+  created_at: '2025-09-12T20:55:09+00:00'
+  raw_config:
+    Name: daybreak-recordings-480738299408-us-east-1
+    CreationDate: 2025-09-12 20:55:09+00:00
+    Region: us-east-1
+    Versioning: Enabled
+    Encryption:
+      Rules:
+      - ApplyServerSideEncryptionByDefault:
+          SSEAlgorithm: aws:kms
+          KMSMasterKeyID: arn:aws:kms:us-east-1:480738299408:key/4ce41b24-0527-4417-b99f-bca0cdbc7907
+        BucketKeyEnabled: true
+- arn: arn:aws:s3:::daybreak-tf-state-480738299408-us-east-1
+  type: AWS::S3::Bucket
+  name: daybreak-tf-state-480738299408-us-east-1
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: bootstrap
+    ManagedBy: terraform
+  config_hash: de5ffa8f133b4d6c6056f204fcdc657cdf19478c236456501780526c351cd20d
+  created_at: '2025-09-12T20:37:11+00:00'
+  raw_config:
+    Name: daybreak-tf-state-480738299408-us-east-1
+    CreationDate: 2025-09-12 20:37:11+00:00
+    Region: us-east-1
+    Versioning: Enabled
+    Encryption:
+      Rules:
+      - ApplyServerSideEncryptionByDefault:
+          SSEAlgorithm: AES256
+        BucketKeyEnabled: false
+- arn: arn:aws:s3:::daybreak-transcribe-results-480738299408-us-east-1
+  type: AWS::S3::Bucket
+  name: daybreak-transcribe-results-480738299408-us-east-1
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    Purpose: transcribe-results
+    ManagedBy: terraform
+    DataClass: PHI
+  config_hash: 00fb5968e9708db7beb8beb901a1aab84ba7245948602cda5b139206c916ae06
+  created_at: '2025-09-13T13:16:40+00:00'
+  raw_config:
+    Name: daybreak-transcribe-results-480738299408-us-east-1
+    CreationDate: 2025-09-13 13:16:40+00:00
+    Region: us-east-1
+    Versioning: Enabled
+    Encryption:
+      Rules:
+      - ApplyServerSideEncryptionByDefault:
+          SSEAlgorithm: aws:kms
+          KMSMasterKeyID: arn:aws:kms:us-east-1:480738299408:key/03111ee3-057e-40d3-a0a0-341147fcac68
+        BucketKeyEnabled: true
+- arn: arn:aws:lambda:us-east-1:480738299408:function:daybreak-transcribe-processor
+  type: AWS::Lambda::Function
+  name: daybreak-transcribe-processor
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    ManagedBy: terraform
+    Environment: prod
+  config_hash: 80c7ec6f044082a931d531ad4802db3f0e15696ef3255be787b4795c48866c4c
+  created_at: null
+  raw_config:
+    FunctionName: daybreak-transcribe-processor
+    FunctionArn: arn:aws:lambda:us-east-1:480738299408:function:daybreak-transcribe-processor
+    Runtime: python3.12
+    Role: arn:aws:iam::480738299408:role/daybreak-transcribe-processor-role
+    Handler: lambda/transcribe_event_processor.handler
+    CodeSize: 1342642
+    Description: ''
+    Timeout: 60
+    MemorySize: 512
+    LastModified: 2025-10-02T00:31:52.000+0000
+    CodeSha256: nzBPRd8v/6KLGiblTAJaGI7ww+bGjQ4cNA8d3/McwQA=
+    Version: $LATEST
+    Environment:
+      Variables:
+        DAYBREAK_API_KEY: AIsd81*19!12~1Fkz-
+        DAYBREAK_API_URL: https://daybreakai-api.calvinware.com
+        TRANSCRIBE_RESULTS_BUCKET_NAME: daybreak-transcribe-results-480738299408-us-east-1
+        SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qcGl2Z3BubXF6bnNvZmZxaHJ5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MTUzMDY3OSwiZXhwIjoyMDU3MTA2Njc5fQ.yoxZ65AKn9OKUGQmiNi_S04-H4rkazrTqFouUDwoLDY
+        BEDROCK_MODEL_ID: arn:aws:bedrock:us-east-1:480738299408:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0
+        SUPABASE_URL: https://ojpivgpnmqznsoffqhry.supabase.co
+    TracingConfig:
+      Mode: PassThrough
+    RevisionId: 450156a9-ccda-42dd-af17-52e0876631fc
+    State: Active
+    LastUpdateStatus: Successful
+    PackageType: Zip
+    Architectures:
+    - x86_64
+    EphemeralStorage:
+      Size: 512
+    SnapStart:
+      ApplyOn: None
+      OptimizationStatus: 'Off'
+    RuntimeVersionConfig:
+      RuntimeVersionArn: arn:aws:lambda:us-east-1::runtime:4af3157c9dfde29be4e8f128147181e8978958ec7ddea506e754af7c3741a0a2
+    LoggingConfig:
+      LogFormat: Text
+      LogGroup: /aws/lambda/daybreak-transcribe-processor
+- arn: arn:aws:ec2:us-east-1:480738299408:instance/i-961ba715
+  type: AWS::EC2::Instance
+  name: DayBreak MainServer
+  region: us-east-1
+  tags:
+    Name: DayBreak MainServer
+  config_hash: 5d60542504ed4d0f5d1637172a0fb45729f1bc95fafd74ee95366e9a8ef6eaa9
+  created_at: '2016-03-07T22:24:39+00:00'
+  raw_config:
+    Architecture: x86_64
+    BlockDeviceMappings:
+    - DeviceName: /dev/sda1
+      Ebs:
+        AttachTime: 2016-03-07 22:24:39+00:00
+        DeleteOnTermination: true
+        Status: attached
+        VolumeId: vol-e20fc23c
+    ClientToken: dMfhE1457389478631
+    EbsOptimized: true
+    Hypervisor: xen
+    NetworkInterfaces:
+    - Association:
+        IpOwnerId: '480738299408'
+        PublicDnsName: ec2-52-87-7-243.compute-1.amazonaws.com
+        PublicIp: 52.87.7.243
+      Attachment:
+        AttachTime: 2016-03-07 22:24:39+00:00
+        AttachmentId: eni-attach-61f2ad9f
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        Status: attached
+        NetworkCardIndex: 0
+      Description: ''
+      Groups:
+      - GroupId: sg-fe8b3686
+        GroupName: DayBreak Ubuntu
+      Ipv6Addresses: []
+      MacAddress: 12:da:7e:be:fd:e7
+      NetworkInterfaceId: eni-eaf756cf
+      OwnerId: '480738299408'
+      PrivateDnsName: ip-172-31-50-171.ec2.internal
+      PrivateIpAddress: 172.31.50.171
+      PrivateIpAddresses:
+      - Association:
+          IpOwnerId: '480738299408'
+          PublicDnsName: ec2-52-87-7-243.compute-1.amazonaws.com
+          PublicIp: 52.87.7.243
+        Primary: true
+        PrivateDnsName: ip-172-31-50-171.ec2.internal
+        PrivateIpAddress: 172.31.50.171
+      SourceDestCheck: true
+      Status: in-use
+      SubnetId: subnet-93b713b9
+      VpcId: vpc-dcb995b8
+      InterfaceType: interface
+      Operator:
+        Managed: false
+    RootDeviceName: /dev/sda1
+    RootDeviceType: ebs
+    SecurityGroups:
+    - GroupId: sg-fe8b3686
+      GroupName: DayBreak Ubuntu
+    SourceDestCheck: true
+    StateReason:
+      Code: Client.InstanceInitiatedShutdown
+      Message: 'Client.InstanceInitiatedShutdown: Instance initiated shutdown'
+    Tags:
+    - Key: Name
+      Value: DayBreak MainServer
+    VirtualizationType: hvm
+    CpuOptions:
+      CoreCount: 1
+      ThreadsPerCore: 2
+    CapacityReservationSpecification:
+      CapacityReservationPreference: open
+    HibernationOptions:
+      Configured: false
+    MetadataOptions:
+      State: applied
+      HttpTokens: optional
+      HttpPutResponseHopLimit: 1
+      HttpEndpoint: enabled
+      HttpProtocolIpv6: disabled
+      InstanceMetadataTags: disabled
+    EnclaveOptions:
+      Enabled: false
+    PlatformDetails: Linux/UNIX
+    UsageOperation: RunInstances
+    UsageOperationUpdateTime: 2016-03-07 22:24:39+00:00
+    PrivateDnsNameOptions: {}
+    MaintenanceOptions:
+      AutoRecovery: default
+    CurrentInstanceBootMode: legacy-bios
+    NetworkPerformanceOptions:
+      BandwidthWeighting: default
+    Operator:
+      Managed: false
+    InstanceId: i-961ba715
+    ImageId: ami-fce3c696
+    State:
+      Code: 80
+      Name: stopped
+    PrivateDnsName: ip-172-31-50-171.ec2.internal
+    PublicDnsName: ec2-52-87-7-243.compute-1.amazonaws.com
+    StateTransitionReason: User initiated
+    KeyName: daybreak
+    AmiLaunchIndex: 0
+    ProductCodes: []
+    InstanceType: m4.large
+    LaunchTime: 2016-03-07 22:24:39+00:00
+    Placement:
+      GroupName: ''
+      Tenancy: default
+      AvailabilityZone: us-east-1a
+    Monitoring:
+      State: disabled
+    SubnetId: subnet-93b713b9
+    VpcId: vpc-dcb995b8
+    PrivateIpAddress: 172.31.50.171
+    PublicIpAddress: 52.87.7.243
+- arn: arn:aws:ec2:us-east-1:480738299408:instance/i-071e8d27f393295b7
+  type: AWS::EC2::Instance
+  name: Daybreak NewServer-old
+  region: us-east-1
+  tags:
+    Name: Daybreak NewServer-old
+  config_hash: 0cbd495934da69e17a40373f99ba29678a400d5809e92211f330e6b0eee7a161
+  created_at: '2019-04-08T00:03:46+00:00'
+  raw_config:
+    Architecture: x86_64
+    BlockDeviceMappings:
+    - DeviceName: /dev/sda1
+      Ebs:
+        AttachTime: 2018-05-17 06:37:09+00:00
+        DeleteOnTermination: true
+        Status: attached
+        VolumeId: vol-07004cb3c66bca2dd
+    ClientToken: ''
+    EbsOptimized: true
+    EnaSupport: true
+    Hypervisor: xen
+    NetworkInterfaces:
+    - Attachment:
+        AttachTime: 2018-05-17 06:37:08+00:00
+        AttachmentId: eni-attach-1b3e24bb
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        Status: attached
+        NetworkCardIndex: 0
+      Description: ''
+      Groups:
+      - GroupId: sg-fe8b3686
+        GroupName: DayBreak Ubuntu
+      Ipv6Addresses: []
+      MacAddress: 0a:0b:24:1a:f0:8a
+      NetworkInterfaceId: eni-f51d636b
+      OwnerId: '480738299408'
+      PrivateDnsName: ip-172-31-15-25.ec2.internal
+      PrivateIpAddress: 172.31.15.25
+      PrivateIpAddresses:
+      - Primary: true
+        PrivateDnsName: ip-172-31-15-25.ec2.internal
+        PrivateIpAddress: 172.31.15.25
+      SourceDestCheck: true
+      Status: in-use
+      SubnetId: subnet-415bcc37
+      VpcId: vpc-dcb995b8
+      InterfaceType: interface
+      Operator:
+        Managed: false
+    RootDeviceName: /dev/sda1
+    RootDeviceType: ebs
+    SecurityGroups:
+    - GroupId: sg-fe8b3686
+      GroupName: DayBreak Ubuntu
+    SourceDestCheck: true
+    StateReason:
+      Code: Client.InstanceInitiatedShutdown
+      Message: 'Client.InstanceInitiatedShutdown: Instance initiated shutdown'
+    Tags:
+    - Key: Name
+      Value: Daybreak NewServer-old
+    VirtualizationType: hvm
+    CpuOptions:
+      CoreCount: 1
+      ThreadsPerCore: 2
+    CapacityReservationSpecification:
+      CapacityReservationPreference: open
+    HibernationOptions:
+      Configured: false
+    MetadataOptions:
+      State: applied
+      HttpTokens: optional
+      HttpPutResponseHopLimit: 1
+      HttpEndpoint: enabled
+      HttpProtocolIpv6: disabled
+      InstanceMetadataTags: disabled
+    EnclaveOptions:
+      Enabled: false
+    PlatformDetails: Linux/UNIX
+    UsageOperation: RunInstances
+    UsageOperationUpdateTime: 2018-05-17 06:37:08+00:00
+    PrivateDnsNameOptions: {}
+    MaintenanceOptions:
+      AutoRecovery: default
+    CurrentInstanceBootMode: legacy-bios
+    NetworkPerformanceOptions:
+      BandwidthWeighting: default
+    Operator:
+      Managed: false
+    InstanceId: i-071e8d27f393295b7
+    ImageId: ami-43a15f3e
+    State:
+      Code: 80
+      Name: stopped
+    PrivateDnsName: ip-172-31-15-25.ec2.internal
+    PublicDnsName: ''
+    StateTransitionReason: User initiated
+    KeyName: NewDayBreak
+    AmiLaunchIndex: 0
+    ProductCodes: []
+    InstanceType: m4.large
+    LaunchTime: 2019-04-08 00:03:46+00:00
+    Placement:
+      GroupName: ''
+      Tenancy: default
+      AvailabilityZone: us-east-1b
+    Monitoring:
+      State: disabled
+    SubnetId: subnet-415bcc37
+    VpcId: vpc-dcb995b8
+    PrivateIpAddress: 172.31.15.25
+- arn: arn:aws:ec2:us-east-1:480738299408:instance/i-0dc8e5a15da6b0d6d
+  type: AWS::EC2::Instance
+  name: Daybreak NewServer
+  region: us-east-1
+  tags:
+    Name: Daybreak NewServer
+  config_hash: 1bb6158ec846dfd1f36c8d14f0081e1df8e027ea0f1e26bf887aa90defbb33a0
+  created_at: '2022-01-31T06:51:08+00:00'
+  raw_config:
+    Architecture: x86_64
+    BlockDeviceMappings:
+    - DeviceName: /dev/sda1
+      Ebs:
+        AttachTime: 2019-04-14 12:13:16+00:00
+        DeleteOnTermination: true
+        Status: attached
+        VolumeId: vol-00fdb9b9f65b7d26b
+    ClientToken: ''
+    EbsOptimized: true
+    EnaSupport: true
+    Hypervisor: xen
+    NetworkInterfaces:
+    - Attachment:
+        AttachTime: 2019-04-14 12:13:15+00:00
+        AttachmentId: eni-attach-04598a50af0bf19dd
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        Status: attached
+        NetworkCardIndex: 0
+      Description: Primary network interface
+      Groups:
+      - GroupId: sg-fe8b3686
+        GroupName: DayBreak Ubuntu
+      Ipv6Addresses: []
+      MacAddress: 0a:8b:e2:90:93:ac
+      NetworkInterfaceId: eni-0fd945778887fc867
+      OwnerId: '480738299408'
+      PrivateDnsName: ip-172-31-6-197.ec2.internal
+      PrivateIpAddress: 172.31.6.197
+      PrivateIpAddresses:
+      - Primary: true
+        PrivateDnsName: ip-172-31-6-197.ec2.internal
+        PrivateIpAddress: 172.31.6.197
+      SourceDestCheck: true
+      Status: in-use
+      SubnetId: subnet-415bcc37
+      VpcId: vpc-dcb995b8
+      InterfaceType: interface
+      Operator:
+        Managed: false
+    RootDeviceName: /dev/sda1
+    RootDeviceType: ebs
+    SecurityGroups:
+    - GroupId: sg-fe8b3686
+      GroupName: DayBreak Ubuntu
+    SourceDestCheck: true
+    StateReason:
+      Code: Client.UserInitiatedShutdown
+      Message: 'Client.UserInitiatedShutdown: User initiated shutdown'
+    Tags:
+    - Key: Name
+      Value: Daybreak NewServer
+    VirtualizationType: hvm
+    CpuOptions:
+      CoreCount: 1
+      ThreadsPerCore: 2
+    CapacityReservationSpecification:
+      CapacityReservationPreference: open
+    HibernationOptions:
+      Configured: false
+    MetadataOptions:
+      State: applied
+      HttpTokens: optional
+      HttpPutResponseHopLimit: 1
+      HttpEndpoint: enabled
+      HttpProtocolIpv6: disabled
+      InstanceMetadataTags: disabled
+    EnclaveOptions:
+      Enabled: false
+    PlatformDetails: Linux/UNIX
+    UsageOperation: RunInstances
+    UsageOperationUpdateTime: 2019-04-14 12:13:15+00:00
+    PrivateDnsNameOptions: {}
+    MaintenanceOptions:
+      AutoRecovery: default
+    CurrentInstanceBootMode: legacy-bios
+    NetworkPerformanceOptions:
+      BandwidthWeighting: default
+    Operator:
+      Managed: false
+    InstanceId: i-0dc8e5a15da6b0d6d
+    ImageId: ami-0f00a9b9e5dec4390
+    State:
+      Code: 80
+      Name: stopped
+    PrivateDnsName: ip-172-31-6-197.ec2.internal
+    PublicDnsName: ''
+    StateTransitionReason: User initiated (2022-01-31 07:32:11 GMT)
+    KeyName: NewDayBreak
+    AmiLaunchIndex: 0
+    ProductCodes: []
+    InstanceType: m4.large
+    LaunchTime: 2022-01-31 06:51:08+00:00
+    Placement:
+      GroupName: ''
+      Tenancy: default
+      AvailabilityZone: us-east-1b
+    Monitoring:
+      State: disabled
+    SubnetId: subnet-415bcc37
+    VpcId: vpc-dcb995b8
+    PrivateIpAddress: 172.31.6.197
+- arn: arn:aws:ec2:us-east-1:480738299408:instance/i-05377043b2e30bfed
+  type: AWS::EC2::Instance
+  name: i-05377043b2e30bfed
+  region: us-east-1
+  tags: {}
+  config_hash: 3e55b362c76f502b088b9a4e533b1ad7a746c667f2cc5ee44ef24b9d077793e1
+  created_at: '2022-01-31T07:56:04+00:00'
+  raw_config:
+    Architecture: x86_64
+    BlockDeviceMappings:
+    - DeviceName: /dev/sda1
+      Ebs:
+        AttachTime: 2022-01-31 07:56:05+00:00
+        DeleteOnTermination: true
+        Status: attached
+        VolumeId: vol-0d7610a54932796e2
+    ClientToken: ''
+    EbsOptimized: true
+    EnaSupport: true
+    Hypervisor: xen
+    NetworkInterfaces:
+    - Association:
+        IpOwnerId: '480738299408'
+        PublicDnsName: ec2-54-145-235-214.compute-1.amazonaws.com
+        PublicIp: 54.145.235.214
+      Attachment:
+        AttachTime: 2022-01-31 07:56:04+00:00
+        AttachmentId: eni-attach-0850a16c2dced8c53
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        Status: attached
+        NetworkCardIndex: 0
+      Description: ''
+      Groups:
+      - GroupId: sg-fe8b3686
+        GroupName: DayBreak Ubuntu
+      Ipv6Addresses: []
+      MacAddress: 0a:c4:8c:01:cb:5b
+      NetworkInterfaceId: eni-02be83a6b6157e5da
+      OwnerId: '480738299408'
+      PrivateDnsName: ip-172-31-10-37.ec2.internal
+      PrivateIpAddress: 172.31.10.37
+      PrivateIpAddresses:
+      - Association:
+          IpOwnerId: '480738299408'
+          PublicDnsName: ec2-54-145-235-214.compute-1.amazonaws.com
+          PublicIp: 54.145.235.214
+        Primary: true
+        PrivateDnsName: ip-172-31-10-37.ec2.internal
+        PrivateIpAddress: 172.31.10.37
+      SourceDestCheck: true
+      Status: in-use
+      SubnetId: subnet-415bcc37
+      VpcId: vpc-dcb995b8
+      InterfaceType: interface
+      Operator:
+        Managed: false
+    RootDeviceName: /dev/sda1
+    RootDeviceType: ebs
+    SecurityGroups:
+    - GroupId: sg-fe8b3686
+      GroupName: DayBreak Ubuntu
+    SourceDestCheck: true
+    VirtualizationType: hvm
+    CpuOptions:
+      CoreCount: 2
+      ThreadsPerCore: 2
+    CapacityReservationSpecification:
+      CapacityReservationPreference: open
+    HibernationOptions:
+      Configured: false
+    MetadataOptions:
+      State: applied
+      HttpTokens: optional
+      HttpPutResponseHopLimit: 1
+      HttpEndpoint: enabled
+      HttpProtocolIpv6: disabled
+      InstanceMetadataTags: enabled
+    EnclaveOptions:
+      Enabled: false
+    PlatformDetails: Linux/UNIX
+    UsageOperation: RunInstances
+    UsageOperationUpdateTime: 2022-01-31 07:56:04+00:00
+    PrivateDnsNameOptions:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: true
+      EnableResourceNameDnsAAAARecord: false
+    MaintenanceOptions:
+      AutoRecovery: default
+    CurrentInstanceBootMode: legacy-bios
+    NetworkPerformanceOptions:
+      BandwidthWeighting: default
+    Operator:
+      Managed: false
+    InstanceId: i-05377043b2e30bfed
+    ImageId: ami-05664f273cd731bcc
+    State:
+      Code: 16
+      Name: running
+    PrivateDnsName: ip-172-31-10-37.ec2.internal
+    PublicDnsName: ec2-54-145-235-214.compute-1.amazonaws.com
+    StateTransitionReason: ''
+    KeyName: NewDayBreak
+    AmiLaunchIndex: 0
+    ProductCodes: []
+    InstanceType: m4.xlarge
+    LaunchTime: 2022-01-31 07:56:04+00:00
+    Placement:
+      GroupName: ''
+      Tenancy: default
+      AvailabilityZone: us-east-1b
+    Monitoring:
+      State: disabled
+    SubnetId: subnet-415bcc37
+    VpcId: vpc-dcb995b8
+    PrivateIpAddress: 172.31.10.37
+    PublicIpAddress: 54.145.235.214
+- arn: arn:aws:ec2:us-east-1:480738299408:instance/i-0fa2af967d94c010c
+  type: AWS::EC2::Instance
+  name: calvinware-dev
+  region: us-east-1
+  tags:
+    Name: calvinware-dev
+    Project: daybreak-ai
+  config_hash: b9ecba6ddb6bf959ace8d284ee2c922bebc28fd6ba00dbdf5393b4420e7457e2
+  created_at: '2025-03-01T19:22:02+00:00'
+  raw_config:
+    Architecture: x86_64
+    BlockDeviceMappings:
+    - DeviceName: /dev/sda1
+      Ebs:
+        AttachTime: 2025-03-01 19:22:02+00:00
+        DeleteOnTermination: true
+        Status: attached
+        VolumeId: vol-0ded847f6a68cbe29
+    ClientToken: 44a59fac-9848-498f-b693-05f6577e54a5
+    EbsOptimized: false
+    EnaSupport: true
+    Hypervisor: xen
+    NetworkInterfaces:
+    - Association:
+        IpOwnerId: amazon
+        PublicDnsName: ec2-107-20-121-52.compute-1.amazonaws.com
+        PublicIp: 107.20.121.52
+      Attachment:
+        AttachTime: 2025-03-01 19:22:02+00:00
+        AttachmentId: eni-attach-057018aa131c56daf
+        DeleteOnTermination: true
+        DeviceIndex: 0
+        Status: attached
+        NetworkCardIndex: 0
+      Description: ''
+      Groups:
+      - GroupId: sg-00aa82f2663ea3c1a
+        GroupName: launch-wizard-2
+      Ipv6Addresses: []
+      MacAddress: 0a:ff:e3:93:be:4d
+      NetworkInterfaceId: eni-0e28f594dd48e8276
+      OwnerId: '480738299408'
+      PrivateDnsName: ip-172-31-15-177.ec2.internal
+      PrivateIpAddress: 172.31.15.177
+      PrivateIpAddresses:
+      - Association:
+          IpOwnerId: amazon
+          PublicDnsName: ec2-107-20-121-52.compute-1.amazonaws.com
+          PublicIp: 107.20.121.52
+        Primary: true
+        PrivateDnsName: ip-172-31-15-177.ec2.internal
+        PrivateIpAddress: 172.31.15.177
+      SourceDestCheck: true
+      Status: in-use
+      SubnetId: subnet-415bcc37
+      VpcId: vpc-dcb995b8
+      InterfaceType: interface
+      Operator:
+        Managed: false
+    RootDeviceName: /dev/sda1
+    RootDeviceType: ebs
+    SecurityGroups:
+    - GroupId: sg-00aa82f2663ea3c1a
+      GroupName: launch-wizard-2
+    SourceDestCheck: true
+    Tags:
+    - Key: Name
+      Value: calvinware-dev
+    - Key: Project
+      Value: daybreak-ai
+    VirtualizationType: hvm
+    CpuOptions:
+      CoreCount: 2
+      ThreadsPerCore: 1
+    CapacityReservationSpecification:
+      CapacityReservationPreference: open
+    HibernationOptions:
+      Configured: false
+    MetadataOptions:
+      State: applied
+      HttpTokens: required
+      HttpPutResponseHopLimit: 2
+      HttpEndpoint: enabled
+      HttpProtocolIpv6: disabled
+      InstanceMetadataTags: disabled
+    EnclaveOptions:
+      Enabled: false
+    BootMode: uefi-preferred
+    PlatformDetails: Linux/UNIX
+    UsageOperation: RunInstances
+    UsageOperationUpdateTime: 2025-03-01 19:22:02+00:00
+    PrivateDnsNameOptions:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: true
+      EnableResourceNameDnsAAAARecord: false
+    MaintenanceOptions:
+      AutoRecovery: default
+    CurrentInstanceBootMode: legacy-bios
+    NetworkPerformanceOptions:
+      BandwidthWeighting: default
+    Operator:
+      Managed: false
+    InstanceId: i-0fa2af967d94c010c
+    ImageId: ami-04b4f1a9cf54c11d0
+    State:
+      Code: 16
+      Name: running
+    PrivateDnsName: ip-172-31-15-177.ec2.internal
+    PublicDnsName: ec2-107-20-121-52.compute-1.amazonaws.com
+    StateTransitionReason: ''
+    KeyName: daybreak-ai
+    AmiLaunchIndex: 0
+    ProductCodes: []
+    InstanceType: t2.medium
+    LaunchTime: 2025-03-01 19:22:02+00:00
+    Placement:
+      GroupName: ''
+      Tenancy: default
+      AvailabilityZone: us-east-1b
+    Monitoring:
+      State: disabled
+    SubnetId: subnet-415bcc37
+    VpcId: vpc-dcb995b8
+    PrivateIpAddress: 172.31.15.177
+    PublicIpAddress: 107.20.121.52
+- arn: arn:aws:ec2:us-east-1:480738299408:volume/vol-0d7610a54932796e2
+  type: AWS::EC2::Volume
+  name: vol-0d7610a54932796e2
+  region: us-east-1
+  tags: {}
+  config_hash: 529acb351d691976df1dd36d39a2d1dd17218f3e396003ee5871a96df6d257a8
+  created_at: '2022-01-31T07:56:05.746000+00:00'
+  raw_config:
+    Iops: 300
+    VolumeType: gp2
+    MultiAttachEnabled: false
+    Operator:
+      Managed: false
+    VolumeId: vol-0d7610a54932796e2
+    Size: 100
+    SnapshotId: snap-02cd046a8de4fe6a1
+    AvailabilityZone: us-east-1b
+    State: in-use
+    CreateTime: 2022-01-31 07:56:05.746000+00:00
+    Attachments:
+    - DeleteOnTermination: true
+      VolumeId: vol-0d7610a54932796e2
+      InstanceId: i-05377043b2e30bfed
+      Device: /dev/sda1
+      State: attached
+      AttachTime: 2022-01-31 07:56:05+00:00
+    Encrypted: false
+- arn: arn:aws:ec2:us-east-1:480738299408:volume/vol-0164670133a8c09aa
+  type: AWS::EC2::Volume
+  name: vol-0164670133a8c09aa
+  region: us-east-1
+  tags: {}
+  config_hash: 0b25152fa6aa91bf919d4b9c126047c2c1f770c783d5dd03056e742f71ff01f5
+  created_at: '2022-01-31T07:31:44.764000+00:00'
+  raw_config:
+    Iops: 300
+    VolumeType: gp2
+    MultiAttachEnabled: false
+    Operator:
+      Managed: false
+    VolumeId: vol-0164670133a8c09aa
+    Size: 100
+    SnapshotId: snap-05b042ab99dabd52d
+    AvailabilityZone: us-east-1b
+    State: available
+    CreateTime: 2022-01-31 07:31:44.764000+00:00
+    Attachments: []
+    Encrypted: false
+- arn: arn:aws:ec2:us-east-1:480738299408:volume/vol-07004cb3c66bca2dd
+  type: AWS::EC2::Volume
+  name: Daybreak NewServer
+  region: us-east-1
+  tags:
+    Name: Daybreak NewServer
+  config_hash: 10de74d3777a6671c67c6ea3f31314e0595f1445a3aabf2bf33e6c0835a601ae
+  created_at: '2018-05-17T06:37:08.968000+00:00'
+  raw_config:
+    Iops: 100
+    Tags:
+    - Key: Name
+      Value: Daybreak NewServer
+    VolumeType: gp2
+    MultiAttachEnabled: false
+    Operator:
+      Managed: false
+    VolumeId: vol-07004cb3c66bca2dd
+    Size: 10
+    SnapshotId: snap-0a83a22928e9afbe9
+    AvailabilityZone: us-east-1b
+    State: in-use
+    CreateTime: 2018-05-17 06:37:08.968000+00:00
+    Attachments:
+    - DeleteOnTermination: true
+      VolumeId: vol-07004cb3c66bca2dd
+      InstanceId: i-071e8d27f393295b7
+      Device: /dev/sda1
+      State: attached
+      AttachTime: 2018-05-17 06:37:09+00:00
+    Encrypted: false
+- arn: arn:aws:ec2:us-east-1:480738299408:volume/vol-0ded847f6a68cbe29
+  type: AWS::EC2::Volume
+  name: vol-0ded847f6a68cbe29
+  region: us-east-1
+  tags: {}
+  config_hash: 20162d3d91902c45551c19212e1f4962072b8a08f991969daa04612d41ba7a07
+  created_at: '2025-03-01T19:22:02.901000+00:00'
+  raw_config:
+    Iops: 3000
+    VolumeType: gp3
+    MultiAttachEnabled: false
+    Throughput: 125
+    Operator:
+      Managed: false
+    VolumeId: vol-0ded847f6a68cbe29
+    Size: 100
+    SnapshotId: snap-00cdccb3239896f89
+    AvailabilityZone: us-east-1b
+    State: in-use
+    CreateTime: 2025-03-01 19:22:02.901000+00:00
+    Attachments:
+    - DeleteOnTermination: true
+      VolumeId: vol-0ded847f6a68cbe29
+      InstanceId: i-0fa2af967d94c010c
+      Device: /dev/sda1
+      State: attached
+      AttachTime: 2025-03-01 19:22:02+00:00
+    Encrypted: false
+- arn: arn:aws:ec2:us-east-1:480738299408:volume/vol-e20fc23c
+  type: AWS::EC2::Volume
+  name: Daybreak MainServer
+  region: us-east-1
+  tags:
+    Name: Daybreak MainServer
+  config_hash: 23a236fce14649df17dc72ff0a3cbbe82e8191868ba360439f76dbd88476a6eb
+  created_at: '2016-03-07T22:24:39.701000+00:00'
+  raw_config:
+    Iops: 240
+    Tags:
+    - Key: Name
+      Value: Daybreak MainServer
+    VolumeType: gp2
+    MultiAttachEnabled: false
+    Operator:
+      Managed: false
+    VolumeId: vol-e20fc23c
+    Size: 80
+    SnapshotId: snap-f70deff0
+    AvailabilityZone: us-east-1a
+    State: in-use
+    CreateTime: 2016-03-07 22:24:39.701000+00:00
+    Attachments:
+    - DeleteOnTermination: true
+      VolumeId: vol-e20fc23c
+      InstanceId: i-961ba715
+      Device: /dev/sda1
+      State: attached
+      AttachTime: 2016-03-07 22:24:39+00:00
+    Encrypted: false
+- arn: arn:aws:ec2:us-east-1:480738299408:volume/vol-00fdb9b9f65b7d26b
+  type: AWS::EC2::Volume
+  name: vol-00fdb9b9f65b7d26b
+  region: us-east-1
+  tags: {}
+  config_hash: 87d3f44993f2876b39fe6644e44bab02e79438315fb807bc59f455dedc03e0bd
+  created_at: '2019-04-14T12:13:16.389000+00:00'
+  raw_config:
+    Iops: 300
+    VolumeType: gp2
+    MultiAttachEnabled: false
+    Operator:
+      Managed: false
+    VolumeId: vol-00fdb9b9f65b7d26b
+    Size: 100
+    SnapshotId: snap-0513c02c809a3079e
+    AvailabilityZone: us-east-1b
+    State: in-use
+    CreateTime: 2019-04-14 12:13:16.389000+00:00
+    Attachments:
+    - DeleteOnTermination: true
+      VolumeId: vol-00fdb9b9f65b7d26b
+      InstanceId: i-0dc8e5a15da6b0d6d
+      Device: /dev/sda1
+      State: attached
+      AttachTime: 2019-04-14 12:13:16+00:00
+    Encrypted: false
+- arn: arn:aws:ec2:us-east-1:480738299408:vpc/vpc-e49a8a83
+  type: AWS::EC2::VPC
+  name: vpc-e49a8a83
+  region: us-east-1
+  tags:
+    AWSServiceAccount: '697148468905'
+  config_hash: db7ad71487eeb17b279dc28c98dbb1840275c68a1871e25c480ab013796f00d0
+  created_at: null
+  raw_config:
+    OwnerId: '480738299408'
+    InstanceTenancy: default
+    CidrBlockAssociationSet:
+    - AssociationId: vpc-cidr-assoc-d13802b8
+      CidrBlock: 172.16.0.0/16
+      CidrBlockState:
+        State: associated
+    IsDefault: false
+    Tags:
+    - Key: AWSServiceAccount
+      Value: '697148468905'
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    VpcId: vpc-e49a8a83
+    State: available
+    CidrBlock: 172.16.0.0/16
+    DhcpOptionsId: dopt-463c7923
+- arn: arn:aws:ec2:us-east-1:480738299408:vpc/vpc-dcb995b8
+  type: AWS::EC2::VPC
+  name: vpc-dcb995b8
+  region: us-east-1
+  tags: {}
+  config_hash: 7ab97173ee4cc83e1bd5798e73ef4a07359c5b922fee33e210ac823d12f63aac
+  created_at: null
+  raw_config:
+    OwnerId: '480738299408'
+    InstanceTenancy: default
+    CidrBlockAssociationSet:
+    - AssociationId: vpc-cidr-assoc-bd8e75d4
+      CidrBlock: 172.31.0.0/16
+      CidrBlockState:
+        State: associated
+    IsDefault: true
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    VpcId: vpc-dcb995b8
+    State: available
+    CidrBlock: 172.31.0.0/16
+    DhcpOptionsId: dopt-463c7923
+- arn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-a7cb64df
+  type: AWS::EC2::SecurityGroup
+  name: default
+  region: us-east-1
+  tags: {}
+  config_hash: be1dabc4a2277897f15f8151e9b00a2386934cfb2edd2b5208d6e7d5bb677495
+  created_at: null
+  raw_config:
+    GroupId: sg-a7cb64df
+    IpPermissionsEgress:
+    - IpProtocol: '-1'
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    VpcId: vpc-dcb995b8
+    SecurityGroupArn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-a7cb64df
+    OwnerId: '480738299408'
+    GroupName: default
+    Description: default VPC security group
+    IpPermissions:
+    - IpProtocol: '-1'
+      UserIdGroupPairs:
+      - UserId: '480738299408'
+        GroupId: sg-a7cb64df
+      IpRanges: []
+      Ipv6Ranges: []
+      PrefixListIds: []
+- arn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-fe8b3686
+  type: AWS::EC2::SecurityGroup
+  name: DayBreak Ubuntu
+  region: us-east-1
+  tags: {}
+  config_hash: 73c32b0070818c4aeac9f174bdb446ef8ccf9e627ce5b0f250a88f1574965e39
+  created_at: null
+  raw_config:
+    GroupId: sg-fe8b3686
+    IpPermissionsEgress:
+    - IpProtocol: '-1'
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    VpcId: vpc-dcb995b8
+    SecurityGroupArn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-fe8b3686
+    OwnerId: '480738299408'
+    GroupName: DayBreak Ubuntu
+    Description: launch-wizard-1 created 2016-03-08T03:48:09.140+05:30
+    IpPermissions:
+    - IpProtocol: tcp
+      FromPort: 1433
+      ToPort: 1433
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 71.204.13.129/32
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 8000
+      ToPort: 8000
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges:
+      - CidrIpv6: ::/0
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      UserIdGroupPairs: []
+      IpRanges:
+      - Description: Ishan-trimantra
+        CidrIp: 111.90.168.212/32
+      - Description: You- trimantra
+        CidrIp: 203.88.157.74/32
+      - Description: Kinjal Doyenhub
+        CidrIp: 115.245.164.150/32
+      - Description: Pravin
+        CidrIp: 103.250.153.157/32
+      - Description: Pravin Secondary
+        CidrIp: 123.201.91.20/32
+      - Description: doyenhub
+        CidrIp: 137.97.234.210/32
+      - Description: Amit Batra
+        CidrIp: 49.156.77.161/32
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 22000
+      ToPort: 22000
+      UserIdGroupPairs: []
+      IpRanges:
+      - Description: Syncthing
+        CidrIp: 128.136.235.8/32
+      - Description: pravindodia
+        CidrIp: 103.250.153.157/32
+      - Description: Pravin Secondary
+        CidrIp: 123.201.91.20/32
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 25
+      ToPort: 25
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 3001
+      ToPort: 3001
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 8181
+      ToPort: 8181
+      UserIdGroupPairs: []
+      IpRanges: []
+      Ipv6Ranges:
+      - Description: Syncthing
+        CidrIpv6: ::/0
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      - CidrIp: 203.88.157.74/32
+      - CidrIp: 128.136.235.8/29
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 8384
+      ToPort: 8384
+      UserIdGroupPairs: []
+      IpRanges:
+      - Description: Syncthing
+        CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+- arn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-f60ef38b
+  type: AWS::EC2::SecurityGroup
+  name: d-9067239ebb_workspacesMembers
+  region: us-east-1
+  tags:
+    Created by Amazon WorkSpaces: Amazon WorkSpaces
+  config_hash: 7434b47ac0c705f815a2d2be0ee3d4cf0f3c5c11e33df494a7312ad54113bd02
+  created_at: null
+  raw_config:
+    GroupId: sg-f60ef38b
+    IpPermissionsEgress:
+    - IpProtocol: '-1'
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    Tags:
+    - Key: Created by Amazon WorkSpaces
+      Value: Amazon WorkSpaces
+    VpcId: vpc-e49a8a83
+    SecurityGroupArn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-f60ef38b
+    OwnerId: '480738299408'
+    GroupName: d-9067239ebb_workspacesMembers
+    Description: Amazon WorkSpaces Security Group
+    IpPermissions:
+    - IpProtocol: tcp
+      FromPort: 3389
+      ToPort: 3389
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 104.162.36.57/32
+      - CidrIp: 104.162.47.63/32
+      - CidrIp: 172.16.1.0/24
+      - CidrIp: 172.16.0.0/24
+      Ipv6Ranges: []
+      PrefixListIds: []
+- arn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-07c7afd8e1b5e8f22
+  type: AWS::EC2::SecurityGroup
+  name: launch-wizard-1
+  region: us-east-1
+  tags: {}
+  config_hash: c8d6f372910c375bc8240a98ee6076a5f4c1a2c47ab35494b9cd9fd88eb2ec3b
+  created_at: null
+  raw_config:
+    GroupId: sg-07c7afd8e1b5e8f22
+    IpPermissionsEgress:
+    - IpProtocol: '-1'
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    VpcId: vpc-dcb995b8
+    SecurityGroupArn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-07c7afd8e1b5e8f22
+    OwnerId: '480738299408'
+    GroupName: launch-wizard-1
+    Description: launch-wizard-1 created 2022-01-31T11:52:26.838+05:30
+    IpPermissions:
+    - IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+- arn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-00aa82f2663ea3c1a
+  type: AWS::EC2::SecurityGroup
+  name: launch-wizard-2
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+  config_hash: 8aaed2d1736c3fd30bde58a8d9c0379cb726f9c90c50d1af7d16aece690d062b
+  created_at: null
+  raw_config:
+    GroupId: sg-00aa82f2663ea3c1a
+    IpPermissionsEgress:
+    - IpProtocol: '-1'
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    Tags:
+    - Key: Project
+      Value: daybreak-ai
+    VpcId: vpc-dcb995b8
+    SecurityGroupArn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-00aa82f2663ea3c1a
+    OwnerId: '480738299408'
+    GroupName: launch-wizard-2
+    Description: launch-wizard-2 created 2025-03-01T19:19:54.690Z
+    IpPermissions:
+    - IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 71.204.13.129/32
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 71.204.13.129/32
+      Ipv6Ranges: []
+      PrefixListIds: []
+- arn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-140ff269
+  type: AWS::EC2::SecurityGroup
+  name: default
+  region: us-east-1
+  tags: {}
+  config_hash: f7ae643c858767299e821a881f7bfb8c9b86d5ac95cb23d5326054fbbed22072
+  created_at: null
+  raw_config:
+    GroupId: sg-140ff269
+    IpPermissionsEgress:
+    - IpProtocol: '-1'
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 0.0.0.0/0
+      Ipv6Ranges: []
+      PrefixListIds: []
+    VpcId: vpc-e49a8a83
+    SecurityGroupArn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-140ff269
+    OwnerId: '480738299408'
+    GroupName: default
+    Description: default VPC security group
+    IpPermissions:
+    - IpProtocol: '-1'
+      UserIdGroupPairs:
+      - UserId: '480738299408'
+        GroupId: sg-140ff269
+      IpRanges: []
+      Ipv6Ranges: []
+      PrefixListIds: []
+- arn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-080ff275
+  type: AWS::EC2::SecurityGroup
+  name: d-9067239ebb_controllers
+  region: us-east-1
+  tags: {}
+  config_hash: e578b682c1b7114432a1a284a13da4f81904402d12d0808482a4442d8f79edad
+  created_at: null
+  raw_config:
+    GroupId: sg-080ff275
+    IpPermissionsEgress:
+    - IpProtocol: '-1'
+      UserIdGroupPairs:
+      - UserId: '480738299408'
+        GroupId: sg-080ff275
+      IpRanges: []
+      Ipv6Ranges: []
+      PrefixListIds: []
+    VpcId: vpc-e49a8a83
+    SecurityGroupArn: arn:aws:ec2:us-east-1:480738299408:security-group/sg-080ff275
+    OwnerId: '480738299408'
+    GroupName: d-9067239ebb_controllers
+    Description: AWS created security group for d-9067239ebb directory controllers
+    IpPermissions:
+    - IpProtocol: udp
+      FromPort: 445
+      ToPort: 445
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: udp
+      FromPort: 138
+      ToPort: 138
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: udp
+      FromPort: 464
+      ToPort: 464
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 464
+      ToPort: 464
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: udp
+      FromPort: 389
+      ToPort: 389
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: udp
+      FromPort: 53
+      ToPort: 53
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 389
+      ToPort: 389
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: udp
+      FromPort: 123
+      ToPort: 123
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 445
+      ToPort: 445
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: icmp
+      FromPort: -1
+      ToPort: -1
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 3268
+      ToPort: 3269
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 1024
+      ToPort: 65535
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 88
+      ToPort: 88
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: '-1'
+      UserIdGroupPairs:
+      - UserId: '480738299408'
+        GroupId: sg-080ff275
+      IpRanges: []
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 135
+      ToPort: 135
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 636
+      ToPort: 636
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: tcp
+      FromPort: 53
+      ToPort: 53
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+    - IpProtocol: udp
+      FromPort: 88
+      ToPort: 88
+      UserIdGroupPairs: []
+      IpRanges:
+      - CidrIp: 172.16.0.0/16
+      Ipv6Ranges: []
+      PrefixListIds: []
+- arn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-fdcbb598
+  type: AWS::EC2::Subnet
+  name: subnet-fdcbb598
+  region: us-east-1
+  tags: {}
+  config_hash: a094bc9cbb65311dde21e55a62c62a7e2e73705cd0014dca3fd066d2bc004135
+  created_at: null
+  raw_config:
+    AvailabilityZoneId: use1-az1
+    MapCustomerOwnedIpOnLaunch: false
+    OwnerId: '480738299408'
+    AssignIpv6AddressOnCreation: false
+    Ipv6CidrBlockAssociationSet: []
+    SubnetArn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-fdcbb598
+    EnableDns64: false
+    Ipv6Native: false
+    PrivateDnsNameOptionsOnLaunch:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: false
+      EnableResourceNameDnsAAAARecord: false
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    SubnetId: subnet-fdcbb598
+    State: available
+    VpcId: vpc-dcb995b8
+    CidrBlock: 172.31.64.0/20
+    AvailableIpAddressCount: 4091
+    AvailabilityZone: us-east-1d
+    DefaultForAz: true
+    MapPublicIpOnLaunch: true
+- arn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-6bd75d22
+  type: AWS::EC2::Subnet
+  name: subnet-6bd75d22
+  region: us-east-1
+  tags:
+    AWSServiceAccount: '697148468905'
+  config_hash: e190c8f4bbf48ae197abae045dfe40add72573bc63a7f6c80213d69d2aeb5c57
+  created_at: null
+  raw_config:
+    AvailabilityZoneId: use1-az4
+    MapCustomerOwnedIpOnLaunch: false
+    OwnerId: '480738299408'
+    AssignIpv6AddressOnCreation: false
+    Ipv6CidrBlockAssociationSet: []
+    Tags:
+    - Key: AWSServiceAccount
+      Value: '697148468905'
+    SubnetArn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-6bd75d22
+    EnableDns64: false
+    Ipv6Native: false
+    PrivateDnsNameOptionsOnLaunch:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: false
+      EnableResourceNameDnsAAAARecord: false
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    SubnetId: subnet-6bd75d22
+    State: available
+    VpcId: vpc-e49a8a83
+    CidrBlock: 172.16.0.0/24
+    AvailableIpAddressCount: 250
+    AvailabilityZone: us-east-1b
+    DefaultForAz: false
+    MapPublicIpOnLaunch: false
+- arn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-93b713b9
+  type: AWS::EC2::Subnet
+  name: subnet-93b713b9
+  region: us-east-1
+  tags: {}
+  config_hash: cb78d7063f9909ca7a94d0a27bd98d8a8a668b2881f8447aa056c7e856981a98
+  created_at: null
+  raw_config:
+    AvailabilityZoneId: use1-az2
+    MapCustomerOwnedIpOnLaunch: false
+    OwnerId: '480738299408'
+    AssignIpv6AddressOnCreation: false
+    Ipv6CidrBlockAssociationSet: []
+    SubnetArn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-93b713b9
+    EnableDns64: false
+    Ipv6Native: false
+    PrivateDnsNameOptionsOnLaunch:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: false
+      EnableResourceNameDnsAAAARecord: false
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    SubnetId: subnet-93b713b9
+    State: available
+    VpcId: vpc-dcb995b8
+    CidrBlock: 172.31.48.0/20
+    AvailableIpAddressCount: 4090
+    AvailabilityZone: us-east-1a
+    DefaultForAz: true
+    MapPublicIpOnLaunch: true
+- arn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-415bcc37
+  type: AWS::EC2::Subnet
+  name: subnet-415bcc37
+  region: us-east-1
+  tags: {}
+  config_hash: 3241b297ab1256084219f965788bcf2063bd502e23049d3236d3dd33d0243598
+  created_at: null
+  raw_config:
+    AvailabilityZoneId: use1-az4
+    MapCustomerOwnedIpOnLaunch: false
+    OwnerId: '480738299408'
+    AssignIpv6AddressOnCreation: false
+    Ipv6CidrBlockAssociationSet: []
+    SubnetArn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-415bcc37
+    EnableDns64: false
+    Ipv6Native: false
+    PrivateDnsNameOptionsOnLaunch:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: false
+      EnableResourceNameDnsAAAARecord: false
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    SubnetId: subnet-415bcc37
+    State: available
+    VpcId: vpc-dcb995b8
+    CidrBlock: 172.31.0.0/20
+    AvailableIpAddressCount: 4087
+    AvailabilityZone: us-east-1b
+    DefaultForAz: true
+    MapPublicIpOnLaunch: true
+- arn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-330c660e
+  type: AWS::EC2::Subnet
+  name: subnet-330c660e
+  region: us-east-1
+  tags: {}
+  config_hash: cf5781254c5d9c728a298fff73e465b9d06e0c8f6d7aa62a0e2382fd0a3c7e89
+  created_at: null
+  raw_config:
+    AvailabilityZoneId: use1-az3
+    MapCustomerOwnedIpOnLaunch: false
+    OwnerId: '480738299408'
+    AssignIpv6AddressOnCreation: false
+    Ipv6CidrBlockAssociationSet: []
+    SubnetArn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-330c660e
+    EnableDns64: false
+    Ipv6Native: false
+    PrivateDnsNameOptionsOnLaunch:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: false
+      EnableResourceNameDnsAAAARecord: false
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    SubnetId: subnet-330c660e
+    State: available
+    VpcId: vpc-dcb995b8
+    CidrBlock: 172.31.32.0/20
+    AvailableIpAddressCount: 4091
+    AvailabilityZone: us-east-1e
+    DefaultForAz: true
+    MapPublicIpOnLaunch: true
+- arn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-5b11ce00
+  type: AWS::EC2::Subnet
+  name: subnet-5b11ce00
+  region: us-east-1
+  tags:
+    AWSServiceAccount: '697148468905'
+  config_hash: f240524cf9295df077939f5ef77355d42e8d42d9971f1033b88d96399dae50f2
+  created_at: null
+  raw_config:
+    AvailabilityZoneId: use1-az6
+    MapCustomerOwnedIpOnLaunch: false
+    OwnerId: '480738299408'
+    AssignIpv6AddressOnCreation: false
+    Ipv6CidrBlockAssociationSet: []
+    Tags:
+    - Key: AWSServiceAccount
+      Value: '697148468905'
+    SubnetArn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-5b11ce00
+    EnableDns64: false
+    Ipv6Native: false
+    PrivateDnsNameOptionsOnLaunch:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: false
+      EnableResourceNameDnsAAAARecord: false
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    SubnetId: subnet-5b11ce00
+    State: available
+    VpcId: vpc-e49a8a83
+    CidrBlock: 172.16.1.0/24
+    AvailableIpAddressCount: 250
+    AvailabilityZone: us-east-1c
+    DefaultForAz: false
+    MapPublicIpOnLaunch: false
+- arn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-b48729ec
+  type: AWS::EC2::Subnet
+  name: subnet-b48729ec
+  region: us-east-1
+  tags: {}
+  config_hash: 49882b7ce846a86022a7e4a3d4439638e877b147361663d8a8bc60e54ed5e339
+  created_at: null
+  raw_config:
+    AvailabilityZoneId: use1-az6
+    MapCustomerOwnedIpOnLaunch: false
+    OwnerId: '480738299408'
+    AssignIpv6AddressOnCreation: false
+    Ipv6CidrBlockAssociationSet: []
+    SubnetArn: arn:aws:ec2:us-east-1:480738299408:subnet/subnet-b48729ec
+    EnableDns64: false
+    Ipv6Native: false
+    PrivateDnsNameOptionsOnLaunch:
+      HostnameType: ip-name
+      EnableResourceNameDnsARecord: false
+      EnableResourceNameDnsAAAARecord: false
+    BlockPublicAccessStates:
+      InternetGatewayBlockMode: 'off'
+    SubnetId: subnet-b48729ec
+    State: available
+    VpcId: vpc-dcb995b8
+    CidrBlock: 172.31.16.0/20
+    AvailableIpAddressCount: 4091
+    AvailabilityZone: us-east-1c
+    DefaultForAz: true
+    MapPublicIpOnLaunch: true
+- arn: arn:aws:logs:us-east-1:480738299408:log-group:/aws/lambda/daybreak-ai-db-agent:*
+  type: AWS::Logs::LogGroup
+  name: /aws/lambda/daybreak-ai-db-agent
+  region: us-east-1
+  tags: {}
+  config_hash: 681c09d27d1f3a60d02bb7101b939b498889fd5b190de00efb3887b1a7f47dd2
+  created_at: null
+  raw_config:
+    logGroupName: /aws/lambda/daybreak-ai-db-agent
+    creationTime: 1739058977657
+    metricFilterCount: 0
+    arn: arn:aws:logs:us-east-1:480738299408:log-group:/aws/lambda/daybreak-ai-db-agent:*
+    storedBytes: 77188
+    logGroupClass: STANDARD
+    logGroupArn: arn:aws:logs:us-east-1:480738299408:log-group:/aws/lambda/daybreak-ai-db-agent
+- arn: arn:aws:logs:us-east-1:480738299408:log-group:/aws/lambda/daybreak-transcribe-processor:*
+  type: AWS::Logs::LogGroup
+  name: /aws/lambda/daybreak-transcribe-processor
+  region: us-east-1
+  tags: {}
+  config_hash: 8f9d1cbbd24cdaeffda2217eeee5dc49f94378d4a0a4bda6f0782126de25b8a3
+  created_at: null
+  raw_config:
+    logGroupName: /aws/lambda/daybreak-transcribe-processor
+    creationTime: 1757783945179
+    metricFilterCount: 0
+    arn: arn:aws:logs:us-east-1:480738299408:log-group:/aws/lambda/daybreak-transcribe-processor:*
+    storedBytes: 300401
+    logGroupClass: STANDARD
+    logGroupArn: arn:aws:logs:us-east-1:480738299408:log-group:/aws/lambda/daybreak-transcribe-processor
+- arn: arn:aws:sns:us-east-1:480738299408:daybreak-transcribe-job-events
+  type: AWS::SNS::Topic
+  name: daybreak-transcribe-job-events
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    ManagedBy: terraform
+  config_hash: 1b515131f0d45c77f374c239d180c351d77007e149751430f478d57ab5aa4ea4
+  created_at: null
+  raw_config:
+    Policy: '{"Version":"2012-10-17","Statement":[{"Sid":"AllowEventBridgePublish","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sns:Publish","Resource":"arn:aws:sns:us-east-1:480738299408:daybreak-transcribe-job-events"}]}'
+    LambdaSuccessFeedbackSampleRate: '0'
+    Owner: '480738299408'
+    SubscriptionsPending: '0'
+    TopicArn: arn:aws:sns:us-east-1:480738299408:daybreak-transcribe-job-events
+    EffectiveDeliveryPolicy: '{"http":{"defaultHealthyRetryPolicy":{"minDelayTarget":20,"maxDelayTarget":20,"numRetries":3,"numMaxDelayRetries":0,"numNoDelayRetries":0,"numMinDelayRetries":0,"backoffFunction":"linear"},"disableSubscriptionOverrides":false,"defaultRequestPolicy":{"headerContentType":"text/plain;
+      charset=UTF-8"}}}'
+    FirehoseSuccessFeedbackSampleRate: '0'
+    SubscriptionsConfirmed: '1'
+    SQSSuccessFeedbackSampleRate: '0'
+    HTTPSuccessFeedbackSampleRate: '0'
+    ApplicationSuccessFeedbackSampleRate: '0'
+    DisplayName: ''
+    SubscriptionsDeleted: '0'
+- arn: arn:aws:sqs:us-east-1:480738299408:daybreak-transcribe-events
+  type: AWS::SQS::Queue
+  name: daybreak-transcribe-events
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    ManagedBy: terraform
+  config_hash: 091a903811d6db5cb3ffeb6a7687a55a5478fdcdf008762c6a9a33aeb5e7ebc9
+  created_at: null
+  raw_config:
+    QueueArn: arn:aws:sqs:us-east-1:480738299408:daybreak-transcribe-events
+    ApproximateNumberOfMessages: '0'
+    ApproximateNumberOfMessagesNotVisible: '0'
+    ApproximateNumberOfMessagesDelayed: '0'
+    CreatedTimestamp: '1757769426'
+    LastModifiedTimestamp: '1757769452'
+    VisibilityTimeout: '120'
+    MaximumMessageSize: '262144'
+    MessageRetentionPeriod: '345600'
+    DelaySeconds: '0'
+    Policy: '{"Version":"2012-10-17","Statement":[{"Sid":"Allow-SNS-SendMessage","Effect":"Allow","Principal":{"Service":"sns.amazonaws.com"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:us-east-1:480738299408:daybreak-transcribe-events","Condition":{"ArnEquals":{"aws:SourceArn":"arn:aws:sns:us-east-1:480738299408:daybreak-transcribe-job-events"}}}]}'
+    RedrivePolicy: '{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:480738299408:daybreak-transcribe-events-dlq","maxReceiveCount":5}'
+    ReceiveMessageWaitTimeSeconds: '10'
+    SqsManagedSseEnabled: 'true'
+- arn: arn:aws:sqs:us-east-1:480738299408:daybreak-transcribe-events-dlq
+  type: AWS::SQS::Queue
+  name: daybreak-transcribe-events-dlq
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    ManagedBy: terraform
+  config_hash: de04106ac924ed6742674b16ef5c889efdbbb056d8d9936707c1ee2bbbfe6a7a
+  created_at: null
+  raw_config:
+    QueueArn: arn:aws:sqs:us-east-1:480738299408:daybreak-transcribe-events-dlq
+    ApproximateNumberOfMessages: '0'
+    ApproximateNumberOfMessagesNotVisible: '0'
+    ApproximateNumberOfMessagesDelayed: '0'
+    CreatedTimestamp: '1757769399'
+    LastModifiedTimestamp: '1757769399'
+    VisibilityTimeout: '30'
+    MaximumMessageSize: '262144'
+    MessageRetentionPeriod: '1209600'
+    DelaySeconds: '0'
+    ReceiveMessageWaitTimeSeconds: '0'
+    SqsManagedSseEnabled: 'true'
+- arn: arn:aws:dynamodb:us-east-1:480738299408:table/daybreak-ai-terraform-locks
+  type: AWS::DynamoDB::Table
+  name: daybreak-ai-terraform-locks
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    ManagedBy: terraform
+    Environment: production
+    Name: terraform-locks
+  config_hash: ee2b55d54df61408ed304b7b52d3a270786e0d1a696960801f9e537ce1c7f6d1
+  created_at: '2025-02-10T07:56:04.002000-05:00'
+  raw_config:
+    AttributeDefinitions:
+    - AttributeName: LockID
+      AttributeType: S
+    TableName: daybreak-ai-terraform-locks
+    KeySchema:
+    - AttributeName: LockID
+      KeyType: HASH
+    TableStatus: ACTIVE
+    CreationDateTime: 2025-02-10 07:56:04.002000-05:00
+    ProvisionedThroughput:
+      NumberOfDecreasesToday: 0
+      ReadCapacityUnits: 0
+      WriteCapacityUnits: 0
+    TableSizeBytes: 94
+    ItemCount: 1
+    TableArn: arn:aws:dynamodb:us-east-1:480738299408:table/daybreak-ai-terraform-locks
+    TableId: 67527da2-a675-4532-9a97-ee3f32dcaa87
+    BillingModeSummary:
+      BillingMode: PAY_PER_REQUEST
+      LastUpdateToPayPerRequestDateTime: 2025-02-10 07:56:04.002000-05:00
+    DeletionProtectionEnabled: false
+    WarmThroughput:
+      ReadUnitsPerSecond: 12000
+      WriteUnitsPerSecond: 4000
+      Status: ACTIVE
+- arn: arn:aws:dynamodb:us-east-1:480738299408:table/daybreak-tf-locks-480738299408
+  type: AWS::DynamoDB::Table
+  name: daybreak-tf-locks-480738299408
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    ManagedBy: terraform
+    Environment: bootstrap
+  config_hash: a9bd3250f4f75e244f767b38e73b77e41638a74bed96ae7d29fba010ed6b3162
+  created_at: '2025-09-12T16:37:09.997000-04:00'
+  raw_config:
+    AttributeDefinitions:
+    - AttributeName: LockID
+      AttributeType: S
+    TableName: daybreak-tf-locks-480738299408
+    KeySchema:
+    - AttributeName: LockID
+      KeyType: HASH
+    TableStatus: ACTIVE
+    CreationDateTime: 2025-09-12 16:37:09.997000-04:00
+    ProvisionedThroughput:
+      NumberOfDecreasesToday: 0
+      ReadCapacityUnits: 0
+      WriteCapacityUnits: 0
+    TableSizeBytes: 130
+    ItemCount: 1
+    TableArn: arn:aws:dynamodb:us-east-1:480738299408:table/daybreak-tf-locks-480738299408
+    TableId: cad8c52f-af8c-4658-9534-38dca3fcdf4d
+    BillingModeSummary:
+      BillingMode: PAY_PER_REQUEST
+      LastUpdateToPayPerRequestDateTime: 2025-09-12 16:37:09.997000-04:00
+    DeletionProtectionEnabled: false
+    WarmThroughput:
+      ReadUnitsPerSecond: 12000
+      WriteUnitsPerSecond: 4000
+      Status: ACTIVE
+- arn: arn:aws:events:us-east-1:480738299408:rule/daybreak-transcribe-job-state-changes
+  type: AWS::Events::Rule
+  name: daybreak-transcribe-job-state-changes
+  region: us-east-1
+  tags:
+    Project: daybreak-ai
+    Environment: prod
+    ManagedBy: terraform
+  config_hash: 8515396d2deee5672c79e71d3ade51b380cd5e7647c826f0ec4a317b8945502c
+  created_at: null
+  raw_config:
+    Name: daybreak-transcribe-job-state-changes
+    Arn: arn:aws:events:us-east-1:480738299408:rule/daybreak-transcribe-job-state-changes
+    EventPattern: '{"detail":{"TranscriptionJobStatus":["COMPLETED","FAILED"]},"detail-type":["Transcribe
+      Job State Change"],"source":["aws.transcribe"]}'
+    State: ENABLED
+    Description: Route AWS Transcribe job state change events to SNS
+    EventBusName: default
+    CreatedBy: '480738299408'
+    ResponseMetadata:
+      RequestId: 9a0fd94a-202b-4580-9913-a2940a3276f5
+      HTTPStatusCode: 200
+      HTTPHeaders:
+        x-amzn-requestid: 9a0fd94a-202b-4580-9913-a2940a3276f5
+        content-type: application/x-amz-json-1.1
+        content-length: '443'
+        date: Tue, 28 Oct 2025 13:06:05 GMT
+      RetryAttempts: 0
+- arn: arn:aws:kms:us-east-1:480738299408:key/03111ee3-057e-40d3-a0a0-341147fcac68
+  type: AWS::KMS::Key
+  name: alias/daybreak-transcribe-results-kms-480738299408-us-east-1
+  region: us-east-1
+  tags:
+    DataClass: PHI
+    Environment: prod
+    ManagedBy: terraform
+    Project: daybreak-ai
+    Purpose: transcribe-results
+  config_hash: 7afe26474129e449c70db7ca19c79226ede8a2ee8941f6ab22e5587f8288bd03
+  created_at: '2025-09-13T09:16:39.232000-04:00'
+  raw_config:
+    AWSAccountId: '480738299408'
+    KeyId: 03111ee3-057e-40d3-a0a0-341147fcac68
+    Arn: arn:aws:kms:us-east-1:480738299408:key/03111ee3-057e-40d3-a0a0-341147fcac68
+    CreationDate: 2025-09-13 09:16:39.232000-04:00
+    Enabled: true
+    Description: KMS CMK for S3 recordings bucket (HIPAA)
+    KeyUsage: ENCRYPT_DECRYPT
+    KeyState: Enabled
+    Origin: AWS_KMS
+    KeyManager: CUSTOMER
+    CustomerMasterKeySpec: SYMMETRIC_DEFAULT
+    KeySpec: SYMMETRIC_DEFAULT
+    EncryptionAlgorithms:
+    - SYMMETRIC_DEFAULT
+    MultiRegion: false
+    RotationEnabled: true
+    Aliases:
+    - alias/daybreak-transcribe-results-kms-480738299408-us-east-1
+- arn: arn:aws:kms:us-east-1:480738299408:key/4ce41b24-0527-4417-b99f-bca0cdbc7907
+  type: AWS::KMS::Key
+  name: alias/daybreak-recordings-kms-480738299408-us-east-1
+  region: us-east-1
+  tags:
+    DataClass: PHI
+    Environment: prod
+    ManagedBy: terraform
+    Project: daybreak-ai
+    Purpose: client-call-recordings
+  config_hash: ef4dcb81dc324723e7875e3a17e6e16a724d14129538264de6013a6de456778d
+  created_at: '2025-09-12T16:55:08.392000-04:00'
+  raw_config:
+    AWSAccountId: '480738299408'
+    KeyId: 4ce41b24-0527-4417-b99f-bca0cdbc7907
+    Arn: arn:aws:kms:us-east-1:480738299408:key/4ce41b24-0527-4417-b99f-bca0cdbc7907
+    CreationDate: 2025-09-12 16:55:08.392000-04:00
+    Enabled: true
+    Description: KMS CMK for S3 recordings bucket (HIPAA)
+    KeyUsage: ENCRYPT_DECRYPT
+    KeyState: Enabled
+    Origin: AWS_KMS
+    KeyManager: CUSTOMER
+    CustomerMasterKeySpec: SYMMETRIC_DEFAULT
+    KeySpec: SYMMETRIC_DEFAULT
+    EncryptionAlgorithms:
+    - SYMMETRIC_DEFAULT
+    MultiRegion: false
+    RotationEnabled: true
+    Aliases:
+    - alias/daybreak-recordings-kms-480738299408-us-east-1

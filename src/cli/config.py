@@ -16,6 +16,7 @@ class Config:
     def __init__(self):
         """Initialize configuration with defaults."""
         self.snapshot_dir = ".snapshots"
+        self.storage_path: Optional[str] = None  # Runtime override for snapshot storage path
         self.regions = []  # Empty means all enabled regions
         self.resource_types = []  # Empty means all supported types
         self.aws_profile = None

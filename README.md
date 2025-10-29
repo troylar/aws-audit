@@ -47,6 +47,22 @@ pip install -e .
 - AWS CLI configured with credentials
 - IAM permissions for resource read/write operations
 
+### Configuration
+
+The tool stores snapshots in `~/.snapshots` by default. You can customize this using:
+
+**Environment Variable:**
+```bash
+export AWS_INVENTORY_STORAGE_PATH=/path/to/snapshots
+```
+
+**CLI Parameter** (highest priority):
+```bash
+awsinv --storage-path /custom/path inventory list
+```
+
+**Precedence:** CLI parameter > Environment variable > Default (`~/.snapshots`)
+
 ### Basic Usage
 
 ```bash
@@ -292,7 +308,7 @@ aws-inventory-manager/
 ├── tests/
 │   ├── unit/               # Unit tests
 │   └── integration/        # Integration tests
-└── .snapshots/             # Default snapshot storage
+└── ~/.snapshots/           # Default snapshot storage
     ├── inventories.yaml    # Inventory metadata
     └── snapshots/          # Individual snapshot files
 ```

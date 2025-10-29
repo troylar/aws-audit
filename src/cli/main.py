@@ -172,6 +172,11 @@ awsinv cost --help
 @app.callback()
 def main(
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    storage_path: Optional[str] = typer.Option(
+        None,
+        "--storage-path",
+        help="Custom path for snapshot storage (default: ~/.snapshots or $AWS_INVENTORY_STORAGE_PATH)",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output except errors"),
     no_color: bool = typer.Option(False, "--no-color", help="Disable colored output"),
@@ -185,6 +190,12 @@ def main(
     # Override with CLI options
     if profile:
         config.aws_profile = profile
+
+    # Store storage path in config for use by commands
+    if storage_path:
+        config.storage_path = storage_path
+    else:
+        config.storage_path = None
 
     # Setup logging
     log_level = "ERROR" if quiet else ("DEBUG" if verbose else config.log_level)
@@ -281,7 +292,7 @@ def inventory_create(
             raise typer.Exit(code=1)
 
         # Check for duplicate
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
         if storage.exists(name, account_id):
             console.print(f"✗ Error: Inventory '{name}' already exists for account {account_id}", style="bold red")
             console.print("\nUse a different name or delete the existing inventory first:")
@@ -370,7 +381,7 @@ def inventory_list(
         account_id = get_account_id(aws_profile)
 
         # Load inventories
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
         inventories = storage.load_by_account(account_id)
 
         if not inventories:
@@ -427,7 +438,7 @@ def inventory_show(
         account_id = get_account_id(aws_profile)
 
         # Load inventory
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
         try:
             inventory = storage.get_by_name(name, account_id)
         except InventoryNotFoundError:
@@ -518,7 +529,7 @@ def inventory_migrate(
         # Load inventory storage
         from ..snapshot.inventory_storage import InventoryStorage
 
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
 
         # Get or create default inventory
         default_inventory = inventory_storage.get_or_create_default(identity["account_id"])
@@ -598,7 +609,7 @@ def inventory_delete(
         # Load inventory storage
         from ..snapshot.inventory_storage import InventoryNotFoundError, InventoryStorage
 
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
 
         # T027, T032: Load inventory or error if doesn't exist
         try:
@@ -765,7 +776,7 @@ def snapshot_create(
         # T013: Load inventory and apply its filters
         from ..snapshot.inventory_storage import InventoryStorage
 
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
         active_inventory = None
         inventory_name = "default"
 
@@ -1150,7 +1161,7 @@ def delta(
         identity = validate_credentials(aws_profile)
 
         # Load inventory
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
         inventory_name = inventory if inventory else "default"
 
         if inventory:
@@ -1287,7 +1298,7 @@ def cost(
         identity = validate_credentials(aws_profile)
 
         # Load inventory
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
         inventory_name = inventory if inventory else "default"
 
         if inventory:
