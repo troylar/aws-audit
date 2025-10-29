@@ -3,11 +3,12 @@
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import yaml
 
 from ..models.inventory import Inventory
+from ..utils.paths import get_snapshot_storage_path
 
 logger = logging.getLogger(__name__)
 
@@ -25,17 +26,14 @@ class InventoryStorage:
     Uses atomic writes (temp file + rename) for crash safety.
     """
 
-    def __init__(self, storage_dir: Optional[Path] = None):
+    def __init__(self, storage_dir: Optional[Union[str, Path]] = None):
         """Initialize inventory storage.
 
         Args:
-            storage_dir: Directory containing inventories.yaml (default: .snapshots/)
+            storage_dir: Directory containing inventories.yaml (default: ~/.snapshots via get_snapshot_storage_path())
         """
-        if storage_dir is None:
-            storage_dir = Path(".snapshots")
-
-        self.storage_dir = storage_dir
-        self.inventory_file = storage_dir / "inventories.yaml"
+        self.storage_dir = get_snapshot_storage_path(storage_dir)
+        self.inventory_file = self.storage_dir / "inventories.yaml"
 
         # Ensure storage directory exists
         self.storage_dir.mkdir(parents=True, exist_ok=True)

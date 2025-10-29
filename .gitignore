@@ -206,10 +206,14 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# AWS Baseline Snapshot - Project specific
-.snapshots/
+# AWS Inventory Manager - Project specific
+.snapshots/  # Old default location (deprecated)
 *.yaml.gz
 .aws-baseline.yaml
+
+# SpecKit - Feature specification tool
+specs/
+.specify/
 
 # Universal ignores
 .DS_Store
