@@ -1,6 +1,7 @@
 """Cost analyzer for separating baseline vs non-baseline costs."""
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Set
 
@@ -74,15 +75,15 @@ class CostAnalyzer:
 
         logger.debug(f"Analyzing costs from {start_date.strftime('%Y-%m-%d')} " f"to {end_date.strftime('%Y-%m-%d')}")
 
-        # Check data completeness
-        is_complete, data_through, lag_days = self.cost_explorer.check_data_completeness(end_date)
+        # Execute data completeness check and cost retrieval in parallel
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit both tasks
+            completeness_future = executor.submit(self.cost_explorer.check_data_completeness, end_date)
+            costs_future = executor.submit(self.cost_explorer.get_costs_by_service, start_date, end_date, granularity)
 
-        # Get service-level costs
-        service_costs = self.cost_explorer.get_costs_by_service(
-            start_date=start_date,
-            end_date=end_date,
-            granularity=granularity,
-        )
+            # Wait for both to complete
+            is_complete, data_through, lag_days = completeness_future.result()
+            service_costs = costs_future.result()
 
         # If no deltas (no resource changes), ALL costs are baseline
         if not has_deltas:
