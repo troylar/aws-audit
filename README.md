@@ -47,6 +47,55 @@ pip install -e .
 - AWS CLI configured with credentials
 - IAM permissions for resource read/write operations
 
+### Getting Started in 5 Minutes
+
+Follow these steps for a complete walkthrough from setup to cost analysis:
+
+**1. Create an inventory** (a named collection for organizing snapshots)
+```bash
+awsinv inventory create prod-baseline --description "Production baseline resources"
+```
+
+**2. Take your first snapshot** (capture current AWS resources)
+```bash
+awsinv snapshot create initial --regions us-east-1 --inventory prod-baseline
+```
+This captures all resources in `us-east-1` and stores them in the `prod-baseline` inventory.
+
+**3. Make changes to your AWS environment** (optional)
+- Deploy new resources, update configurations, etc.
+- Then take another snapshot to track what changed
+
+**4. Compare snapshots** (see what changed)
+```bash
+awsinv delta --snapshot initial --inventory prod-baseline
+```
+This shows all resources added, removed, or modified since the `initial` snapshot.
+
+**5. Analyze costs**
+```bash
+# Costs since snapshot was created
+awsinv cost --snapshot initial --inventory prod-baseline
+
+# Costs for specific date range
+awsinv cost --snapshot initial --inventory prod-baseline \
+  --start-date 2025-01-01 --end-date 2025-01-31
+```
+
+**6. List your resources**
+```bash
+# List all inventories
+awsinv inventory list
+
+# List snapshots in your inventory
+awsinv snapshot list --inventory prod-baseline
+
+# Show snapshot details
+awsinv snapshot show initial --inventory prod-baseline
+```
+
+That's it! You're now tracking AWS resources, comparing changes, and analyzing costs.
+
 ### Configuration
 
 The tool stores snapshots in `~/.snapshots` by default. You can customize this using:
