@@ -13,16 +13,16 @@ logger = logging.getLogger(__name__)
 class Config:
     """Application configuration manager."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize configuration with defaults."""
-        self.snapshot_dir = ".snapshots"
+        self.snapshot_dir: str = ".snapshots"
         self.storage_path: Optional[str] = None  # Runtime override for snapshot storage path
-        self.regions = []  # Empty means all enabled regions
-        self.resource_types = []  # Empty means all supported types
-        self.aws_profile = None
-        self.parallel_workers = 10
-        self.auto_compress_mb = 10
-        self.log_level = "INFO"
+        self.regions: list[str] = []  # Empty means all enabled regions
+        self.resource_types: list[str] = []  # Empty means all supported types
+        self.aws_profile: Optional[str] = None
+        self.parallel_workers: int = 10
+        self.auto_compress_mb: int = 10
+        self.log_level: str = "INFO"
 
     @classmethod
     def load(cls, config_file: Optional[str] = None) -> "Config":
@@ -94,20 +94,24 @@ class Config:
     def _load_from_env(self) -> None:
         """Load configuration from environment variables."""
         # AWS_BASELINE_SNAPSHOT_DIR
-        if os.getenv("AWS_BASELINE_SNAPSHOT_DIR"):
-            self.snapshot_dir = os.getenv("AWS_BASELINE_SNAPSHOT_DIR")
+        snapshot_dir = os.getenv("AWS_BASELINE_SNAPSHOT_DIR")
+        if snapshot_dir:
+            self.snapshot_dir = snapshot_dir
 
         # AWS_BASELINE_LOG_LEVEL
-        if os.getenv("AWS_BASELINE_LOG_LEVEL"):
-            self.log_level = os.getenv("AWS_BASELINE_LOG_LEVEL")
+        log_level = os.getenv("AWS_BASELINE_LOG_LEVEL")
+        if log_level:
+            self.log_level = log_level
 
         # AWS_PROFILE
-        if os.getenv("AWS_PROFILE"):
-            self.aws_profile = os.getenv("AWS_PROFILE")
+        aws_profile = os.getenv("AWS_PROFILE")
+        if aws_profile:
+            self.aws_profile = aws_profile
 
         # AWS_REGION (single region from env)
-        if os.getenv("AWS_REGION"):
-            self.regions = [os.getenv("AWS_REGION")]
+        aws_region = os.getenv("AWS_REGION")
+        if aws_region:
+            self.regions = [aws_region]
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary.
