@@ -871,16 +871,20 @@ def snapshot_create(
 
             if before_date:
                 try:
-                    before_dt = dt.strptime(before_date, "%Y-%m-%d")
+                    # Parse as UTC timezone-aware
+                    from datetime import timezone
+                    before_dt = dt.strptime(before_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
                 except ValueError:
-                    console.print("✗ Invalid --before-date format. Use YYYY-MM-DD", style="bold red")
+                    console.print("✗ Invalid --before-date format. Use YYYY-MM-DD (UTC)", style="bold red")
                     raise typer.Exit(code=1)
 
             if after_date:
                 try:
-                    after_dt = dt.strptime(after_date, "%Y-%m-%d")
+                    # Parse as UTC timezone-aware
+                    from datetime import timezone
+                    after_dt = dt.strptime(after_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
                 except ValueError:
-                    console.print("✗ Invalid --after-date format. Use YYYY-MM-DD", style="bold red")
+                    console.print("✗ Invalid --after-date format. Use YYYY-MM-DD (UTC)", style="bold red")
                     raise typer.Exit(code=1)
 
             # Create filter
@@ -1352,16 +1356,20 @@ def cost(
 
         if start_date:
             try:
-                start_dt = dt.strptime(start_date, "%Y-%m-%d")
+                # Parse as UTC timezone-aware
+                from datetime import timezone
+                start_dt = dt.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError:
-                console.print("✗ Invalid start date format. Use YYYY-MM-DD", style="bold red")
+                console.print("✗ Invalid start date format. Use YYYY-MM-DD (UTC)", style="bold red")
                 raise typer.Exit(code=1)
 
         if end_date:
             try:
-                end_dt = dt.strptime(end_date, "%Y-%m-%d")
+                # Parse as UTC timezone-aware
+                from datetime import timezone
+                end_dt = dt.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError:
-                console.print("✗ Invalid end date format. Use YYYY-MM-DD", style="bold red")
+                console.print("✗ Invalid end date format. Use YYYY-MM-DD (UTC)", style="bold red")
                 raise typer.Exit(code=1)
 
         # Validate granularity
