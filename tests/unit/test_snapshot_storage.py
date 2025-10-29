@@ -16,8 +16,9 @@ class TestSnapshotStorage:
 
     def test_storage_initialization(self, temp_dir):
         """Test creating snapshot storage."""
-        storage = SnapshotStorage(temp_dir)
-        assert storage.storage_dir == Path(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
+        # get_snapshot_storage_path returns resolved absolute paths
+        assert storage.storage_dir == Path(temp_dir).resolve()
         assert storage.storage_dir.exists()
         assert storage.active_file == storage.storage_dir / ".active"
         assert storage.index_file == storage.storage_dir / ".index.yaml"
@@ -25,12 +26,12 @@ class TestSnapshotStorage:
     def test_storage_creates_directory(self, tmp_path):
         """Test that storage creates directory if it doesn't exist."""
         storage_path = tmp_path / "new_snapshots"
-        SnapshotStorage(storage_path)
+        SnapshotStorage(str(storage_path))
         assert storage_path.exists()
 
     def test_save_snapshot_uncompressed(self, temp_dir):
         """Test saving an uncompressed snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="test-snapshot",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -47,7 +48,7 @@ class TestSnapshotStorage:
 
     def test_save_snapshot_compressed(self, temp_dir):
         """Test saving a compressed snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="compressed-snapshot",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -64,7 +65,7 @@ class TestSnapshotStorage:
 
     def test_save_snapshot_with_resources(self, temp_dir):
         """Test saving a snapshot with resources."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         resources = [
             Resource(
                 arn="arn:aws:s3:::bucket1",
@@ -105,7 +106,7 @@ class TestSnapshotStorage:
 
     def test_save_snapshot_sets_active(self, temp_dir):
         """Test that saving an active snapshot sets it as active."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="active-snapshot",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -121,7 +122,7 @@ class TestSnapshotStorage:
 
     def test_load_snapshot_uncompressed(self, temp_dir):
         """Test loading an uncompressed snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         original = Snapshot(
             name="load-test",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -141,7 +142,7 @@ class TestSnapshotStorage:
 
     def test_load_snapshot_compressed(self, temp_dir):
         """Test loading a compressed snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         original = Snapshot(
             name="compressed-load",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -158,14 +159,14 @@ class TestSnapshotStorage:
 
     def test_load_snapshot_not_found(self, temp_dir):
         """Test loading a nonexistent snapshot raises FileNotFoundError."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
 
         with pytest.raises(FileNotFoundError, match="not found"):
             storage.load_snapshot("nonexistent")
 
     def test_load_snapshot_roundtrip(self, temp_dir):
         """Test that save -> load preserves all data."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         resources = [
             Resource(
                 arn="arn:aws:rds:eu-west-1:123456789012:db:mydb",
@@ -206,13 +207,13 @@ class TestSnapshotStorage:
 
     def test_list_snapshots_empty(self, temp_dir):
         """Test listing snapshots when none exist."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshots = storage.list_snapshots()
         assert snapshots == []
 
     def test_list_snapshots_single(self, temp_dir):
         """Test listing a single snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="snapshot1",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -231,7 +232,7 @@ class TestSnapshotStorage:
 
     def test_list_snapshots_multiple(self, temp_dir):
         """Test listing multiple snapshots."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
 
         for i in range(3):
             snapshot = Snapshot(
@@ -253,7 +254,7 @@ class TestSnapshotStorage:
 
     def test_list_snapshots_includes_active_flag(self, temp_dir):
         """Test that list_snapshots correctly identifies active snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
 
         # Create two snapshots
         snapshot1 = Snapshot(
@@ -285,7 +286,7 @@ class TestSnapshotStorage:
 
     def test_delete_snapshot_uncompressed(self, temp_dir):
         """Test deleting an uncompressed snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="to-delete",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -305,7 +306,7 @@ class TestSnapshotStorage:
 
     def test_delete_snapshot_compressed(self, temp_dir):
         """Test deleting a compressed snapshot."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="to-delete-compressed",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -325,14 +326,14 @@ class TestSnapshotStorage:
 
     def test_delete_snapshot_not_found(self, temp_dir):
         """Test deleting a nonexistent snapshot raises FileNotFoundError."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
 
         with pytest.raises(FileNotFoundError, match="not found"):
             storage.delete_snapshot("nonexistent")
 
     def test_delete_active_snapshot_raises_error(self, temp_dir):
         """Test that deleting the active snapshot raises ValueError."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="active",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -349,12 +350,12 @@ class TestSnapshotStorage:
 
     def test_get_active_snapshot_name_none(self, temp_dir):
         """Test getting active snapshot name when none is set."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         assert storage.get_active_snapshot_name() is None
 
     def test_get_active_snapshot_name(self, temp_dir):
         """Test getting active snapshot name."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="my-active",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -370,7 +371,7 @@ class TestSnapshotStorage:
 
     def test_set_active_snapshot(self, temp_dir):
         """Test setting a snapshot as active."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="to-activate",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -386,14 +387,14 @@ class TestSnapshotStorage:
 
     def test_set_active_snapshot_not_found(self, temp_dir):
         """Test setting a nonexistent snapshot as active raises FileNotFoundError."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
 
         with pytest.raises(FileNotFoundError, match="not found"):
             storage.set_active_snapshot("nonexistent")
 
     def test_set_active_snapshot_changes_active(self, temp_dir):
         """Test that setting active snapshot changes the active file."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
 
         # Create two snapshots (both initially inactive)
         snapshot1 = Snapshot(
@@ -426,7 +427,7 @@ class TestSnapshotStorage:
 
     def test_index_updated_on_save(self, temp_dir):
         """Test that snapshot index is updated when saving."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="indexed",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -448,7 +449,7 @@ class TestSnapshotStorage:
 
     def test_index_updated_on_delete(self, temp_dir):
         """Test that snapshot index is updated when deleting."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="to-remove",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -474,7 +475,7 @@ class TestSnapshotStorage:
 
     def test_list_snapshots_ignores_hidden_files(self, temp_dir):
         """Test that list_snapshots ignores hidden files."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="visible",
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -496,7 +497,7 @@ class TestSnapshotStorage:
 
     def test_snapshot_with_large_resource_count(self, temp_dir):
         """Test snapshot with many resources."""
-        storage = SnapshotStorage(temp_dir)
+        storage = SnapshotStorage(str(temp_dir))
 
         # Create 100 resources
         resources = [

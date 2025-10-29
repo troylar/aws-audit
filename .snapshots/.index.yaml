@@ -1,0 +1,75 @@
+480738299408-daybreak-2025-10-28-091126:
+  account_id: '480738299408'
+  created_at: '2025-10-28T13:11:47.702962+00:00'
+  name: 480738299408-daybreak-2025-10-28-091126
+  regions:
+  - us-east-1
+  resource_count: 65
+  service_counts:
+    AWS::DynamoDB::Table: 2
+    AWS::EC2::Instance: 5
+    AWS::EC2::SecurityGroup: 7
+    AWS::EC2::Subnet: 7
+    AWS::EC2::VPC: 2
+    AWS::EC2::Volume: 6
+    AWS::Events::Rule: 1
+    AWS::IAM::Group: 2
+    AWS::IAM::Policy: 4
+    AWS::IAM::Role: 11
+    AWS::IAM::User: 5
+    AWS::KMS::Key: 2
+    AWS::Lambda::Function: 1
+    AWS::Logs::LogGroup: 2
+    AWS::S3::Bucket: 5
+    AWS::SNS::Topic: 1
+    AWS::SQS::Queue: 2
+baseline-2025-10-27-182853:
+  account_id: '480738299408'
+  created_at: '2025-10-27T22:29:13.806227+00:00'
+  name: baseline-2025-10-27-182853
+  regions:
+  - us-east-1
+  resource_count: 65
+  service_counts:
+    AWS::DynamoDB::Table: 2
+    AWS::EC2::Instance: 5
+    AWS::EC2::SecurityGroup: 7
+    AWS::EC2::Subnet: 7
+    AWS::EC2::VPC: 2
+    AWS::EC2::Volume: 6
+    AWS::Events::Rule: 1
+    AWS::IAM::Group: 2
+    AWS::IAM::Policy: 4
+    AWS::IAM::Role: 11
+    AWS::IAM::User: 5
+    AWS::KMS::Key: 2
+    AWS::Lambda::Function: 1
+    AWS::Logs::LogGroup: 2
+    AWS::S3::Bucket: 5
+    AWS::SNS::Topic: 1
+    AWS::SQS::Queue: 2
+daybreak:
+  account_id: '480738299408'
+  created_at: '2025-10-28T13:06:10.077702+00:00'
+  name: daybreak
+  regions:
+  - us-east-1
+  resource_count: 65
+  service_counts:
+    AWS::DynamoDB::Table: 2
+    AWS::EC2::Instance: 5
+    AWS::EC2::SecurityGroup: 7
+    AWS::EC2::Subnet: 7
+    AWS::EC2::VPC: 2
+    AWS::EC2::Volume: 6
+    AWS::Events::Rule: 1
+    AWS::IAM::Group: 2
+    AWS::IAM::Policy: 4
+    AWS::IAM::Role: 11
+    AWS::IAM::User: 5
+    AWS::KMS::Key: 2
+    AWS::Lambda::Function: 1
+    AWS::Logs::LogGroup: 2
+    AWS::S3::Bucket: 5
+    AWS::SNS::Topic: 1
+    AWS::SQS::Queue: 2

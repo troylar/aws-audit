@@ -7,6 +7,8 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.table import Table
 
 from ..aws.credentials import CredentialValidationError, validate_credentials
@@ -30,9 +32,151 @@ console = Console()
 config: Optional[Config] = None
 
 
+def show_quickstart():
+    """Display quickstart guide for new users."""
+    quickstart_content = """
+# AWS Inventory Manager - Quick Start
+
+Welcome to AWS Inventory Manager! This tool helps you track AWS resources, create snapshots, and analyze costs.
+
+## Complete Walkthrough
+
+Follow these steps to get started. All commands use the same inventory and snapshot names
+for continuity - you can run them in sequence!
+
+### 1. Create an Inventory
+An inventory is a named collection of snapshots for tracking resource changes over time.
+
+```bash
+awsinv inventory create prod-baseline --description "Production baseline resources"
+```
+
+### 2. Take Your First Snapshot
+Capture the current state of AWS resources in your region(s).
+
+```bash
+awsinv snapshot create initial --regions us-east-1 --inventory prod-baseline
+```
+
+This creates a snapshot named "initial" in the "prod-baseline" inventory.
+
+### 3. (Optional) Make Some Changes
+Make changes to your AWS environment - deploy resources, update configurations, etc.
+Then take another snapshot to see what changed.
+
+```bash
+awsinv snapshot create current --regions us-east-1 --inventory prod-baseline
+```
+
+### 4. Compare Snapshots (Delta Analysis)
+See exactly what resources were added, removed, or changed since your snapshot.
+
+```bash
+awsinv delta --snapshot initial --inventory prod-baseline
+```
+
+### 5. Analyze Costs
+Get cost breakdown for the resources in your snapshot.
+
+```bash
+# Costs since snapshot was created
+awsinv cost --snapshot initial --inventory prod-baseline
+
+# Costs for specific date range
+awsinv cost --snapshot initial --inventory prod-baseline \
+  --start-date 2025-01-01 --end-date 2025-01-31
+```
+
+## Common Commands
+
+Using the inventory and snapshots from above:
+
+### List Resources
+```bash
+# List all inventories
+awsinv inventory list
+
+# List snapshots in your inventory
+awsinv snapshot list --inventory prod-baseline
+
+# Show snapshot details
+awsinv snapshot show initial --inventory prod-baseline
+```
+
+### Export Data
+```bash
+# Export snapshot to JSON
+awsinv snapshot export initial --inventory prod-baseline \\
+  --format json --output initial-snapshot.json
+
+# Export delta report to CSV
+awsinv delta --snapshot initial --inventory prod-baseline \\
+  --export changes.csv
+```
+
+### Advanced Filtering
+```bash
+# Create inventory with tag filters (production resources only)
+awsinv inventory create production \\
+  --description "Production resources only" \\
+  --include-tags Environment=production
+
+# Snapshot only resources created after a specific date
+awsinv snapshot create recent --regions us-east-1 \\
+  --inventory prod-baseline --after-date 2025-01-01
+```
+
+## Getting Help
+
+```bash
+# General help
+awsinv --help
+
+# Help for specific command
+awsinv inventory --help
+awsinv snapshot create --help
+awsinv cost --help
+
+# Show version
+awsinv version
+```
+
+## Next Steps
+
+**Ready to get started?** Follow the walkthrough above, starting with:
+
+```bash
+awsinv inventory create prod-baseline --description "Production baseline resources"
+```
+
+Then continue with the remaining steps to take snapshots, compare changes, and analyze costs.
+
+For detailed help on any command, use `--help`:
+
+```bash
+awsinv snapshot create --help
+awsinv cost --help
+```
+"""
+
+    console.print(
+        Panel(
+            Markdown(quickstart_content),
+            title="[bold cyan]🚀 AWS Inventory Manager[/bold cyan]",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+    )
+
+
 @app.callback()
 def main(
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    storage_path: Optional[str] = typer.Option(
+        None,
+        "--storage-path",
+        help="Custom path for snapshot storage (default: ~/.snapshots or $AWS_INVENTORY_STORAGE_PATH)",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output except errors"),
     no_color: bool = typer.Option(False, "--no-color", help="Disable colored output"),
@@ -46,6 +190,12 @@ def main(
     # Override with CLI options
     if profile:
         config.aws_profile = profile
+
+    # Store storage path in config for use by commands
+    if storage_path:
+        config.storage_path = storage_path
+    else:
+        config.storage_path = None
 
     # Setup logging
     log_level = "ERROR" if quiet else ("DEBUG" if verbose else config.log_level)
@@ -142,7 +292,7 @@ def inventory_create(
             raise typer.Exit(code=1)
 
         # Check for duplicate
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
         if storage.exists(name, account_id):
             console.print(f"✗ Error: Inventory '{name}' already exists for account {account_id}", style="bold red")
             console.print("\nUse a different name or delete the existing inventory first:")
@@ -231,7 +381,7 @@ def inventory_list(
         account_id = get_account_id(aws_profile)
 
         # Load inventories
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
         inventories = storage.load_by_account(account_id)
 
         if not inventories:
@@ -288,7 +438,7 @@ def inventory_show(
         account_id = get_account_id(aws_profile)
 
         # Load inventory
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
         try:
             inventory = storage.get_by_name(name, account_id)
         except InventoryNotFoundError:
@@ -379,7 +529,7 @@ def inventory_migrate(
         # Load inventory storage
         from ..snapshot.inventory_storage import InventoryStorage
 
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
 
         # Get or create default inventory
         default_inventory = inventory_storage.get_or_create_default(identity["account_id"])
@@ -459,7 +609,7 @@ def inventory_delete(
         # Load inventory storage
         from ..snapshot.inventory_storage import InventoryNotFoundError, InventoryStorage
 
-        storage = InventoryStorage()
+        storage = InventoryStorage(config.storage_path)
 
         # T027, T032: Load inventory or error if doesn't exist
         try:
@@ -626,7 +776,7 @@ def snapshot_create(
         # T013: Load inventory and apply its filters
         from ..snapshot.inventory_storage import InventoryStorage
 
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
         active_inventory = None
         inventory_name = "default"
 
@@ -1011,7 +1161,7 @@ def delta(
         identity = validate_credentials(aws_profile)
 
         # Load inventory
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
         inventory_name = inventory if inventory else "default"
 
         if inventory:
@@ -1148,7 +1298,7 @@ def cost(
         identity = validate_credentials(aws_profile)
 
         # Load inventory
-        inventory_storage = InventoryStorage()
+        inventory_storage = InventoryStorage(config.storage_path)
         inventory_name = inventory if inventory else "default"
 
         if inventory:

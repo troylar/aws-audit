@@ -4,11 +4,12 @@ import gzip
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 
 from ..models.snapshot import Snapshot
+from ..utils.paths import get_snapshot_storage_path
 
 logger = logging.getLogger(__name__)
 
@@ -16,14 +17,14 @@ logger = logging.getLogger(__name__)
 class SnapshotStorage:
     """Manages snapshot persistence to local filesystem."""
 
-    def __init__(self, storage_dir: str = ".snapshots"):
+    def __init__(self, storage_dir: Optional[Union[str, Path]] = None):
         """Initialize snapshot storage.
 
         Args:
-            storage_dir: Directory to store snapshots (default: .snapshots)
+            storage_dir: Directory to store snapshots (default: ~/.snapshots via get_snapshot_storage_path())
         """
-        self.storage_dir = Path(storage_dir)
-        self.storage_dir.mkdir(exist_ok=True)
+        self.storage_dir = get_snapshot_storage_path(storage_dir)
+        self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.active_file = self.storage_dir / ".active"
         self.index_file = self.storage_dir / ".index.yaml"
 
