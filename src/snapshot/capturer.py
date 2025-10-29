@@ -242,7 +242,7 @@ def create_snapshot(
         regions=regions,
         resources=all_resources,
         metadata={
-            "tool": "aws-baseline-snapshot",
+            "tool": "aws-inventory-manager",
             "version": "1.0.0",
             "collectors_used": [c(session, "us-east-1").service_name for c in collectors_to_use],
             "collection_errors": collection_errors if collection_errors else None,

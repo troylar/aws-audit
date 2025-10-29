@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aws-audit"
+name = "aws-inventory-manager"
 version = "0.1.0"
-description = "AWS Resource Audit & Delta Tracking CLI tool"
+description = "AWS Resource Inventory Management & Delta Tracking CLI tool"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "AWS Audit Team"}
+    {name = "Troy Larson", email = "troy@calvinware.com"}
 ]
 keywords = ["aws", "cloud", "infrastructure", "snapshot", "audit", "cost-tracking", "inventory"]
 classifiers = [
@@ -50,13 +50,13 @@ dev = [
 ]
 
 [project.scripts]
-aws-audit = "src.cli:cli_main"
+awsinv = "src.cli:cli_main"
 
 [project.urls]
-Homepage = "https://github.com/your-org/aws-audit"
-Documentation = "https://github.com/your-org/aws-audit#readme"
-Repository = "https://github.com/your-org/aws-audit"
-Issues = "https://github.com/your-org/aws-audit/issues"
+Homepage = "https://github.com/troylar/aws-inventory-manager"
+Documentation = "https://github.com/troylar/aws-inventory-manager#readme"
+Repository = "https://github.com/troylar/aws-inventory-manager"
+Issues = "https://github.com/troylar/aws-inventory-manager/issues"
 
 [tool.setuptools]
 packages = ["src"]
