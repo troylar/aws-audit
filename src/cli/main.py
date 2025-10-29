@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 # Create Typer app
 app = typer.Typer(
-    name="aws-baseline",
-    help="AWS Audit - Resource Snapshot & Delta Tracking CLI tool",
+    name="awsinv",
+    help="AWS Inventory Manager - Resource Snapshot & Delta Tracking CLI tool",
     add_completion=False,
 )
 
@@ -181,7 +181,7 @@ def main(
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output except errors"),
     no_color: bool = typer.Option(False, "--no-color", help="Disable colored output"),
 ):
-    """AWS Audit - Resource Snapshot & Delta Tracking CLI tool."""
+    """AWS Inventory Manager - Resource Snapshot & Delta Tracking CLI tool."""
     global config
 
     # Load configuration
@@ -213,7 +213,7 @@ def version():
 
     from .. import __version__
 
-    console.print(f"aws-baseline-snapshot version {__version__}")
+    console.print(f"aws-inventory-manager version {__version__}")
     console.print(f"Python {sys.version.split()[0]}")
     console.print(f"boto3 {boto3.__version__}")
 

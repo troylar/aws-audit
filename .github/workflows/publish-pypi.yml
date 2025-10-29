@@ -52,7 +52,7 @@ jobs:
 
     environment:
       name: pypi
-      url: https://pypi.org/p/aws-audit
+      url: https://pypi.org/p/aws-inventory-manager
 
     permissions:
       id-token: write  # Required for trusted publishing
@@ -75,7 +75,7 @@ jobs:
 
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/aws-audit
+      url: https://test.pypi.org/p/aws-inventory-manager
 
     permissions:
       id-token: write  # Required for trusted publishing
