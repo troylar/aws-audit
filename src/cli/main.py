@@ -103,17 +103,6 @@ awsinv snapshot list --inventory prod-baseline
 awsinv snapshot show initial --inventory prod-baseline
 ```
 
-### Export Data
-```bash
-# Export snapshot to JSON
-awsinv snapshot export initial --inventory prod-baseline \\
-  --format json --output initial-snapshot.json
-
-# Export delta report to CSV
-awsinv delta --snapshot initial --inventory prod-baseline \\
-  --export changes.csv
-```
-
 ### Advanced Filtering
 ```bash
 # Create inventory with tag filters (production resources only)
