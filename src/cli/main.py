@@ -103,17 +103,6 @@ awsinv snapshot list --inventory prod-baseline
 awsinv snapshot show initial --inventory prod-baseline
 ```
 
-### Export Data
-```bash
-# Export snapshot to JSON
-awsinv snapshot export initial --inventory prod-baseline \\
-  --format json --output initial-snapshot.json
-
-# Export delta report to CSV
-awsinv delta --snapshot initial --inventory prod-baseline \\
-  --export changes.csv
-```
-
 ### Advanced Filtering
 ```bash
 # Create inventory with tag filters (production resources only)
@@ -873,6 +862,7 @@ def snapshot_create(
                 try:
                     # Parse as UTC timezone-aware
                     from datetime import timezone
+
                     before_dt = dt.strptime(before_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
                 except ValueError:
                     console.print("✗ Invalid --before-date format. Use YYYY-MM-DD (UTC)", style="bold red")
@@ -882,6 +872,7 @@ def snapshot_create(
                 try:
                     # Parse as UTC timezone-aware
                     from datetime import timezone
+
                     after_dt = dt.strptime(after_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
                 except ValueError:
                     console.print("✗ Invalid --after-date format. Use YYYY-MM-DD (UTC)", style="bold red")
@@ -1358,6 +1349,7 @@ def cost(
             try:
                 # Parse as UTC timezone-aware
                 from datetime import timezone
+
                 start_dt = dt.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError:
                 console.print("✗ Invalid start date format. Use YYYY-MM-DD (UTC)", style="bold red")
@@ -1367,6 +1359,7 @@ def cost(
             try:
                 # Parse as UTC timezone-aware
                 from datetime import timezone
+
                 end_dt = dt.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError:
                 console.print("✗ Invalid end date format. Use YYYY-MM-DD (UTC)", style="bold red")

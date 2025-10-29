@@ -164,10 +164,6 @@ awsinv snapshot list
 
 # Migrate legacy snapshots to inventory structure
 awsinv inventory migrate
-
-# Restore to snapshot (removes resources added since snapshot)
-awsinv restore --dry-run  # Preview first
-awsinv restore            # Actual restoration
 ```
 
 ## Use Cases
@@ -446,12 +442,6 @@ awsinv cost \
   [--granularity DAILY|MONTHLY] \
   [--show-services] \
   [--export <file.json|file.csv>] \
-  [--profile <aws-profile>]
-
-# Restore to a snapshot state
-awsinv restore \
-  [--snapshot <snapshot-name>] \
-  [--dry-run] \
   [--profile <aws-profile>]
 ```
 
