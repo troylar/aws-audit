@@ -3,7 +3,7 @@
 import logging
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import typer
 from rich.console import Console
@@ -1133,10 +1133,10 @@ def snapshot_report(
     inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (required if multiple exist)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location"),
-    resource_type: Optional[list[str]] = typer.Option(
+    resource_type: Optional[List[str]] = typer.Option(
         None, "--resource-type", help="Filter by resource type (can specify multiple)"
     ),
-    region: Optional[list[str]] = typer.Option(None, "--region", help="Filter by region (can specify multiple)"),
+    region: Optional[List[str]] = typer.Option(None, "--region", help="Filter by region (can specify multiple)"),
     detailed: bool = typer.Option(
         False, "--detailed", help="Show detailed resource information (ARN, tags, creation date)"
     ),
@@ -1191,7 +1191,7 @@ def snapshot_report(
                 created_at: dt
 
             all_snapshots = storage.list_snapshots()
-            inventory_snapshots: list[InventorySnapshot] = []
+            inventory_snapshots: List[InventorySnapshot] = []
 
             for snap_meta in all_snapshots:
                 try:
