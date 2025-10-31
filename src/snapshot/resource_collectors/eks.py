@@ -1,6 +1,6 @@
 """EKS resource collector."""
 
-from typing import List
+from typing import List, Tuple
 
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
@@ -40,7 +40,7 @@ class EKSCollector(BaseResourceCollector):
         self.logger.debug(f"Collected {len(resources)} EKS resources in {self.region}")
         return resources
 
-    def _collect_clusters(self) -> tuple[List[Resource], List[str]]:  # type: ignore
+    def _collect_clusters(self) -> Tuple[List[Resource], List[str]]:  # type: ignore
         """Collect EKS clusters.
 
         Returns:
