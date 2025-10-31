@@ -20,6 +20,7 @@ A Python CLI tool that captures point-in-time snapshots of AWS resources organiz
 
 - **📦 Inventory Management**: Organize snapshots into named inventories with optional tag-based filters
 - **📸 Resource Snapshots**: Capture complete inventory of AWS resources across multiple regions
+- **📋 Snapshot Reporting**: Generate comprehensive reports with filtering, detailed views, and export to JSON/CSV/TXT
 - **🔄 Delta Tracking**: Identify resources added, modified, or removed since a snapshot
 - **💰 Cost Analysis**: Analyze costs for resources within a specific inventory
 - **🔧 Resource Restoration**: Remove resources added since a snapshot to return to that state
@@ -66,13 +67,28 @@ This captures all resources in `us-east-1` and stores them in the `prod-baseline
 - Deploy new resources, update configurations, etc.
 - Then take another snapshot to track what changed
 
-**4. Compare snapshots** (see what changed)
+**4. View snapshot report** (see what's in your snapshot)
+```bash
+# Summary view with resource counts by service, region, and type
+awsinv snapshot report --inventory prod-baseline
+
+# Detailed view showing all resources with tags and metadata
+awsinv snapshot report --inventory prod-baseline --detailed
+
+# Filter by resource type
+awsinv snapshot report --inventory prod-baseline --resource-type ec2
+
+# Export to JSON, CSV, or TXT
+awsinv snapshot report --inventory prod-baseline --export report.json
+```
+
+**5. Compare snapshots** (see what changed)
 ```bash
 awsinv delta --snapshot initial --inventory prod-baseline
 ```
 This shows all resources added, removed, or modified since the `initial` snapshot.
 
-**5. Analyze costs**
+**6. Analyze costs**
 ```bash
 # Costs since snapshot was created
 awsinv cost --snapshot initial --inventory prod-baseline
@@ -82,7 +98,7 @@ awsinv cost --snapshot initial --inventory prod-baseline \
   --start-date 2025-01-01 --end-date 2025-01-31
 ```
 
-**6. List your resources**
+**7. List your resources**
 ```bash
 # List all inventories
 awsinv inventory list
@@ -413,6 +429,16 @@ awsinv snapshot create [name] \
   [--compress] \
   [--profile <aws-profile>]
 
+# Generate snapshot report
+awsinv snapshot report [snapshot-name] \
+  [--inventory <inventory-name>] \
+  [--resource-type <type>] \
+  [--region <region>] \
+  [--detailed] \
+  [--page-size <number>] \
+  [--export <file.json|file.csv|file.txt>] \
+  [--profile <aws-profile>]
+
 # List all snapshots
 awsinv snapshot list [--profile <aws-profile>]
 
@@ -460,6 +486,6 @@ MIT License - see LICENSE file for details
 
 ---
 
-**Version**: 0.2.0
+**Version**: 0.3.0
 **Status**: Alpha
 **Python**: 3.8 - 3.13

@@ -1127,6 +1127,279 @@ def snapshot_delete(
         raise typer.Exit(code=1)
 
 
+@snapshot_app.command("report")
+def snapshot_report(
+    snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
+    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (required if multiple exist)"),
+    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location"),
+    resource_type: Optional[list[str]] = typer.Option(
+        None, "--resource-type", help="Filter by resource type (can specify multiple)"
+    ),
+    region: Optional[list[str]] = typer.Option(None, "--region", help="Filter by region (can specify multiple)"),
+    detailed: bool = typer.Option(
+        False, "--detailed", help="Show detailed resource information (ARN, tags, creation date)"
+    ),
+    page_size: int = typer.Option(100, "--page-size", help="Resources per page in detailed view (default: 100)"),
+    export: Optional[str] = typer.Option(
+        None, "--export", help="Export report to file (format detected from extension: .json, .csv, .txt)"
+    ),
+):
+    """Display resource summary report for a snapshot.
+
+    Shows aggregated resource counts by service, region, and type with
+    visual progress bars and formatted output. Can export to JSON, CSV, or TXT formats.
+
+    Snapshot Selection (in order of precedence):
+      1. Explicit snapshot name argument
+      2. Most recent snapshot from specified --inventory
+      3. Active snapshot (set via 'awsinv snapshot set-active')
+
+    Examples:
+        awsinv snapshot report                          # Report on active snapshot
+        awsinv snapshot report baseline-2025-01         # Report on specific snapshot
+        awsinv snapshot report --inventory prod         # Most recent snapshot from 'prod' inventory
+        awsinv snapshot report --resource-type ec2      # Filter by resource type
+        awsinv snapshot report --region us-east-1       # Filter by region
+        awsinv snapshot report --resource-type ec2 --resource-type lambda  # Multiple filters
+        awsinv snapshot report --export report.json     # Export full report to JSON
+        awsinv snapshot report --export resources.csv   # Export resources to CSV
+        awsinv snapshot report --export summary.txt     # Export summary to TXT
+        awsinv snapshot report --detailed --export details.json  # Export detailed view
+    """
+    from ..models.report import FilterCriteria
+    from ..snapshot.report_formatter import ReportFormatter
+    from ..snapshot.reporter import SnapshotReporter
+    from ..utils.export import detect_format, export_report_csv, export_report_json, export_report_txt
+
+    try:
+        # Use provided storage path or default from config
+        storage = SnapshotStorage(storage_path or config.storage_path)
+
+        # Determine which snapshot to load
+        target_snapshot_name: str
+        if snapshot_name:
+            # Explicit snapshot name provided
+            target_snapshot_name = snapshot_name
+        elif inventory:
+            # Inventory specified - find most recent snapshot from that inventory
+            from datetime import datetime as dt
+            from typing import TypedDict
+
+            class InventorySnapshot(TypedDict):
+                name: str
+                created_at: dt
+
+            all_snapshots = storage.list_snapshots()
+            inventory_snapshots: list[InventorySnapshot] = []
+
+            for snap_meta in all_snapshots:
+                try:
+                    snap = storage.load_snapshot(snap_meta["name"])
+                    if snap.inventory_name == inventory:
+                        inventory_snapshots.append(
+                            InventorySnapshot(
+                                name=snap.name,
+                                created_at=snap.created_at,
+                            )
+                        )
+                except Exception:
+                    continue
+
+            if not inventory_snapshots:
+                console.print(f"✗ No snapshots found for inventory '{inventory}'", style="bold red")
+                console.print("\nCreate a snapshot first:")
+                console.print(f"  awsinv snapshot create --inventory {inventory}")
+                raise typer.Exit(code=1)
+
+            # Sort by created_at and pick most recent
+            inventory_snapshots.sort(key=lambda x: x["created_at"], reverse=True)
+            target_snapshot_name = inventory_snapshots[0]["name"]
+            console.print(
+                f"ℹ Using most recent snapshot from inventory '{inventory}': {target_snapshot_name}", style="dim"
+            )
+        else:
+            # Try to get active snapshot
+            active_name = storage.get_active_snapshot_name()
+            if not active_name:
+                console.print("✗ No active snapshot found", style="bold red")
+                console.print("\nSet an active snapshot with:")
+                console.print("  awsinv snapshot set-active <name>")
+                console.print("\nOr specify a snapshot explicitly:")
+                console.print("  awsinv snapshot report <snapshot-name>")
+                console.print("\nOr specify an inventory to use the most recent snapshot:")
+                console.print("  awsinv snapshot report --inventory <inventory-name>")
+                raise typer.Exit(code=1)
+            target_snapshot_name = active_name
+
+        # Load the snapshot
+        try:
+            snapshot = storage.load_snapshot(target_snapshot_name)
+        except FileNotFoundError:
+            console.print(f"✗ Snapshot '{target_snapshot_name}' not found", style="bold red")
+
+            # Show available snapshots
+            try:
+                all_snapshots = storage.list_snapshots()
+                if all_snapshots:
+                    console.print("\nAvailable snapshots:")
+                    for snap_name in all_snapshots[:5]:
+                        console.print(f"  • {snap_name}")
+                    if len(all_snapshots) > 5:
+                        console.print(f"  ... and {len(all_snapshots) - 5} more")
+                    console.print("\nRun 'awsinv snapshot list' to see all snapshots.")
+            except Exception:
+                pass
+
+            raise typer.Exit(code=1)
+
+        # Handle empty snapshot
+        if snapshot.resource_count == 0:
+            console.print(f"⚠️  Warning: Snapshot '{snapshot.name}' contains 0 resources", style="yellow")
+            console.print("\nNo report to generate.")
+            raise typer.Exit(code=0)
+
+        # Create filter criteria if filters provided
+        has_filters = bool(resource_type or region)
+        criteria = None
+        if has_filters:
+            criteria = FilterCriteria(
+                resource_types=resource_type if resource_type else None,
+                regions=region if region else None,
+            )
+
+        # Generate report
+        reporter = SnapshotReporter(snapshot)
+        metadata = reporter._extract_metadata()
+
+        # Detailed view vs Summary view
+        if detailed:
+            # Get detailed resources (with optional filtering)
+            detailed_resources = list(reporter.get_detailed_resources(criteria))
+
+            # Export mode
+            if export:
+                try:
+                    # Detect format from file extension
+                    export_format = detect_format(export)
+
+                    # Export based on format
+                    if export_format == "json":
+                        # For JSON, export full report structure with detailed resources
+                        summary = (
+                            reporter.generate_filtered_summary(criteria) if criteria else reporter.generate_summary()
+                        )
+                        export_path = export_report_json(export, metadata, summary, detailed_resources)
+                        console.print(
+                            f"✓ Exported {len(detailed_resources):,} resources to JSON: {export_path}",
+                            style="bold green",
+                        )
+                    elif export_format == "csv":
+                        # For CSV, export detailed resources
+                        export_path = export_report_csv(export, detailed_resources)
+                        console.print(
+                            f"✓ Exported {len(detailed_resources):,} resources to CSV: {export_path}",
+                            style="bold green",
+                        )
+                    elif export_format == "txt":
+                        # For TXT, export summary (detailed view doesn't make sense for plain text)
+                        summary = (
+                            reporter.generate_filtered_summary(criteria) if criteria else reporter.generate_summary()
+                        )
+                        export_path = export_report_txt(export, metadata, summary)
+                        console.print(f"✓ Exported summary to TXT: {export_path}", style="bold green")
+                except FileExistsError as e:
+                    console.print(f"✗ {e}", style="bold red")
+                    console.print("\nUse a different filename or delete the existing file.", style="yellow")
+                    raise typer.Exit(code=1)
+                except FileNotFoundError as e:
+                    console.print(f"✗ {e}", style="bold red")
+                    raise typer.Exit(code=1)
+                except ValueError as e:
+                    console.print(f"✗ {e}", style="bold red")
+                    raise typer.Exit(code=1)
+            else:
+                # Display mode - show filter information if applied
+                if criteria:
+                    console.print("\n[bold cyan]Filters Applied:[/bold cyan]")
+                    if resource_type:
+                        console.print(f"  • Resource Types: {', '.join(resource_type)}")
+                    if region:
+                        console.print(f"  • Regions: {', '.join(region)}")
+                    console.print(
+                        f"  • Matching Resources: {len(detailed_resources):,} (of {snapshot.resource_count:,} total)\n"
+                    )
+
+                # Format and display detailed view
+                formatter = ReportFormatter(console)
+                formatter.format_detailed(metadata, detailed_resources, page_size=page_size)
+        else:
+            # Generate summary (filtered or full)
+            if criteria:
+                summary = reporter.generate_filtered_summary(criteria)
+            else:
+                summary = reporter.generate_summary()
+
+            # Export mode
+            if export:
+                try:
+                    # Detect format from file extension
+                    export_format = detect_format(export)
+
+                    # Export based on format
+                    if export_format == "json":
+                        # For JSON, export full report structure
+                        # Get all resources for complete export
+                        all_resources = list(reporter.get_detailed_resources(criteria))
+                        export_path = export_report_json(export, metadata, summary, all_resources)
+                        console.print(
+                            f"✓ Exported {summary.total_count:,} resources to JSON: {export_path}", style="bold green"
+                        )
+                    elif export_format == "csv":
+                        # For CSV, export resources
+                        all_resources = list(reporter.get_detailed_resources(criteria))
+                        export_path = export_report_csv(export, all_resources)
+                        console.print(
+                            f"✓ Exported {len(all_resources):,} resources to CSV: {export_path}", style="bold green"
+                        )
+                    elif export_format == "txt":
+                        # For TXT, export summary only
+                        export_path = export_report_txt(export, metadata, summary)
+                        console.print(f"✓ Exported summary to TXT: {export_path}", style="bold green")
+                except FileExistsError as e:
+                    console.print(f"✗ {e}", style="bold red")
+                    console.print("\nUse a different filename or delete the existing file.", style="yellow")
+                    raise typer.Exit(code=1)
+                except FileNotFoundError as e:
+                    console.print(f"✗ {e}", style="bold red")
+                    raise typer.Exit(code=1)
+                except ValueError as e:
+                    console.print(f"✗ {e}", style="bold red")
+                    raise typer.Exit(code=1)
+            else:
+                # Display mode - show filter information
+                if criteria:
+                    console.print("\n[bold cyan]Filters Applied:[/bold cyan]")
+                    if resource_type:
+                        console.print(f"  • Resource Types: {', '.join(resource_type)}")
+                    if region:
+                        console.print(f"  • Regions: {', '.join(region)}")
+                    console.print(
+                        f"  • Matching Resources: {summary.total_count:,} (of {snapshot.resource_count:,} total)\n"
+                    )
+
+                # Format and display summary report
+                formatter = ReportFormatter(console)
+                formatter.format_summary(metadata, summary, has_filters=has_filters)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"✗ Error generating report: {e}", style="bold red")
+        logger.exception("Error in snapshot report command")
+        raise typer.Exit(code=2)
+
+
 @app.command()
 def delta(
     snapshot: Optional[str] = typer.Option(
