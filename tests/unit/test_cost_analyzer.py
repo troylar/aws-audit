@@ -63,7 +63,6 @@ class TestCostAnalyzer:
 
     def test_analyze_custom_dates(self, mock_cost_explorer, sample_snapshot):
         """Test analyze with custom date range."""
-        from datetime import timedelta
 
         analyzer = CostAnalyzer(mock_cost_explorer)
 
