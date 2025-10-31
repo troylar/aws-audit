@@ -1,7 +1,7 @@
 """Boto3 client wrapper with retry configuration and error handling."""
 
 import logging
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import boto3
 from botocore.config import Config
@@ -65,7 +65,7 @@ def create_boto_client(
         raise
 
 
-def get_enabled_regions(profile_name: Optional[str] = None) -> list[str]:  # type: ignore
+def get_enabled_regions(profile_name: Optional[str] = None) -> List[str]:  # type: ignore
     """Get list of enabled AWS regions for the account.
 
     Args:
