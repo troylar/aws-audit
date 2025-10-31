@@ -12,7 +12,15 @@ from datetime import datetime
 import pytest
 
 from src.models.report import DetailedResource, ResourceSummary, SnapshotMetadata
-from src.utils.export import detect_format, export_report_csv, export_report_json, export_report_txt
+from src.utils.export import (
+    detect_format,
+    export_report_csv,
+    export_report_json,
+    export_report_txt,
+    export_to_csv,
+    export_to_json,
+    flatten_dict,
+)
 
 
 class TestFormatDetection:
@@ -235,3 +243,90 @@ class TestExportEdgeCases:
 
         with pytest.raises(FileNotFoundError, match="Parent directory"):
             export_report_json(str(nonexistent_dir), metadata, summary, [])
+
+
+class TestBasicExportFunctions:
+    """Tests for basic export_to_json and export_to_csv functions."""
+
+    def test_export_to_json_basic(self, tmp_path):
+        """Test export_to_json with simple data."""
+        data = {"key": "value", "number": 123, "list": [1, 2, 3]}
+        output_file = tmp_path / "data.json"
+
+        result = export_to_json(data, str(output_file))
+
+        assert result == output_file
+        assert output_file.exists()
+
+        with open(output_file) as f:
+            loaded = json.load(f)
+        assert loaded == data
+
+    def test_export_to_csv_basic(self, tmp_path):
+        """Test export_to_csv with list of dictionaries."""
+        data = [
+            {"name": "Alice", "age": 30, "city": "NYC"},
+            {"name": "Bob", "age": 25, "city": "LA"},
+        ]
+        output_file = tmp_path / "data.csv"
+
+        result = export_to_csv(data, str(output_file))
+
+        assert result == output_file
+        assert output_file.exists()
+
+        content = output_file.read_text()
+        assert "name,age,city" in content
+        assert "Alice" in content
+        assert "Bob" in content
+
+    def test_export_to_csv_empty_data_error(self, tmp_path):
+        """Test export_to_csv raises error for empty data."""
+        output_file = tmp_path / "empty.csv"
+
+        with pytest.raises(ValueError, match="Cannot export empty data"):
+            export_to_csv([], str(output_file))
+
+    def test_export_to_csv_invalid_data_error(self, tmp_path):
+        """Test export_to_csv raises error for non-dict data."""
+        output_file = tmp_path / "invalid.csv"
+
+        with pytest.raises(ValueError, match="must be a list of dictionaries"):
+            export_to_csv(["not", "dicts"], str(output_file))
+
+
+class TestFlattenDict:
+    """Tests for flatten_dict utility function."""
+
+    def test_flatten_simple_dict(self):
+        """Test flattening a simple nested dictionary."""
+        data = {"a": 1, "b": {"c": 2, "d": 3}}
+        result = flatten_dict(data)
+
+        assert result == {"a": 1, "b_c": 2, "b_d": 3}
+
+    def test_flatten_deeply_nested(self):
+        """Test flattening deeply nested dictionary."""
+        data = {"level1": {"level2": {"level3": "value"}}}
+        result = flatten_dict(data)
+
+        assert result == {"level1_level2_level3": "value"}
+
+    def test_flatten_with_lists(self):
+        """Test flattening dict with list values."""
+        data = {"items": [1, 2, 3], "name": "test"}
+        result = flatten_dict(data)
+
+        assert result == {"items": "1, 2, 3", "name": "test"}
+
+    def test_flatten_custom_separator(self):
+        """Test flattening with custom separator."""
+        data = {"a": {"b": "value"}}
+        result = flatten_dict(data, sep=".")
+
+        assert result == {"a.b": "value"}
+
+    def test_flatten_empty_dict(self):
+        """Test flattening empty dictionary."""
+        result = flatten_dict({})
+        assert result == {}
