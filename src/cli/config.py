@@ -3,7 +3,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -17,8 +17,8 @@ class Config:
         """Initialize configuration with defaults."""
         self.snapshot_dir: str = ".snapshots"
         self.storage_path: Optional[str] = None  # Runtime override for snapshot storage path
-        self.regions: list[str] = []  # Empty means all enabled regions
-        self.resource_types: list[str] = []  # Empty means all supported types
+        self.regions: List[str] = []  # Empty means all enabled regions
+        self.resource_types: List[str] = []  # Empty means all supported types
         self.aws_profile: Optional[str] = None
         self.parallel_workers: int = 10
         self.auto_compress_mb: int = 10
