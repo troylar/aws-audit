@@ -43,7 +43,10 @@ class Resource:
         """
         created_at = None
         if data.get("created_at"):
-            created_at = datetime.fromisoformat(data["created_at"])
+            if isinstance(data["created_at"], str):
+                created_at = datetime.fromisoformat(data["created_at"])
+            else:
+                created_at = data["created_at"]  # Already a datetime
 
         return cls(
             arn=data["arn"],

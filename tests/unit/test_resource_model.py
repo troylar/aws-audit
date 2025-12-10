@@ -352,3 +352,47 @@ class TestResourceModel:
         )
 
         assert resource1.to_dict() == resource2.to_dict()
+
+    def test_resource_from_dict_with_datetime_object(self):
+        """Test deserializing resource when created_at is already a datetime object.
+
+        This can happen when PyYAML auto-parses ISO datetime strings.
+        Regression test for issue #36.
+        """
+        created_at = datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        data = {
+            "arn": "arn:aws:s3:::my-bucket",
+            "type": "s3:bucket",
+            "name": "my-bucket",
+            "region": "us-east-1",
+            "config_hash": "t" * 64,
+            "raw_config": {},
+            "created_at": created_at,  # datetime object, not string
+        }
+        resource = Resource.from_dict(data)
+
+        assert resource.created_at == created_at
+        # Ensure to_dict works correctly after from_dict with datetime
+        data_out = resource.to_dict()
+        assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"
+
+    def test_resource_from_dict_with_string_datetime(self):
+        """Test deserializing resource when created_at is a string.
+
+        This is the normal case when loading from serialized YAML.
+        """
+        data = {
+            "arn": "arn:aws:s3:::my-bucket",
+            "type": "s3:bucket",
+            "name": "my-bucket",
+            "region": "us-east-1",
+            "config_hash": "u" * 64,
+            "raw_config": {},
+            "created_at": "2024-03-15T14:30:00+00:00",  # string
+        }
+        resource = Resource.from_dict(data)
+
+        assert resource.created_at == datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        # Ensure to_dict works correctly
+        data_out = resource.to_dict()
+        assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"

@@ -248,3 +248,79 @@ class TestInventoryModel:
         assert len(inventory.snapshots) == 3
         assert inventory.active_snapshot == "s2.yaml"
         assert inventory.description == "Comprehensive test inventory"
+
+    def test_inventory_from_dict_with_datetime_objects(self):
+        """Test deserializing inventory when datetime fields are already datetime objects.
+
+        This can happen when PyYAML auto-parses ISO datetime strings.
+        Regression test for issue #36.
+        """
+        created_at = datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        last_updated = datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
+        data = {
+            "name": "test-inventory",
+            "account_id": "123456789012",
+            "description": "Test",
+            "include_tags": {},
+            "exclude_tags": {},
+            "snapshots": [],
+            "active_snapshot": None,
+            "created_at": created_at,  # datetime object, not string
+            "last_updated": last_updated,  # datetime object, not string
+        }
+        inventory = Inventory.from_dict(data)
+
+        assert inventory.created_at == created_at
+        assert inventory.last_updated == last_updated
+        # Ensure to_dict works correctly after from_dict with datetime
+        data_out = inventory.to_dict()
+        assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"
+        assert data_out["last_updated"] == "2024-03-16T10:00:00+00:00"
+
+    def test_inventory_from_dict_with_string_datetimes(self):
+        """Test deserializing inventory when datetime fields are strings.
+
+        This is the normal case when loading from serialized YAML.
+        """
+        data = {
+            "name": "test-inventory",
+            "account_id": "123456789012",
+            "description": "Test",
+            "include_tags": {},
+            "exclude_tags": {},
+            "snapshots": [],
+            "active_snapshot": None,
+            "created_at": "2024-03-15T14:30:00+00:00",  # string
+            "last_updated": "2024-03-16T10:00:00+00:00",  # string
+        }
+        inventory = Inventory.from_dict(data)
+
+        assert inventory.created_at == datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        assert inventory.last_updated == datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
+        # Ensure to_dict works correctly
+        data_out = inventory.to_dict()
+        assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"
+        assert data_out["last_updated"] == "2024-03-16T10:00:00+00:00"
+
+    def test_inventory_from_dict_with_mixed_datetime_types(self):
+        """Test deserializing inventory when one datetime field is a string and one is datetime.
+
+        This is an edge case to ensure both fields are handled independently.
+        Regression test for issue #36.
+        """
+        created_at = datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        data = {
+            "name": "test-inventory",
+            "account_id": "123456789012",
+            "description": "Test",
+            "include_tags": {},
+            "exclude_tags": {},
+            "snapshots": [],
+            "active_snapshot": None,
+            "created_at": created_at,  # datetime object
+            "last_updated": "2024-03-16T10:00:00+00:00",  # string
+        }
+        inventory = Inventory.from_dict(data)
+
+        assert inventory.created_at == created_at
+        assert inventory.last_updated == datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
