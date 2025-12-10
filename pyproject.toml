@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0,<77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "aws-inventory-manager"
-version = "0.4.1"
+version = "0.4.2"
 description = "AWS Resource Inventory Management & Delta Tracking CLI tool"
 readme = "README.md"
 requires-python = ">=3.8"
