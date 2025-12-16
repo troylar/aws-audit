@@ -117,12 +117,13 @@ class ResourceFilter:
         if not self.before_date and not self.after_date:
             return True
 
-        # If resource has no creation date, we can't filter by date
-        if not resource.created_at:
+        # If resource has no creation date or invalid type, we can't filter by date
+        # Many AWS resources don't expose creation timestamps (VPCs, Security Groups, etc.)
+        if not resource.created_at or not isinstance(resource.created_at, datetime):
             self.stats["missing_creation_date"] += 1
-            # For resources without creation dates, include them if we're being permissive
+            # For resources without valid creation dates, include them (permissive behavior)
             # This is a design choice - could also exclude them
-            logger.debug(f"Resource {resource.arn} has no creation date - including by default")
+            logger.debug(f"Resource {resource.arn} has no valid creation date - including by default")
             return True
 
         # Make sure resource.created_at is timezone-aware for comparison
