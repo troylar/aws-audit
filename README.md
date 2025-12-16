@@ -339,6 +339,7 @@ When using `--before-date` or `--after-date` filters, note that not all AWS reso
 | EFS | File Systems | CreationTime |
 | EKS | Clusters, Node Groups, Fargate Profiles | createdAt |
 | ECS | Clusters, Services, Task Definitions | createdAt |
+| Lambda | Functions | LastModified |
 | Lambda | Layers | CreatedDate |
 | API Gateway | REST APIs, HTTP APIs | createdDate |
 | Step Functions | State Machines | creationDate |
@@ -360,7 +361,6 @@ When using `--before-date` or `--after-date` filters, note that not all AWS reso
 | EC2 | Subnets | AWS API doesn't provide creation timestamp |
 | SNS | Topics | AWS API doesn't provide creation timestamp |
 | CloudWatch | Log Groups | Not easily exposed via API |
-| Lambda | Functions | Not exposed (only layers have dates) |
 
 **Behavior:** Resources without creation dates are **included by default** when date filters are applied. This ensures you don't accidentally miss resources due to API limitations.
 
