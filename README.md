@@ -317,6 +317,57 @@ awsinv restore execute <snapshot> --confirm  # Delete new resources
 
 ---
 
+## 📅 Date-Based Filtering Support
+
+When using `--before-date` or `--after-date` filters, note that not all AWS resources expose creation timestamps via their APIs.
+
+<details>
+<summary><b>Resources WITH creation date support</b></summary>
+
+| Service | Resource Type | Creation Date Field |
+|---------|---------------|---------------------|
+| EC2 | Instances | LaunchTime |
+| EC2 | Volumes | CreateTime |
+| S3 | Buckets | CreationDate |
+| RDS | DB Instances | InstanceCreateTime |
+| RDS | DB Clusters | ClusterCreateTime |
+| DynamoDB | Tables | CreationDateTime |
+| IAM | Roles, Users, Groups, Policies | CreateDate |
+| ELB | Load Balancers | CreatedTime |
+| CloudFormation | Stacks | CreationTime |
+| KMS | Keys | CreationDate |
+| EFS | File Systems | CreationTime |
+| EKS | Clusters, Node Groups, Fargate Profiles | createdAt |
+| ECS | Clusters, Services, Task Definitions | createdAt |
+| Lambda | Functions | LastModified |
+| Lambda | Layers | CreatedDate |
+| API Gateway | REST APIs, HTTP APIs | createdDate |
+| Step Functions | State Machines | creationDate |
+| CodeBuild | Projects | created |
+| CodePipeline | Pipelines | created |
+| Secrets Manager | Secrets | CreatedDate |
+| Route53 | Hosted Zones | (via metadata) |
+| SQS | Queues | CreatedTimestamp |
+
+</details>
+
+<details>
+<summary><b>Resources WITHOUT creation date support</b></summary>
+
+| Service | Resource Type | Note |
+|---------|---------------|------|
+| EC2 | VPCs | AWS API doesn't provide creation timestamp |
+| EC2 | Security Groups | AWS API doesn't provide creation timestamp |
+| EC2 | Subnets | AWS API doesn't provide creation timestamp |
+| SNS | Topics | AWS API doesn't provide creation timestamp |
+| CloudWatch | Log Groups | Not easily exposed via API |
+
+**Behavior:** Resources without creation dates are **included by default** when date filters are applied. This ensures you don't accidentally miss resources due to API limitations.
+
+</details>
+
+---
+
 ## 🎯 Use Cases
 
 ### Baseline State Management
@@ -453,7 +504,7 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Star on GitHub](https://img.shields.io/github/stars/troylar/aws-inventory-manager?style=social)](https://github.com/troylar/aws-inventory-manager)
 
-**Version** 0.4.0 • **Python** 3.8 - 3.13 • **Status** Alpha
+**Version** 0.4.3 • **Python** 3.8 - 3.13 • **Status** Production/Stable
 
 [⬆ Back to Top](#-aws-inventory-manager)
 
