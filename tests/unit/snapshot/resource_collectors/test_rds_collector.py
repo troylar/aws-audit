@@ -104,9 +104,7 @@ class TestRDSCollector:
                 ]
             }
         ]
-        mock_client.list_tags_for_resource.return_value = {
-            "TagList": [{"Key": "Application", "Value": "web-app"}]
-        }
+        mock_client.list_tags_for_resource.return_value = {"TagList": [{"Key": "Application", "Value": "web-app"}]}
 
         with patch.object(collector, "_create_client", return_value=mock_client):
             resources = collector._collect_db_clusters("123456789012")

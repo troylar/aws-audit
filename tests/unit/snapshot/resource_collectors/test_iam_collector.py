@@ -43,9 +43,7 @@ class TestIAMCollector:
                 ]
             }
         ]
-        mock_client.list_role_tags.return_value = {
-            "Tags": [{"Key": "Environment", "Value": "test"}]
-        }
+        mock_client.list_role_tags.return_value = {"Tags": [{"Key": "Environment", "Value": "test"}]}
 
         with patch.object(collector, "_create_client", return_value=mock_client):
             resources = collector._collect_roles("123456789012")
@@ -98,9 +96,7 @@ class TestIAMCollector:
                 ]
             }
         ]
-        mock_client.list_user_tags.return_value = {
-            "Tags": [{"Key": "Team", "Value": "engineering"}]
-        }
+        mock_client.list_user_tags.return_value = {"Tags": [{"Key": "Team", "Value": "engineering"}]}
 
         with patch.object(collector, "_create_client", return_value=mock_client):
             resources = collector._collect_users("123456789012")
@@ -154,9 +150,7 @@ class TestIAMCollector:
                 ]
             }
         ]
-        mock_client.list_policy_tags.return_value = {
-            "Tags": [{"Key": "Purpose", "Value": "security"}]
-        }
+        mock_client.list_policy_tags.return_value = {"Tags": [{"Key": "Purpose", "Value": "security"}]}
 
         with patch.object(collector, "_create_client", return_value=mock_client):
             resources = collector._collect_policies("123456789012")
