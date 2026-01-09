@@ -752,3 +752,170 @@ class TestIAMUserCleanup:
 
         assert success is True
         assert error is None
+
+
+class TestSSMParameterDeletion:
+    """Test suite for SSM Parameter deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_ssm_parameter(self, mock_create_client: Mock) -> None:
+        """Test SSM Parameter deletion."""
+        mock_client = Mock()
+        mock_client.delete_parameter.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::SSM::Parameter",
+            resource_id="/my/parameter",
+            region="us-east-1",
+            arn="arn:aws:ssm:us-east-1:123456789012:parameter/my/parameter",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_parameter.assert_called_once_with(Name="/my/parameter")
+
+
+class TestStepFunctionsDeletion:
+    """Test suite for Step Functions state machine deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_state_machine(self, mock_create_client: Mock) -> None:
+        """Test Step Functions state machine deletion uses ARN."""
+        mock_client = Mock()
+        mock_client.delete_state_machine.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        state_machine_arn = "arn:aws:states:us-east-1:123456789012:stateMachine:MyStateMachine"
+        success, error = deleter.delete_resource(
+            resource_type="AWS::StepFunctions::StateMachine",
+            resource_id="MyStateMachine",
+            region="us-east-1",
+            arn=state_machine_arn,
+        )
+
+        assert success is True
+        assert error is None
+        # Should use ARN parameter (stateMachineArn contains "Arn")
+        mock_client.delete_state_machine.assert_called_once_with(stateMachineArn=state_machine_arn)
+
+
+class TestCodeBuildDeletion:
+    """Test suite for CodeBuild project deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_codebuild_project(self, mock_create_client: Mock) -> None:
+        """Test CodeBuild project deletion."""
+        mock_client = Mock()
+        mock_client.delete_project.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::CodeBuild::Project",
+            resource_id="my-build-project",
+            region="us-east-1",
+            arn="arn:aws:codebuild:us-east-1:123456789012:project/my-build-project",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_project.assert_called_once_with(name="my-build-project")
+
+
+class TestEventBridgeRuleDeletion:
+    """Test suite for EventBridge rule deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_eventbridge_rule_with_targets(self, mock_create_client: Mock) -> None:
+        """Test EventBridge rule deletion removes targets first."""
+        mock_client = Mock()
+        # Mock targets exist
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{"Targets": [{"Id": "target-1"}, {"Id": "target-2"}]}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.remove_targets.return_value = {}
+        mock_client.delete_rule.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::Events::Rule",
+            resource_id="my-rule",
+            region="us-east-1",
+            arn="arn:aws:events:us-east-1:123456789012:rule/my-rule",
+        )
+
+        assert success is True
+        assert error is None
+        # Should have removed targets first
+        mock_client.remove_targets.assert_called_once_with(
+            Rule="my-rule",
+            Ids=["target-1", "target-2"],
+        )
+        # Then deleted the rule
+        mock_client.delete_rule.assert_called_once_with(Name="my-rule")
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_eventbridge_rule_no_targets(self, mock_create_client: Mock) -> None:
+        """Test EventBridge rule deletion with no targets."""
+        mock_client = Mock()
+        # Mock no targets
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{"Targets": []}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.delete_rule.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::Events::Rule",
+            resource_id="empty-rule",
+            region="us-east-1",
+            arn="arn:aws:events:us-east-1:123456789012:rule/empty-rule",
+        )
+
+        assert success is True
+        assert error is None
+        # Should NOT have called remove_targets
+        mock_client.remove_targets.assert_not_called()
+        mock_client.delete_rule.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_eventbridge_rule_already_deleted(self, mock_create_client: Mock) -> None:
+        """Test EventBridge rule cleanup when rule doesn't exist."""
+        mock_client = Mock()
+        mock_paginator = Mock()
+        mock_paginator.paginate.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Rule not found"}},
+            "ListTargetsByRule",
+        )
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_eventbridge_rule("deleted-rule", "us-east-1")
+
+        assert success is True  # Already gone is success
+        assert error is None
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_eventbridge_rule_many_targets(self, mock_create_client: Mock) -> None:
+        """Test EventBridge rule cleanup with more than 10 targets (batch limit)."""
+        mock_client = Mock()
+        # Mock 15 targets to test batching
+        targets = [{"Id": f"target-{i}"} for i in range(15)]
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{"Targets": targets}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.remove_targets.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_eventbridge_rule("busy-rule", "us-east-1")
+
+        assert success is True
+        # Should have called remove_targets twice (10 + 5)
+        assert mock_client.remove_targets.call_count == 2
