@@ -22,6 +22,7 @@ RESOURCES_WITH_PREREQUISITES = {
     "AWS::S3::Bucket",
     "AWS::IAM::Role",
     "AWS::IAM::User",
+    "AWS::Events::Rule",
 }
 
 
@@ -82,6 +83,14 @@ class ResourceDeleter:
         "AWS::EFS::FileSystem": ("efs", "delete_file_system", "FileSystemId"),
         # ElastiCache
         "AWS::ElastiCache::CacheCluster": ("elasticache", "delete_cache_cluster", "CacheClusterId"),
+        # SSM
+        "AWS::SSM::Parameter": ("ssm", "delete_parameter", "Name"),
+        # Step Functions
+        "AWS::StepFunctions::StateMachine": ("sfn", "delete_state_machine", "stateMachineArn"),
+        # EventBridge
+        "AWS::Events::Rule": ("events", "delete_rule", "Name"),
+        # CodeBuild
+        "AWS::CodeBuild::Project": ("codebuild", "delete_project", "name"),
     }
 
     def __init__(self, aws_profile: Optional[str] = None, max_retries: int = 3):
@@ -323,6 +332,8 @@ class ResourceDeleter:
                 return self._cleanup_iam_role(resource_id)
             elif resource_type == "AWS::IAM::User":
                 return self._cleanup_iam_user(resource_id)
+            elif resource_type == "AWS::Events::Rule":
+                return self._cleanup_eventbridge_rule(resource_id, region)
         except Exception as e:
             error_msg = f"Prerequisite cleanup failed for {resource_type} {resource_id}: {str(e)}"
             logger.error(error_msg)
@@ -618,3 +629,58 @@ class ResourceDeleter:
                 return (True, None)  # User already deleted
 
             return (False, f"Failed to cleanup IAM user: {error_code}: {error_message}")
+
+    def _cleanup_eventbridge_rule(self, rule_name: str, region: str) -> tuple[bool, Optional[str]]:
+        """Remove all targets from an EventBridge rule before deletion.
+
+        EventBridge rules cannot be deleted if they have targets attached.
+        This method removes all targets first.
+
+        Args:
+            rule_name: Name of the EventBridge rule
+            region: AWS region
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            events_client = create_boto_client(
+                service_name="events",
+                region_name=region,
+                profile_name=self.aws_profile,
+            )
+
+            # List all targets for this rule
+            targets_to_remove = []
+            paginator = events_client.get_paginator("list_targets_by_rule")
+
+            try:
+                for page in paginator.paginate(Rule=rule_name):
+                    for target in page.get("Targets", []):
+                        targets_to_remove.append(target["Id"])
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+                    return (True, None)  # Rule already deleted
+                raise
+
+            # Remove targets in batches of 10 (API limit)
+            if targets_to_remove:
+                for i in range(0, len(targets_to_remove), 10):
+                    batch = targets_to_remove[i : i + 10]
+                    events_client.remove_targets(
+                        Rule=rule_name,
+                        Ids=batch,
+                    )
+                    logger.debug(f"Removed {len(batch)} targets from rule {rule_name}")
+
+            logger.info(f"Cleaned up EventBridge rule {rule_name}: removed {len(targets_to_remove)} targets")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "ResourceNotFoundException":
+                return (True, None)  # Rule already deleted
+
+            return (False, f"Failed to cleanup EventBridge rule: {error_code}: {error_message}")
