@@ -24,7 +24,7 @@ AWS Inventory Manager gives you complete visibility and control over your AWS re
 
 ```bash
 # Capture your environment
-awsinv snapshot create baseline --regions us-east-1,us-west-2
+awsinv snapshot create my-snapshot --regions us-east-1,us-west-2
 
 # Track what changed
 awsinv delta --show-diff
@@ -32,16 +32,16 @@ awsinv delta --show-diff
 # Find security issues
 awsinv security scan --severity HIGH
 
-# Restore to baseline (NEW!)
-awsinv restore preview baseline  # See what would be deleted
-awsinv restore execute baseline --confirm  # Clean up new resources
+# Restore to any snapshot (NEW!)
+awsinv restore preview my-snapshot  # See what would be deleted
+awsinv restore execute my-snapshot --confirm  # Clean up new resources
 ```
 
 ### Why You Need This
 
 - **"What changed?"** → Field-level configuration drift detection
 - **"Are we secure?"** → Automated CIS Benchmark security scanning
-- **"Can we restore?"** → Delete resources created after baseline snapshot
+- **"Can we restore?"** → Delete resources created after any snapshot
 - **"How much does this cost?"** → Per-inventory cost tracking
 - **"Who owns what?"** → Tag-based filtering and team isolation
 
@@ -51,7 +51,7 @@ awsinv restore execute baseline --confirm  # Clean up new resources
 
 <table>
 <tr>
-<td width="33%">
+<td width="33%" valign="top">
 
 ### 📸 Snapshot
 - 27 AWS services
@@ -61,7 +61,7 @@ awsinv restore execute baseline --confirm  # Clean up new resources
 - Export to JSON/CSV
 
 </td>
-<td width="33%">
+<td width="33%" valign="top">
 
 ### 🔍 Track Changes
 - Field-level drift detection
@@ -71,7 +71,7 @@ awsinv restore execute baseline --confirm  # Clean up new resources
 - JSON export
 
 </td>
-<td width="33%">
+<td width="33%" valign="top">
 
 ### 🔒 Security
 - 12+ CIS-aligned checks
@@ -83,7 +83,7 @@ awsinv restore execute baseline --confirm  # Clean up new resources
 </td>
 </tr>
 <tr>
-<td>
+<td width="33%" valign="top">
 
 ### 💰 Cost Analysis
 - Per-inventory tracking
@@ -93,7 +93,7 @@ awsinv restore execute baseline --confirm  # Clean up new resources
 - Team attribution
 
 </td>
-<td>
+<td width="33%" valign="top">
 
 ### 🧹 Restore (NEW)
 - Preview mode (dry-run)
@@ -103,7 +103,7 @@ awsinv restore execute baseline --confirm  # Clean up new resources
 - Supports 41 resource types
 
 </td>
-<td>
+<td width="33%" valign="top">
 
 ### 📊 Reporting
 - Summary & detailed views
@@ -129,8 +129,8 @@ pip install aws-inventory-manager
 ### 60-Second Demo
 
 ```bash
-# 1. Create a baseline snapshot
-awsinv snapshot create baseline --regions us-east-1
+# 1. Create a snapshot
+awsinv snapshot create my-snapshot --regions us-east-1
 
 # 2. See what you have
 awsinv snapshot report
@@ -138,14 +138,14 @@ awsinv snapshot report
 # 3. Make some changes in AWS console...
 
 # 4. Track what changed
-awsinv delta --snapshot baseline --show-diff
+awsinv delta --snapshot my-snapshot --show-diff
 
 # 5. Scan for security issues
 awsinv security scan
 
-# 6. Restore to baseline (removes new resources)
-awsinv restore preview baseline      # Safe preview
-awsinv restore execute baseline --confirm  # Actual cleanup
+# 6. Restore to snapshot (removes new resources)
+awsinv restore preview my-snapshot      # Safe preview
+awsinv restore execute my-snapshot --confirm  # Actual cleanup
 ```
 
 ---
@@ -159,7 +159,7 @@ awsinv restore execute baseline --confirm  # Actual cleanup
 
 ```bash
 # Basic snapshot
-awsinv snapshot create prod-baseline --regions us-east-1,us-west-2
+awsinv snapshot create prod-snapshot --regions us-east-1,us-west-2
 
 # With tag filtering
 awsinv snapshot create team-alpha \
@@ -179,11 +179,11 @@ awsinv snapshot report --export report.json
 <summary><b>2. Track Configuration Changes</b></summary>
 
 ```bash
-# See what changed since baseline
-awsinv delta --snapshot baseline
+# See what changed since snapshot
+awsinv delta --snapshot my-snapshot
 
 # Show field-level changes
-awsinv delta --snapshot baseline --show-diff
+awsinv delta --snapshot my-snapshot --show-diff
 ```
 
 **Example output:**
@@ -224,23 +224,25 @@ awsinv security scan --export findings.json
 </details>
 
 <details>
-<summary><b>4. Restore to Baseline (NEW)</b></summary>
+<summary><b>4. Restore to Snapshot (NEW)</b></summary>
 
 ```bash
 # Preview what would be deleted (safe, no changes)
-awsinv restore preview baseline
+awsinv restore preview prod-baseline
 
 # Shows:
-# - Resources created after baseline
+# - Resources created after the snapshot
 # - Which are protected
 # - Deletion order (respects dependencies)
 
 # Execute cleanup (requires --confirm)
-awsinv restore execute baseline --confirm
+awsinv restore execute prod-baseline --confirm
 
 # Filter by type or region
-awsinv restore preview baseline --type AWS::EC2::Instance --region us-east-1
+awsinv restore preview my-snapshot --type AWS::EC2::Instance --region us-east-1
 ```
+
+**Works with any snapshot** - use whatever naming convention fits your workflow.
 
 **Safety features:**
 - Preview mode (dry-run)
@@ -311,11 +313,90 @@ awsinv restore execute <snapshot> --confirm  # Delete new resources
 
 **27 AWS Services:** EC2, Lambda, ECS, EKS, S3, EBS, EFS, RDS, DynamoDB, ElastiCache, VPC, Security Groups, Load Balancers, Route53, IAM, KMS, Secrets Manager, CodePipeline, CodeBuild, CloudFormation, Step Functions, CloudWatch, EventBridge, SNS, SQS, WAF, Backup
 
-**Restore supports 41 resource types** with intelligent dependency resolution and prerequisite cleanup for complex resources (S3 bucket emptying, IAM policy detachment, Route53 record cleanup, etc.).
+**Restore supports 41 resource types** with intelligent dependency resolution.
+
+---
+
+## 📅 Date-Based Filtering Support
+
+When using `--before-date` or `--after-date` filters, note that not all AWS resources expose creation timestamps via their APIs.
+
+<details>
+<summary><b>Resources WITH creation date support</b></summary>
+
+| Service | Resource Type | Creation Date Field |
+|---------|---------------|---------------------|
+| EC2 | Instances | LaunchTime |
+| EC2 | Volumes | CreateTime |
+| S3 | Buckets | CreationDate |
+| RDS | DB Instances | InstanceCreateTime |
+| RDS | DB Clusters | ClusterCreateTime |
+| DynamoDB | Tables | CreationDateTime |
+| IAM | Roles, Users, Groups, Policies | CreateDate |
+| ELB | Load Balancers | CreatedTime |
+| CloudFormation | Stacks | CreationTime |
+| KMS | Keys | CreationDate |
+| EFS | File Systems | CreationTime |
+| EKS | Clusters, Node Groups, Fargate Profiles | createdAt |
+| ECS | Clusters, Services, Task Definitions | createdAt |
+| Lambda | Functions | LastModified |
+| Lambda | Layers | CreatedDate |
+| API Gateway | REST APIs, HTTP APIs | createdDate |
+| Step Functions | State Machines | creationDate |
+| CodeBuild | Projects | created |
+| CodePipeline | Pipelines | created |
+| Secrets Manager | Secrets | CreatedDate |
+| Route53 | Hosted Zones | (via metadata) |
+| SQS | Queues | CreatedTimestamp |
+
+</details>
+
+<details>
+<summary><b>Resources WITHOUT creation date support</b></summary>
+
+| Service | Resource Type | Note |
+|---------|---------------|------|
+| EC2 | VPCs | AWS API doesn't provide creation timestamp |
+| EC2 | Security Groups | AWS API doesn't provide creation timestamp |
+| EC2 | Subnets | AWS API doesn't provide creation timestamp |
+| SNS | Topics | AWS API doesn't provide creation timestamp |
+| CloudWatch | Log Groups | Not easily exposed via API |
+
+**Behavior:** Resources without creation dates are **included by default** when date filters are applied. This ensures you don't accidentally miss resources due to API limitations.
+
+</details>
 
 ---
 
 ## 🎯 Use Cases
+
+### Baseline State Management
+```bash
+# Capture your production baseline
+awsinv snapshot create prod-baseline
+
+# Later, restore to baseline state
+awsinv restore execute prod-baseline --confirm
+# Removes all resources created after the baseline
+```
+
+### Ephemeral Environment Cleanup
+```bash
+# Create snapshot before temporary resources
+awsinv snapshot create clean-state
+
+# After testing, restore to snapshot
+awsinv restore execute clean-state --confirm
+```
+
+### Configuration Drift Detection
+```bash
+# Before deployment
+awsinv snapshot create pre-deploy
+
+# After deployment - see exactly what changed
+awsinv delta --snapshot pre-deploy --show-diff
+```
 
 ### Multi-Team Cost Attribution
 ```bash
@@ -328,25 +409,6 @@ awsinv cost --snapshot team-frontend
 ```bash
 # CIS compliance reporting
 awsinv security scan --cis-only --export audit.csv
-```
-
-### Ephemeral Environment Cleanup
-```bash
-# Create baseline before temporary resources
-awsinv snapshot create clean-state
-
-# After testing, restore to baseline
-awsinv restore execute clean-state --confirm
-# Removes all resources created after baseline
-```
-
-### Configuration Drift Detection
-```bash
-# Before deployment
-awsinv snapshot create pre-deploy
-
-# After deployment - see exactly what changed
-awsinv delta --snapshot pre-deploy --show-diff
 ```
 
 ---
@@ -442,7 +504,7 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Star on GitHub](https://img.shields.io/github/stars/troylar/aws-inventory-manager?style=social)](https://github.com/troylar/aws-inventory-manager)
 
-**Version** 0.3.0 • **Python** 3.8 - 3.13 • **Status** Alpha
+**Version** 0.4.3 • **Python** 3.8 - 3.13 • **Status** Production/Stable
 
 [⬆ Back to Top](#-aws-inventory-manager)
 

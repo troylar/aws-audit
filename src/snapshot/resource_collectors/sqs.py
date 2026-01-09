@@ -1,5 +1,6 @@
 """SQS resource collector."""
 
+from datetime import datetime, timezone
 from typing import List
 
 from ...models.resource import Resource
@@ -49,6 +50,15 @@ class SQSCollector(BaseResourceCollector):
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for SQS queue {queue_name}: {e}")
 
+                    # Convert CreatedTimestamp from epoch seconds to datetime
+                    created_at = None
+                    created_timestamp = attributes.get("CreatedTimestamp")
+                    if created_timestamp:
+                        try:
+                            created_at = datetime.fromtimestamp(int(created_timestamp), tz=timezone.utc)
+                        except (ValueError, OSError) as e:
+                            self.logger.debug(f"Could not parse CreatedTimestamp for {queue_name}: {e}")
+
                     # Create resource
                     resource = Resource(
                         arn=queue_arn,
@@ -57,7 +67,7 @@ class SQSCollector(BaseResourceCollector):
                         region=self.region,
                         tags=tags,
                         config_hash=compute_config_hash(attributes),
-                        created_at=None,  # SQS queues have CreatedTimestamp but it's in epoch format
+                        created_at=created_at,
                         raw_config=attributes,
                     )
                     resources.append(resource)

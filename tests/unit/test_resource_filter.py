@@ -464,3 +464,73 @@ class TestResourceFilter:
         assert len(filtered) == 0
         assert filter.stats["total_collected"] == 0
         assert filter.stats["final_count"] == 0
+
+    def test_apply_resource_with_invalid_created_at_type_included(self):
+        """Test that resources with invalid created_at type are included when date filters present.
+
+        This handles edge cases where created_at might be a string instead of datetime
+        (e.g., from malformed YAML or API responses).
+        Regression test for issue #37.
+        """
+        cutoff = datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+        # Create a resource and manually set created_at to an invalid type
+        resource_with_string_date = Resource(
+            arn="arn:aws:s3:::string-date",
+            resource_type="s3:bucket",
+            name="string-date",
+            region="us-east-1",
+            config_hash="1" * 64,
+            raw_config={},
+        )
+        # Simulate invalid type by directly setting the attribute
+        resource_with_string_date.created_at = "2024-05-01T00:00:00Z"  # type: ignore
+
+        resource_with_valid_date = Resource(
+            arn="arn:aws:s3:::valid-date",
+            resource_type="s3:bucket",
+            name="valid-date",
+            region="us-east-1",
+            config_hash="2" * 64,
+            raw_config={},
+            created_at=datetime(2024, 7, 1, 0, 0, 0, tzinfo=timezone.utc),
+        )
+
+        resources = [resource_with_string_date, resource_with_valid_date]
+
+        filter = ResourceFilter(before_date=cutoff)
+        filtered = filter.apply(resources)
+
+        # Resource with invalid created_at type should be included by default (permissive)
+        # Resource with valid date after cutoff should be excluded
+        assert len(filtered) == 1
+        assert filtered[0].name == "string-date"
+        assert filter.stats["missing_creation_date"] == 1
+
+    def test_apply_resource_with_integer_created_at_included(self):
+        """Test that resources with integer created_at (e.g., epoch) are included.
+
+        Some APIs return timestamps as integers. The filter should handle this gracefully.
+        Regression test for issue #37.
+        """
+        cutoff = datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+        resource_with_int_date = Resource(
+            arn="arn:aws:s3:::int-date",
+            resource_type="s3:bucket",
+            name="int-date",
+            region="us-east-1",
+            config_hash="3" * 64,
+            raw_config={},
+        )
+        # Simulate epoch timestamp as integer
+        resource_with_int_date.created_at = 1717200000  # type: ignore
+
+        resources = [resource_with_int_date]
+
+        filter = ResourceFilter(before_date=cutoff)
+        filtered = filter.apply(resources)
+
+        # Resource with invalid type should be included
+        assert len(filtered) == 1
+        assert filter.stats["missing_creation_date"] == 1

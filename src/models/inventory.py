@@ -60,6 +60,15 @@ class Inventory:
         Returns:
             Inventory instance
         """
+        # Handle datetime fields being either string or datetime (PyYAML can auto-parse)
+        created_at = data["created_at"]
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+
+        last_updated = data["last_updated"]
+        if isinstance(last_updated, str):
+            last_updated = datetime.fromisoformat(last_updated)
+
         return cls(
             name=data["name"],
             account_id=data["account_id"],
@@ -68,8 +77,8 @@ class Inventory:
             exclude_tags=data.get("exclude_tags", {}),
             snapshots=data.get("snapshots", []),
             active_snapshot=data.get("active_snapshot"),
-            created_at=datetime.fromisoformat(data["created_at"]),
-            last_updated=datetime.fromisoformat(data["last_updated"]),
+            created_at=created_at,
+            last_updated=last_updated,
         )
 
     def add_snapshot(self, snapshot_filename: str, set_active: bool = False) -> None:

@@ -1890,7 +1890,7 @@ restore_app = typer.Typer(help="Resource cleanup and restoration commands")
 
 @restore_app.command("preview")
 def restore_preview(
-    baseline_snapshot: str = typer.Argument(..., help="Baseline snapshot name to compare against"),
+    baseline_snapshot: str = typer.Argument(..., help="Snapshot name to restore to (can be any snapshot)"),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(
@@ -1899,20 +1899,23 @@ def restore_preview(
     regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
     output_format: str = typer.Option("table", "--format", help="Output format: table, json, yaml"),
 ):
-    """Preview resources that would be deleted to restore to baseline.
+    """Preview resources that would be deleted to restore to a snapshot.
 
-    Shows what resources have been created since the baseline snapshot without
+    Shows what resources have been created since the snapshot without
     performing any deletions. This is a safe dry-run operation.
 
     Examples:
-        # Preview all new resources since baseline
-        awsinv restore preview baseline-snapshot
+        # Preview resources since a baseline snapshot
+        awsinv restore preview prod-baseline
+
+        # Preview with ephemeral test snapshot
+        awsinv restore preview clean-state
 
         # Preview only EC2 instances in us-east-1
-        awsinv restore preview baseline-snapshot --type AWS::EC2::Instance --region us-east-1
+        awsinv restore preview my-snapshot --type AWS::EC2::Instance --region us-east-1
 
         # Preview with specific AWS profile
-        awsinv restore preview baseline-snapshot --profile production
+        awsinv restore preview my-snapshot --profile production
     """
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
@@ -2001,7 +2004,7 @@ def restore_preview(
 
 @restore_app.command("execute")
 def restore_execute(
-    baseline_snapshot: str = typer.Argument(..., help="Baseline snapshot name to restore to"),
+    baseline_snapshot: str = typer.Argument(..., help="Snapshot name to restore to (can be any snapshot)"),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
@@ -2009,22 +2012,25 @@ def restore_execute(
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
 ):
-    """Execute resource deletion to restore environment to baseline.
+    """Execute resource deletion to restore environment to a snapshot.
 
     DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
 
-    Deletes resources that were created after the baseline snapshot, restoring
-    your AWS environment to the baseline state. Protected resources are skipped.
+    Deletes resources that were created after the snapshot, restoring
+    your AWS environment to that point in time. Protected resources are skipped.
 
     Examples:
-        # Execute restoration (will prompt for confirmation)
-        awsinv restore execute baseline-snapshot --confirm
+        # Restore to a baseline snapshot
+        awsinv restore execute prod-baseline --confirm
+
+        # Clean up ephemeral test environment
+        awsinv restore execute clean-state --confirm
 
         # Execute with filters and skip prompt
-        awsinv restore execute baseline-snapshot --confirm --yes --type AWS::EC2::Instance
+        awsinv restore execute my-snapshot --confirm --yes --type AWS::EC2::Instance
 
         # Execute in specific region with profile
-        awsinv restore execute baseline-snapshot --confirm --region us-east-1 --profile prod
+        awsinv restore execute my-snapshot --confirm --region us-east-1 --profile prod
     """
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
