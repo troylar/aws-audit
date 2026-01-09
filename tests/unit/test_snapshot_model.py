@@ -462,3 +462,43 @@ class TestSnapshotModel:
 
         assert snapshot.resource_count == 0
         assert snapshot.service_counts == {}
+
+    def test_snapshot_from_dict_with_datetime_object(self):
+        """Test deserializing snapshot when created_at is already a datetime object.
+
+        This can happen when PyYAML auto-parses ISO datetime strings.
+        Regression test for issue #36.
+        """
+        created_at = datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        data = {
+            "name": "test-snapshot",
+            "created_at": created_at,  # datetime object, not string
+            "account_id": "123456789012",
+            "regions": ["us-east-1"],
+            "resources": [],
+        }
+        snapshot = Snapshot.from_dict(data)
+
+        assert snapshot.created_at == created_at
+        # Ensure to_dict works correctly after from_dict with datetime
+        data_out = snapshot.to_dict()
+        assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"
+
+    def test_snapshot_from_dict_with_string_datetime(self):
+        """Test deserializing snapshot when created_at is a string.
+
+        This is the normal case when loading from serialized YAML.
+        """
+        data = {
+            "name": "test-snapshot",
+            "created_at": "2024-03-15T14:30:00+00:00",  # string
+            "account_id": "123456789012",
+            "regions": ["us-east-1"],
+            "resources": [],
+        }
+        snapshot = Snapshot.from_dict(data)
+
+        assert snapshot.created_at == datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        # Ensure to_dict works correctly
+        data_out = snapshot.to_dict()
+        assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"

@@ -919,3 +919,266 @@ class TestEventBridgeRuleDeletion:
         assert success is True
         # Should have called remove_targets twice (10 + 5)
         assert mock_client.remove_targets.call_count == 2
+
+
+class TestVPCEndpointDeletion:
+    """Test suite for VPC Endpoint deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_vpc_endpoint(self, mock_create_client: Mock) -> None:
+        """Test VPC Endpoint deletion."""
+        mock_client = Mock()
+        mock_client.delete_vpc_endpoints.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::EC2::VPCEndpoint",
+            resource_id="vpce-123456",
+            region="us-east-1",
+            arn="arn:aws:ec2:us-east-1:123456789012:vpc-endpoint/vpce-123456",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_vpc_endpoints.assert_called_once_with(VpcEndpointIds=["vpce-123456"])
+
+
+class TestCodePipelineDeletion:
+    """Test suite for CodePipeline deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_codepipeline(self, mock_create_client: Mock) -> None:
+        """Test CodePipeline deletion."""
+        mock_client = Mock()
+        mock_client.delete_pipeline.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::CodePipeline::Pipeline",
+            resource_id="my-pipeline",
+            region="us-east-1",
+            arn="arn:aws:codepipeline:us-east-1:123456789012:my-pipeline",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_pipeline.assert_called_once_with(name="my-pipeline")
+
+
+class TestCloudFormationDeletion:
+    """Test suite for CloudFormation Stack deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_cloudformation_stack(self, mock_create_client: Mock) -> None:
+        """Test CloudFormation Stack deletion."""
+        mock_client = Mock()
+        mock_client.delete_stack.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::CloudFormation::Stack",
+            resource_id="my-stack",
+            region="us-east-1",
+            arn="arn:aws:cloudformation:us-east-1:123456789012:stack/my-stack/guid",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_stack.assert_called_once_with(StackName="my-stack")
+
+
+class TestRoute53Deletion:
+    """Test suite for Route53 Hosted Zone deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_route53_zone_with_records(self, mock_create_client: Mock) -> None:
+        """Test Route53 zone deletion removes records first."""
+        mock_client = Mock()
+        # Mock records in zone
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [
+            {
+                "ResourceRecordSets": [
+                    {"Type": "NS", "Name": "example.com."},  # Skip
+                    {"Type": "SOA", "Name": "example.com."},  # Skip
+                    {"Type": "A", "Name": "www.example.com.", "TTL": 300, "ResourceRecords": [{"Value": "1.2.3.4"}]},
+                ]
+            }
+        ]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.change_resource_record_sets.return_value = {}
+        mock_client.delete_hosted_zone.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::Route53::HostedZone",
+            resource_id="Z123456789",
+            region="us-east-1",
+            arn="arn:aws:route53:::hostedzone/Z123456789",
+        )
+
+        assert success is True
+        assert error is None
+        # Should have deleted the A record
+        mock_client.change_resource_record_sets.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_route53_zone_already_deleted(self, mock_create_client: Mock) -> None:
+        """Test Route53 zone cleanup when zone doesn't exist."""
+        mock_client = Mock()
+        mock_paginator = Mock()
+        mock_paginator.paginate.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchHostedZone", "Message": "Zone not found"}},
+            "ListResourceRecordSets",
+        )
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_route53_hosted_zone("Z123456789")
+
+        assert success is True
+        assert error is None
+
+
+class TestBackupDeletion:
+    """Test suite for AWS Backup deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_backup_plan(self, mock_create_client: Mock) -> None:
+        """Test Backup Plan deletion."""
+        mock_client = Mock()
+        mock_client.delete_backup_plan.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::Backup::BackupPlan",
+            resource_id="plan-123",
+            region="us-east-1",
+            arn="arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_backup_plan.assert_called_once_with(BackupPlanId="plan-123")
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_backup_vault_with_recovery_points(self, mock_create_client: Mock) -> None:
+        """Test Backup Vault deletion removes recovery points first."""
+        mock_client = Mock()
+        # Mock recovery points in vault
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [
+            {"RecoveryPoints": [{"RecoveryPointArn": "arn:aws:backup:us-east-1:123:recovery-point:rp-1"}]}
+        ]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.delete_recovery_point.return_value = {}
+        mock_client.delete_backup_vault.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::Backup::BackupVault",
+            resource_id="my-vault",
+            region="us-east-1",
+            arn="arn:aws:backup:us-east-1:123456789012:backup-vault:my-vault",
+        )
+
+        assert success is True
+        # Should have deleted the recovery point
+        mock_client.delete_recovery_point.assert_called_once()
+
+
+class TestWAFDeletion:
+    """Test suite for WAF WebACL and RuleGroup deletion."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_waf_webacl(self, mock_create_client: Mock) -> None:
+        """Test WAF WebACL deletion with disassociation."""
+        mock_client = Mock()
+        # Mock get_web_acl returns LockToken
+        mock_client.get_web_acl.return_value = {"LockToken": "token-123", "WebACL": {}}
+        # Mock no associated resources
+        mock_client.list_resources_for_web_acl.return_value = {"ResourceArns": []}
+        mock_client.delete_web_acl.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        # The cleanup method handles everything for WAF
+        success, error = deleter._cleanup_waf_webacl(
+            webacl_id="webacl-123",
+            arn="arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-webacl/webacl-123",
+            region="us-east-1",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_web_acl.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_waf_webacl_with_associations(self, mock_create_client: Mock) -> None:
+        """Test WAF WebACL deletion disassociates resources first."""
+        mock_client = Mock()
+        mock_client.get_web_acl.return_value = {"LockToken": "token-123", "WebACL": {}}
+        # Mock associated ALB
+        mock_client.list_resources_for_web_acl.return_value = {
+            "ResourceArns": ["arn:aws:elasticloadbalancing:us-east-1:123:loadbalancer/app/my-alb/123"]
+        }
+        mock_client.disassociate_web_acl.return_value = {}
+        mock_client.delete_web_acl.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_waf_webacl(
+            webacl_id="webacl-123",
+            arn="arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-webacl/webacl-123",
+            region="us-east-1",
+        )
+
+        assert success is True
+        # Should have disassociated the ALB
+        mock_client.disassociate_web_acl.assert_called()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_waf_rulegroup(self, mock_create_client: Mock) -> None:
+        """Test WAF RuleGroup deletion."""
+        mock_client = Mock()
+        mock_client.get_rule_group.return_value = {"LockToken": "token-456", "RuleGroup": {}}
+        mock_client.delete_rule_group.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_waf_rulegroup(
+            rulegroup_id="rg-123",
+            arn="arn:aws:wafv2:us-east-1:123456789012:regional/rulegroup/my-rulegroup/rg-123",
+            region="us-east-1",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_rule_group.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_waf_webacl_already_deleted(self, mock_create_client: Mock) -> None:
+        """Test WAF WebACL cleanup when already deleted."""
+        mock_client = Mock()
+        mock_client.get_web_acl.side_effect = ClientError(
+            {"Error": {"Code": "WAFNonexistentItemException", "Message": "Not found"}},
+            "GetWebACL",
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_waf_webacl(
+            webacl_id="webacl-123",
+            arn="arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-webacl/webacl-123",
+            region="us-east-1",
+        )
+
+        assert success is True
+        assert error is None

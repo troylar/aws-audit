@@ -75,9 +75,14 @@ class Snapshot:
         """
         from .resource import Resource
 
+        # Handle created_at being either string or datetime (PyYAML can auto-parse)
+        created_at = data["created_at"]
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+
         return cls(
             name=data["name"],
-            created_at=datetime.fromisoformat(data["created_at"]),
+            created_at=created_at,
             account_id=data["account_id"],
             regions=data["regions"],
             resources=[Resource.from_dict(r) for r in data["resources"]],

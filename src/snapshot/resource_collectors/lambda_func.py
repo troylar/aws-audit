@@ -1,10 +1,33 @@
 """Lambda resource collector."""
 
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
 from .base import BaseResourceCollector
+
+
+def _parse_lambda_timestamp(timestamp_str: Optional[str]) -> Optional[datetime]:
+    """Parse Lambda's ISO-8601 timestamp format.
+
+    Lambda returns timestamps like: 2024-01-15T10:30:00.000+0000
+
+    Args:
+        timestamp_str: ISO-8601 formatted timestamp string
+
+    Returns:
+        Parsed datetime or None if parsing fails
+    """
+    if not timestamp_str:
+        return None
+    try:
+        # Lambda format: 2024-01-15T10:30:00.000+0000
+        # Python's fromisoformat doesn't handle +0000 format, need to normalize
+        normalized = timestamp_str.replace("+0000", "+00:00").replace("-0000", "+00:00")
+        return datetime.fromisoformat(normalized)
+    except (ValueError, AttributeError):
+        return None
 
 
 class LambdaCollector(BaseResourceCollector):
@@ -54,6 +77,9 @@ class LambdaCollector(BaseResourceCollector):
                         tags = {}
                         config_data = function
 
+                    # Parse LastModified timestamp (set on creation and updates)
+                    last_modified = _parse_lambda_timestamp(config_data.get("LastModified"))
+
                     # Create resource
                     resource = Resource(
                         arn=function_arn,
@@ -62,7 +88,7 @@ class LambdaCollector(BaseResourceCollector):
                         region=self.region,
                         tags=tags,
                         config_hash=compute_config_hash(config_data),
-                        created_at=None,  # Lambda doesn't expose creation date easily
+                        created_at=last_modified,
                         raw_config=config_data,
                     )
                     resources.append(resource)
@@ -88,7 +114,8 @@ class LambdaCollector(BaseResourceCollector):
                     try:
                         latest_version = layer.get("LatestMatchingVersion", {})
                         layer_version_arn = latest_version.get("LayerVersionArn", layer_arn)
-                        created_date = latest_version.get("CreatedDate")
+                        # Parse CreatedDate timestamp (same format as function LastModified)
+                        created_at = _parse_lambda_timestamp(latest_version.get("CreatedDate"))
 
                         # Create resource
                         resource = Resource(
@@ -98,7 +125,7 @@ class LambdaCollector(BaseResourceCollector):
                             region=self.region,
                             tags={},  # Layers don't support tags
                             config_hash=compute_config_hash(layer),
-                            created_at=created_date,
+                            created_at=created_at,
                             raw_config=layer,
                         )
                         resources.append(resource)

@@ -23,6 +23,10 @@ RESOURCES_WITH_PREREQUISITES = {
     "AWS::IAM::Role",
     "AWS::IAM::User",
     "AWS::Events::Rule",
+    "AWS::Route53::HostedZone",
+    "AWS::Backup::BackupVault",
+    "AWS::WAFv2::WebACL",
+    "AWS::WAFv2::RuleGroup",
 }
 
 
@@ -91,6 +95,20 @@ class ResourceDeleter:
         "AWS::Events::Rule": ("events", "delete_rule", "Name"),
         # CodeBuild
         "AWS::CodeBuild::Project": ("codebuild", "delete_project", "name"),
+        # VPC Endpoints
+        "AWS::EC2::VPCEndpoint": ("ec2", "delete_vpc_endpoints", "VpcEndpointIds"),
+        # CodePipeline
+        "AWS::CodePipeline::Pipeline": ("codepipeline", "delete_pipeline", "name"),
+        # CloudFormation
+        "AWS::CloudFormation::Stack": ("cloudformation", "delete_stack", "StackName"),
+        # Route53
+        "AWS::Route53::HostedZone": ("route53", "delete_hosted_zone", "Id"),
+        # Backup
+        "AWS::Backup::BackupPlan": ("backup", "delete_backup_plan", "BackupPlanId"),
+        "AWS::Backup::BackupVault": ("backup", "delete_backup_vault", "BackupVaultName"),
+        # WAF
+        "AWS::WAFv2::WebACL": ("wafv2", "delete_web_acl", "Id"),
+        "AWS::WAFv2::RuleGroup": ("wafv2", "delete_rule_group", "Id"),
     }
 
     def __init__(self, aws_profile: Optional[str] = None, max_retries: int = 3):
@@ -233,7 +251,13 @@ class ResourceDeleter:
             error_message = e.response.get("Error", {}).get("Message", str(e))
 
             # Handle specific error cases
-            if error_code in ["InvalidInstanceID.NotFound", "NoSuchEntity", "ResourceNotFoundException"]:
+            if error_code in [
+                "InvalidInstanceID.NotFound",
+                "NoSuchEntity",
+                "ResourceNotFoundException",
+                "WAFNonexistentItemException",
+                "NoSuchHostedZone",
+            ]:
                 # Resource already deleted
                 logger.info(f"Resource {resource_id} already deleted")
                 return (True, None)
@@ -334,6 +358,14 @@ class ResourceDeleter:
                 return self._cleanup_iam_user(resource_id)
             elif resource_type == "AWS::Events::Rule":
                 return self._cleanup_eventbridge_rule(resource_id, region)
+            elif resource_type == "AWS::Route53::HostedZone":
+                return self._cleanup_route53_hosted_zone(resource_id)
+            elif resource_type == "AWS::Backup::BackupVault":
+                return self._cleanup_backup_vault(resource_id)
+            elif resource_type == "AWS::WAFv2::WebACL":
+                return self._cleanup_waf_webacl(resource_id, arn, region)
+            elif resource_type == "AWS::WAFv2::RuleGroup":
+                return self._cleanup_waf_rulegroup(resource_id, arn, region)
         except Exception as e:
             error_msg = f"Prerequisite cleanup failed for {resource_type} {resource_id}: {str(e)}"
             logger.error(error_msg)
@@ -684,3 +716,261 @@ class ResourceDeleter:
                 return (True, None)  # Rule already deleted
 
             return (False, f"Failed to cleanup EventBridge rule: {error_code}: {error_message}")
+
+    def _cleanup_route53_hosted_zone(self, zone_id: str) -> tuple[bool, Optional[str]]:
+        """Delete all records from a Route53 hosted zone before deletion.
+
+        Route53 hosted zones cannot be deleted if they contain records other than
+        the default NS and SOA records. This method deletes all other records first.
+
+        Args:
+            zone_id: Hosted zone ID (with or without /hostedzone/ prefix)
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            route53_client = create_boto_client(
+                service_name="route53",
+                region_name="us-east-1",  # Route53 is global
+                profile_name=self.aws_profile,
+            )
+
+            # Normalize zone ID (remove /hostedzone/ prefix if present)
+            if zone_id.startswith("/hostedzone/"):
+                zone_id = zone_id.replace("/hostedzone/", "")
+
+            # List all records in the zone
+            records_to_delete = []
+            paginator = route53_client.get_paginator("list_resource_record_sets")
+
+            try:
+                for page in paginator.paginate(HostedZoneId=zone_id):
+                    for record in page.get("ResourceRecordSets", []):
+                        # Skip NS and SOA records at zone apex (cannot be deleted)
+                        if record["Type"] in ["NS", "SOA"]:
+                            continue
+                        records_to_delete.append(record)
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "NoSuchHostedZone":
+                    return (True, None)  # Zone already deleted
+                raise
+
+            # Delete records in batches
+            if records_to_delete:
+                # Route53 allows up to 1000 changes per request
+                for i in range(0, len(records_to_delete), 100):
+                    batch = records_to_delete[i : i + 100]
+                    changes = [{"Action": "DELETE", "ResourceRecordSet": record} for record in batch]
+                    route53_client.change_resource_record_sets(
+                        HostedZoneId=zone_id,
+                        ChangeBatch={"Changes": changes},
+                    )
+                    logger.debug(f"Deleted {len(batch)} records from zone {zone_id}")
+
+            logger.info(f"Cleaned up Route53 zone {zone_id}: deleted {len(records_to_delete)} records")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "NoSuchHostedZone":
+                return (True, None)  # Zone already deleted
+
+            return (False, f"Failed to cleanup Route53 zone: {error_code}: {error_message}")
+
+    def _cleanup_backup_vault(self, vault_name: str) -> tuple[bool, Optional[str]]:
+        """Delete all recovery points from a Backup vault before deletion.
+
+        Backup vaults cannot be deleted if they contain recovery points.
+        This method deletes all recovery points first.
+
+        Args:
+            vault_name: Name of the backup vault
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            backup_client = create_boto_client(
+                service_name="backup",
+                region_name="us-east-1",  # Will be overridden by the vault's region
+                profile_name=self.aws_profile,
+            )
+
+            # List all recovery points in the vault
+            recovery_points = []
+            paginator = backup_client.get_paginator("list_recovery_points_by_backup_vault")
+
+            try:
+                for page in paginator.paginate(BackupVaultName=vault_name):
+                    for rp in page.get("RecoveryPoints", []):
+                        recovery_points.append(rp["RecoveryPointArn"])
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ["ResourceNotFoundException", "AccessDeniedException"]:
+                    return (True, None)  # Vault already deleted or no access
+                raise
+
+            # Delete each recovery point
+            for rp_arn in recovery_points:
+                try:
+                    backup_client.delete_recovery_point(
+                        BackupVaultName=vault_name,
+                        RecoveryPointArn=rp_arn,
+                    )
+                    logger.debug(f"Deleted recovery point {rp_arn} from vault {vault_name}")
+                except ClientError as e:
+                    # Continue on individual failures
+                    logger.warning(f"Failed to delete recovery point {rp_arn}: {e}")
+
+            logger.info(f"Cleaned up Backup vault {vault_name}: deleted {len(recovery_points)} recovery points")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "ResourceNotFoundException":
+                return (True, None)  # Vault already deleted
+
+            return (False, f"Failed to cleanup Backup vault: {error_code}: {error_message}")
+
+    def _cleanup_waf_webacl(self, webacl_id: str, arn: str, region: str) -> tuple[bool, Optional[str]]:
+        """Disassociate all resources from a WAF WebACL and delete it.
+
+        WAF WebACLs cannot be deleted if they are associated with resources.
+        This method disassociates all resources and then deletes the WebACL.
+        The deletion is done here because it requires a LockToken.
+
+        Args:
+            webacl_id: WebACL ID
+            arn: WebACL ARN
+            region: AWS region
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            # Determine scope from ARN
+            scope = "CLOUDFRONT" if "global" in arn or "cloudfront" in arn.lower() else "REGIONAL"
+            waf_region = "us-east-1" if scope == "CLOUDFRONT" else region
+
+            wafv2_client = create_boto_client(
+                service_name="wafv2",
+                region_name=waf_region,
+                profile_name=self.aws_profile,
+            )
+
+            # Extract name from ARN (format: ...webacl/name/id)
+            arn_parts = arn.split("/")
+            webacl_name = arn_parts[-2] if len(arn_parts) >= 2 else webacl_id
+
+            # Get WebACL to retrieve LockToken
+            try:
+                response = wafv2_client.get_web_acl(Name=webacl_name, Scope=scope, Id=webacl_id)
+                lock_token = response["LockToken"]
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "WAFNonexistentItemException":
+                    return (True, None)  # WebACL already deleted
+                raise
+
+            # Disassociate from all resources (only for REGIONAL scope)
+            if scope == "REGIONAL":
+                try:
+                    resources = wafv2_client.list_resources_for_web_acl(
+                        WebACLArn=arn, ResourceType="APPLICATION_LOAD_BALANCER"
+                    )
+                    for resource_arn in resources.get("ResourceArns", []):
+                        wafv2_client.disassociate_web_acl(ResourceArn=resource_arn)
+                        logger.debug(f"Disassociated {resource_arn} from WebACL {webacl_name}")
+                except ClientError:
+                    pass  # May not have associations
+
+                # Also check API Gateway
+                try:
+                    resources = wafv2_client.list_resources_for_web_acl(WebACLArn=arn, ResourceType="API_GATEWAY")
+                    for resource_arn in resources.get("ResourceArns", []):
+                        wafv2_client.disassociate_web_acl(ResourceArn=resource_arn)
+                        logger.debug(f"Disassociated {resource_arn} from WebACL {webacl_name}")
+                except ClientError:
+                    pass
+
+            # Delete the WebACL
+            wafv2_client.delete_web_acl(
+                Name=webacl_name,
+                Scope=scope,
+                Id=webacl_id,
+                LockToken=lock_token,
+            )
+
+            logger.info(f"Deleted WAF WebACL {webacl_name}")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "WAFNonexistentItemException":
+                return (True, None)  # WebACL already deleted
+
+            return (False, f"Failed to cleanup WAF WebACL: {error_code}: {error_message}")
+
+    def _cleanup_waf_rulegroup(self, rulegroup_id: str, arn: str, region: str) -> tuple[bool, Optional[str]]:
+        """Delete a WAF RuleGroup (requires LockToken).
+
+        WAF RuleGroup deletion requires a LockToken obtained from get_rule_group.
+        This method handles the full deletion.
+
+        Args:
+            rulegroup_id: RuleGroup ID
+            arn: RuleGroup ARN
+            region: AWS region
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            # Determine scope from ARN
+            scope = "CLOUDFRONT" if "global" in arn or "cloudfront" in arn.lower() else "REGIONAL"
+            waf_region = "us-east-1" if scope == "CLOUDFRONT" else region
+
+            wafv2_client = create_boto_client(
+                service_name="wafv2",
+                region_name=waf_region,
+                profile_name=self.aws_profile,
+            )
+
+            # Extract name from ARN (format: ...rulegroup/name/id)
+            arn_parts = arn.split("/")
+            rulegroup_name = arn_parts[-2] if len(arn_parts) >= 2 else rulegroup_id
+
+            # Get RuleGroup to retrieve LockToken
+            try:
+                response = wafv2_client.get_rule_group(Name=rulegroup_name, Scope=scope, Id=rulegroup_id)
+                lock_token = response["LockToken"]
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "WAFNonexistentItemException":
+                    return (True, None)  # RuleGroup already deleted
+                raise
+
+            # Delete the RuleGroup
+            wafv2_client.delete_rule_group(
+                Name=rulegroup_name,
+                Scope=scope,
+                Id=rulegroup_id,
+                LockToken=lock_token,
+            )
+
+            logger.info(f"Deleted WAF RuleGroup {rulegroup_name}")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "WAFNonexistentItemException":
+                return (True, None)  # RuleGroup already deleted
+
+            return (False, f"Failed to cleanup WAF RuleGroup: {error_code}: {error_message}")
