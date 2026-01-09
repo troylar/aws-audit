@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 from botocore.exceptions import ClientError
 
-from src.restore.deleter import ResourceDeleter
+from src.restore.deleter import RESOURCES_WITH_PREREQUISITES, ResourceDeleter
 
 
 class TestResourceDeleter:
@@ -243,9 +243,18 @@ class TestResourceDeleter:
 
     @patch("src.restore.deleter.create_boto_client")
     def test_delete_s3_bucket(self, mock_create_client: Mock) -> None:
-        """Test S3 bucket deletion."""
+        """Test S3 bucket deletion with prerequisite emptying."""
         mock_client = Mock()
         mock_client.delete_bucket.return_value = {}
+        # Mock object lock check (no lock)
+        mock_client.get_object_lock_configuration.side_effect = ClientError(
+            {"Error": {"Code": "ObjectLockConfigurationNotFoundError"}},
+            "GetObjectLockConfiguration",
+        )
+        # Mock empty bucket (no objects)
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{"Versions": [], "DeleteMarkers": []}]
+        mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
@@ -281,9 +290,13 @@ class TestResourceDeleter:
 
     @patch("src.restore.deleter.create_boto_client")
     def test_delete_iam_role(self, mock_create_client: Mock) -> None:
-        """Test IAM role deletion."""
+        """Test IAM role deletion with prerequisite cleanup."""
         mock_client = Mock()
         mock_client.delete_role.return_value = {}
+        # Mock empty paginators for prerequisite cleanup
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{}]  # No policies/profiles
+        mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
@@ -448,3 +461,294 @@ class TestResourceDeleter:
         assert "AWS::EC2::Instance" in error
         assert "i-always-fail" in error
         assert "Always fails" in error
+
+
+class TestResourcePrerequisites:
+    """Test suite for resource prerequisite cleanup methods."""
+
+    def test_resources_with_prerequisites_constant(self) -> None:
+        """Test RESOURCES_WITH_PREREQUISITES includes expected types."""
+        assert "AWS::S3::Bucket" in RESOURCES_WITH_PREREQUISITES
+        assert "AWS::IAM::Role" in RESOURCES_WITH_PREREQUISITES
+        assert "AWS::IAM::User" in RESOURCES_WITH_PREREQUISITES
+
+    def test_prepare_for_deletion_skips_non_prerequisite_resources(self) -> None:
+        """Test _prepare_for_deletion skips resources without prerequisites."""
+        deleter = ResourceDeleter()
+        success, error = deleter._prepare_for_deletion(
+            resource_type="AWS::EC2::Instance",
+            resource_id="i-123456",
+            region="us-east-1",
+            arn="arn:aws:ec2:us-east-1:123456789012:instance/i-123456",
+        )
+        assert success is True
+        assert error is None
+
+
+class TestS3BucketEmptying:
+    """Test suite for S3 bucket emptying logic."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_empty_s3_bucket_with_objects(self, mock_create_client: Mock) -> None:
+        """Test emptying S3 bucket with objects."""
+        mock_client = Mock()
+        # No object lock
+        mock_client.get_object_lock_configuration.side_effect = ClientError(
+            {"Error": {"Code": "ObjectLockConfigurationNotFoundError"}},
+            "GetObjectLockConfiguration",
+        )
+        # Mock objects in bucket
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [
+            {
+                "Versions": [
+                    {"Key": "file1.txt", "VersionId": "v1"},
+                    {"Key": "file2.txt", "VersionId": "v2"},
+                ],
+                "DeleteMarkers": [
+                    {"Key": "deleted.txt", "VersionId": "dm1"},
+                ],
+            }
+        ]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.delete_objects.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._empty_s3_bucket("test-bucket", "us-east-1")
+
+        assert success is True
+        assert error is None
+        mock_client.delete_objects.assert_called_once()
+        call_args = mock_client.delete_objects.call_args
+        assert call_args[1]["Bucket"] == "test-bucket"
+        assert len(call_args[1]["Delete"]["Objects"]) == 3
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_empty_s3_bucket_with_object_lock(self, mock_create_client: Mock) -> None:
+        """Test emptying S3 bucket fails when object lock is enabled."""
+        mock_client = Mock()
+        mock_client.get_object_lock_configuration.return_value = {
+            "ObjectLockConfiguration": {"ObjectLockEnabled": "Enabled"}
+        }
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._empty_s3_bucket("locked-bucket", "us-east-1")
+
+        assert success is False
+        assert "Object Lock enabled" in error
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_empty_s3_bucket_already_deleted(self, mock_create_client: Mock) -> None:
+        """Test emptying bucket that no longer exists."""
+        mock_client = Mock()
+        mock_client.get_object_lock_configuration.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchBucket"}},
+            "GetObjectLockConfiguration",
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._empty_s3_bucket("gone-bucket", "us-east-1")
+
+        assert success is True
+        assert error is None
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_empty_s3_bucket_large_batch(self, mock_create_client: Mock) -> None:
+        """Test emptying S3 bucket with more than 1000 objects."""
+        mock_client = Mock()
+        mock_client.get_object_lock_configuration.side_effect = ClientError(
+            {"Error": {"Code": "ObjectLockConfigurationNotFoundError"}},
+            "GetObjectLockConfiguration",
+        )
+        # Create 1500 objects to test batching
+        objects = [{"Key": f"file{i}.txt", "VersionId": f"v{i}"} for i in range(1500)]
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{"Versions": objects, "DeleteMarkers": []}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.delete_objects.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._empty_s3_bucket("big-bucket", "us-east-1")
+
+        assert success is True
+        # Should have called delete_objects twice (1000 + 500)
+        assert mock_client.delete_objects.call_count == 2
+
+
+class TestIAMRoleCleanup:
+    """Test suite for IAM role cleanup logic."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_iam_role_with_policies(self, mock_create_client: Mock) -> None:
+        """Test IAM role cleanup detaches policies."""
+        mock_client = Mock()
+        # Mock attached policies
+        attached_paginator = Mock()
+        attached_paginator.paginate.return_value = [
+            {"AttachedPolicies": [{"PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"}]}
+        ]
+        # Mock inline policies
+        inline_paginator = Mock()
+        inline_paginator.paginate.return_value = [{"PolicyNames": ["InlinePolicy1"]}]
+        # Mock instance profiles
+        profile_paginator = Mock()
+        profile_paginator.paginate.return_value = [{"InstanceProfiles": [{"InstanceProfileName": "MyProfile"}]}]
+
+        def get_paginator(name: str) -> Mock:
+            if name == "list_attached_role_policies":
+                return attached_paginator
+            elif name == "list_role_policies":
+                return inline_paginator
+            elif name == "list_instance_profiles_for_role":
+                return profile_paginator
+            return Mock()
+
+        mock_client.get_paginator.side_effect = get_paginator
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_role("TestRole")
+
+        assert success is True
+        assert error is None
+        mock_client.detach_role_policy.assert_called_once_with(
+            RoleName="TestRole",
+            PolicyArn="arn:aws:iam::aws:policy/ReadOnlyAccess",
+        )
+        mock_client.delete_role_policy.assert_called_once_with(
+            RoleName="TestRole",
+            PolicyName="InlinePolicy1",
+        )
+        mock_client.remove_role_from_instance_profile.assert_called_once_with(
+            InstanceProfileName="MyProfile",
+            RoleName="TestRole",
+        )
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_iam_role_not_found(self, mock_create_client: Mock) -> None:
+        """Test IAM role cleanup when role doesn't exist."""
+        mock_client = Mock()
+        mock_client.get_paginator.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity", "Message": "Role not found"}},
+            "ListAttachedRolePolicies",
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_role("NonExistentRole")
+
+        assert success is True  # Already gone is success
+        assert error is None
+
+
+class TestIAMUserCleanup:
+    """Test suite for IAM user cleanup logic."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_iam_user_with_credentials(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup removes all credentials and associations."""
+        mock_client = Mock()
+
+        # Mock access keys
+        access_keys_paginator = Mock()
+        access_keys_paginator.paginate.return_value = [{"AccessKeyMetadata": [{"AccessKeyId": "AKIAIOSFODNN7EXAMPLE"}]}]
+        # Mock MFA devices
+        mfa_paginator = Mock()
+        mfa_paginator.paginate.return_value = [
+            {"MFADevices": [{"SerialNumber": "arn:aws:iam::123456789012:mfa/testuser"}]}
+        ]
+        # Mock signing certs
+        certs_paginator = Mock()
+        certs_paginator.paginate.return_value = [{"Certificates": []}]
+        # Mock SSH keys
+        ssh_paginator = Mock()
+        ssh_paginator.paginate.return_value = [{"SSHPublicKeys": []}]
+        # Mock attached policies
+        attached_paginator = Mock()
+        attached_paginator.paginate.return_value = [
+            {"AttachedPolicies": [{"PolicyArn": "arn:aws:iam::aws:policy/IAMUserChangePassword"}]}
+        ]
+        # Mock inline policies
+        inline_paginator = Mock()
+        inline_paginator.paginate.return_value = [{"PolicyNames": []}]
+        # Mock groups
+        groups_paginator = Mock()
+        groups_paginator.paginate.return_value = [{"Groups": [{"GroupName": "Developers"}]}]
+
+        def get_paginator(name: str) -> Mock:
+            mapping = {
+                "list_access_keys": access_keys_paginator,
+                "list_mfa_devices": mfa_paginator,
+                "list_signing_certificates": certs_paginator,
+                "list_ssh_public_keys": ssh_paginator,
+                "list_attached_user_policies": attached_paginator,
+                "list_user_policies": inline_paginator,
+                "list_groups_for_user": groups_paginator,
+            }
+            return mapping.get(name, Mock())
+
+        mock_client.get_paginator.side_effect = get_paginator
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        mock_client.delete_login_profile.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("testuser")
+
+        assert success is True
+        assert error is None
+        mock_client.delete_access_key.assert_called_once_with(
+            UserName="testuser",
+            AccessKeyId="AKIAIOSFODNN7EXAMPLE",
+        )
+        mock_client.deactivate_mfa_device.assert_called_once()
+        mock_client.detach_user_policy.assert_called_once_with(
+            UserName="testuser",
+            PolicyArn="arn:aws:iam::aws:policy/IAMUserChangePassword",
+        )
+        mock_client.remove_user_from_group.assert_called_once_with(
+            GroupName="Developers",
+            UserName="testuser",
+        )
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_iam_user_not_found(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup when user doesn't exist."""
+        mock_client = Mock()
+        mock_client.get_paginator.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity", "Message": "User not found"}},
+            "ListAccessKeys",
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("NonExistentUser")
+
+        assert success is True  # Already gone is success
+        assert error is None
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_cleanup_iam_user_no_login_profile(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup handles missing login profile."""
+        mock_client = Mock()
+        # Empty paginators
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        # Login profile doesn't exist
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity", "Message": "Login Profile not found"}},
+            "DeleteLoginProfile",
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("userwithnologin")
+
+        assert success is True
+        assert error is None

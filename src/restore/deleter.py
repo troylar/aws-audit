@@ -1,7 +1,8 @@
 """AWS resource deletion strategies.
 
 Maps AWS resource types to their deletion methods with proper error handling
-and retry logic.
+and retry logic. Handles prerequisite cleanup for resources that require it
+(e.g., emptying S3 buckets, detaching IAM policies).
 """
 
 from __future__ import annotations
@@ -15,6 +16,13 @@ from botocore.exceptions import ClientError
 from src.aws.client import create_boto_client
 
 logger = logging.getLogger(__name__)
+
+# Resource types that require prerequisite cleanup before deletion
+RESOURCES_WITH_PREREQUISITES = {
+    "AWS::S3::Bucket",
+    "AWS::IAM::Role",
+    "AWS::IAM::User",
+}
 
 
 class ResourceDeleter:
@@ -180,6 +188,16 @@ class ResourceDeleter:
             Tuple of (success: bool, error_message: Optional[str])
         """
         try:
+            # Run prerequisite cleanup if needed (e.g., empty S3 bucket, detach IAM policies)
+            prep_success, prep_error = self._prepare_for_deletion(
+                resource_type=resource_type,
+                resource_id=resource_id,
+                region=region,
+                arn=arn,
+            )
+            if not prep_success:
+                return (False, prep_error)
+
             # Create boto3 client for the service
             client = create_boto_client(
                 service_name=service,
@@ -273,3 +291,330 @@ class ResourceDeleter:
 
         # Standard parameter
         return {id_field: resource_id}
+
+    def _prepare_for_deletion(
+        self,
+        resource_type: str,
+        resource_id: str,
+        region: str,
+        arn: str,
+    ) -> tuple[bool, Optional[str]]:
+        """Run prerequisite cleanup before resource deletion.
+
+        Some resources require cleanup before they can be deleted (e.g., S3 buckets
+        must be emptied, IAM roles must have policies detached).
+
+        Args:
+            resource_type: AWS resource type
+            resource_id: Resource identifier
+            region: AWS region
+            arn: Resource ARN
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        if resource_type not in RESOURCES_WITH_PREREQUISITES:
+            return (True, None)
+
+        try:
+            if resource_type == "AWS::S3::Bucket":
+                return self._empty_s3_bucket(resource_id, region)
+            elif resource_type == "AWS::IAM::Role":
+                return self._cleanup_iam_role(resource_id)
+            elif resource_type == "AWS::IAM::User":
+                return self._cleanup_iam_user(resource_id)
+        except Exception as e:
+            error_msg = f"Prerequisite cleanup failed for {resource_type} {resource_id}: {str(e)}"
+            logger.error(error_msg)
+            return (False, error_msg)
+
+        return (True, None)
+
+    def _empty_s3_bucket(self, bucket_name: str, region: str) -> tuple[bool, Optional[str]]:
+        """Empty an S3 bucket before deletion.
+
+        Handles both versioned and non-versioned buckets by deleting all objects,
+        versions, and delete markers.
+
+        Args:
+            bucket_name: Name of the S3 bucket
+            region: AWS region (used for client creation)
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            s3_client = create_boto_client(
+                service_name="s3",
+                region_name=region,
+                profile_name=self.aws_profile,
+            )
+
+            # Check if bucket has object lock (cannot empty these buckets easily)
+            try:
+                lock_config = s3_client.get_object_lock_configuration(Bucket=bucket_name)
+                if lock_config.get("ObjectLockConfiguration", {}).get("ObjectLockEnabled") == "Enabled":
+                    return (False, "Bucket has Object Lock enabled - cannot empty automatically")
+            except ClientError as e:
+                # ObjectLockConfigurationNotFoundError means no lock - that's fine
+                if e.response.get("Error", {}).get("Code") != "ObjectLockConfigurationNotFoundError":
+                    raise
+
+            deleted_count = 0
+
+            # Delete all object versions (handles versioned buckets)
+            paginator = s3_client.get_paginator("list_object_versions")
+            try:
+                for page in paginator.paginate(Bucket=bucket_name):
+                    objects_to_delete = []
+
+                    # Collect versions
+                    for version in page.get("Versions", []):
+                        objects_to_delete.append(
+                            {
+                                "Key": version["Key"],
+                                "VersionId": version["VersionId"],
+                            }
+                        )
+
+                    # Collect delete markers
+                    for marker in page.get("DeleteMarkers", []):
+                        objects_to_delete.append(
+                            {
+                                "Key": marker["Key"],
+                                "VersionId": marker["VersionId"],
+                            }
+                        )
+
+                    if objects_to_delete:
+                        # Batch delete (max 1000 per request)
+                        for i in range(0, len(objects_to_delete), 1000):
+                            batch = objects_to_delete[i : i + 1000]
+                            s3_client.delete_objects(
+                                Bucket=bucket_name,
+                                Delete={"Objects": batch, "Quiet": True},
+                            )
+                            deleted_count += len(batch)
+
+            except ClientError as e:
+                # If versioning was never enabled, fall back to simple object listing
+                if e.response.get("Error", {}).get("Code") == "NoSuchBucket":
+                    return (True, None)  # Bucket already gone
+
+                # Try non-versioned approach
+                paginator = s3_client.get_paginator("list_objects_v2")
+                for page in paginator.paginate(Bucket=bucket_name):
+                    objects_to_delete = [{"Key": obj["Key"]} for obj in page.get("Contents", [])]
+
+                    if objects_to_delete:
+                        for i in range(0, len(objects_to_delete), 1000):
+                            batch = objects_to_delete[i : i + 1000]
+                            s3_client.delete_objects(
+                                Bucket=bucket_name,
+                                Delete={"Objects": batch, "Quiet": True},
+                            )
+                            deleted_count += len(batch)
+
+            logger.info(f"Emptied S3 bucket {bucket_name}: deleted {deleted_count} objects/versions")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "NoSuchBucket":
+                return (True, None)  # Bucket already deleted
+
+            return (False, f"Failed to empty bucket: {error_code}: {error_message}")
+
+    def _cleanup_iam_role(self, role_name: str) -> tuple[bool, Optional[str]]:
+        """Clean up IAM role before deletion.
+
+        Detaches managed policies, deletes inline policies, and removes the role
+        from any instance profiles.
+
+        Args:
+            role_name: Name of the IAM role
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            iam_client = create_boto_client(
+                service_name="iam",
+                region_name="us-east-1",  # IAM is global
+                profile_name=self.aws_profile,
+            )
+
+            # 1. Detach all managed policies
+            paginator = iam_client.get_paginator("list_attached_role_policies")
+            for page in paginator.paginate(RoleName=role_name):
+                for policy in page.get("AttachedPolicies", []):
+                    iam_client.detach_role_policy(
+                        RoleName=role_name,
+                        PolicyArn=policy["PolicyArn"],
+                    )
+                    logger.debug(f"Detached policy {policy['PolicyArn']} from role {role_name}")
+
+            # 2. Delete all inline policies
+            paginator = iam_client.get_paginator("list_role_policies")
+            for page in paginator.paginate(RoleName=role_name):
+                for policy_name in page.get("PolicyNames", []):
+                    iam_client.delete_role_policy(
+                        RoleName=role_name,
+                        PolicyName=policy_name,
+                    )
+                    logger.debug(f"Deleted inline policy {policy_name} from role {role_name}")
+
+            # 3. Remove role from all instance profiles
+            paginator = iam_client.get_paginator("list_instance_profiles_for_role")
+            for page in paginator.paginate(RoleName=role_name):
+                for profile in page.get("InstanceProfiles", []):
+                    iam_client.remove_role_from_instance_profile(
+                        InstanceProfileName=profile["InstanceProfileName"],
+                        RoleName=role_name,
+                    )
+                    logger.debug(f"Removed role {role_name} from instance profile {profile['InstanceProfileName']}")
+
+            logger.info(f"Cleaned up IAM role {role_name} for deletion")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "NoSuchEntity":
+                return (True, None)  # Role already deleted
+
+            return (False, f"Failed to cleanup IAM role: {error_code}: {error_message}")
+
+    def _cleanup_iam_user(self, user_name: str) -> tuple[bool, Optional[str]]:
+        """Clean up IAM user before deletion.
+
+        Removes access keys, MFA devices, signing certificates, SSH keys,
+        service-specific credentials, detaches policies, deletes inline policies,
+        and removes from groups.
+
+        Args:
+            user_name: Name of the IAM user
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            iam_client = create_boto_client(
+                service_name="iam",
+                region_name="us-east-1",  # IAM is global
+                profile_name=self.aws_profile,
+            )
+
+            # 1. Delete access keys
+            paginator = iam_client.get_paginator("list_access_keys")
+            for page in paginator.paginate(UserName=user_name):
+                for key in page.get("AccessKeyMetadata", []):
+                    iam_client.delete_access_key(
+                        UserName=user_name,
+                        AccessKeyId=key["AccessKeyId"],
+                    )
+                    logger.debug(f"Deleted access key {key['AccessKeyId']} for user {user_name}")
+
+            # 2. Deactivate and delete MFA devices
+            paginator = iam_client.get_paginator("list_mfa_devices")
+            for page in paginator.paginate(UserName=user_name):
+                for device in page.get("MFADevices", []):
+                    iam_client.deactivate_mfa_device(
+                        UserName=user_name,
+                        SerialNumber=device["SerialNumber"],
+                    )
+                    # Only delete virtual MFA devices (not hardware)
+                    if "arn:aws:iam::" in device["SerialNumber"] and "mfa/" in device["SerialNumber"]:
+                        try:
+                            iam_client.delete_virtual_mfa_device(
+                                SerialNumber=device["SerialNumber"],
+                            )
+                        except ClientError:
+                            pass  # May fail for hardware devices
+                    logger.debug(f"Deactivated MFA device {device['SerialNumber']} for user {user_name}")
+
+            # 3. Delete signing certificates
+            paginator = iam_client.get_paginator("list_signing_certificates")
+            for page in paginator.paginate(UserName=user_name):
+                for cert in page.get("Certificates", []):
+                    iam_client.delete_signing_certificate(
+                        UserName=user_name,
+                        CertificateId=cert["CertificateId"],
+                    )
+                    logger.debug(f"Deleted signing certificate {cert['CertificateId']} for user {user_name}")
+
+            # 4. Delete SSH public keys
+            paginator = iam_client.get_paginator("list_ssh_public_keys")
+            for page in paginator.paginate(UserName=user_name):
+                for key in page.get("SSHPublicKeys", []):
+                    iam_client.delete_ssh_public_key(
+                        UserName=user_name,
+                        SSHPublicKeyId=key["SSHPublicKeyId"],
+                    )
+                    logger.debug(f"Deleted SSH key {key['SSHPublicKeyId']} for user {user_name}")
+
+            # 5. Delete service-specific credentials
+            try:
+                response = iam_client.list_service_specific_credentials(UserName=user_name)
+                for cred in response.get("ServiceSpecificCredentials", []):
+                    iam_client.delete_service_specific_credential(
+                        UserName=user_name,
+                        ServiceSpecificCredentialId=cred["ServiceSpecificCredentialId"],
+                    )
+                    cred_id = cred["ServiceSpecificCredentialId"]
+                    logger.debug(f"Deleted service credential {cred_id} for user {user_name}")
+            except ClientError:
+                pass  # Service-specific credentials may not exist
+
+            # 6. Detach managed policies
+            paginator = iam_client.get_paginator("list_attached_user_policies")
+            for page in paginator.paginate(UserName=user_name):
+                for policy in page.get("AttachedPolicies", []):
+                    iam_client.detach_user_policy(
+                        UserName=user_name,
+                        PolicyArn=policy["PolicyArn"],
+                    )
+                    logger.debug(f"Detached policy {policy['PolicyArn']} from user {user_name}")
+
+            # 7. Delete inline policies
+            paginator = iam_client.get_paginator("list_user_policies")
+            for page in paginator.paginate(UserName=user_name):
+                for policy_name in page.get("PolicyNames", []):
+                    iam_client.delete_user_policy(
+                        UserName=user_name,
+                        PolicyName=policy_name,
+                    )
+                    logger.debug(f"Deleted inline policy {policy_name} from user {user_name}")
+
+            # 8. Remove user from all groups
+            paginator = iam_client.get_paginator("list_groups_for_user")
+            for page in paginator.paginate(UserName=user_name):
+                for group in page.get("Groups", []):
+                    iam_client.remove_user_from_group(
+                        GroupName=group["GroupName"],
+                        UserName=user_name,
+                    )
+                    logger.debug(f"Removed user {user_name} from group {group['GroupName']}")
+
+            # 9. Delete login profile (console password)
+            try:
+                iam_client.delete_login_profile(UserName=user_name)
+                logger.debug(f"Deleted login profile for user {user_name}")
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") != "NoSuchEntity":
+                    raise  # Re-raise if not "already deleted"
+
+            logger.info(f"Cleaned up IAM user {user_name} for deletion")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "NoSuchEntity":
+                return (True, None)  # User already deleted
+
+            return (False, f"Failed to cleanup IAM user: {error_code}: {error_message}")
