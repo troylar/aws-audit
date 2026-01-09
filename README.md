@@ -100,7 +100,7 @@ awsinv restore execute baseline --confirm  # Clean up new resources
 - Dependency-aware deletion
 - Multi-layer protection rules
 - Comprehensive audit logs
-- Supports 32+ resource types
+- Supports 41 resource types
 
 </td>
 <td>
@@ -311,7 +311,7 @@ awsinv restore execute <snapshot> --confirm  # Delete new resources
 
 **27 AWS Services:** EC2, Lambda, ECS, EKS, S3, EBS, EFS, RDS, DynamoDB, ElastiCache, VPC, Security Groups, Load Balancers, Route53, IAM, KMS, Secrets Manager, CodePipeline, CodeBuild, CloudFormation, Step Functions, CloudWatch, EventBridge, SNS, SQS, WAF, Backup
 
-**Restore supports 32+ resource types** with intelligent dependency resolution.
+**Restore supports 41 resource types** with intelligent dependency resolution and prerequisite cleanup for complex resources (S3 bucket emptying, IAM policy detachment, Route53 record cleanup, etc.).
 
 ---
 
