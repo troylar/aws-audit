@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from src.aws.client import (
     create_boto_client,
     get_enabled_regions,
-    test_client_connection,
+    check_client_connection,
     DEFAULT_RETRY_CONFIG,
 )
 
@@ -209,7 +209,7 @@ class TestGetEnabledRegions:
 
 
 class TestTestClientConnection:
-    """Tests for test_client_connection function."""
+    """Tests for check_client_connection function."""
 
     def test_connection_sts_client(self):
         """Test connection test for STS client."""
@@ -219,7 +219,7 @@ class TestTestClientConnection:
         mock_client._service_model = mock_service_model
         mock_client.get_caller_identity.return_value = {"Account": "123456789012"}
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is True
         mock_client.get_caller_identity.assert_called_once()
@@ -232,7 +232,7 @@ class TestTestClientConnection:
         mock_client._service_model = mock_service_model
         mock_client.describe_regions.return_value = {"Regions": []}
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is True
         mock_client.describe_regions.assert_called_once_with(MaxResults=1)
@@ -245,7 +245,7 @@ class TestTestClientConnection:
         mock_client._service_model = mock_service_model
         mock_client.list_users.return_value = {"Users": []}
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is True
         mock_client.list_users.assert_called_once_with(MaxItems=1)
@@ -258,7 +258,7 @@ class TestTestClientConnection:
         mock_client._service_model = mock_service_model
         mock_client.list_functions.return_value = {"Functions": []}
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is True
         mock_client.list_functions.assert_called_once_with(MaxItems=1)
@@ -271,7 +271,7 @@ class TestTestClientConnection:
         mock_client._service_model = mock_service_model
         mock_client.list_buckets.return_value = {"Buckets": []}
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is True
         mock_client.list_buckets.assert_called_once()
@@ -284,7 +284,7 @@ class TestTestClientConnection:
         mock_client._service_model = mock_service_model
         mock_client._make_api_call.return_value = {}
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is True
         mock_client._make_api_call.assert_called_once_with("ListObjects", {})
@@ -297,7 +297,7 @@ class TestTestClientConnection:
         mock_client._service_model = mock_service_model
         mock_client.get_caller_identity.side_effect = Exception("Connection failed")
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is False
 
@@ -312,6 +312,6 @@ class TestTestClientConnection:
             error_response, "DescribeRegions"
         )
 
-        result = test_client_connection(mock_client)
+        result = check_client_connection(mock_client)
 
         assert result is False
