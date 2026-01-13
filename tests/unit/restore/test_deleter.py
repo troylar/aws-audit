@@ -1182,3 +1182,376 @@ class TestWAFDeletion:
 
         assert success is True
         assert error is None
+
+
+class TestResourceDeleterAdditionalCoverage:
+    """Additional tests for edge cases and branches."""
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_resource_prerequisite_failure(self, mock_create_client: Mock) -> None:
+        """Test deletion fails when prerequisite cleanup fails."""
+        mock_client = Mock()
+        # S3 bucket with object lock enabled (cannot be emptied)
+        mock_client.get_object_lock_configuration.return_value = {
+            "ObjectLockConfiguration": {
+                "ObjectLockEnabled": "Enabled",
+                "Rule": {"DefaultRetention": {"Mode": "COMPLIANCE"}}
+            }
+        }
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::S3::Bucket",
+            resource_id="locked-bucket",
+            region="us-east-1",
+            arn="arn:aws:s3:::locked-bucket",
+        )
+
+        assert success is False
+        assert error is not None
+        assert "Object Lock" in error or "prerequisite" in error.lower() or "cannot be emptied" in error.lower()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_iam_user_success(self, mock_create_client: Mock) -> None:
+        """Test successful IAM user deletion with cleanup."""
+        mock_client = Mock()
+        mock_client.delete_user.return_value = {}
+        # Mock empty lists for all cleanup operations
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.list_access_keys.return_value = {"AccessKeyMetadata": []}
+        mock_client.list_mfa_devices.return_value = {"MFADevices": []}
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::IAM::User",
+            resource_id="test-user",
+            region="us-east-1",
+            arn="arn:aws:iam::123456789012:user/test-user",
+        )
+
+        assert success is True
+        assert error is None
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_waf_webacl_via_delete_resource(self, mock_create_client: Mock) -> None:
+        """Test WAF WebACL deletion through delete_resource method."""
+        mock_client = Mock()
+        # For cleanup
+        mock_client.get_web_acl.return_value = {
+            "WebACL": {"ARN": "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-webacl/id"},
+            "LockToken": "lock-token-123"
+        }
+        mock_client.list_resources_for_web_acl.return_value = {"ResourceArns": []}
+        mock_client.delete_web_acl.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::WAFv2::WebACL",
+            resource_id="webacl-123",
+            region="us-east-1",
+            arn="arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-webacl/webacl-123",
+        )
+
+        assert success is True
+        assert error is None
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_delete_waf_rulegroup_via_delete_resource(self, mock_create_client: Mock) -> None:
+        """Test WAF RuleGroup deletion through delete_resource method."""
+        mock_client = Mock()
+        mock_client.get_rule_group.return_value = {
+            "RuleGroup": {},
+            "LockToken": "lock-token-456"
+        }
+        mock_client.delete_rule_group.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::WAFv2::RuleGroup",
+            resource_id="rulegroup-123",
+            region="us-east-1",
+            arn="arn:aws:wafv2:us-east-1:123456789012:regional/rulegroup/my-rulegroup/rulegroup-123",
+        )
+
+        assert success is True
+        assert error is None
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_s3_bucket_fallback_for_non_versioned(self, mock_create_client: Mock) -> None:
+        """Test S3 bucket emptying falls back for non-versioned buckets."""
+        mock_client = Mock()
+        mock_client.delete_bucket.return_value = {}
+        # No object lock
+        mock_client.get_object_lock_configuration.side_effect = ClientError(
+            {"Error": {"Code": "ObjectLockConfigurationNotFoundError"}},
+            "GetObjectLockConfiguration",
+        )
+        # Versioning fails, triggers fallback
+        version_paginator = Mock()
+        version_paginator.paginate.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchVersion", "Message": "Versioning not enabled"}},
+            "ListObjectVersions"
+        )
+        object_paginator = Mock()
+        object_paginator.paginate.return_value = [
+            {"Contents": [{"Key": "file1.txt"}, {"Key": "file2.txt"}]}
+        ]
+
+        def get_paginator(operation):
+            if operation == "list_object_versions":
+                return version_paginator
+            return object_paginator
+
+        mock_client.get_paginator = get_paginator
+        mock_client.delete_objects.return_value = {}
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter.delete_resource(
+            resource_type="AWS::S3::Bucket",
+            resource_id="non-versioned-bucket",
+            region="us-east-1",
+            arn="arn:aws:s3:::non-versioned-bucket",
+        )
+
+        assert success is True
+        assert error is None
+        mock_client.delete_objects.assert_called()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_iam_user_cleanup_with_access_keys(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup with access keys."""
+        mock_client = Mock()
+        mock_client.delete_access_key.return_value = {}
+
+        # Mock paginators for all operations
+        def get_paginator_side_effect(operation):
+            paginator = Mock()
+            if operation == "list_access_keys":
+                paginator.paginate.return_value = [
+                    {"AccessKeyMetadata": [{"AccessKeyId": "AKIAIOSFODNN7EXAMPLE"}]}
+                ]
+            elif operation == "list_mfa_devices":
+                paginator.paginate.return_value = [{"MFADevices": []}]
+            else:
+                paginator.paginate.return_value = [{}]
+            return paginator
+
+        mock_client.get_paginator.side_effect = get_paginator_side_effect
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("test-user")
+
+        assert success is True
+        assert error is None
+        mock_client.delete_access_key.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_iam_user_cleanup_with_mfa_devices(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup with MFA devices."""
+        mock_client = Mock()
+        mock_client.deactivate_mfa_device.return_value = {}
+        mock_client.delete_virtual_mfa_device.return_value = {}
+
+        def get_paginator_side_effect(operation):
+            paginator = Mock()
+            if operation == "list_access_keys":
+                paginator.paginate.return_value = [{"AccessKeyMetadata": []}]
+            elif operation == "list_mfa_devices":
+                paginator.paginate.return_value = [
+                    {"MFADevices": [{"SerialNumber": "arn:aws:iam::123456789012:mfa/user-mfa"}]}
+                ]
+            else:
+                paginator.paginate.return_value = [{}]
+            return paginator
+
+        mock_client.get_paginator.side_effect = get_paginator_side_effect
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("test-user")
+
+        assert success is True
+        assert error is None
+        mock_client.deactivate_mfa_device.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_iam_user_cleanup_mfa_delete_fails(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup continues when MFA device deletion fails."""
+        mock_client = Mock()
+        mock_client.list_access_keys.return_value = {"AccessKeyMetadata": []}
+        mock_client.list_mfa_devices.return_value = {
+            "MFADevices": [{"SerialNumber": "arn:aws:iam::123456789012:mfa/user-mfa"}]
+        }
+        mock_client.deactivate_mfa_device.return_value = {}
+        # Hardware MFA device cannot be deleted
+        mock_client.delete_virtual_mfa_device.side_effect = ClientError(
+            {"Error": {"Code": "InvalidInput", "Message": "Cannot delete hardware device"}},
+            "DeleteVirtualMFADevice"
+        )
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("test-user")
+
+        # Should still succeed - MFA delete failure is ignored
+        assert success is True
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_iam_user_cleanup_with_signing_certificates(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup with signing certificates."""
+        mock_client = Mock()
+        mock_client.list_access_keys.return_value = {"AccessKeyMetadata": []}
+        mock_client.list_mfa_devices.return_value = {"MFADevices": []}
+
+        # Mock paginator for signing certificates
+        def get_paginator_side_effect(operation):
+            paginator = Mock()
+            if operation == "list_signing_certificates":
+                paginator.paginate.return_value = [
+                    {"Certificates": [{"CertificateId": "cert-123"}]}
+                ]
+            elif operation == "list_ssh_public_keys":
+                paginator.paginate.return_value = [{}]
+            else:
+                paginator.paginate.return_value = [{}]
+            return paginator
+
+        mock_client.get_paginator.side_effect = get_paginator_side_effect
+        mock_client.delete_signing_certificate.return_value = {}
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("test-user")
+
+        assert success is True
+        mock_client.delete_signing_certificate.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_iam_user_cleanup_with_ssh_keys(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup with SSH public keys."""
+        mock_client = Mock()
+        mock_client.list_access_keys.return_value = {"AccessKeyMetadata": []}
+        mock_client.list_mfa_devices.return_value = {"MFADevices": []}
+
+        def get_paginator_side_effect(operation):
+            paginator = Mock()
+            if operation == "list_ssh_public_keys":
+                paginator.paginate.return_value = [
+                    {"SSHPublicKeys": [{"SSHPublicKeyId": "ssh-key-123"}]}
+                ]
+            else:
+                paginator.paginate.return_value = [{}]
+            return paginator
+
+        mock_client.get_paginator.side_effect = get_paginator_side_effect
+        mock_client.delete_ssh_public_key.return_value = {}
+        mock_client.list_service_specific_credentials.return_value = {"ServiceSpecificCredentials": []}
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("test-user")
+
+        assert success is True
+        mock_client.delete_ssh_public_key.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_iam_user_cleanup_with_service_credentials(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup with service-specific credentials."""
+        mock_client = Mock()
+        mock_client.list_access_keys.return_value = {"AccessKeyMetadata": []}
+        mock_client.list_mfa_devices.return_value = {"MFADevices": []}
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.list_service_specific_credentials.return_value = {
+            "ServiceSpecificCredentials": [
+                {"ServiceSpecificCredentialId": "cred-123", "ServiceName": "codecommit"}
+            ]
+        }
+        mock_client.delete_service_specific_credential.return_value = {}
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("test-user")
+
+        assert success is True
+        mock_client.delete_service_specific_credential.assert_called_once()
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_iam_user_cleanup_service_credentials_fails_gracefully(self, mock_create_client: Mock) -> None:
+        """Test IAM user cleanup continues when service credentials listing fails."""
+        mock_client = Mock()
+        mock_client.list_access_keys.return_value = {"AccessKeyMetadata": []}
+        mock_client.list_mfa_devices.return_value = {"MFADevices": []}
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{}]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.list_service_specific_credentials.side_effect = ClientError(
+            {"Error": {"Code": "AccessDenied"}}, "ListServiceSpecificCredentials"
+        )
+        mock_client.delete_login_profile.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchEntity"}}, "DeleteLoginProfile"
+        )
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._cleanup_iam_user("test-user")
+
+        # Should still succeed - service credentials failure is ignored
+        assert success is True
+
+    @patch("src.restore.deleter.create_boto_client")
+    def test_prerequisite_cleanup_exception_handling(self, mock_create_client: Mock) -> None:
+        """Test prerequisite cleanup catches unexpected exceptions."""
+        mock_client = Mock()
+        # Cause an unexpected exception
+        mock_client.get_object_lock_configuration.side_effect = ValueError("Unexpected error")
+        mock_create_client.return_value = mock_client
+
+        deleter = ResourceDeleter()
+        success, error = deleter._prepare_for_deletion(
+            resource_type="AWS::S3::Bucket",
+            resource_id="test-bucket",
+            region="us-east-1",
+            arn="arn:aws:s3:::test-bucket",
+        )
+
+        assert success is False
+        assert "Prerequisite cleanup failed" in error

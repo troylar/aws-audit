@@ -154,3 +154,23 @@ class TestElastiCacheEncryptionCheck:
         findings = check.execute(snapshot)
 
         assert len(findings) == 0
+
+    def test_cluster_with_raw_config_none(self) -> None:
+        """Test that cluster with raw_config=None is skipped."""
+        from src.models.resource import Resource
+
+        cluster = Resource(
+            arn="arn:aws:elasticache:us-east-1:123456789012:cluster:no-config",
+            resource_type="elasticache:cluster",
+            name="no-config",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config=None,
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[cluster])
+
+        check = ElastiCacheEncryptionCheck()
+        findings = check.execute(snapshot)
+
+        assert len(findings) == 0

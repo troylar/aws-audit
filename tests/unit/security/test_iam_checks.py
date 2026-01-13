@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
+from src.models.resource import Resource
 from src.models.security_finding import Severity
 from src.security.checks.iam_checks import IAMCredentialAgeCheck
 from tests.fixtures.snapshots import create_iam_user, create_mock_snapshot
@@ -109,3 +112,112 @@ class TestIAMCredentialAgeCheck:
         findings = check.execute(snapshot)
 
         assert len(findings) == 0
+
+    def test_user_with_raw_config_none(self) -> None:
+        """Test that user with raw_config=None is skipped."""
+        # Create user with raw_config=None
+        user = Resource(
+            arn="arn:aws:iam::123456789012:user/no-config-user",
+            resource_type="iam:user",
+            name="no-config-user",
+            region="global",
+            config_hash="a" * 64,
+            raw_config=None,  # No config
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[user])
+
+        check = IAMCredentialAgeCheck()
+        findings = check.execute(snapshot)
+
+        # Should be skipped, no findings
+        assert len(findings) == 0
+
+    def test_access_key_without_create_date(self) -> None:
+        """Test that access key without CreateDate is skipped."""
+        # Create user with access key that has no CreateDate
+        user = Resource(
+            arn="arn:aws:iam::123456789012:user/no-date-user",
+            resource_type="iam:user",
+            name="no-date-user",
+            region="global",
+            config_hash="a" * 64,
+            raw_config={
+                "UserName": "no-date-user",
+                "AccessKeys": [
+                    {"AccessKeyId": "AKIAXXXXXXXXXXXXXXXX", "Status": "Active"}
+                    # No CreateDate field
+                ],
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[user])
+
+        check = IAMCredentialAgeCheck()
+        findings = check.execute(snapshot)
+
+        # Should be skipped, no findings
+        assert len(findings) == 0
+
+    def test_access_key_with_datetime_object(self) -> None:
+        """Test handling access key with datetime object instead of string."""
+        # Create date 120 days ago as datetime object (not string)
+        key_created = datetime.now(timezone.utc) - timedelta(days=120)
+
+        user = Resource(
+            arn="arn:aws:iam::123456789012:user/datetime-user",
+            resource_type="iam:user",
+            name="datetime-user",
+            region="global",
+            config_hash="a" * 64,
+            raw_config={
+                "UserName": "datetime-user",
+                "AccessKeys": [
+                    {
+                        "AccessKeyId": "AKIAXXXXXXXXXXXXXXXX",
+                        "CreateDate": key_created,  # datetime object, not string
+                        "Status": "Active",
+                    }
+                ],
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[user])
+
+        check = IAMCredentialAgeCheck()
+        findings = check.execute(snapshot)
+
+        # Should find the old key
+        assert len(findings) == 1
+        assert "120" in findings[0].description
+
+    def test_access_key_with_naive_datetime_object(self) -> None:
+        """Test handling access key with naive datetime object (no timezone)."""
+        # Create date 120 days ago as naive datetime (no tzinfo)
+        key_created = datetime.now() - timedelta(days=120)
+
+        user = Resource(
+            arn="arn:aws:iam::123456789012:user/naive-datetime-user",
+            resource_type="iam:user",
+            name="naive-datetime-user",
+            region="global",
+            config_hash="a" * 64,
+            raw_config={
+                "UserName": "naive-datetime-user",
+                "AccessKeys": [
+                    {
+                        "AccessKeyId": "AKIAXXXXXXXXXXXXXXXX",
+                        "CreateDate": key_created,  # naive datetime (no timezone)
+                        "Status": "Active",
+                    }
+                ],
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[user])
+
+        check = IAMCredentialAgeCheck()
+        findings = check.execute(snapshot)
+
+        # Should find the old key after adding UTC timezone
+        assert len(findings) == 1

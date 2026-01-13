@@ -259,3 +259,99 @@ class TestEKSCollector:
 
         assert len(resources) == 2
         assert {r.name for r in resources} == {"my-cluster/ng-1", "my-cluster/ng-2"}
+
+    def test_collect_clusters_describe_error(self, collector):
+        """Test that cluster collection continues when describe_cluster fails for one cluster."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [{"clusters": ["good-cluster", "bad-cluster"]}]
+
+        def describe_cluster_side_effect(name):
+            if name == "bad-cluster":
+                raise Exception("Describe failed")
+            return {
+                "cluster": {
+                    "name": name,
+                    "arn": f"arn:aws:eks:us-east-1:123456789012:cluster/{name}",
+                    "createdAt": datetime.now(timezone.utc),
+                    "tags": {},
+                }
+            }
+
+        mock_client.describe_cluster.side_effect = describe_cluster_side_effect
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources, cluster_names = collector._collect_clusters()
+
+        # Should get both cluster names but only one resource
+        assert len(cluster_names) == 2
+        assert len(resources) == 1
+        assert resources[0].name == "good-cluster"
+
+    def test_collect_node_groups_describe_error(self, collector):
+        """Test that node group collection continues when describe_nodegroup fails."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [{"nodegroups": ["good-ng", "bad-ng"]}]
+
+        def describe_nodegroup_side_effect(clusterName, nodegroupName):
+            if nodegroupName == "bad-ng":
+                raise Exception("Describe failed")
+            return {
+                "nodegroup": {
+                    "nodegroupName": nodegroupName,
+                    "nodegroupArn": f"arn:aws:eks:us-east-1:123456789012:nodegroup/{clusterName}/{nodegroupName}/abc",
+                    "createdAt": datetime.now(timezone.utc),
+                    "tags": {},
+                }
+            }
+
+        mock_client.describe_nodegroup.side_effect = describe_nodegroup_side_effect
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector._collect_node_groups(["my-cluster"])
+
+        # Should only get the good node group
+        assert len(resources) == 1
+        assert resources[0].name == "my-cluster/good-ng"
+
+    def test_collect_fargate_profiles_describe_error(self, collector):
+        """Test that Fargate profile collection continues when describe fails."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [{"fargateProfileNames": ["good-profile", "bad-profile"]}]
+
+        def describe_fargate_side_effect(clusterName, fargateProfileName):
+            if fargateProfileName == "bad-profile":
+                raise Exception("Describe failed")
+            return {
+                "fargateProfile": {
+                    "fargateProfileName": fargateProfileName,
+                    "fargateProfileArn": f"arn:aws:eks:us-east-1:123456789012:fargateprofile/{clusterName}/{fargateProfileName}/abc",
+                    "createdAt": datetime.now(timezone.utc),
+                    "tags": {},
+                }
+            }
+
+        mock_client.describe_fargate_profile.side_effect = describe_fargate_side_effect
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector._collect_fargate_profiles(["my-cluster"])
+
+        # Should only get the good profile
+        assert len(resources) == 1
+        assert resources[0].name == "my-cluster/good-profile"
+
+    def test_collect_fargate_profiles_no_clusters(self, collector):
+        """Test collecting Fargate profiles when no clusters provided."""
+        mock_client = MagicMock()
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector._collect_fargate_profiles([])
+
+        assert len(resources) == 0
+        # Should not call paginator if no clusters
+        mock_client.get_paginator.assert_not_called()

@@ -117,4 +117,7 @@ class ProtectionRule:
             resource_cost = resource.get("estimated_monthly_cost", 0)
             return resource_cost >= self.threshold_value
 
+        elif self.rule_type == RuleType.NATIVE:
+            return resource.get("has_native_protection", False)
+
         return False

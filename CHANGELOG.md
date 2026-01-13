@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-01-13
+
+### Added
+- **AWS Config Integration**: Hybrid collection system that automatically uses AWS Config when available
+  - `--use-config/--no-config` flag to enable/disable Config-based collection (default: enabled)
+  - `--config-aggregator <name>` flag for multi-account collection via Config Aggregators
+  - Automatic detection of AWS Config availability per region
+  - Seamless fallback to direct API collectors when Config is unavailable
+  - Support for 80+ resource types via AWS Config
+  - Per-resource `source` field tracking (`config` or `direct_api`)
+
+### New Modules
+- `src/config_service/detector.py` - AWS Config availability detection
+- `src/config_service/collector.py` - Config-based resource collection
+- `src/config_service/resource_type_mapping.py` - Resource type support mapping
+
+### Changed
+- Resource model now includes `source` field for collection transparency
+- Architecture updated to show hybrid collection layer
+- Snapshot metadata includes `collection_sources` and `config_enabled_regions`
+
+### Testing
+- 33 new unit tests for config_service module (85-91% coverage)
+- 7 new tests for Resource model source field
+
 ## [0.6.0] - 2026-01-09
 
 ### Added

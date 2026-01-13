@@ -396,3 +396,85 @@ class TestResourceModel:
         # Ensure to_dict works correctly
         data_out = resource.to_dict()
         assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"
+
+    def test_resource_source_default(self):
+        """Test that source defaults to 'direct_api'."""
+        resource = Resource(
+            arn="arn:aws:s3:::my-bucket",
+            resource_type="s3:bucket",
+            name="my-bucket",
+            region="us-east-1",
+            config_hash="v" * 64,
+            raw_config={},
+        )
+        assert resource.source == "direct_api"
+
+    def test_resource_source_config(self):
+        """Test setting source to 'config'."""
+        resource = Resource(
+            arn="arn:aws:s3:::my-bucket",
+            resource_type="s3:bucket",
+            name="my-bucket",
+            region="us-east-1",
+            config_hash="w" * 64,
+            raw_config={},
+            source="config",
+        )
+        assert resource.source == "config"
+
+    def test_resource_source_serialization(self):
+        """Test that source is included in to_dict."""
+        resource = Resource(
+            arn="arn:aws:s3:::my-bucket",
+            resource_type="s3:bucket",
+            name="my-bucket",
+            region="us-east-1",
+            config_hash="x" * 64,
+            raw_config={},
+            source="config",
+        )
+        data = resource.to_dict()
+        assert data["source"] == "config"
+
+    def test_resource_source_deserialization(self):
+        """Test that source is read from dict."""
+        data = {
+            "arn": "arn:aws:s3:::my-bucket",
+            "type": "s3:bucket",
+            "name": "my-bucket",
+            "region": "us-east-1",
+            "config_hash": "y" * 64,
+            "raw_config": {},
+            "source": "config",
+        }
+        resource = Resource.from_dict(data)
+        assert resource.source == "config"
+
+    def test_resource_source_default_for_old_snapshots(self):
+        """Test that missing source defaults to 'direct_api' for backward compatibility."""
+        data = {
+            "arn": "arn:aws:s3:::my-bucket",
+            "type": "s3:bucket",
+            "name": "my-bucket",
+            "region": "us-east-1",
+            "config_hash": "z" * 64,
+            "raw_config": {},
+            # No source field - simulates old snapshot
+        }
+        resource = Resource.from_dict(data)
+        assert resource.source == "direct_api"
+
+    def test_resource_source_roundtrip(self):
+        """Test source field survives serialization roundtrip."""
+        original = Resource(
+            arn="arn:aws:ec2:us-east-1:123456789012:instance/i-123",
+            resource_type="ec2:instance",
+            name="my-instance",
+            region="us-east-1",
+            config_hash="1" * 64,
+            raw_config={},
+            source="config",
+        )
+        data = original.to_dict()
+        restored = Resource.from_dict(data)
+        assert restored.source == original.source

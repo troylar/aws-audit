@@ -18,6 +18,7 @@ class Resource:
     raw_config: Optional[Dict[str, Any]] = None  # Optional for backward compatibility with v1.0 snapshots
     tags: Dict[str, str] = field(default_factory=dict)
     created_at: Optional[datetime] = None
+    source: str = "direct_api"  # Collection source: "config" or "direct_api"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert resource to dictionary for serialization.
@@ -33,6 +34,7 @@ class Resource:
             "config_hash": self.config_hash,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "raw_config": self.raw_config if self.raw_config is not None else {},
+            "source": self.source,
         }
 
     @classmethod
@@ -57,6 +59,7 @@ class Resource:
             raw_config=data.get("raw_config"),  # Optional for backward compatibility
             tags=data.get("tags", {}),
             created_at=created_at,
+            source=data.get("source", "direct_api"),  # Default for older snapshots
         )
 
     def validate(self) -> bool:

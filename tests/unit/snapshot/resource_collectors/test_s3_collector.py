@@ -186,3 +186,45 @@ class TestS3Collector:
 
         assert len(resources) == 3
         assert {r.name for r in resources} == {"bucket-1", "bucket-2", "bucket-3"}
+
+    def test_collect_buckets_tagging_generic_error(self, collector):
+        """Test handling generic error getting bucket tags (not NoSuchTagSet)."""
+        mock_client = MagicMock()
+        mock_client.list_buckets.return_value = {
+            "Buckets": [{"Name": "tag-error-bucket", "CreationDate": datetime.now(timezone.utc)}]
+        }
+        mock_client.get_bucket_location.return_value = {"LocationConstraint": "us-west-2"}
+        # Set up exception class, but throw a different exception type
+        mock_client.exceptions = MagicMock()
+        mock_client.exceptions.NoSuchTagSet = type("NoSuchTagSet", (Exception,), {})
+        # Throw generic Exception (not NoSuchTagSet)
+        mock_client.get_bucket_tagging.side_effect = Exception("Access Denied")
+        mock_client.get_bucket_versioning.return_value = {}
+        mock_client.get_bucket_encryption.side_effect = Exception("No encryption")
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector.collect()
+
+        # Should still get the bucket without tags
+        assert len(resources) == 1
+        assert resources[0].tags == {}
+
+    def test_collect_buckets_versioning_error(self, collector):
+        """Test handling error getting bucket versioning."""
+        mock_client = MagicMock()
+        mock_client.list_buckets.return_value = {
+            "Buckets": [{"Name": "versioning-error-bucket", "CreationDate": datetime.now(timezone.utc)}]
+        }
+        mock_client.get_bucket_location.return_value = {"LocationConstraint": "us-west-2"}
+        mock_client.exceptions = MagicMock()
+        mock_client.exceptions.NoSuchTagSet = type("NoSuchTagSet", (Exception,), {})
+        mock_client.get_bucket_tagging.side_effect = mock_client.exceptions.NoSuchTagSet()
+        mock_client.get_bucket_versioning.side_effect = Exception("Access Denied")
+        mock_client.get_bucket_encryption.side_effect = Exception("No encryption")
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector.collect()
+
+        # Should still get the bucket without versioning info
+        assert len(resources) == 1
+        assert "Versioning" not in resources[0].raw_config

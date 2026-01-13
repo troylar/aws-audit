@@ -100,3 +100,23 @@ class TestRDSPublicCheck:
         findings = check.execute(snapshot)
 
         assert len(findings) == 0
+
+    def test_rds_with_raw_config_none(self) -> None:
+        """Test that RDS instance with raw_config=None is skipped."""
+        from src.models.resource import Resource
+
+        db = Resource(
+            arn="arn:aws:rds:us-east-1:123456789012:db:no-config-db",
+            resource_type="rds:db-instance",
+            name="no-config-db",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config=None,
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[db])
+
+        check = RDSPublicCheck()
+        findings = check.execute(snapshot)
+
+        assert len(findings) == 0

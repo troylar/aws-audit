@@ -226,3 +226,137 @@ class TestLambdaCollector:
         resource = resources[0]
         assert resource.name == "test-layer"
         assert resource.created_at is None
+
+    @patch.object(LambdaCollector, "_create_client")
+    @patch.object(LambdaCollector, "_get_account_id")
+    def test_collect_combines_functions_and_layers(self, mock_get_account_id, mock_create_client, collector):
+        """Test that collect() combines functions and layers."""
+        mock_get_account_id.return_value = "123456789012"
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+
+        # Setup function paginator
+        mock_func_paginator = MagicMock()
+        mock_func_paginator.paginate.return_value = [{
+            "Functions": [{
+                "FunctionName": "my-function",
+                "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+            }]
+        }]
+
+        # Setup layer paginator
+        mock_layer_paginator = MagicMock()
+        mock_layer_paginator.paginate.return_value = [{
+            "Layers": [{
+                "LayerName": "my-layer",
+                "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
+                "LatestMatchingVersion": {
+                    "LayerVersionArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1",
+                },
+            }]
+        }]
+
+        def get_paginator_side_effect(operation):
+            if operation == "list_functions":
+                return mock_func_paginator
+            elif operation == "list_layers":
+                return mock_layer_paginator
+
+        mock_client.get_paginator.side_effect = get_paginator_side_effect
+        mock_client.get_function.return_value = {"Configuration": {}, "Tags": {}}
+
+        resources = collector.collect()
+
+        assert len(resources) == 2
+        types = [r.resource_type for r in resources]
+        assert "AWS::Lambda::Function" in types
+        assert "AWS::Lambda::LayerVersion" in types
+
+    @patch.object(LambdaCollector, "_create_client")
+    def test_collect_functions_handles_list_error(self, mock_create_client, collector):
+        """Test collecting handles list_functions error."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.side_effect = Exception("Service unavailable")
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_create_client.return_value = mock_client
+
+        resources = collector._collect_functions("123456789012")
+
+        assert resources == []
+
+    @patch.object(LambdaCollector, "_create_client")
+    def test_collect_functions_handles_get_function_error(self, mock_create_client, collector):
+        """Test collecting continues when get_function fails."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [{
+            "Functions": [{
+                "FunctionName": "my-function",
+                "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+            }]
+        }]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.get_function.side_effect = Exception("Access denied")
+        mock_create_client.return_value = mock_client
+
+        resources = collector._collect_functions("123456789012")
+
+        # Should still get the function without tags
+        assert len(resources) == 1
+        assert resources[0].tags == {}
+
+    @patch.object(LambdaCollector, "_create_client")
+    def test_collect_layers_handles_list_error(self, mock_create_client, collector):
+        """Test collecting handles list_layers error."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.side_effect = Exception("Service unavailable")
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_create_client.return_value = mock_client
+
+        resources = collector._collect_layers("123456789012")
+
+        assert resources == []
+
+    @patch.object(LambdaCollector, "_create_client")
+    def test_collect_layers_without_latest_version(self, mock_create_client, collector):
+        """Test collecting layer when LatestMatchingVersion is missing."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [{
+            "Layers": [{
+                "LayerName": "my-layer",
+                "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
+                # No LatestMatchingVersion
+            }]
+        }]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_create_client.return_value = mock_client
+
+        resources = collector._collect_layers("123456789012")
+
+        # Should still get the layer using LayerArn
+        assert len(resources) == 1
+        assert resources[0].name == "my-layer"
+
+    @patch.object(LambdaCollector, "_create_client")
+    def test_collect_generates_config_hash(self, mock_create_client, collector):
+        """Test that config hash is generated."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [{
+            "Functions": [{
+                "FunctionName": "my-function",
+                "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+            }]
+        }]
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_client.get_function.return_value = {"Configuration": {}, "Tags": {}}
+        mock_create_client.return_value = mock_client
+
+        resources = collector._collect_functions("123456789012")
+
+        assert len(resources) == 1
+        assert resources[0].config_hash is not None
+        assert len(resources[0].config_hash) > 0

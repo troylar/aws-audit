@@ -248,3 +248,91 @@ class TestECSCollector:
 
         assert len(resources) == 2
         assert {r.name for r in resources} == {"cluster-1", "cluster-2"}
+
+    def test_collect_clusters_describe_error(self, collector):
+        """Test that cluster collection handles describe_clusters errors."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {"clusterArns": ["arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"]}
+        ]
+        mock_client.describe_clusters.side_effect = Exception("Describe failed")
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector._collect_clusters()
+
+        # Should return empty list on describe error
+        assert resources == []
+
+    def test_collect_services_describe_error(self, collector):
+        """Test that service collection handles describe_services errors."""
+        mock_client = MagicMock()
+
+        cluster_paginator = MagicMock()
+        cluster_paginator.paginate.return_value = [
+            {"clusterArns": ["arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"]}
+        ]
+
+        service_paginator = MagicMock()
+        service_paginator.paginate.return_value = [
+            {"serviceArns": ["arn:aws:ecs:us-east-1:123456789012:service/my-cluster/web-service"]}
+        ]
+
+        def get_paginator(operation):
+            if operation == "list_clusters":
+                return cluster_paginator
+            elif operation == "list_services":
+                return service_paginator
+            return MagicMock()
+
+        mock_client.get_paginator.side_effect = get_paginator
+        mock_client.describe_services.side_effect = Exception("Describe failed")
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector._collect_services()
+
+        # Should continue and return empty list on describe error
+        assert resources == []
+
+    def test_collect_task_definitions_describe_error(self, collector):
+        """Test that task definition collection handles describe errors."""
+        mock_client = MagicMock()
+        mock_paginator = MagicMock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {"taskDefinitionArns": ["arn:aws:ecs:us-east-1:123456789012:task-definition/web-task:1"]}
+        ]
+        mock_client.describe_task_definition.side_effect = Exception("Describe failed")
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector._collect_task_definitions()
+
+        # Should skip task definitions that fail to describe
+        assert resources == []
+
+    def test_collect_services_no_services_in_cluster(self, collector):
+        """Test collecting services when cluster has no services."""
+        mock_client = MagicMock()
+
+        cluster_paginator = MagicMock()
+        cluster_paginator.paginate.return_value = [
+            {"clusterArns": ["arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster"]}
+        ]
+
+        service_paginator = MagicMock()
+        service_paginator.paginate.return_value = [{"serviceArns": []}]
+
+        def get_paginator(operation):
+            if operation == "list_clusters":
+                return cluster_paginator
+            elif operation == "list_services":
+                return service_paginator
+            return MagicMock()
+
+        mock_client.get_paginator.side_effect = get_paginator
+
+        with patch.object(collector, "_create_client", return_value=mock_client):
+            resources = collector._collect_services()
+
+        assert resources == []

@@ -354,3 +354,62 @@ class TestEFSCollector:
         import re
 
         assert re.match(r"^[a-fA-F0-9]{64}$", resources[0].config_hash)
+
+    @patch("src.snapshot.resource_collectors.efs_collector.EFSCollector._create_client")
+    def test_collect_handles_individual_fs_error(self, mock_create_client: Mock, collector: EFSCollector) -> None:
+        """Test that collector handles errors processing individual file systems."""
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+
+        mock_paginator = MagicMock()
+        mock_client.get_paginator.return_value = mock_paginator
+
+        # Return file systems with one that will cause an error (missing required fields)
+        mock_paginator.paginate.return_value = [
+            {
+                "FileSystems": [
+                    {
+                        # Good file system
+                        "FileSystemId": "fs-good",
+                        "FileSystemArn": "arn:aws:elasticfilesystem:us-east-1:123456789012:file-system/fs-good",
+                        "CreationTime": datetime.now(timezone.utc),
+                        "LifeCycleState": "available",
+                        "PerformanceMode": "generalPurpose",
+                        "Encrypted": True,
+                        "Tags": [],
+                    },
+                    {
+                        # Bad file system - missing FileSystemArn will cause error
+                        "FileSystemId": "fs-bad",
+                        # Missing FileSystemArn
+                        "CreationTime": datetime.now(timezone.utc),
+                        "LifeCycleState": "available",
+                        "PerformanceMode": "generalPurpose",
+                        "Encrypted": False,
+                        "Tags": [],
+                    },
+                ]
+            }
+        ]
+
+        resources = collector.collect()
+
+        # Should get at least the good file system (may or may not get bad one depending on implementation)
+        # The key thing is no exception is raised
+        assert len(resources) >= 1
+        assert any(r.name == "fs-good" for r in resources)
+
+    @patch("src.snapshot.resource_collectors.efs_collector.EFSCollector._create_client")
+    def test_collect_handles_unknown_client_error(self, mock_create_client: Mock, collector: EFSCollector) -> None:
+        """Test that collector handles unknown ClientError codes."""
+        mock_client = MagicMock()
+        mock_create_client.return_value = mock_client
+
+        # Mock ClientError with unknown error code
+        error_response = {"Error": {"Code": "UnknownErrorCode", "Message": "Something unexpected happened"}}
+        mock_client.get_paginator.side_effect = ClientError(error_response, "describe_file_systems")
+
+        resources = collector.collect()
+
+        # Should return empty list on unknown error
+        assert len(resources) == 0

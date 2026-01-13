@@ -420,3 +420,52 @@ class TestSafetyChecker:
         assert "100" in reason
         assert "cost" in reason.lower()
         assert "rule_cost_no_desc" in reason
+
+    def test_is_protected_by_native_rule(self) -> None:
+        """Test resource protected by native protection rule."""
+        rules = [
+            ProtectionRule(
+                rule_id="rule_native",
+                rule_type=RuleType.NATIVE,
+                enabled=True,
+                priority=1,
+                patterns={"protection": "termination_protection"},
+                description="Native protection enabled",
+            )
+        ]
+
+        checker = SafetyChecker(rules=rules)
+        resource = {
+            "resource_id": "i-protected-instance",
+            "has_native_protection": True,
+        }
+
+        is_protected, reason = checker.is_protected(resource)
+
+        assert is_protected is True
+        assert "native" in reason.lower() or "rule_native" in reason
+
+    def test_protection_reason_with_native_rule_no_description(self) -> None:
+        """Test _get_protection_reason generates default reason for native rule without description."""
+        rules = [
+            ProtectionRule(
+                rule_id="rule_native_no_desc",
+                rule_type=RuleType.NATIVE,
+                enabled=True,
+                priority=1,
+                patterns={},
+                # No description provided
+            )
+        ]
+
+        checker = SafetyChecker(rules=rules)
+        resource = {
+            "resource_id": "i-native-protected",
+            "has_native_protection": True,
+        }
+
+        is_protected, reason = checker.is_protected(resource)
+
+        assert is_protected is True
+        # Should include "native" in reason
+        assert "native" in reason.lower() or "rule_native_no_desc" in reason

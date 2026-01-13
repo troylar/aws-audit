@@ -202,3 +202,99 @@ class TestSecurityReporter:
 
         assert "findings" in data
         assert len(data["findings"]) == 0
+
+    def test_format_terminal_with_all_severities(self) -> None:
+        """Test formatting findings with all severity levels."""
+        findings = [
+            SecurityFinding(
+                resource_arn="arn:aws:s3:::critical-bucket",
+                finding_type="s3_public_bucket",
+                severity=Severity.CRITICAL,
+                description="Critical issue",
+                remediation="Fix critical",
+            ),
+            SecurityFinding(
+                resource_arn="arn:aws:ec2:us-east-1:123:sg/sg-high",
+                finding_type="security_group_open",
+                severity=Severity.HIGH,
+                description="High issue",
+                remediation="Fix high",
+            ),
+            SecurityFinding(
+                resource_arn="arn:aws:ec2:us-east-1:123:instance/i-medium",
+                finding_type="ec2_imdsv1",
+                severity=Severity.MEDIUM,
+                description="Medium issue",
+                remediation="Fix medium",
+            ),
+            SecurityFinding(
+                resource_arn="arn:aws:s3:::low-bucket",
+                finding_type="minor_issue",
+                severity=Severity.LOW,
+                description="Low issue",
+                remediation="Fix low",
+            ),
+        ]
+
+        reporter = SecurityReporter()
+        output = reporter.format_terminal(findings)
+
+        # Should contain all severity levels
+        assert "CRITICAL" in output or "critical" in output.lower()
+        assert "HIGH" in output or "high" in output.lower()
+        assert "MEDIUM" in output or "medium" in output.lower()
+        assert "LOW" in output or "low" in output.lower()
+
+    def test_format_terminal_with_long_description(self) -> None:
+        """Test that long descriptions are truncated in terminal output."""
+        long_description = "This is a very long description that exceeds sixty characters and should be truncated when displayed in the terminal table output."
+
+        finding = SecurityFinding(
+            resource_arn="arn:aws:s3:::test-bucket",
+            finding_type="test_finding",
+            severity=Severity.HIGH,
+            description=long_description,
+            remediation="Fix it",
+        )
+
+        reporter = SecurityReporter()
+        output = reporter.format_terminal([finding])
+
+        # Output should contain truncated version (not the full description)
+        assert output is not None
+        # The full description should not appear
+        assert long_description not in output
+        # Should contain "..." indicating truncation
+        assert "..." in output
+
+    def test_format_terminal_resource_with_slash_in_arn(self) -> None:
+        """Test resource display for ARN with slash."""
+        finding = SecurityFinding(
+            resource_arn="arn:aws:ec2:us-east-1:123456789012:instance/i-12345678",
+            finding_type="test_finding",
+            severity=Severity.MEDIUM,
+            description="Test finding",
+            remediation="Fix it",
+        )
+
+        reporter = SecurityReporter()
+        output = reporter.format_terminal([finding])
+
+        # Should extract resource ID from ARN
+        assert "i-12345678" in output
+
+    def test_format_terminal_resource_with_colon_in_arn(self) -> None:
+        """Test resource display for ARN without slash (uses colon)."""
+        finding = SecurityFinding(
+            resource_arn="arn:aws:s3:::my-bucket-name",
+            finding_type="test_finding",
+            severity=Severity.LOW,
+            description="Test finding",
+            remediation="Fix it",
+        )
+
+        reporter = SecurityReporter()
+        output = reporter.format_terminal([finding])
+
+        # Should extract resource ID from ARN (last part after colon)
+        assert "my-bucket-name" in output

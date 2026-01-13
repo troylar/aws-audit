@@ -91,3 +91,23 @@ class TestS3PublicBucketCheck:
         assert findings[0].remediation
         assert len(findings[0].remediation) > 0
         assert "block public access" in findings[0].remediation.lower()
+
+    def test_bucket_with_raw_config_none(self) -> None:
+        """Test that bucket with raw_config=None is skipped."""
+        from src.models.resource import Resource
+
+        bucket = Resource(
+            arn="arn:aws:s3:::no-config-bucket",
+            resource_type="s3:bucket",
+            name="no-config-bucket",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config=None,
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[bucket])
+
+        check = S3PublicBucketCheck()
+        findings = check.execute(snapshot)
+
+        assert len(findings) == 0

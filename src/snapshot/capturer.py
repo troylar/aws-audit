@@ -13,6 +13,17 @@ from ..models.snapshot import Snapshot
 
 if TYPE_CHECKING:
     from .filter import ResourceFilter
+
+# Import Config service integration
+from ..config_service.collector import ConfigResourceCollector
+from ..config_service.detector import (
+    ConfigAvailability,
+    detect_config_availability,
+)
+from ..config_service.resource_type_mapping import (
+    COLLECTOR_TO_CONFIG_TYPES,
+    is_config_supported_type,
+)
 from .resource_collectors.apigateway import APIGatewayCollector
 from .resource_collectors.backup import BackupCollector
 from .resource_collectors.base import BaseResourceCollector
@@ -87,6 +98,8 @@ def create_snapshot(
     parallel_workers: int = 10,
     resource_filter: Optional["ResourceFilter"] = None,
     inventory_name: str = "default",
+    use_config: bool = True,
+    config_aggregator: Optional[str] = None,
 ) -> Snapshot:
     """Create a comprehensive snapshot of AWS resources.
 
@@ -100,11 +113,15 @@ def create_snapshot(
         parallel_workers: Number of parallel collection tasks
         resource_filter: Optional ResourceFilter for date/tag-based filtering
         inventory_name: Name of inventory this snapshot belongs to (default: "default")
+        use_config: Use AWS Config for collection when available (default: True)
+        config_aggregator: Optional Config Aggregator name for multi-account collection
 
     Returns:
         Snapshot instance with captured resources
     """
     logger.debug(f"Creating snapshot '{name}' for regions: {regions}")
+    if use_config:
+        logger.debug("AWS Config collection enabled (will fall back to direct API if unavailable)")
 
     # Create session with optional profile
     session_kwargs = {}
@@ -112,6 +129,24 @@ def create_snapshot(
         session_kwargs["profile_name"] = profile_name
 
     session = boto3.Session(**session_kwargs)
+
+    # Detect AWS Config availability per region if Config collection is enabled
+    config_availability: Dict[str, ConfigAvailability] = {}
+    collection_sources: Dict[str, str] = {}  # Track source per resource type
+
+    if use_config:
+        logger.debug("Detecting AWS Config availability...")
+        for region in regions:
+            try:
+                availability = detect_config_availability(session, region, profile_name)
+                config_availability[region] = availability
+                if availability.is_enabled:
+                    logger.debug(f"  {region}: Config enabled (all_supported={availability.recording_group_all_supported})")
+                else:
+                    logger.debug(f"  {region}: Config not available ({availability.error_message})")
+            except Exception as e:
+                logger.debug(f"  {region}: Config detection failed ({e})")
+                config_availability[region] = ConfigAvailability(region=region, error_message=str(e))
 
     # Collect resources
     all_resources = []
@@ -171,11 +206,66 @@ def create_snapshot(
                 with lock:
                     progress.update(main_task, description=f"📦 {service_name} • {region_label}")
 
-                resources = collector.collect()
+                resources = []
+                source = "direct_api"
 
-                logger.debug(f"Collected {len(resources)} {service_name} resources from {region_label}")
+                # Check if we should use AWS Config for this service/region
+                config_region = "us-east-1" if is_global else region
+                region_config = config_availability.get(config_region)
+                service_config_types = COLLECTOR_TO_CONFIG_TYPES.get(collector.service_name, [])
 
-                return {"success": True, "resources": resources, "service": service_name, "region": region_label}
+                if (
+                    use_config
+                    and region_config
+                    and region_config.is_enabled
+                    and service_config_types
+                ):
+                    # Try to collect via AWS Config
+                    try:
+                        config_collector = ConfigResourceCollector(
+                            session, config_region, profile_name, region_config
+                        )
+
+                        # Collect each resource type this service handles
+                        for config_type in service_config_types:
+                            if region_config.supports_resource_type(config_type):
+                                type_resources = config_collector.collect_by_type(config_type)
+                                resources.extend(type_resources)
+                                with lock:
+                                    collection_sources[config_type] = "config"
+
+                        if resources:
+                            source = "config"
+                            logger.debug(
+                                f"Collected {len(resources)} {service_name} resources via Config from {region_label}"
+                            )
+
+                    except Exception as config_error:
+                        logger.debug(
+                            f"Config collection failed for {service_name} in {region_label}, "
+                            f"falling back to direct API: {config_error}"
+                        )
+                        resources = []  # Reset to trigger fallback
+
+                # Fall back to direct API if Config didn't work or isn't available
+                if not resources:
+                    resources = collector.collect()
+                    source = "direct_api"
+                    # Track source for each resource type
+                    for resource in resources:
+                        with lock:
+                            if resource.resource_type not in collection_sources:
+                                collection_sources[resource.resource_type] = "direct_api"
+
+                logger.debug(f"Collected {len(resources)} {service_name} resources from {region_label} via {source}")
+
+                return {
+                    "success": True,
+                    "resources": resources,
+                    "service": service_name,
+                    "region": region_label,
+                    "source": source,
+                }
 
             except Exception as e:
                 error_msg = str(e)
@@ -273,6 +363,12 @@ def create_snapshot(
     for resource in all_resources:
         service_counts[resource.resource_type] = service_counts.get(resource.resource_type, 0) + 1
 
+    # Build Config-related metadata
+    config_enabled_regions = [
+        region for region, avail in config_availability.items()
+        if avail.is_enabled
+    ] if use_config else []
+
     # Create snapshot
     snapshot = Snapshot(
         name=name,
@@ -285,6 +381,10 @@ def create_snapshot(
             "version": "1.0.0",
             "collectors_used": [c(session, "us-east-1").service_name for c in collectors_to_use],
             "collection_errors": collection_errors if collection_errors else None,
+            "use_config": use_config,
+            "config_aggregator": config_aggregator,
+            "config_enabled_regions": config_enabled_regions if config_enabled_regions else None,
+            "collection_sources": collection_sources if collection_sources else None,
         },
         is_active=set_active,
         service_counts=service_counts,

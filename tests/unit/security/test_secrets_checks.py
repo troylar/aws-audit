@@ -96,3 +96,112 @@ class TestSecretsRotationCheck:
         findings = check.execute(snapshot)
 
         assert len(findings) == 0
+
+    def test_secret_with_raw_config_none(self) -> None:
+        """Test that secret with raw_config=None is skipped."""
+        from src.models.resource import Resource
+
+        # Create secret with raw_config=None
+        secret = Resource(
+            arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:no-config",
+            resource_type="secretsmanager:secret",
+            name="no-config",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config=None,  # No config
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[secret])
+
+        check = SecretsRotationCheck()
+        findings = check.execute(snapshot)
+
+        # Should be skipped, no findings
+        assert len(findings) == 0
+
+    def test_secret_without_last_rotated_date(self) -> None:
+        """Test that secret without LastRotatedDate is skipped."""
+        from src.models.resource import Resource
+
+        # Create secret without LastRotatedDate
+        secret = Resource(
+            arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:no-rotation",
+            resource_type="secretsmanager:secret",
+            name="no-rotation",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config={
+                "Name": "no-rotation",
+                "RotationEnabled": False,
+                # No LastRotatedDate field
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[secret])
+
+        check = SecretsRotationCheck()
+        findings = check.execute(snapshot)
+
+        # Should be skipped, no findings
+        assert len(findings) == 0
+
+    def test_secret_with_datetime_object(self) -> None:
+        """Test handling secret with datetime object instead of string."""
+        from datetime import datetime, timedelta, timezone
+
+        from src.models.resource import Resource
+
+        # Create date 120 days ago as datetime object (not string)
+        last_rotated = datetime.now(timezone.utc) - timedelta(days=120)
+
+        secret = Resource(
+            arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:datetime-secret",
+            resource_type="secretsmanager:secret",
+            name="datetime-secret",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config={
+                "Name": "datetime-secret",
+                "LastRotatedDate": last_rotated,  # datetime object, not string
+                "RotationEnabled": True,
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[secret])
+
+        check = SecretsRotationCheck()
+        findings = check.execute(snapshot)
+
+        # Should find the secret that hasn't been rotated
+        assert len(findings) == 1
+        assert "120" in findings[0].description
+
+    def test_secret_with_naive_datetime_object(self) -> None:
+        """Test handling secret with naive datetime object (no timezone)."""
+        from datetime import datetime, timedelta
+
+        from src.models.resource import Resource
+
+        # Create date 120 days ago as naive datetime (no tzinfo)
+        last_rotated = datetime.now() - timedelta(days=120)
+
+        secret = Resource(
+            arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:naive-secret",
+            resource_type="secretsmanager:secret",
+            name="naive-secret",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config={
+                "Name": "naive-secret",
+                "LastRotatedDate": last_rotated,  # naive datetime (no timezone)
+                "RotationEnabled": True,
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[secret])
+
+        check = SecretsRotationCheck()
+        findings = check.execute(snapshot)
+
+        # Should find the secret after adding UTC timezone
+        assert len(findings) == 1

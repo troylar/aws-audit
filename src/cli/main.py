@@ -699,6 +699,12 @@ def snapshot_create(
     exclude_tags: Optional[str] = typer.Option(
         None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
     ),
+    use_config: bool = typer.Option(
+        True, "--use-config/--no-config", help="Use AWS Config for collection when available (default: enabled)"
+    ),
+    config_aggregator: Optional[str] = typer.Option(
+        None, "--config-aggregator", help="AWS Config Aggregator name for multi-account collection"
+    ),
 ):
     """Create a new snapshot of AWS resources.
 
@@ -888,6 +894,14 @@ def snapshot_create(
         from ..snapshot.capturer import create_snapshot
 
         # T015: Pass inventory_name to create_snapshot
+        # Show Config status
+        if use_config:
+            console.print("🔧 AWS Config collection: [bold green]enabled[/bold green] (fallback to direct API if unavailable)")
+            if config_aggregator:
+                console.print(f"   Using aggregator: {config_aggregator}")
+        else:
+            console.print("🔧 AWS Config collection: [bold yellow]disabled[/bold yellow] (using direct API)")
+
         snapshot = create_snapshot(
             name=name,
             regions=region_list,
@@ -896,6 +910,8 @@ def snapshot_create(
             set_active=set_active,
             resource_filter=resource_filter,
             inventory_name=inventory_name,
+            use_config=use_config,
+            config_aggregator=config_aggregator,
         )
 
         # T018: Check for zero resources after filtering
@@ -1897,6 +1913,12 @@ def restore_preview(
         None, "--type", help="Filter by resource types (e.g., AWS::EC2::Instance)"
     ),
     regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
+    protect_tags: Optional[List[str]] = typer.Option(
+        None, "--protect-tag", help="Protect resources with tag (format: key=value, can repeat)"
+    ),
+    config_file: Optional[str] = typer.Option(
+        None, "--config", help="Path to protection rules config file"
+    ),
     output_format: str = typer.Option("table", "--format", help="Output format: table, json, yaml"),
 ):
     """Preview resources that would be deleted to restore to a snapshot.
@@ -1908,18 +1930,22 @@ def restore_preview(
         # Preview resources since a baseline snapshot
         awsinv restore preview prod-baseline
 
-        # Preview with ephemeral test snapshot
-        awsinv restore preview clean-state
+        # Preview with tag-based protection
+        awsinv restore preview my-snapshot --protect-tag "project=baseline"
+
+        # Preview with multiple protection tags
+        awsinv restore preview my-snapshot --protect-tag "project=baseline" --protect-tag "env=prod"
+
+        # Preview with config file
+        awsinv restore preview my-snapshot --config .awsinv-restore.yaml
 
         # Preview only EC2 instances in us-east-1
         awsinv restore preview my-snapshot --type AWS::EC2::Instance --region us-east-1
-
-        # Preview with specific AWS profile
-        awsinv restore preview my-snapshot --profile production
     """
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
     from ..restore.cleaner import ResourceCleaner
+    from ..restore.config import build_protection_rules, load_config_file
     from ..restore.safety import SafetyChecker
 
     try:
@@ -1935,9 +1961,16 @@ def restore_preview(
                 console.print("[yellow]Please provide --account-id explicitly[/yellow]")
                 raise typer.Exit(code=1)
 
+        # Load config and build protection rules
+        config = load_config_file(config_file)
+        protection_rules = build_protection_rules(config, protect_tags)
+
+        if protection_rules:
+            console.print(f"[dim]Loaded {len(protection_rules)} protection rule(s)[/dim]")
+
         # Initialize components
         snapshot_storage = SnapshotStorage()
-        safety_checker = SafetyChecker(rules=[])  # Load rules from config
+        safety_checker = SafetyChecker(rules=protection_rules)
         audit_storage = AuditStorage()
 
         cleaner = ResourceCleaner(
@@ -2009,6 +2042,12 @@ def restore_execute(
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
     regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
+    protect_tags: Optional[List[str]] = typer.Option(
+        None, "--protect-tag", help="Protect resources with tag (format: key=value, can repeat)"
+    ),
+    config_file: Optional[str] = typer.Option(
+        None, "--config", help="Path to protection rules config file"
+    ),
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
 ):
@@ -2020,11 +2059,11 @@ def restore_execute(
     your AWS environment to that point in time. Protected resources are skipped.
 
     Examples:
-        # Restore to a baseline snapshot
-        awsinv restore execute prod-baseline --confirm
+        # Restore with tag-based protection
+        awsinv restore execute my-snapshot --protect-tag "project=baseline" --confirm
 
-        # Clean up ephemeral test environment
-        awsinv restore execute clean-state --confirm
+        # Restore with config file
+        awsinv restore execute my-snapshot --config .awsinv-restore.yaml --confirm
 
         # Execute with filters and skip prompt
         awsinv restore execute my-snapshot --confirm --yes --type AWS::EC2::Instance
@@ -2035,6 +2074,7 @@ def restore_execute(
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
     from ..restore.cleaner import ResourceCleaner
+    from ..restore.config import build_protection_rules, load_config_file
     from ..restore.safety import SafetyChecker
 
     try:
@@ -2057,9 +2097,16 @@ def restore_execute(
                 console.print("[yellow]Please provide --account-id explicitly[/yellow]")
                 raise typer.Exit(code=1)
 
+        # Load config and build protection rules
+        config = load_config_file(config_file)
+        protection_rules = build_protection_rules(config, protect_tags)
+
+        if protection_rules:
+            console.print(f"[dim]Loaded {len(protection_rules)} protection rule(s)[/dim]")
+
         # Initialize components
         snapshot_storage = SnapshotStorage()
-        safety_checker = SafetyChecker(rules=[])
+        safety_checker = SafetyChecker(rules=protection_rules)
         audit_storage = AuditStorage()
 
         cleaner = ResourceCleaner(
@@ -2157,6 +2204,226 @@ def restore_execute(
     except Exception as e:
         console.print(f"\n[red]Unexpected error: {e}[/red]\n")
         logger.exception("Error in restore execute command")
+        raise typer.Exit(code=2)
+
+
+@restore_app.command("purge")
+def restore_purge(
+    account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
+    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
+    regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
+    protect_tags: Optional[List[str]] = typer.Option(
+        None, "--protect-tag", help="Protect resources with tag (format: key=value, can repeat)"
+    ),
+    config_file: Optional[str] = typer.Option(
+        None, "--config", help="Path to protection rules config file"
+    ),
+    preview: bool = typer.Option(False, "--preview", help="Preview mode - show what would be deleted without deleting"),
+    confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
+):
+    """Delete all resources EXCEPT those matching protection rules.
+
+    DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
+
+    Unlike 'restore', this command does NOT compare to a snapshot. It deletes
+    ALL resources that don't match protection rules (tags, types, etc.).
+
+    Use this for lab/sandbox cleanup where baseline resources are tagged.
+
+    Examples:
+        # Preview what would be deleted (safe)
+        awsinv restore purge --protect-tag "project=baseline" --preview
+
+        # Delete everything except baseline-tagged resources
+        awsinv restore purge --protect-tag "project=baseline" --confirm
+
+        # Multiple protection tags (OR logic - protected if ANY match)
+        awsinv restore purge --protect-tag "project=baseline" --protect-tag "env=prod" --confirm
+
+        # Use config file for protection rules
+        awsinv restore purge --config .awsinv-restore.yaml --confirm
+
+        # Purge only specific resource types
+        awsinv restore purge --protect-tag "project=baseline" --type AWS::EC2::Instance --confirm
+
+        # Purge in specific region
+        awsinv restore purge --protect-tag "project=baseline" --region us-east-1 --confirm
+    """
+    from ..aws.credentials import get_account_id
+    from ..restore.audit import AuditStorage
+    from ..restore.config import build_protection_rules, load_config_file
+    from ..restore.deleter import ResourceDeleter
+    from ..restore.safety import SafetyChecker
+    from ..snapshot.capturer import SnapshotCapturer
+
+    try:
+        # Load config and build protection rules
+        config = load_config_file(config_file)
+        protection_rules = build_protection_rules(config, protect_tags)
+
+        # Require at least one protection rule for purge
+        if not protection_rules:
+            console.print("\n[red]ERROR: At least one protection rule is required for purge[/red]")
+            console.print("[yellow]Use --protect-tag or --config to specify what to keep[/yellow]")
+            console.print("\n[dim]Example: awsinv restore purge --protect-tag \"project=baseline\" --preview[/dim]\n")
+            raise typer.Exit(code=1)
+
+        if preview:
+            console.print("\n[bold cyan]🔍 Purge Preview (dry-run)[/bold cyan]\n")
+        else:
+            if not confirm:
+                console.print("\n[red]ERROR: --confirm flag is required for purge operations[/red]")
+                console.print("[yellow]This is a safety measure to prevent accidental deletions[/yellow]")
+                console.print("\n[dim]Run with: awsinv restore purge --protect-tag \"key=value\" --confirm[/dim]\n")
+                raise typer.Exit(code=1)
+            console.print("\n[bold red]⚠️  PURGE OPERATION - DESTRUCTIVE[/bold red]\n")
+
+        # Auto-detect account ID if not provided
+        if not account_id:
+            try:
+                account_id = get_account_id(profile_name=profile)
+                console.print(f"[dim]Detected account ID: {account_id}[/dim]")
+            except Exception as e:
+                console.print(f"[red]Error detecting account ID: {e}[/red]")
+                console.print("[yellow]Please provide --account-id explicitly[/yellow]")
+                raise typer.Exit(code=1)
+
+        console.print(f"[dim]Loaded {len(protection_rules)} protection rule(s)[/dim]")
+        for rule in protection_rules:
+            console.print(f"[dim]  • {rule.description}[/dim]")
+
+        # Initialize safety checker
+        safety_checker = SafetyChecker(rules=protection_rules)
+
+        # Collect current resources
+        console.print("\n[bold]Scanning resources...[/bold]")
+        capturer = SnapshotCapturer(profile_name=profile)
+        target_regions = regions if regions else ["us-east-1"]  # Default to us-east-1 if not specified
+
+        with console.status("[bold green]Collecting resources..."):
+            all_resources = []
+            for region in target_regions:
+                try:
+                    resources = capturer.collect_resources(
+                        regions=[region],
+                        resource_types=resource_types,
+                    )
+                    all_resources.extend(resources)
+                except Exception as e:
+                    logger.warning(f"Error collecting resources in {region}: {e}")
+
+        console.print(f"[dim]Found {len(all_resources)} total resources[/dim]")
+
+        # Apply protection rules
+        to_delete = []
+        protected = []
+
+        for resource in all_resources:
+            # Convert Resource object to dict for safety checker
+            resource_dict = {
+                "resource_id": resource.name,
+                "resource_type": resource.resource_type,
+                "region": resource.region,
+                "arn": resource.arn,
+                "tags": resource.tags or {},
+            }
+
+            is_protected, reason = safety_checker.is_protected(resource_dict)
+
+            if is_protected:
+                protected.append((resource, reason))
+            else:
+                to_delete.append(resource)
+
+        # Display summary
+        console.print(f"\n[bold]Summary:[/bold]")
+        console.print(f"  • Total resources: {len(all_resources)}")
+        console.print(f"  • Protected (will keep): [green]{len(protected)}[/green]")
+        console.print(f"  • Unprotected (will delete): [red]{len(to_delete)}[/red]")
+
+        if preview:
+            # Show what would be deleted
+            if to_delete:
+                console.print("\n[bold yellow]Resources that would be DELETED:[/bold yellow]")
+                for resource in to_delete[:20]:  # Show first 20
+                    console.print(f"  [red]✗[/red] {resource.resource_type}: {resource.name} ({resource.region})")
+                if len(to_delete) > 20:
+                    console.print(f"  ... and {len(to_delete) - 20} more")
+
+            if protected:
+                console.print("\n[bold green]Resources that would be PROTECTED:[/bold green]")
+                for resource, reason in protected[:10]:  # Show first 10
+                    console.print(f"  [green]✓[/green] {resource.resource_type}: {resource.name} - {reason}")
+                if len(protected) > 10:
+                    console.print(f"  ... and {len(protected) - 10} more")
+
+            console.print("\n[dim]This was a preview. Use --confirm to actually delete resources.[/dim]\n")
+            raise typer.Exit(code=0)
+
+        # Execution mode
+        if len(to_delete) == 0:
+            console.print("\n[green]✓ No unprotected resources to delete[/green]\n")
+            raise typer.Exit(code=0)
+
+        # Interactive confirmation
+        if not yes:
+            console.print(f"\n[bold red]About to DELETE {len(to_delete)} resources![/bold red]")
+            confirm_prompt = typer.confirm("Are you sure you want to proceed?")
+            if not confirm_prompt:
+                console.print("\n[yellow]Aborted - no resources were deleted[/yellow]\n")
+                raise typer.Exit(code=0)
+
+        # Execute deletion
+        console.print("\n[bold red]Executing deletion...[/bold red]")
+        deleter = ResourceDeleter(aws_profile=profile)
+        audit_storage = AuditStorage()
+
+        succeeded = 0
+        failed = 0
+
+        with console.status("[bold red]Deleting resources..."):
+            for resource in to_delete:
+                success, error = deleter.delete_resource(
+                    resource_type=resource.resource_type,
+                    resource_id=resource.name,
+                    region=resource.region,
+                    arn=resource.arn,
+                )
+                if success:
+                    succeeded += 1
+                    logger.info(f"Deleted {resource.resource_type}: {resource.name}")
+                else:
+                    failed += 1
+                    logger.warning(f"Failed to delete {resource.resource_type}: {resource.name} - {error}")
+
+        # Display results
+        console.print("\n[bold]Purge Complete[/bold]\n")
+
+        status_color = "green" if failed == 0 else "yellow" if succeeded > 0 else "red"
+
+        summary_text = f"""
+[bold]Results:[/bold]
+• Succeeded: [green]{succeeded}[/green]
+• Failed: [red]{failed}[/red]
+• Protected (skipped): {len(protected)}
+• Total scanned: {len(all_resources)}
+        """
+
+        console.print(Panel(summary_text.strip(), title="[bold]Purge Summary[/bold]", border_style=status_color))
+
+        if failed > 0:
+            raise typer.Exit(code=1)
+
+    except typer.Exit:
+        raise
+    except ValueError as e:
+        console.print(f"\n[red]Error: {e}[/red]\n")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"\n[red]Unexpected error: {e}[/red]\n")
+        logger.exception("Error in purge command")
         raise typer.Exit(code=2)
 
 

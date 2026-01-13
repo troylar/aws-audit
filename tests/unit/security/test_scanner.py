@@ -123,3 +123,41 @@ class TestSecurityScanner:
         # Should have findings from multiple check types
         finding_types = {f.finding_type for f in result.findings}
         assert len(finding_types) > 1  # Multiple different check types executed
+
+    def test_scan_handles_check_execution_error(self) -> None:
+        """Test that scan continues when a check raises an exception."""
+        from unittest.mock import MagicMock, patch
+
+        snapshot = create_mock_snapshot(resources=[])
+        scanner = SecurityScanner()
+
+        # Add a mock check that raises an exception
+        failing_check = MagicMock()
+        failing_check.check_id = "failing_check"
+        failing_check.execute.side_effect = Exception("Check failed")
+        scanner.checks.append(failing_check)
+
+        # Scan should complete without raising
+        result = scanner.scan(snapshot)
+
+        # Should return a result (even if empty)
+        assert result is not None
+        # The failing check should have been called
+        failing_check.execute.assert_called_once()
+
+    def test_load_checks_handles_module_import_error(self) -> None:
+        """Test that _load_checks handles module import errors gracefully."""
+        from unittest.mock import MagicMock, patch
+
+        # Create a scanner with mocked module loading
+        with patch("src.security.scanner.importlib.import_module") as mock_import:
+            # Make the import fail for all modules
+            mock_import.side_effect = ImportError("Module not found")
+
+            # Scanner should still initialize (with empty checks list)
+            scanner = SecurityScanner()
+
+            # Since all imports failed, checks list should be empty or have some
+            # that loaded before the mock was applied
+            # The key is that it didn't raise an exception
+            assert scanner is not None

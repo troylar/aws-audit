@@ -121,3 +121,84 @@ class TestSecurityGroupOpenCheck:
         assert len(findings) == 1
         assert findings[0].remediation
         assert "restrict" in findings[0].remediation.lower() or "remove" in findings[0].remediation.lower()
+
+    def test_security_group_with_raw_config_none(self) -> None:
+        """Test that security group with raw_config=None is skipped."""
+        from src.models.resource import Resource
+
+        sg = Resource(
+            arn="arn:aws:ec2:us-east-1:123456789012:security-group/sg-123",
+            resource_type="ec2:security-group",
+            name="no-config-sg",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config=None,
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[sg])
+
+        check = SecurityGroupOpenCheck()
+        findings = check.execute(snapshot)
+
+        assert len(findings) == 0
+
+    def test_security_group_with_no_port_range(self) -> None:
+        """Test that permissions without port range are skipped."""
+        from src.models.resource import Resource
+
+        sg = Resource(
+            arn="arn:aws:ec2:us-east-1:123456789012:security-group/sg-123",
+            resource_type="ec2:security-group",
+            name="no-port-sg",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config={
+                "GroupId": "sg-123",
+                "IpPermissions": [
+                    {
+                        # No FromPort or ToPort - e.g., for all traffic rule
+                        "IpProtocol": "-1",
+                        "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
+                    }
+                ],
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[sg])
+
+        check = SecurityGroupOpenCheck()
+        findings = check.execute(snapshot)
+
+        # Should skip this permission since no port range
+        assert len(findings) == 0
+
+    def test_security_group_with_specific_cidr_only(self) -> None:
+        """Test that security group with only specific CIDR (not 0.0.0.0/0) produces no finding."""
+        from src.models.resource import Resource
+
+        sg = Resource(
+            arn="arn:aws:ec2:us-east-1:123456789012:security-group/sg-123",
+            resource_type="ec2:security-group",
+            name="specific-cidr-sg",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config={
+                "GroupId": "sg-123",
+                "IpPermissions": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": 22,
+                        "ToPort": 22,
+                        "IpRanges": [{"CidrIp": "10.0.0.0/8"}],  # Private range, not 0.0.0.0/0
+                    }
+                ],
+            },
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[sg])
+
+        check = SecurityGroupOpenCheck()
+        findings = check.execute(snapshot)
+
+        # Should return False in _is_open_to_world and no findings
+        assert len(findings) == 0

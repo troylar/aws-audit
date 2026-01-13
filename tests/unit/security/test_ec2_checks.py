@@ -76,3 +76,23 @@ class TestEC2IMDSv1Check:
         findings = check.execute(snapshot)
 
         assert len(findings) == 0
+
+    def test_instance_with_raw_config_none(self) -> None:
+        """Test that instance with raw_config=None is skipped."""
+        from src.models.resource import Resource
+
+        instance = Resource(
+            arn="arn:aws:ec2:us-east-1:123456789012:instance/i-123",
+            resource_type="ec2:instance",
+            name="no-config-instance",
+            region="us-east-1",
+            config_hash="a" * 64,
+            raw_config=None,
+            tags={},
+        )
+        snapshot = create_mock_snapshot(resources=[instance])
+
+        check = EC2IMDSv1Check()
+        findings = check.execute(snapshot)
+
+        assert len(findings) == 0
