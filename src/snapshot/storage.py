@@ -1,4 +1,8 @@
-"""Snapshot storage manager for saving and loading snapshots."""
+"""Snapshot storage manager for saving and loading snapshots.
+
+This module provides the main interface for snapshot persistence
+using SQLite as the primary storage backend.
+"""
 
 import gzip
 import logging
@@ -9,13 +13,14 @@ from typing import Any, Dict, List, Optional, Union
 import yaml
 
 from ..models.snapshot import Snapshot
+from ..storage import Database, SnapshotStore
 from ..utils.paths import get_snapshot_storage_path
 
 logger = logging.getLogger(__name__)
 
 
 class SnapshotStorage:
-    """Manages snapshot persistence to local filesystem."""
+    """Manages snapshot persistence using SQLite backend."""
 
     def __init__(self, storage_dir: Optional[Union[str, Path]] = None):
         """Initialize snapshot storage.
@@ -28,54 +33,39 @@ class SnapshotStorage:
         self.active_file = self.storage_dir / ".active"
         self.index_file = self.storage_dir / ".index.yaml"
 
+        # Initialize SQLite database
+        self.db = Database(storage_path=self.storage_dir)
+        self.db.ensure_schema()
+
+        # Initialize snapshot store
+        self._store = SnapshotStore(self.db)
+
     def save_snapshot(self, snapshot: Snapshot, compress: bool = False) -> Path:
-        """Save snapshot to YAML file, optionally compressed.
+        """Save snapshot to SQLite database.
 
         Args:
             snapshot: Snapshot instance to save
-            compress: Whether to compress with gzip (default: False)
+            compress: Ignored (kept for backward compatibility)
 
         Returns:
-            Path to saved snapshot file
+            Path to database file (for compatibility)
         """
-        filename = f"{snapshot.name}.yaml"
-        if compress:
-            filename += ".gz"
-
-        filepath = self.storage_dir / filename
-
-        # Convert snapshot to dict
-        snapshot_dict = snapshot.to_dict()
-
-        # Serialize to YAML
-        yaml_str = yaml.dump(
-            snapshot_dict,
-            default_flow_style=False,  # Block style (more readable)
-            sort_keys=False,  # Preserve insertion order
-            allow_unicode=True,
-        )
-
-        # Save (compressed or uncompressed)
-        if compress:
-            with gzip.open(filepath, "wt", encoding="utf-8") as f:
-                f.write(yaml_str)
-            logger.debug(f"Saved compressed snapshot to {filepath}")
-        else:
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(yaml_str)
-            logger.debug(f"Saved snapshot to {filepath}")
-
-        # Update index
-        self._update_index(snapshot)
+        # Save to SQLite
+        self._store.save(snapshot)
 
         # Set as active if requested
         if snapshot.is_active:
-            self.set_active_snapshot(snapshot.name)
+            self._store.set_active(snapshot.name)
+            # Also update legacy active file for compatibility
+            self.active_file.write_text(snapshot.name)
 
-        return filepath
+        logger.debug(f"Saved snapshot '{snapshot.name}' with {len(snapshot.resources)} resources to SQLite")
+        return self.db.db_path
 
     def load_snapshot(self, snapshot_name: str) -> Snapshot:
-        """Load snapshot from YAML file (auto-detects compression).
+        """Load snapshot from SQLite database.
+
+        Falls back to YAML files if not in database (for backward compatibility).
 
         Args:
             snapshot_name: Name of snapshot to load
@@ -84,7 +74,32 @@ class SnapshotStorage:
             Snapshot instance
 
         Raises:
-            FileNotFoundError: If snapshot file doesn't exist
+            FileNotFoundError: If snapshot doesn't exist
+        """
+        # Try SQLite first
+        snapshot = self._store.load(snapshot_name)
+        if snapshot:
+            logger.debug(f"Loaded snapshot '{snapshot_name}' from SQLite")
+            return snapshot
+
+        # Fall back to YAML for backward compatibility
+        snapshot = self._load_from_yaml(snapshot_name)
+        if snapshot:
+            # Migrate to SQLite on load
+            logger.info(f"Migrating snapshot '{snapshot_name}' from YAML to SQLite")
+            self._store.save(snapshot)
+            return snapshot
+
+        raise FileNotFoundError(f"Snapshot '{snapshot_name}' not found")
+
+    def _load_from_yaml(self, snapshot_name: str) -> Optional[Snapshot]:
+        """Load snapshot from legacy YAML file.
+
+        Args:
+            snapshot_name: Name of snapshot to load
+
+        Returns:
+            Snapshot instance or None if not found
         """
         # Try compressed first
         filepath_gz = self.storage_dir / f"{snapshot_name}.yaml.gz"
@@ -102,7 +117,7 @@ class SnapshotStorage:
             logger.debug(f"Loaded snapshot from {filepath}")
             return Snapshot.from_dict(snapshot_dict)
 
-        raise FileNotFoundError(f"Snapshot '{snapshot_name}' not found")
+        return None
 
     def list_snapshots(self) -> List[Dict[str, Any]]:
         """List all available snapshots with metadata.
@@ -110,40 +125,36 @@ class SnapshotStorage:
         Returns:
             List of snapshot metadata dictionaries
         """
-        snapshots = []
+        # Get snapshots from SQLite
+        snapshots = self._store.list_all()
+
+        # Get active snapshot name
         active_name = self.get_active_snapshot_name()
 
-        # Find all snapshot files
-        for filepath in self.storage_dir.glob("*.yaml*"):
-            if filepath.name.startswith("."):
-                continue  # Skip hidden files
-
-            name = filepath.stem
-            if name.endswith(".yaml"):  # Handle .yaml.gz case
-                name = name[:-5]
-
-            # Get file stats
-            stats = filepath.stat()
-            size_mb = stats.st_size / (1024 * 1024)
-
-            snapshots.append(
+        # Convert to expected format and add is_active flag
+        result = []
+        for snap in snapshots:
+            result.append(
                 {
-                    "name": name,
-                    "filepath": str(filepath),
-                    "size_mb": round(size_mb, 2),
-                    "modified": datetime.fromtimestamp(stats.st_mtime),
-                    "is_active": (name == active_name),
+                    "name": snap["name"],
+                    "filepath": str(self.db.db_path),
+                    "size_mb": 0,  # Not applicable for SQLite
+                    "modified": snap["created_at"],
+                    "is_active": (snap["name"] == active_name),
+                    "created_at": snap["created_at"],
+                    "account_id": snap["account_id"],
+                    "regions": snap["regions"],
+                    "resource_count": snap["resource_count"],
+                    "service_counts": snap["service_counts"],
+                    "inventory_name": snap.get("inventory_name", "default"),
                 }
             )
 
-        # Sort by modified date (newest first)
-        snapshots.sort(key=lambda x: x["modified"], reverse=True)  # type: ignore
-
-        logger.debug(f"Found {len(snapshots)} snapshots")
-        return snapshots
+        logger.debug(f"Found {len(result)} snapshots")
+        return result
 
     def delete_snapshot(self, snapshot_name: str) -> bool:
-        """Delete a snapshot file.
+        """Delete a snapshot.
 
         Args:
             snapshot_name: Name of snapshot to delete
@@ -161,7 +172,29 @@ class SnapshotStorage:
                 f"Cannot delete active snapshot '{snapshot_name}'. " "Set another snapshot as active first."
             )
 
-        # Try to delete both compressed and uncompressed versions
+        # Delete from SQLite
+        if self._store.delete(snapshot_name):
+            logger.debug(f"Deleted snapshot '{snapshot_name}' from SQLite")
+
+            # Also delete YAML files if they exist (cleanup)
+            self._delete_yaml_files(snapshot_name)
+            return True
+
+        # Try deleting YAML files directly (legacy)
+        if self._delete_yaml_files(snapshot_name):
+            return True
+
+        raise FileNotFoundError(f"Snapshot '{snapshot_name}' not found")
+
+    def _delete_yaml_files(self, snapshot_name: str) -> bool:
+        """Delete legacy YAML files for a snapshot.
+
+        Args:
+            snapshot_name: Name of snapshot
+
+        Returns:
+            True if any files were deleted
+        """
         deleted = False
 
         filepath_gz = self.storage_dir / f"{snapshot_name}.yaml.gz"
@@ -176,13 +209,7 @@ class SnapshotStorage:
             deleted = True
             logger.debug(f"Deleted {filepath}")
 
-        if not deleted:
-            raise FileNotFoundError(f"Snapshot '{snapshot_name}' not found")
-
-        # Update index
-        self._remove_from_index(snapshot_name)
-
-        return True
+        return deleted
 
     def get_active_snapshot_name(self) -> Optional[str]:
         """Get the name of the currently active snapshot.
@@ -190,8 +217,15 @@ class SnapshotStorage:
         Returns:
             Active snapshot name, or None if no active snapshot
         """
+        # Try SQLite first
+        active = self._store.get_active()
+        if active:
+            return active
+
+        # Fall back to legacy file
         if self.active_file.exists():
             return self.active_file.read_text().strip()
+
         return None
 
     def set_active_snapshot(self, snapshot_name: str) -> None:
@@ -203,57 +237,55 @@ class SnapshotStorage:
         Raises:
             FileNotFoundError: If snapshot doesn't exist
         """
-        # Verify snapshot exists
-        try:
-            self.load_snapshot(snapshot_name)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Cannot set active: snapshot '{snapshot_name}' not found")
+        # Verify snapshot exists (in SQLite or YAML)
+        if not self._store.exists(snapshot_name):
+            # Try loading from YAML (will migrate to SQLite)
+            try:
+                self.load_snapshot(snapshot_name)
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Cannot set active: snapshot '{snapshot_name}' not found")
 
-        # Update active file
+        # Update in SQLite
+        self._store.set_active(snapshot_name)
+
+        # Update legacy active file for compatibility
         self.active_file.write_text(snapshot_name)
         logger.debug(f"Set active snapshot to: {snapshot_name}")
 
-    def _update_index(self, snapshot: Snapshot) -> None:
-        """Update the snapshot index file.
+    def snapshot_exists(self, snapshot_name: str) -> bool:
+        """Check if a snapshot exists.
 
         Args:
-            snapshot: Snapshot to add/update in index
+            snapshot_name: Name of snapshot
+
+        Returns:
+            True if snapshot exists
         """
-        # Load existing index
-        index = self._load_index()
+        # Check SQLite
+        if self._store.exists(snapshot_name):
+            return True
 
-        # Update entry
-        index[snapshot.name] = {
-            "name": snapshot.name,
-            "created_at": snapshot.created_at.isoformat(),
-            "account_id": snapshot.account_id,
-            "regions": snapshot.regions,
-            "resource_count": snapshot.resource_count,
-            "service_counts": snapshot.service_counts,
-        }
+        # Check YAML files
+        filepath_gz = self.storage_dir / f"{snapshot_name}.yaml.gz"
+        filepath = self.storage_dir / f"{snapshot_name}.yaml"
+        return filepath_gz.exists() or filepath.exists()
 
-        # Save index
-        self._save_index(index)
+    # Legacy index methods (kept for backward compatibility)
+    def _update_index(self, snapshot: Snapshot) -> None:
+        """Update the snapshot index file (no-op for SQLite)."""
+        pass  # Index is now managed by SQLite
 
     def _remove_from_index(self, snapshot_name: str) -> None:
-        """Remove snapshot from index.
-
-        Args:
-            snapshot_name: Name of snapshot to remove
-        """
-        index = self._load_index()
-        if snapshot_name in index:
-            del index[snapshot_name]
-            self._save_index(index)
+        """Remove snapshot from index (no-op for SQLite)."""
+        pass  # Index is now managed by SQLite
 
     def _load_index(self) -> Dict[str, Any]:
-        """Load snapshot index from file."""
+        """Load snapshot index from file (deprecated)."""
         if self.index_file.exists():
             with open(self.index_file, "r") as f:
                 return yaml.safe_load(f) or {}
         return {}
 
     def _save_index(self, index: Dict[str, Any]) -> None:
-        """Save snapshot index to file."""
-        with open(self.index_file, "w") as f:
-            yaml.dump(index, f, default_flow_style=False)
+        """Save snapshot index to file (deprecated)."""
+        pass  # Index is now managed by SQLite

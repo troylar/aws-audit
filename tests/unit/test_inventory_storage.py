@@ -6,7 +6,9 @@ import pytest
 import yaml
 
 from src.models.inventory import Inventory
+from src.models.snapshot import Snapshot
 from src.snapshot.inventory_storage import InventoryNotFoundError, InventoryStorage
+from src.storage import SnapshotStore
 
 
 class TestInventoryStorage:
@@ -36,13 +38,16 @@ class TestInventoryStorage:
         assert inventories == []
 
     def test_load_all_with_data(self, temp_dir, sample_inventory_data):
-        """Test loading inventories from file."""
+        """Test loading inventories from SQLite database."""
         storage = InventoryStorage(str(temp_dir))
 
-        # Create inventories.yaml file
-        data = {"inventories": [sample_inventory_data]}
-        with open(storage.inventory_file, "w") as f:
-            yaml.safe_dump(data, f)
+        # Create inventory via storage (uses SQLite)
+        inventory = Inventory(
+            name="test-inventory",
+            account_id="123456789012",
+            description="Test inventory",
+        )
+        storage.save(inventory)
 
         inventories = storage.load_all()
 
@@ -50,16 +55,21 @@ class TestInventoryStorage:
         assert inventories[0].name == "test-inventory"
         assert inventories[0].account_id == "123456789012"
 
-    def test_load_all_corrupted_file(self, temp_dir):
-        """Test loading inventories from corrupted YAML file."""
+    def test_load_all_with_multiple_inventories(self, temp_dir):
+        """Test loading multiple inventories from SQLite database."""
         storage = InventoryStorage(str(temp_dir))
 
-        # Create corrupted YAML file
-        with open(storage.inventory_file, "w") as f:
-            f.write("invalid: yaml: content: [[[")
+        # Create multiple inventories
+        inv1 = Inventory(name="inv1", account_id="111111111111")
+        inv2 = Inventory(name="inv2", account_id="222222222222")
+        storage.save(inv1)
+        storage.save(inv2)
 
-        with pytest.raises(ValueError, match="Corrupted inventories file"):
-            storage.load_all()
+        inventories = storage.load_all()
+
+        assert len(inventories) == 2
+        names = {inv.name for inv in inventories}
+        assert names == {"inv1", "inv2"}
 
     def test_load_by_account(self, temp_dir):
         """Test loading inventories filtered by account."""
@@ -155,6 +165,8 @@ class TestInventoryStorage:
 
     def test_save_update_existing(self, temp_dir):
         """Test updating an existing inventory."""
+        from datetime import datetime, timezone
+
         storage = InventoryStorage(str(temp_dir))
 
         # Create initial inventory
@@ -165,16 +177,27 @@ class TestInventoryStorage:
         )
         storage.save(inventory)
 
+        # Create a snapshot in the database first (required for linking)
+        snapshot = Snapshot(
+            name="new-snap",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[],
+        )
+        snapshot_store = SnapshotStore(storage.db)
+        snapshot_store.save(snapshot)
+
         # Update it
         inventory.description = "Updated"
-        inventory.add_snapshot("new-snap.yaml")
+        inventory.add_snapshot("new-snap")  # Add the snapshot name (without extension)
         storage.save(inventory)
 
         # Verify update
         retrieved = storage.get_by_name("test", "123456789012")
         assert retrieved.description == "Updated"
         assert len(retrieved.snapshots) == 1
-        assert "new-snap.yaml" in retrieved.snapshots
+        assert "new-snap" in retrieved.snapshots
 
         # Should only have one inventory
         all_invs = storage.load_all()
@@ -209,32 +232,45 @@ class TestInventoryStorage:
             storage.get_by_name("delete-me", "123456789012")
 
     def test_delete_with_snapshots(self, temp_dir):
-        """Test deleting inventory and its snapshot files."""
+        """Test deleting inventory and its associated snapshots from SQLite."""
+        from datetime import datetime, timezone
+
         storage = InventoryStorage(str(temp_dir))
 
-        # Create snapshots directory and files
-        snapshots_dir = temp_dir / "snapshots"
-        snapshots_dir.mkdir()
-        snap1 = snapshots_dir / "snap1.yaml"
-        snap2 = snapshots_dir / "snap2.yaml"
-        snap1.write_text("snapshot data")
-        snap2.write_text("snapshot data")
+        # Create snapshots in the database first
+        snapshot_store = SnapshotStore(storage.db)
+        snap1 = Snapshot(
+            name="snap1",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[],
+        )
+        snap2 = Snapshot(
+            name="snap2",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[],
+        )
+        snapshot_store.save(snap1)
+        snapshot_store.save(snap2)
 
         # Create inventory with snapshots
         inventory = Inventory(
             name="with-snaps",
             account_id="123456789012",
-            snapshots=["snap1.yaml", "snap2.yaml"],
+            snapshots=["snap1", "snap2"],
         )
         storage.save(inventory)
 
-        # Delete with snapshot files
+        # Delete with snapshots
         deleted_count = storage.delete("with-snaps", "123456789012", delete_snapshots=True)
         assert deleted_count == 2
 
-        # Verify snapshot files deleted
-        assert not snap1.exists()
-        assert not snap2.exists()
+        # Verify snapshots deleted from database
+        assert snapshot_store.load("snap1") is None
+        assert snapshot_store.load("snap2") is None
 
     def test_delete_nonexistent_inventory(self, temp_dir):
         """Test deleting inventory that doesn't exist."""
@@ -272,19 +308,20 @@ class TestInventoryStorage:
         # Should be unique for different account
         assert storage.validate_unique("test", "999999999999")
 
-    def test_atomic_write_creates_temp_file(self, temp_dir):
-        """Test that atomic write uses temporary file."""
+    def test_save_creates_database(self, temp_dir):
+        """Test that saving inventory creates SQLite database file."""
         storage = InventoryStorage(str(temp_dir))
 
         inventory = Inventory(name="test", account_id="123456789012")
         storage.save(inventory)
 
-        # Temp file should not exist after successful write
-        temp_file = storage.inventory_file.with_suffix(".tmp")
-        assert not temp_file.exists()
+        # SQLite database file should exist
+        db_file = storage.storage_dir / "inventory.db"
+        assert db_file.exists()
 
-        # Main file should exist
-        assert storage.inventory_file.exists()
+        # Verify inventory can be retrieved
+        retrieved = storage.get_by_name("test", "123456789012")
+        assert retrieved.name == "test"
 
     def test_multiple_inventories_same_account(self, temp_dir):
         """Test managing multiple inventories for same account."""
@@ -318,126 +355,110 @@ class TestInventoryStorage:
         assert retrieved.name == "persistent"
         assert retrieved.account_id == "123456789012"
 
-    def test_empty_inventories_file_structure(self, temp_dir):
-        """Test file structure when saving first inventory."""
+    def test_inventory_stored_in_sqlite(self, temp_dir):
+        """Test that inventory is stored in SQLite database."""
         storage = InventoryStorage(str(temp_dir))
 
         inventory = Inventory(name="first", account_id="123456789012")
         storage.save(inventory)
 
-        # Load and check structure
-        with open(storage.inventory_file) as f:
-            data = yaml.safe_load(f)
+        # Verify data is stored in SQLite by checking via a fresh storage instance
+        storage2 = InventoryStorage(str(temp_dir))
+        inventories = storage2.load_all()
 
-        assert "inventories" in data
-        assert isinstance(data["inventories"], list)
-        assert len(data["inventories"]) == 1
+        assert len(inventories) == 1
+        assert inventories[0].name == "first"
+        assert inventories[0].account_id == "123456789012"
 
-    def test_load_all_empty_inventories_key(self, temp_dir):
-        """Test loading when file has no inventories key."""
+    def test_load_all_empty_database(self, temp_dir):
+        """Test loading when database has no inventories."""
         storage = InventoryStorage(str(temp_dir))
-
-        # Create a YAML file with no "inventories" key
-        with open(storage.inventory_file, "w") as f:
-            yaml.safe_dump({"other_key": "value"}, f)
 
         inventories = storage.load_all()
 
         assert inventories == []
 
-    def test_load_all_empty_data(self, temp_dir):
-        """Test loading when file is empty or has null content."""
+    def test_fresh_storage_empty(self, temp_dir):
+        """Test that fresh storage instance returns empty list."""
         storage = InventoryStorage(str(temp_dir))
 
-        # Create an empty YAML file
-        with open(storage.inventory_file, "w") as f:
-            f.write("")
-
+        # Fresh storage should have no inventories
         inventories = storage.load_all()
 
         assert inventories == []
 
-    def test_delete_with_snapshot_file_error(self, temp_dir):
-        """Test deleting inventory when snapshot file deletion fails."""
-        from unittest.mock import patch
-
+    def test_delete_inventory_without_linked_snapshots(self, temp_dir):
+        """Test deleting inventory when snapshots are not in database."""
         storage = InventoryStorage(str(temp_dir))
 
-        # Create snapshots directory and files
-        snapshots_dir = temp_dir / "snapshots"
-        snapshots_dir.mkdir()
-        snap1 = snapshots_dir / "snap1.yaml"
-        snap1.write_text("snapshot data")
-
-        # Create inventory with snapshots
+        # Create inventory with snapshot references that don't exist in DB
         inventory = Inventory(
             name="with-snap",
             account_id="123456789012",
-            snapshots=["snap1.yaml"],
+            snapshots=["nonexistent-snap"],  # Not in database
         )
         storage.save(inventory)
 
-        # Mock unlink to raise exception
-        with patch.object(Path, "unlink", side_effect=PermissionError("Cannot delete")):
-            # Should not raise, just log warning
-            deleted_count = storage.delete("with-snap", "123456789012", delete_snapshots=True)
+        # Delete with snapshots - should return 0 because snapshot doesn't exist
+        deleted_count = storage.delete("with-snap", "123456789012", delete_snapshots=True)
 
-        # Should return 0 because the file deletion failed
+        # Should return 0 because the snapshot doesn't exist
         assert deleted_count == 0
 
-    def test_load_all_with_generic_exception(self, temp_dir):
-        """Test loading inventories when a non-YAML exception occurs."""
-        from unittest.mock import patch, mock_open
-
+    def test_get_by_name_case_sensitive(self, temp_dir):
+        """Test that inventory lookup is case-sensitive."""
         storage = InventoryStorage(str(temp_dir))
 
-        # Create a valid inventories.yaml file first
-        with open(storage.inventory_file, "w") as f:
-            yaml.safe_dump({"inventories": []}, f)
+        # Create inventory with lowercase name
+        inventory = Inventory(name="myinventory", account_id="123456789012")
+        storage.save(inventory)
 
-        # Mock open to raise a non-YAML error (like IOError)
-        with patch("builtins.open", mock_open()) as mocked_open:
-            mocked_open.return_value.read.side_effect = IOError("Disk read error")
-            mocked_open.return_value.__enter__.return_value.read.side_effect = IOError("Disk read error")
-            # This is tricky because yaml.safe_load reads from the file
-            # Let's try a different approach
-            pass
+        # Should find with exact name
+        retrieved = storage.get_by_name("myinventory", "123456789012")
+        assert retrieved.name == "myinventory"
 
-    def test_load_all_with_read_permission_error(self, temp_dir):
-        """Test loading inventories when read permission is denied."""
-        import os
-        import stat
-        from unittest.mock import patch
+        # Should not find with different case
+        with pytest.raises(InventoryNotFoundError):
+            storage.get_by_name("MyInventory", "123456789012")
 
+    def test_yaml_migration_on_first_use(self, temp_dir):
+        """Test that YAML inventories are migrated to SQLite on first use."""
+        # Create a legacy YAML file before initializing storage
+        inventory_file = temp_dir / "inventories.yaml"
+        legacy_data = {
+            "inventories": [
+                {
+                    "name": "legacy-inv",
+                    "account_id": "123456789012",
+                    "description": "Legacy inventory",
+                    "include_tags": {},
+                    "exclude_tags": {},
+                    "snapshots": [],
+                    "active_snapshot": None,
+                    "created_at": "2025-01-10T00:00:00+00:00",
+                    "last_updated": "2025-01-10T00:00:00+00:00",
+                }
+            ]
+        }
+        with open(inventory_file, "w") as f:
+            yaml.safe_dump(legacy_data, f)
+
+        # Initialize storage - should migrate YAML to SQLite
         storage = InventoryStorage(str(temp_dir))
 
-        # Create a valid inventories.yaml file
-        with open(storage.inventory_file, "w") as f:
-            yaml.safe_dump({"inventories": []}, f)
+        # Verify data was migrated
+        inventories = storage.load_all()
+        assert len(inventories) == 1
+        assert inventories[0].name == "legacy-inv"
+        assert inventories[0].account_id == "123456789012"
 
-        # Mock Inventory.from_dict to raise an exception (simulating invalid data)
-        with patch.object(Inventory, "from_dict", side_effect=KeyError("Missing required field")):
-            with pytest.raises(KeyError, match="Missing required field"):
-                # Create file with inventory data
-                with open(storage.inventory_file, "w") as f:
-                    yaml.safe_dump({"inventories": [{"name": "test"}]}, f)
-                storage.load_all()
-
-    def test_atomic_write_cleans_up_temp_file_on_error(self, temp_dir):
-        """Test that atomic write cleans up temp file on failure."""
-        import os
-        from unittest.mock import patch
-
+    def test_invalid_inventory_validation(self, temp_dir):
+        """Test that invalid inventory is rejected before saving."""
         storage = InventoryStorage(str(temp_dir))
 
-        # Create an inventory to save
-        inventory = Inventory(name="test", account_id="123456789012")
+        # Create an inventory with invalid name (empty)
+        inventory = Inventory(name="", account_id="123456789012")
 
-        # Mock os.replace to fail
-        with patch("os.replace", side_effect=OSError("Replace failed")):
-            with pytest.raises(OSError, match="Replace failed"):
-                storage.save(inventory)
-
-        # Temp file should be cleaned up
-        temp_file = storage.inventory_file.with_suffix(".tmp")
-        assert not temp_file.exists()
+        # Should raise ValueError due to validation
+        with pytest.raises(ValueError, match="Invalid inventory"):
+            storage.save(inventory)

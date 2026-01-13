@@ -30,7 +30,7 @@ class TestSnapshotStorage:
         assert storage_path.exists()
 
     def test_save_snapshot_uncompressed(self, temp_dir):
-        """Test saving an uncompressed snapshot."""
+        """Test saving a snapshot (now uses SQLite, compress flag is ignored)."""
         storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="test-snapshot",
@@ -42,12 +42,16 @@ class TestSnapshotStorage:
 
         filepath = storage.save_snapshot(snapshot, compress=False)
 
+        # Now returns path to SQLite database
         assert filepath.exists()
-        assert filepath.name == "test-snapshot.yaml"
-        assert not str(filepath).endswith(".gz")
+        assert filepath.name == "inventory.db"
+
+        # Verify snapshot is saved via load
+        loaded = storage.load_snapshot("test-snapshot")
+        assert loaded.name == snapshot.name
 
     def test_save_snapshot_compressed(self, temp_dir):
-        """Test saving a compressed snapshot."""
+        """Test saving a snapshot (compress flag is now ignored with SQLite)."""
         storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="compressed-snapshot",
@@ -59,9 +63,13 @@ class TestSnapshotStorage:
 
         filepath = storage.save_snapshot(snapshot, compress=True)
 
+        # Now returns path to SQLite database (compress is ignored)
         assert filepath.exists()
-        assert filepath.name == "compressed-snapshot.yaml.gz"
-        assert str(filepath).endswith(".gz")
+        assert filepath.name == "inventory.db"
+
+        # Verify snapshot is saved
+        loaded = storage.load_snapshot("compressed-snapshot")
+        assert loaded.name == snapshot.name
 
     def test_save_snapshot_with_resources(self, temp_dir):
         """Test saving a snapshot with resources."""
@@ -96,13 +104,11 @@ class TestSnapshotStorage:
         filepath = storage.save_snapshot(snapshot)
         assert filepath.exists()
 
-        # Verify file contents
-        with open(filepath, "r") as f:
-            data = yaml.safe_load(f)
-
-        assert data["name"] == "with-resources"
-        assert data["resource_count"] == 2
-        assert len(data["resources"]) == 2
+        # Verify via loading (SQLite storage)
+        loaded = storage.load_snapshot("with-resources")
+        assert loaded.name == "with-resources"
+        assert loaded.resource_count == 2
+        assert len(loaded.resources) == 2
 
     def test_save_snapshot_sets_active(self, temp_dir):
         """Test that saving an active snapshot sets it as active."""
@@ -285,7 +291,7 @@ class TestSnapshotStorage:
         assert snapshot2_data["is_active"] is True
 
     def test_delete_snapshot_uncompressed(self, temp_dir):
-        """Test deleting an uncompressed snapshot."""
+        """Test deleting a snapshot from SQLite."""
         storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="to-delete",
@@ -297,15 +303,18 @@ class TestSnapshotStorage:
         )
 
         filepath = storage.save_snapshot(snapshot)
-        assert filepath.exists()
+        assert filepath.exists()  # DB file exists
 
         result = storage.delete_snapshot("to-delete")
 
         assert result is True
-        assert not filepath.exists()
+        # DB file still exists (only snapshot record is deleted)
+        assert filepath.exists()
+        # But the snapshot is no longer found
+        assert not storage.snapshot_exists("to-delete")
 
     def test_delete_snapshot_compressed(self, temp_dir):
-        """Test deleting a compressed snapshot."""
+        """Test deleting a snapshot (compress flag ignored with SQLite)."""
         storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="to-delete-compressed",
@@ -317,12 +326,15 @@ class TestSnapshotStorage:
         )
 
         filepath = storage.save_snapshot(snapshot, compress=True)
-        assert filepath.exists()
+        assert filepath.exists()  # DB file exists
 
         result = storage.delete_snapshot("to-delete-compressed")
 
         assert result is True
-        assert not filepath.exists()
+        # DB file still exists (only snapshot record is deleted)
+        assert filepath.exists()
+        # But the snapshot is no longer found
+        assert not storage.snapshot_exists("to-delete-compressed")
 
     def test_delete_snapshot_not_found(self, temp_dir):
         """Test deleting a nonexistent snapshot raises FileNotFoundError."""
@@ -426,7 +438,7 @@ class TestSnapshotStorage:
         assert storage.get_active_snapshot_name() == "snapshot2"
 
     def test_index_updated_on_save(self, temp_dir):
-        """Test that snapshot index is updated when saving."""
+        """Test that snapshot metadata is tracked when saving (now via SQLite)."""
         storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="indexed",
@@ -438,17 +450,17 @@ class TestSnapshotStorage:
 
         storage.save_snapshot(snapshot)
 
-        # Load index file
-        with open(storage.index_file, "r") as f:
-            index = yaml.safe_load(f)
+        # Verify via list_snapshots (SQLite storage)
+        snapshots = storage.list_snapshots()
+        indexed_snap = next((s for s in snapshots if s["name"] == "indexed"), None)
 
-        assert "indexed" in index
-        assert index["indexed"]["name"] == "indexed"
-        assert index["indexed"]["account_id"] == "123456789012"
-        assert index["indexed"]["regions"] == ["us-east-1", "us-west-2"]
+        assert indexed_snap is not None
+        assert indexed_snap["name"] == "indexed"
+        assert indexed_snap["account_id"] == "123456789012"
+        assert indexed_snap["regions"] == ["us-east-1", "us-west-2"]
 
     def test_index_updated_on_delete(self, temp_dir):
-        """Test that snapshot index is updated when deleting."""
+        """Test that snapshot is removed from index when deleting (now via SQLite)."""
         storage = SnapshotStorage(str(temp_dir))
         snapshot = Snapshot(
             name="to-remove",
@@ -461,17 +473,15 @@ class TestSnapshotStorage:
 
         storage.save_snapshot(snapshot)
 
-        # Verify it's in the index
-        with open(storage.index_file, "r") as f:
-            index = yaml.safe_load(f)
-        assert "to-remove" in index
+        # Verify it's in the list
+        snapshots = storage.list_snapshots()
+        assert any(s["name"] == "to-remove" for s in snapshots)
 
         storage.delete_snapshot("to-remove")
 
-        # Verify it's removed from the index
-        with open(storage.index_file, "r") as f:
-            index = yaml.safe_load(f)
-        assert "to-remove" not in index
+        # Verify it's removed
+        snapshots = storage.list_snapshots()
+        assert not any(s["name"] == "to-remove" for s in snapshots)
 
     def test_list_snapshots_ignores_hidden_files(self, temp_dir):
         """Test that list_snapshots ignores hidden files."""

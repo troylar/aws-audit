@@ -97,21 +97,20 @@ class TestSchemaVersionBackwardCompatibility:
         assert snapshot.resources[0].raw_config is None  # raw_config is None for v1.0
 
     def test_write_v11_snapshot_with_raw_config(self, temp_storage_dir: Path, sample_snapshot_v11: Snapshot) -> None:
-        """Test that v1.1 snapshots with raw_config are saved correctly."""
+        """Test that v1.1 snapshots with raw_config are saved correctly (now uses SQLite)."""
         storage = SnapshotStorage(temp_storage_dir)
         filepath = storage.save_snapshot(sample_snapshot_v11)
 
-        # Verify file was created
+        # Verify database file was created
         assert filepath.exists()
+        assert filepath.name == "inventory.db"
 
-        # Load the raw YAML to verify schema_version and raw_config
-        with open(filepath, "r") as f:
-            data = yaml.safe_load(f)
-
-        assert data["schema_version"] == "1.1"
-        assert len(data["resources"]) == 1
-        assert "raw_config" in data["resources"][0]
-        assert data["resources"][0]["raw_config"]["BucketName"] == "test-bucket"
+        # Verify data via load (SQLite storage)
+        loaded = storage.load_snapshot("test-snapshot-v11")
+        assert loaded.schema_version == "1.1"
+        assert len(loaded.resources) == 1
+        assert loaded.resources[0].raw_config is not None
+        assert loaded.resources[0].raw_config["BucketName"] == "test-bucket"  # type: ignore
 
     def test_read_v11_snapshot_with_raw_config(self, temp_storage_dir: Path, sample_snapshot_v11: Snapshot) -> None:
         """Test that v1.1 snapshots with raw_config can be loaded."""
@@ -130,36 +129,30 @@ class TestSchemaVersionBackwardCompatibility:
 
     def test_mixed_version_snapshots(self, temp_storage_dir: Path, sample_snapshot_v11: Snapshot) -> None:
         """Test that storage can handle both v1.0 and v1.1 snapshots."""
-        # Create a v1.0 snapshot manually
-        v10_data: Dict[str, Any] = {
-            "name": "old-snapshot",
-            "created_at": "2024-01-01T00:00:00+00:00",
-            "account_id": "123456789012",
-            "regions": ["us-west-2"],
-            "is_active": False,
-            "resource_count": 1,
-            "service_counts": {"ec2": 1},
-            "metadata": {},
-            "inventory_name": "default",
-            "resources": [
-                {
-                    "arn": "arn:aws:ec2:us-west-2:123456789012:instance/i-old",
-                    "type": "ec2:instance",
-                    "name": "old-instance",
-                    "region": "us-west-2",
-                    "tags": {},
-                    "config_hash": "c" * 64,
-                    "created_at": None,
-                }
-            ],
-        }
+        storage = SnapshotStorage(temp_storage_dir)
 
-        v10_file = temp_storage_dir / "old-snapshot.yaml"
-        with open(v10_file, "w") as f:
-            yaml.dump(v10_data, f)
+        # Create a v1.0 style snapshot (no raw_config)
+        v10_snapshot = Snapshot(
+            name="old-snapshot",
+            created_at=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            account_id="123456789012",
+            regions=["us-west-2"],
+            resources=[
+                Resource(
+                    arn="arn:aws:ec2:us-west-2:123456789012:instance/i-old",
+                    resource_type="ec2:instance",
+                    name="old-instance",
+                    region="us-west-2",
+                    config_hash="c" * 64,
+                    tags={},
+                    raw_config=None,  # v1.0 style - no raw_config
+                )
+            ],
+            schema_version="1.0",
+        )
+        storage.save_snapshot(v10_snapshot)
 
         # Save a v1.1 snapshot
-        storage = SnapshotStorage(temp_storage_dir)
         storage.save_snapshot(sample_snapshot_v11)
 
         # List snapshots - should show both

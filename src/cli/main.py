@@ -2580,6 +2580,405 @@ def restore_purge(
 app.add_typer(restore_app, name="restore")
 
 
+# ============================================================================
+# QUERY COMMANDS - SQL queries across snapshots
+# ============================================================================
+
+query_app = typer.Typer(help="Query resources across snapshots using SQL")
+
+
+@query_app.command("sql")
+def query_sql(
+    query: str = typer.Argument(..., help="SQL query to execute (SELECT only)"),
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, csv"),
+    limit: int = typer.Option(100, "--limit", "-l", help="Maximum results to return"),
+):
+    """Execute raw SQL query against the resource database.
+
+    Only SELECT queries are allowed for safety. The database contains tables:
+    - snapshots: Snapshot metadata
+    - resources: Resource details (arn, type, name, region, config_hash)
+    - resource_tags: Tags for each resource (resource_id, key, value)
+    - inventories: Inventory definitions
+    - audit_operations: Audit operation logs
+    - audit_records: Individual resource audit records
+
+    Examples:
+        awsinv query sql "SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type"
+        awsinv query sql "SELECT * FROM snapshots ORDER BY created_at DESC LIMIT 5"
+        awsinv query sql "SELECT r.arn, t.key, t.value FROM resources r JOIN resource_tags t ON r.id = t.resource_id WHERE t.key = 'Environment'"
+    """
+    from ..storage import Database, ResourceStore
+    import json
+    import csv
+    import sys
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = ResourceStore(db)
+
+        # Add LIMIT if not present
+        query_upper = query.strip().upper()
+        if "LIMIT" not in query_upper:
+            query = f"{query.rstrip(';')} LIMIT {limit}"
+
+        results = store.query_raw(query)
+
+        if not results:
+            console.print("[yellow]No results found[/yellow]")
+            return
+
+        if format == "json":
+            console.print(json.dumps(results, indent=2, default=str))
+        elif format == "csv":
+            if results:
+                writer = csv.DictWriter(sys.stdout, fieldnames=results[0].keys())
+                writer.writeheader()
+                writer.writerows(results)
+        else:  # table
+            table = Table(show_header=True, header_style="bold cyan")
+            for key in results[0].keys():
+                table.add_column(key)
+            for row in results:
+                table.add_row(*[str(v) if v is not None else "" for v in row.values()])
+            console.print(table)
+
+        console.print(f"\n[dim]{len(results)} row(s) returned[/dim]")
+
+    except ValueError as e:
+        console.print(f"[red]Query error: {e}[/red]")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Query failed")
+        raise typer.Exit(code=1)
+
+
+@query_app.command("resources")
+def query_resources(
+    type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by resource type (e.g., 's3:bucket', 'ec2')"),
+    region: Optional[str] = typer.Option(None, "--region", "-r", help="Filter by region"),
+    tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag (Key=Value)"),
+    arn: Optional[str] = typer.Option(None, "--arn", help="Filter by ARN pattern (supports wildcards)"),
+    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Limit to specific snapshot"),
+    limit: int = typer.Option(100, "--limit", "-l", help="Maximum results to return"),
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+):
+    """Search resources with filters across all snapshots.
+
+    Examples:
+        awsinv query resources --type s3:bucket
+        awsinv query resources --region us-east-1 --type ec2
+        awsinv query resources --tag Environment=production
+        awsinv query resources --arn "arn:aws:s3:::my-bucket*"
+        awsinv query resources --snapshot baseline-2024 --type lambda
+    """
+    from ..storage import Database, ResourceStore
+    import json
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = ResourceStore(db)
+
+        # Parse tag filter
+        tag_key = None
+        tag_value = None
+        if tag:
+            if "=" in tag:
+                tag_key, tag_value = tag.split("=", 1)
+            else:
+                tag_key = tag
+
+        results = store.search(
+            arn_pattern=arn,
+            resource_type=type,
+            region=region,
+            tag_key=tag_key,
+            tag_value=tag_value,
+            snapshot_name=snapshot,
+            limit=limit,
+        )
+
+        if not results:
+            console.print("[yellow]No resources found matching filters[/yellow]")
+            return
+
+        if format == "json":
+            console.print(json.dumps(results, indent=2, default=str))
+        else:
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("ARN", style="cyan", no_wrap=True)
+            table.add_column("Type")
+            table.add_column("Name")
+            table.add_column("Region")
+            table.add_column("Snapshot")
+
+            for r in results:
+                # Truncate ARN for display
+                arn_display = r["arn"]
+                if len(arn_display) > 60:
+                    arn_display = "..." + arn_display[-57:]
+                table.add_row(
+                    arn_display,
+                    r["resource_type"],
+                    r["name"],
+                    r["region"],
+                    r["snapshot_name"],
+                )
+            console.print(table)
+
+        console.print(f"\n[dim]{len(results)} resource(s) found[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Query failed")
+        raise typer.Exit(code=1)
+
+
+@query_app.command("history")
+def query_history(
+    arn: str = typer.Argument(..., help="Resource ARN to track across snapshots"),
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+):
+    """Show snapshot history for a specific resource.
+
+    Tracks when a resource appeared in snapshots and whether its configuration changed.
+
+    Example:
+        awsinv query history "arn:aws:s3:::my-bucket"
+    """
+    from ..storage import Database, ResourceStore
+    import json
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = ResourceStore(db)
+
+        results = store.get_history(arn)
+
+        if not results:
+            console.print(f"[yellow]No history found for ARN: {arn}[/yellow]")
+            return
+
+        if format == "json":
+            console.print(json.dumps(results, indent=2, default=str))
+        else:
+            console.print(f"\n[bold]History for:[/bold] {arn}\n")
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("Snapshot")
+            table.add_column("Snapshot Date")
+            table.add_column("Config Hash")
+            table.add_column("Source")
+
+            prev_hash = None
+            for r in results:
+                config_hash = r["config_hash"][:12] if r["config_hash"] else "N/A"
+                # Mark config changes
+                if prev_hash and prev_hash != r["config_hash"]:
+                    config_hash = f"[yellow]{config_hash}[/yellow] (changed)"
+                prev_hash = r["config_hash"]
+
+                table.add_row(
+                    r["snapshot_name"],
+                    str(r["snapshot_created_at"])[:19],
+                    config_hash,
+                    r["source"] or "direct_api",
+                )
+            console.print(table)
+
+        console.print(f"\n[dim]Found in {len(results)} snapshot(s)[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Query failed")
+        raise typer.Exit(code=1)
+
+
+@query_app.command("stats")
+def query_stats(
+    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Specific snapshot (default: all)"),
+    group_by: str = typer.Option("type", "--group-by", "-g", help="Group by: type, region, service, snapshot"),
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+):
+    """Show resource statistics and counts.
+
+    Examples:
+        awsinv query stats
+        awsinv query stats --group-by region
+        awsinv query stats --snapshot baseline-2024 --group-by service
+    """
+    from ..storage import Database, ResourceStore, SnapshotStore
+    import json
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        resource_store = ResourceStore(db)
+        snapshot_store = SnapshotStore(db)
+
+        # Get overall stats
+        total_snapshots = snapshot_store.get_snapshot_count()
+        total_resources = snapshot_store.get_resource_count()
+
+        console.print(f"\n[bold]Database Statistics[/bold]")
+        console.print(f"Total snapshots: [cyan]{total_snapshots}[/cyan]")
+        console.print(f"Total resources: [cyan]{total_resources}[/cyan]")
+
+        if snapshot:
+            console.print(f"Filtering by snapshot: [cyan]{snapshot}[/cyan]")
+        console.print()
+
+        results = resource_store.get_stats(snapshot_name=snapshot, group_by=group_by)
+
+        if not results:
+            console.print("[yellow]No statistics available[/yellow]")
+            return
+
+        if format == "json":
+            console.print(json.dumps(results, indent=2, default=str))
+        else:
+            group_label = {
+                "type": "Resource Type",
+                "region": "Region",
+                "service": "Service",
+                "snapshot": "Snapshot",
+            }.get(group_by, "Group")
+
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column(group_label)
+            table.add_column("Count", justify="right")
+
+            for r in results:
+                table.add_row(r["group_key"] or "Unknown", str(r["count"]))
+            console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Query failed")
+        raise typer.Exit(code=1)
+
+
+@query_app.command("diff")
+def query_diff(
+    snapshot1: str = typer.Argument(..., help="First (older) snapshot name"),
+    snapshot2: str = typer.Argument(..., help="Second (newer) snapshot name"),
+    type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by resource type"),
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, summary"),
+):
+    """Compare resources between two snapshots.
+
+    Shows resources that were added, removed, or modified between snapshots.
+
+    Example:
+        awsinv query diff baseline-2024 current-2024
+        awsinv query diff snap1 snap2 --type s3:bucket
+    """
+    from ..storage import Database, ResourceStore
+    import json
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = ResourceStore(db)
+
+        result = store.compare_snapshots(snapshot1, snapshot2)
+
+        # Filter by type if specified
+        if type:
+            result["added"] = [r for r in result["added"] if type.lower() in r["resource_type"].lower()]
+            result["removed"] = [r for r in result["removed"] if type.lower() in r["resource_type"].lower()]
+            result["modified"] = [r for r in result["modified"] if type.lower() in r["resource_type"].lower()]
+            # Update counts
+            result["summary"]["added_count"] = len(result["added"])
+            result["summary"]["removed_count"] = len(result["removed"])
+            result["summary"]["modified_count"] = len(result["modified"])
+
+        summary = result["summary"]
+
+        if format == "json":
+            console.print(json.dumps(result, indent=2, default=str))
+            return
+
+        # Print summary
+        console.print(f"\n[bold]Comparing Snapshots[/bold]")
+        console.print(f"  {snapshot1} ({summary['snapshot1_count']} resources)")
+        console.print(f"  {snapshot2} ({summary['snapshot2_count']} resources)")
+        console.print()
+
+        if format == "summary":
+            console.print(f"[green]+ Added:[/green]    {summary['added_count']}")
+            console.print(f"[red]- Removed:[/red]  {summary['removed_count']}")
+            console.print(f"[yellow]~ Modified:[/yellow] {summary['modified_count']}")
+            return
+
+        # Show details
+        if result["added"]:
+            console.print(f"\n[green][bold]Added ({len(result['added'])})[/bold][/green]")
+            table = Table(show_header=True, header_style="green")
+            table.add_column("ARN")
+            table.add_column("Type")
+            table.add_column("Region")
+            for r in result["added"][:20]:
+                table.add_row(r["arn"][-60:], r["resource_type"], r["region"])
+            console.print(table)
+            if len(result["added"]) > 20:
+                console.print(f"[dim]...and {len(result['added']) - 20} more[/dim]")
+
+        if result["removed"]:
+            console.print(f"\n[red][bold]Removed ({len(result['removed'])})[/bold][/red]")
+            table = Table(show_header=True, header_style="red")
+            table.add_column("ARN")
+            table.add_column("Type")
+            table.add_column("Region")
+            for r in result["removed"][:20]:
+                table.add_row(r["arn"][-60:], r["resource_type"], r["region"])
+            console.print(table)
+            if len(result["removed"]) > 20:
+                console.print(f"[dim]...and {len(result['removed']) - 20} more[/dim]")
+
+        if result["modified"]:
+            console.print(f"\n[yellow][bold]Modified ({len(result['modified'])})[/bold][/yellow]")
+            table = Table(show_header=True, header_style="yellow")
+            table.add_column("ARN")
+            table.add_column("Type")
+            table.add_column("Old Hash")
+            table.add_column("New Hash")
+            for r in result["modified"][:20]:
+                table.add_row(
+                    r["arn"][-50:],
+                    r["resource_type"],
+                    r["old_hash"][:12],
+                    r["new_hash"][:12],
+                )
+            console.print(table)
+            if len(result["modified"]) > 20:
+                console.print(f"[dim]...and {len(result['modified']) - 20} more[/dim]")
+
+        if not result["added"] and not result["removed"] and not result["modified"]:
+            console.print("[green]No differences found between snapshots[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Query failed")
+        raise typer.Exit(code=1)
+
+
+app.add_typer(query_app, name="query")
+
+
 def cli_main():
     """Entry point for console script."""
     app()

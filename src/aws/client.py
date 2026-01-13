@@ -95,7 +95,7 @@ def get_enabled_regions(profile_name: Optional[str] = None) -> List[str]:  # typ
         ]
 
 
-def test_client_connection(client: Any) -> bool:
+def check_client_connection(client: Any) -> bool:
     """Test if a boto3 client can connect to AWS.
 
     Args:

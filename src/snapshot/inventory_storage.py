@@ -1,13 +1,20 @@
-"""Storage service for inventory management."""
+"""Storage service for inventory management.
+
+This module provides the main interface for inventory persistence.
+It uses SQLite as the primary storage backend, with automatic migration
+from legacy YAML files on first use.
+"""
 
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Union
 
 import yaml
 
 from ..models.inventory import Inventory
+from ..storage import Database, InventoryStore
 from ..utils.paths import get_snapshot_storage_path
 
 logger = logging.getLogger(__name__)
@@ -20,17 +27,17 @@ class InventoryNotFoundError(Exception):
 
 
 class InventoryStorage:
-    """Manage inventory storage and retrieval.
+    """Manage inventory storage and retrieval using SQLite backend.
 
-    Handles CRUD operations for inventories stored in inventories.yaml file.
-    Uses atomic writes (temp file + rename) for crash safety.
+    Handles CRUD operations for inventories with automatic migration
+    from legacy YAML files on first use.
     """
 
     def __init__(self, storage_dir: Optional[Union[str, Path]] = None):
         """Initialize inventory storage.
 
         Args:
-            storage_dir: Directory containing inventories.yaml (default: ~/.snapshots via get_snapshot_storage_path())
+            storage_dir: Directory for storage (default: ~/.snapshots via get_snapshot_storage_path())
         """
         self.storage_dir = get_snapshot_storage_path(storage_dir)
         self.inventory_file = self.storage_dir / "inventories.yaml"
@@ -38,34 +45,52 @@ class InventoryStorage:
         # Ensure storage directory exists
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_all(self) -> List[Inventory]:
-        """Load all inventories from inventories.yaml.
+        # Initialize SQLite database
+        self.db = Database(storage_path=self.storage_dir)
+        self.db.ensure_schema()
 
-        Returns:
-            List of all inventories (empty list if file doesn't exist)
-        """
+        # Initialize inventory store
+        self._store = InventoryStore(self.db)
+
+        # Auto-migrate YAML inventories on first use
+        self._migrate_yaml_if_needed()
+
+    def _migrate_yaml_if_needed(self) -> None:
+        """Migrate inventories from YAML to SQLite if needed."""
         if not self.inventory_file.exists():
-            logger.debug("No inventories.yaml file found, returning empty list")
-            return []
+            return
+
+        # Check if we have inventories in SQLite already
+        existing = self._store.list_all()
+        if existing:
+            return  # Already migrated
 
         try:
             with open(self.inventory_file, "r") as f:
                 data = yaml.safe_load(f)
 
             if not data or "inventories" not in data:
-                logger.debug("Empty or invalid inventories.yaml, returning empty list")
-                return []
+                return
 
-            inventories = [Inventory.from_dict(inv_data) for inv_data in data["inventories"]]
-            logger.debug(f"Loaded {len(inventories)} inventories from storage")
-            return inventories
+            for inv_data in data["inventories"]:
+                inventory = Inventory.from_dict(inv_data)
+                self._store.save(inventory)
+                logger.debug(f"Migrated inventory '{inventory.name}' to SQLite")
 
-        except yaml.YAMLError as e:
-            logger.error(f"Failed to parse inventories.yaml: {e}")
-            raise ValueError(f"Corrupted inventories file: {e}")
+            logger.info(f"Migrated {len(data['inventories'])} inventories from YAML to SQLite")
+
         except Exception as e:
-            logger.error(f"Failed to load inventories: {e}")
-            raise
+            logger.warning(f"Failed to migrate YAML inventories: {e}")
+
+    def load_all(self) -> List[Inventory]:
+        """Load all inventories.
+
+        Returns:
+            List of all inventories (empty list if none exist)
+        """
+        inventories = self._store.list_all()
+        logger.debug(f"Loaded {len(inventories)} inventories from storage")
+        return inventories
 
     def load_by_account(self, account_id: str) -> List[Inventory]:
         """Load inventories for specific account.
@@ -76,10 +101,9 @@ class InventoryStorage:
         Returns:
             List of inventories for the account
         """
-        all_inventories = self.load_all()
-        account_inventories = [inv for inv in all_inventories if inv.account_id == account_id]
-        logger.debug(f"Found {len(account_inventories)} inventories for account {account_id}")
-        return account_inventories
+        inventories = self._store.list_by_account(account_id)
+        logger.debug(f"Found {len(inventories)} inventories for account {account_id}")
+        return inventories
 
     def get_by_name(self, name: str, account_id: str) -> Inventory:
         """Get specific inventory by name and account.
@@ -94,12 +118,10 @@ class InventoryStorage:
         Raises:
             InventoryNotFoundError: If inventory not found
         """
-        account_inventories = self.load_by_account(account_id)
-
-        for inventory in account_inventories:
-            if inventory.name == name:
-                logger.debug(f"Found inventory '{name}' for account {account_id}")
-                return inventory
+        inventory = self._store.load(name, account_id)
+        if inventory:
+            logger.debug(f"Found inventory '{name}' for account {account_id}")
+            return inventory
 
         raise InventoryNotFoundError(f"Inventory '{name}' not found for account {account_id}")
 
@@ -116,8 +138,6 @@ class InventoryStorage:
             return self.get_by_name("default", account_id)
         except InventoryNotFoundError:
             # Auto-create default inventory
-            from datetime import datetime, timezone
-
             default = Inventory(
                 name="default",
                 account_id=account_id,
@@ -134,7 +154,7 @@ class InventoryStorage:
             return default
 
     def save(self, inventory: Inventory) -> None:
-        """Save/update single inventory using atomic write.
+        """Save/update inventory.
 
         Args:
             inventory: Inventory to save
@@ -147,24 +167,8 @@ class InventoryStorage:
         if errors:
             raise ValueError(f"Invalid inventory: {', '.join(errors)}")
 
-        # Load all inventories
-        all_inventories = self.load_all()
-
-        # Find and update existing, or append new
-        updated = False
-        for i, existing in enumerate(all_inventories):
-            if existing.name == inventory.name and existing.account_id == inventory.account_id:
-                all_inventories[i] = inventory
-                updated = True
-                logger.debug(f"Updated inventory '{inventory.name}' for account {inventory.account_id}")
-                break
-
-        if not updated:
-            all_inventories.append(inventory)
-            logger.debug(f"Added new inventory '{inventory.name}' for account {inventory.account_id}")
-
-        # Write atomically
-        self._atomic_write(all_inventories)
+        self._store.save(inventory)
+        logger.debug(f"Saved inventory '{inventory.name}' for account {inventory.account_id}")
 
     def delete(self, name: str, account_id: str, delete_snapshots: bool = False) -> int:
         """Delete inventory, optionally deleting its snapshot files.
@@ -186,23 +190,18 @@ class InventoryStorage:
         # Delete snapshot files if requested
         deleted_count = 0
         if delete_snapshots:
-            snapshots_dir = self.storage_dir / "snapshots"
-            for snapshot_file in inventory.snapshots:
-                snapshot_path = snapshots_dir / snapshot_file
-                try:
-                    if snapshot_path.exists():
-                        snapshot_path.unlink()
-                        deleted_count += 1
-                        logger.debug(f"Deleted snapshot file: {snapshot_file}")
-                except Exception as e:
-                    logger.warning(f"Failed to delete snapshot file {snapshot_file}: {e}")
+            from ..storage import SnapshotStore
 
-        # Remove inventory from list
-        all_inventories = self.load_all()
-        all_inventories = [inv for inv in all_inventories if not (inv.name == name and inv.account_id == account_id)]
+            snapshot_store = SnapshotStore(self.db)
+            for snapshot_name in inventory.snapshots:
+                # Remove file extensions if present
+                snap_name = snapshot_name.replace(".yaml.gz", "").replace(".yaml", "")
+                if snapshot_store.delete(snap_name):
+                    deleted_count += 1
+                    logger.debug(f"Deleted snapshot: {snap_name}")
 
-        # Write atomically
-        self._atomic_write(all_inventories)
+        # Delete inventory
+        self._store.delete(name, account_id)
         logger.info(f"Deleted inventory '{name}' for account {account_id}")
 
         return deleted_count
@@ -217,11 +216,7 @@ class InventoryStorage:
         Returns:
             True if inventory exists, False otherwise
         """
-        try:
-            self.get_by_name(name, account_id)
-            return True
-        except InventoryNotFoundError:
-            return False
+        return self._store.exists(name, account_id)
 
     def validate_unique(self, name: str, account_id: str) -> bool:
         """Validate that (name, account_id) combination is unique.
@@ -235,30 +230,7 @@ class InventoryStorage:
         """
         return not self.exists(name, account_id)
 
+    # Legacy methods for backward compatibility
     def _atomic_write(self, inventories: List[Inventory]) -> None:
-        """Write inventories using atomic rename pattern.
-
-        This ensures crash safety - either the full write succeeds or it doesn't.
-        Uses temp file + os.replace() which is atomic on all platforms.
-
-        Args:
-            inventories: List of all inventories to write
-        """
-        # Prepare data structure
-        data = {"inventories": [inv.to_dict() for inv in inventories]}
-
-        # Write to temp file
-        temp_path = self.inventory_file.with_suffix(".tmp")
-        try:
-            with open(temp_path, "w") as f:
-                yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
-
-            # Atomic rename (replaces existing file)
-            os.replace(temp_path, self.inventory_file)
-            logger.debug(f"Wrote {len(inventories)} inventories to storage")
-
-        except Exception:
-            # Clean up temp file on error
-            if temp_path.exists():
-                temp_path.unlink()
-            raise
+        """Write inventories using atomic rename pattern (legacy, no-op for SQLite)."""
+        pass  # SQLite handles atomicity
