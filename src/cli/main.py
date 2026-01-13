@@ -673,6 +673,106 @@ def inventory_delete(
 snapshot_app = typer.Typer(help="Snapshot management commands")
 app.add_typer(snapshot_app, name="snapshot")
 
+# Config commands group
+config_app = typer.Typer(help="AWS Config integration commands")
+app.add_typer(config_app, name="config")
+
+
+@config_app.command("check")
+def config_check(
+    regions: Optional[str] = typer.Option(
+        None, "--regions", help="Comma-separated list of regions (default: us-east-1)"
+    ),
+    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed resource type support"),
+):
+    """Check AWS Config availability and status.
+
+    Shows whether AWS Config is enabled in each region and what resource types
+    are being recorded. This helps understand which collection method will be used.
+
+    Examples:
+        awsinv config check
+        awsinv config check --regions us-east-1,us-west-2
+        awsinv config check --verbose
+    """
+    from ..config_service.detector import detect_config_availability
+    from ..config_service.resource_type_mapping import CONFIG_SUPPORTED_TYPES, COLLECTOR_TO_CONFIG_TYPES
+
+    import boto3
+
+    region_list = (regions or "us-east-1").split(",")
+
+    # Create session
+    session_kwargs = {}
+    if profile:
+        session_kwargs["profile_name"] = profile
+    session = boto3.Session(**session_kwargs)
+
+    # Header
+    console.print()
+    console.print("[bold]AWS Config Status Check[/bold]")
+    console.print()
+
+    # Check each region
+    for region in region_list:
+        availability = detect_config_availability(session, region, profile)
+
+        if availability.is_enabled:
+            status = "[green]✓ ENABLED[/green]"
+            recorder_info = f"Recorder: {availability.recorder_name}"
+            if availability.recording_group_all_supported:
+                types_info = f"Recording: [cyan]All supported types[/cyan] ({len(CONFIG_SUPPORTED_TYPES)} types)"
+            else:
+                types_info = f"Recording: [yellow]{len(availability.resource_types_recorded)} specific types[/yellow]"
+        else:
+            status = "[red]✗ NOT ENABLED[/red]"
+            recorder_info = f"Reason: {availability.error_message or 'Unknown'}"
+            types_info = ""
+
+        console.print(f"[bold]{region}[/bold]: {status}")
+        console.print(f"  {recorder_info}")
+        if types_info:
+            console.print(f"  {types_info}")
+
+        if verbose and availability.is_enabled:
+            # Show which services will use Config vs Direct API
+            console.print()
+            console.print("  [dim]Collection method by service:[/dim]")
+
+            service_table = Table(show_header=True, header_style="dim", box=None, padding=(0, 2))
+            service_table.add_column("Service", style="cyan")
+            service_table.add_column("Method", style="white")
+            service_table.add_column("Resource Types", style="dim")
+
+            for service, config_types in sorted(COLLECTOR_TO_CONFIG_TYPES.items()):
+                supported_types = [t for t in config_types if availability.supports_resource_type(t)]
+                if supported_types:
+                    method = "[green]Config[/green]"
+                    types_str = ", ".join(t.split("::")[-1] for t in supported_types[:3])
+                    if len(supported_types) > 3:
+                        types_str += f" (+{len(supported_types) - 3} more)"
+                else:
+                    method = "[yellow]Direct API[/yellow]"
+                    types_str = "Config not recording these types"
+
+                service_table.add_row(service.upper(), method, types_str)
+
+            console.print(service_table)
+
+        console.print()
+
+    # Summary
+    enabled_regions = [r for r in region_list if detect_config_availability(session, r, profile).is_enabled]
+    if enabled_regions:
+        console.print(f"[green]Config enabled in {len(enabled_regions)}/{len(region_list)} regions[/green]")
+        console.print("[dim]Snapshots will use Config for faster collection where available.[/dim]")
+    else:
+        console.print("[yellow]Config not enabled in any checked regions[/yellow]")
+        console.print("[dim]Snapshots will use direct API calls (slower).[/dim]")
+        console.print()
+        console.print("[dim]To enable AWS Config: https://docs.aws.amazon.com/config/latest/developerguide/gs-console.html[/dim]")
+
 
 @snapshot_app.command("create")
 def snapshot_create(
@@ -704,6 +804,9 @@ def snapshot_create(
     ),
     config_aggregator: Optional[str] = typer.Option(
         None, "--config-aggregator", help="AWS Config Aggregator name for multi-account collection"
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Show detailed collection method breakdown"
     ),
 ):
     """Create a new snapshot of AWS resources.
@@ -974,6 +1077,53 @@ def snapshot_create(
                 table.add_row(service, str(count))
 
             console.print(table)
+
+        # Show collection method summary (Config vs Direct API)
+        collection_sources = snapshot.metadata.get("collection_sources", {})
+        config_enabled_regions = snapshot.metadata.get("config_enabled_regions", [])
+
+        if collection_sources:
+            # Count unique sources by method
+            config_types = [t for t, s in collection_sources.items() if s == "config"]
+            direct_types = [t for t, s in collection_sources.items() if s == "direct_api"]
+
+            console.print("\nCollection Method:")
+            if config_enabled_regions:
+                console.print(f"  AWS Config: [green]Enabled[/green] in {', '.join(config_enabled_regions)}")
+                console.print(f"  [green]Config[/green]: {len(config_types)} resource type(s)")
+                console.print(f"  [yellow]Direct API[/yellow]: {len(direct_types)} resource type(s)")
+            else:
+                console.print("  AWS Config: [yellow]Not enabled[/yellow] (using direct API)")
+                console.print(f"  Direct API: {len(direct_types)} resource type(s)")
+
+            # Show detailed table only with --verbose
+            if verbose and (config_types or direct_types):
+                console.print()
+                method_table = Table(show_header=True, title="Collection Sources by Resource Type")
+                method_table.add_column("Resource Type", style="cyan")
+                method_table.add_column("Method", style="green")
+                method_table.add_column("Reason", style="dim")
+
+                for resource_type in sorted(collection_sources.keys()):
+                    method = collection_sources[resource_type]
+                    if method == "config":
+                        reason = "Config enabled & type recorded"
+                        method_display = "[green]Config[/green]"
+                    else:
+                        # Determine reason for direct API
+                        if not config_enabled_regions:
+                            reason = "Config not enabled"
+                        else:
+                            reason = "Type not recorded by Config"
+                        method_display = "[yellow]Direct API[/yellow]"
+                    method_table.add_row(resource_type, method_display, reason)
+
+                console.print(method_table)
+            elif not verbose and (config_types or direct_types):
+                console.print("\n  [dim]Use --verbose to see detailed breakdown by resource type[/dim]")
+        elif not use_config:
+            console.print("\nCollection Method:")
+            console.print("  All resources collected via Direct API (--no-config specified)")
 
     except typer.Exit:
         # Re-raise Exit exceptions (normal exit codes)

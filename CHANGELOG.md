@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-01-13
+
+### Added
+- **`awsinv config check` command**: Check AWS Config availability before creating snapshots
+  - Shows Config status per region (enabled/disabled, recorder name, recording mode)
+  - `--verbose` flag shows which services will use Config vs Direct API
+  - Helps users understand collection method before running snapshots
+- **`--verbose` flag for `snapshot create`**: Shows collection method breakdown after completion
+  - Displays which resource types were collected via Config vs Direct API
+  - Shows reasons for fallback (Config not enabled, type not recorded)
+  - Default output shows brief summary; `--verbose` shows detailed table
+
+### Changed
+- Snapshot completion output now includes collection method summary
+- Improved user visibility into hybrid Config/Direct API collection
+
 ## [0.7.0] - 2026-01-13
 
 ### Added
