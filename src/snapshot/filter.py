@@ -119,15 +119,28 @@ class ResourceFilter:
 
         # If resource has no creation date or invalid type, we can't filter by date
         # Many AWS resources don't expose creation timestamps (VPCs, Security Groups, etc.)
-        if not resource.created_at or not isinstance(resource.created_at, datetime):
+        if not resource.created_at:
             self.stats["missing_creation_date"] += 1
-            # For resources without valid creation dates, include them (permissive behavior)
-            # This is a design choice - could also exclude them
+            logger.debug(f"Resource {resource.arn} has no creation date - including by default")
+            return True
+
+        # Handle string dates (convert to datetime)
+        resource_date = resource.created_at
+        if isinstance(resource_date, str):
+            try:
+                resource_date = datetime.fromisoformat(resource_date.replace("Z", "+00:00"))
+            except ValueError:
+                self.stats["missing_creation_date"] += 1
+                logger.debug(f"Resource {resource.arn} has invalid date format - including by default")
+                return True
+
+        # Ensure we have a datetime object
+        if not isinstance(resource_date, datetime):
+            self.stats["missing_creation_date"] += 1
             logger.debug(f"Resource {resource.arn} has no valid creation date - including by default")
             return True
 
         # Make sure resource.created_at is timezone-aware for comparison
-        resource_date = resource.created_at
         if resource_date.tzinfo is None:
             # Assume UTC if no timezone
             from datetime import timezone as tz

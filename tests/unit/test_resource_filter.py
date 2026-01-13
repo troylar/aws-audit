@@ -465,16 +465,15 @@ class TestResourceFilter:
         assert filter.stats["total_collected"] == 0
         assert filter.stats["final_count"] == 0
 
-    def test_apply_resource_with_invalid_created_at_type_included(self):
-        """Test that resources with invalid created_at type are included when date filters present.
+    def test_apply_resource_with_parseable_string_date(self):
+        """Test that resources with ISO format string dates are properly parsed and filtered.
 
-        This handles edge cases where created_at might be a string instead of datetime
-        (e.g., from malformed YAML or API responses).
-        Regression test for issue #37.
+        String dates in ISO format should be automatically converted to datetime
+        and properly compared against date filters.
         """
         cutoff = datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
 
-        # Create a resource and manually set created_at to an invalid type
+        # Create a resource with a parseable ISO string date
         resource_with_string_date = Resource(
             arn="arn:aws:s3:::string-date",
             resource_type="s3:bucket",
@@ -483,7 +482,7 @@ class TestResourceFilter:
             config_hash="1" * 64,
             raw_config={},
         )
-        # Simulate invalid type by directly setting the attribute
+        # Set a parseable ISO format string date that IS before cutoff
         resource_with_string_date.created_at = "2024-05-01T00:00:00Z"  # type: ignore
 
         resource_with_valid_date = Resource(
@@ -501,10 +500,39 @@ class TestResourceFilter:
         filter = ResourceFilter(before_date=cutoff)
         filtered = filter.apply(resources)
 
-        # Resource with invalid created_at type should be included by default (permissive)
-        # Resource with valid date after cutoff should be excluded
+        # Resource with parseable string date (2024-05-01) should be included (before cutoff)
+        # Resource with valid date (2024-07-01) after cutoff should be excluded
         assert len(filtered) == 1
         assert filtered[0].name == "string-date"
+        # String was successfully parsed, so not counted as missing
+        assert filter.stats["missing_creation_date"] == 0
+
+    def test_apply_resource_with_invalid_string_date_included(self):
+        """Test that resources with unparseable string dates are included (permissive).
+
+        Regression test for issue #37.
+        """
+        cutoff = datetime(2024, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+        # Create a resource with an UNPARSEABLE string date
+        resource_with_bad_string = Resource(
+            arn="arn:aws:s3:::bad-string-date",
+            resource_type="s3:bucket",
+            name="bad-string-date",
+            region="us-east-1",
+            config_hash="1" * 64,
+            raw_config={},
+        )
+        resource_with_bad_string.created_at = "not-a-valid-date"  # type: ignore
+
+        resources = [resource_with_bad_string]
+
+        filter = ResourceFilter(before_date=cutoff)
+        filtered = filter.apply(resources)
+
+        # Resource with unparseable date should be included by default (permissive)
+        assert len(filtered) == 1
+        assert filtered[0].name == "bad-string-date"
         assert filter.stats["missing_creation_date"] == 1
 
     def test_apply_resource_with_integer_created_at_included(self):

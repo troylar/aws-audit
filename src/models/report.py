@@ -149,9 +149,21 @@ class DetailedResource:
         if self.created_at:
             from datetime import timezone
 
+            # Handle string dates (convert to datetime)
+            created_at = self.created_at
+            if isinstance(created_at, str):
+                try:
+                    created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                except ValueError:
+                    return None
+
+            # Ensure we have a datetime object
+            if not isinstance(created_at, datetime):
+                return None
+
             # Ensure we're comparing timezone-aware datetimes
             now_utc = datetime.now(timezone.utc)
-            created = self.created_at if self.created_at.tzinfo else self.created_at.replace(tzinfo=timezone.utc)
+            created = created_at if created_at.tzinfo else created_at.replace(tzinfo=timezone.utc)
             return (now_utc - created).days
         return None
 
