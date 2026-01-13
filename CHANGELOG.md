@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-01-13
+
+### Added
+- **SQLite Storage Backend**: Migrated from YAML files to SQLite for better query capabilities
+  - All snapshots, resources, and tags stored in `~/.snapshots/inventory.db`
+  - Normalized tags table for efficient tag-based queries
+  - Optimized indexes for fast lookups by ARN, type, region, and tags
+  - Performance tuning with WAL mode, memory-mapped I/O, and connection pooling
+
+- **Query Commands**: New `awsinv query` command group for searching and analyzing resources
+  - `query sql "<SQL>"` - Run raw SQL queries against the resource database
+  - `query resources` - Search resources with filters (type, region, tag, snapshot)
+  - `query history <arn>` - Track a resource across all snapshots
+  - `query stats` - View resource statistics grouped by type, region, or service
+  - `query diff <snap1> <snap2>` - Compare resources between two snapshots
+
+### Changed
+- Storage format changed from YAML files to SQLite database
+- Snapshot data now stored in `inventory.db` instead of individual YAML files
+- Improved startup time with lazy imports in CLI module
+
+### New Modules
+- `src/storage/database.py` - SQLite connection management with performance tuning
+- `src/storage/schema.py` - Database schema definitions and indexes
+- `src/storage/snapshot_store.py` - Snapshot CRUD operations
+- `src/storage/resource_store.py` - Resource queries and search
+- `src/storage/inventory_store.py` - Inventory management
+- `src/storage/audit_store.py` - Audit log storage
+
+### Testing
+- 82 new unit tests for storage layer
+- Total test count: 1491 tests passing
+
+### Breaking Changes
+- **Storage format changed**: Snapshots now stored in SQLite instead of YAML
+- New installations will create `~/.snapshots/inventory.db`
+- Existing YAML snapshots are not automatically migrated
+
 ## [0.7.2] - 2026-01-13
 
 ### Fixed
