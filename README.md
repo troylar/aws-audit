@@ -57,10 +57,11 @@ Before diving in, here's the terminology:
 
 | Term | Meaning |
 |------|---------|
-| **Snapshot** | A point-in-time inventory of your AWS resources (stored as local YAML files). Not an EBS/RDS snapshot. |
+| **Snapshot** | A point-in-time inventory of your AWS resources (stored in local SQLite database). Not an EBS/RDS snapshot. |
 | **Inventory** | A named collection of snapshots. Use inventories to organize snapshots by environment, team, or purpose. |
 | **Restore** | Delete resources that were created *after* a snapshot, returning to that baseline state. |
 | **Purge** | Delete all resources *except* those matching protection rules (no snapshot comparison needed). |
+| **Query** | Search and analyze resources across snapshots using SQL or built-in filters. |
 
 ---
 
@@ -75,7 +76,7 @@ Before diving in, here's the terminology:
 - Multi-region collection
 - Tag-based filtering
 - Export to JSON/CSV
-- Local YAML storage
+- SQLite storage with SQL queries
 
 </td>
 <td width="33%" valign="top">
@@ -131,6 +132,22 @@ Before diving in, here's the terminology:
 - Per-resource source tracking
 - Multi-account via Aggregators
 
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+### Query & Analysis
+- Raw SQL queries on resources
+- Search by type, region, tags
+- Tag coverage analysis
+- Cross-snapshot history
+- Export to JSON/CSV
+
+</td>
+<td width="33%" valign="top">
+</td>
+<td width="33%" valign="top">
 </td>
 </tr>
 </table>
@@ -281,18 +298,20 @@ If these aren't met, the tool falls back to direct API calls automatically.
 
 ### Where Snapshots Are Stored
 
-By default, all data is stored locally:
+By default, all data is stored locally in a SQLite database:
 
 ```
 ~/.snapshots/
-├── inventories.yaml          # Inventory metadata
-├── snapshots/
-│   ├── my-baseline.yaml      # Snapshot data (resources, configs)
-│   └── prod-2026-01.yaml
+├── inventory.db              # SQLite database (snapshots, resources, tags)
 └── audit-logs/
     └── restore/              # Cleanup operation logs
         └── 2026-01-15_cleanup.yaml
 ```
+
+The SQLite database provides:
+- **Fast queries**: Search across all snapshots with SQL
+- **Tag analysis**: Normalized tags table for efficient filtering
+- **Cross-snapshot history**: Track resources across multiple snapshots
 
 ### Changing Storage Location
 
@@ -307,11 +326,11 @@ awsinv snapshot create my-snapshot --storage-path /path/to/storage
 
 ### Team Sharing
 
-Snapshots are portable YAML files. To share across a team:
+The SQLite database is a single portable file. To share across a team:
 
-- Store in a shared filesystem
-- Commit to a Git repository
-- Sync via S3 (manually or via script)
+- Store `inventory.db` in a shared filesystem
+- Sync via S3 or other cloud storage
+- Use separate databases per environment/team
 
 ---
 
@@ -783,6 +802,33 @@ awsinv restore purge --protect-tag <key=value> --confirm
     [-y, --yes]                       # Skip interactive prompts
 
 # ─────────────────────────────────────────────────────────────
+# QUERY & ANALYSIS
+# ─────────────────────────────────────────────────────────────
+awsinv query sql "<SQL>"              # Run raw SQL query
+    [--format table|json|csv]
+
+awsinv query resources                # Search resources
+    [--type <AWS::Service::Type>]     # Filter by type
+    [--region <region>]               # Filter by region
+    [--tag <Key=Value>]               # Filter by tag
+    [--snapshot <name>]               # Limit to snapshot
+    [--limit <n>]                     # Max results
+
+awsinv query history <arn>            # Resource history across snapshots
+
+awsinv query stats                    # Resource statistics
+    [--snapshot <name>]               # Specific snapshot
+    [--group-by type|region|service]  # Grouping
+
+awsinv query diff <snap1> <snap2>     # Compare two snapshots
+    [--type <AWS::Service::Type>]
+
+# Example queries:
+awsinv query sql "SELECT resource_type, COUNT(*) FROM resources GROUP BY resource_type"
+awsinv query resources --type "AWS::S3::Bucket" --tag "Environment=prod"
+awsinv query stats --group-by region
+
+# ─────────────────────────────────────────────────────────────
 # GLOBAL OPTIONS
 # ─────────────────────────────────────────────────────────────
 --profile <aws-profile>               # AWS CLI profile to use
@@ -882,7 +928,7 @@ awsinv cost --snapshot team-data
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
 │  Storage: ~/.snapshots/                                       │
-│  • snapshots/*.yaml     (resource inventories)               │
+│  • inventory.db         (SQLite: snapshots, resources, tags) │
 │  • audit-logs/**/*.yaml (cleanup operation logs)             │
 │                                                               │
 └──────────────────────────────────────────────────────────────┘
@@ -910,7 +956,7 @@ invoke quality --fix     # Auto-fix issues
 invoke build             # Build distributable package
 ```
 
-**Test Coverage:** 1400+ tests, 79% overall coverage. Restore module: 98%+ coverage.
+**Test Coverage:** 1490+ tests, 75% overall coverage. Restore module: 98%+ coverage.
 
 ---
 
@@ -996,8 +1042,8 @@ awsinv snapshot create quick-snap --regions us-east-1 --resource-types ec2,lambd
 **Problem:** Scanning accounts with tens of thousands of resources.
 
 **Considerations:**
-- **Memory:** Snapshot data is held in memory; very large accounts may need 2-4GB RAM
-- **File size:** YAML files can grow to 50-100MB for large inventories
+- **Memory:** Snapshot data is held in memory during collection; very large accounts may need 2-4GB RAM
+- **Database size:** SQLite database grows with resources but handles large datasets efficiently
 - **Time:** Direct API collection may take 10-15 minutes; AWS Config reduces this significantly
 - **Recommendation:** Use AWS Config + limit to specific regions/types for large accounts
 
@@ -1009,7 +1055,7 @@ awsinv snapshot create quick-snap --regions us-east-1 --resource-types ec2,lambd
 
 #### Q: Is my AWS data sent anywhere?
 
-**No.** All data stays local. The tool only makes read API calls to AWS (and delete calls if you use restore/purge). Snapshots are stored in `~/.snapshots/` on your local machine.
+**No.** All data stays local. The tool only makes read API calls to AWS (and delete calls if you use restore/purge). Snapshots are stored in a SQLite database at `~/.snapshots/inventory.db` on your local machine.
 
 #### Q: Can I use this with AWS Organizations?
 
@@ -1102,6 +1148,6 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Star on GitHub](https://img.shields.io/github/stars/troylar/aws-inventory-manager?style=social)](https://github.com/troylar/aws-inventory-manager)
 
-Version 0.7.0 • Python 3.8 - 3.13
+Version 0.8.0 • Python 3.8 - 3.13
 
 </div>
