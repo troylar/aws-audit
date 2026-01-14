@@ -220,11 +220,14 @@ async def export_resources_csv(
     """Export resources to CSV file."""
     store = get_resource_store()
 
-    # Define available columns
-    all_columns = ["name", "arn", "resource_type", "region", "snapshot_name", "tags", "created_at"]
+    # Define base columns
+    base_columns = ["name", "arn", "resource_type", "region", "snapshot_name", "tags", "created_at", "config_hash"]
 
-    # Check if tags column is requested
-    include_tags = columns and "tags" in columns.split(",")
+    # Parse requested columns
+    requested_columns = [c.strip() for c in columns.split(",")] if columns else base_columns
+
+    # Check if we need tags (either "tags" column or any "tag:KEY" column)
+    include_tags = any(c == "tags" or c.startswith("tag:") for c in requested_columns)
 
     # Get all matching resources (no limit for export)
     resources = store.search(
@@ -241,30 +244,32 @@ async def export_resources_csv(
     if not resources:
         raise HTTPException(status_code=404, detail="No resources found matching criteria")
 
-    # If tags column requested, fetch tags for each resource
-    if include_tags:
-        enriched_resources = []
-        for resource in resources:
-            r = dict(resource)
+    # Enrich resources with tags if needed
+    enriched_resources = []
+    for resource in resources:
+        r = dict(resource)
+        if include_tags:
             tags = store.get_tags_for_resource(
                 resource["arn"],
                 snapshot_name=resource.get("snapshot_name"),
             )
-            # Convert tags dict to string format: "key1=value1; key2=value2"
+            # "tags" column: all tags as string
             r["tags"] = "; ".join(f"{k}={v}" for k, v in tags.items()) if tags else ""
-            enriched_resources.append(r)
-        resources = enriched_resources
+            # Individual tag columns (tag:KEY)
+            for col in requested_columns:
+                if col.startswith("tag:"):
+                    tag_key_name = col[4:]  # Remove "tag:" prefix
+                    r[col] = tags.get(tag_key_name, "")
+        enriched_resources.append(r)
+    resources = enriched_resources
 
-    # Parse requested columns or use defaults
-    if columns:
-        selected_columns = [c.strip() for c in columns.split(",") if c.strip() in all_columns]
-        if not selected_columns:
-            selected_columns = all_columns
-    else:
-        selected_columns = all_columns
+    # Filter columns to only those requested (allow tag:KEY columns)
+    selected_columns = [c for c in requested_columns if c in base_columns or c.startswith("tag:")]
+    if not selected_columns:
+        selected_columns = base_columns
 
     # Sort if requested
-    if sort_by and sort_by in all_columns:
+    if sort_by and (sort_by in base_columns or sort_by.startswith("tag:")):
         reverse = sort_order.lower() == "desc"
         resources = sorted(
             resources,

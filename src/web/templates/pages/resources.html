@@ -14,17 +14,30 @@
     advancedMode: false,
     filterLogic: 'AND',
     filterConditions: [],
-    filterFields: [
-        { value: 'name', label: 'Name' },
-        { value: 'arn', label: 'ARN' },
-        { value: 'resource_type', label: 'Type' },
-        { value: 'region', label: 'Region' },
-        { value: 'snapshot_name', label: 'Snapshot' },
-        { value: 'config_hash', label: 'Config Hash' },
-        { value: 'tag_key', label: 'Tag Key' },
-        { value: 'tag_value', label: 'Tag Value' }
+    baseFilterFields: [
+        { value: 'name', label: 'Name', type: 'text' },
+        { value: 'arn', label: 'ARN', type: 'text' },
+        { value: 'resource_type', label: 'Type', type: 'select' },
+        { value: 'region', label: 'Region', type: 'select' },
+        { value: 'snapshot_name', label: 'Snapshot', type: 'select' },
+        { value: 'config_hash', label: 'Config Hash', type: 'text' }
     ],
     availableTagKeys: [],
+    fieldValues: {},  // Cache of available values per field
+    loadingValues: {},  // Track loading state per field
+
+    get filterFields() {
+        // Combine base fields with dynamic tag fields
+        const tagFields = this.availableTagKeys.map(key => ({
+            value: 'tag:' + key,
+            label: 'Tag: ' + key,
+            type: 'select',
+            isTag: true,
+            tagKey: key
+        }));
+        return [...this.baseFilterFields, ...tagFields];
+    },
+
     filterOperators: [
         { value: 'equals', label: 'equals' },
         { value: 'not_equals', label: 'does not equal' },
@@ -50,16 +63,32 @@
     viewDescription: '',
     sortBy: 'name',
     sortOrder: 'asc',
-    columns: [
-        { field: 'name', label: 'Name', visible: true },
-        { field: 'arn', label: 'ARN', visible: true },
-        { field: 'resource_type', label: 'Type', visible: true },
-        { field: 'region', label: 'Region', visible: true },
-        { field: 'snapshot_name', label: 'Snapshot', visible: true },
-        { field: 'tags', label: 'Tags', visible: false },
-        { field: 'created_at', label: 'Created', visible: false },
-        { field: 'config_hash', label: 'Config Hash', visible: false }
+    baseColumns: [
+        { field: 'name', label: 'Name', visible: true, isBase: true },
+        { field: 'arn', label: 'ARN', visible: true, isBase: true },
+        { field: 'resource_type', label: 'Type', visible: true, isBase: true },
+        { field: 'region', label: 'Region', visible: true, isBase: true },
+        { field: 'snapshot_name', label: 'Snapshot', visible: true, isBase: true },
+        { field: 'tags', label: 'All Tags', visible: false, isBase: true },
+        { field: 'created_at', label: 'Created', visible: false, isBase: true },
+        { field: 'config_hash', label: 'Config Hash', visible: false, isBase: true }
     ],
+    tagColumns: [],  // Dynamic tag columns
+
+    get columns() {
+        return [...this.baseColumns, ...this.tagColumns];
+    },
+
+    initTagColumns() {
+        // Create tag columns from available tag keys
+        this.tagColumns = this.availableTagKeys.map(key => ({
+            field: 'tag:' + key,
+            label: 'Tag: ' + key,
+            visible: false,
+            isTag: true,
+            tagKey: key
+        }));
+    },
     currentViewId: null,
     resourceData: null,
     allResources: null,
@@ -69,8 +98,56 @@
     },
 
     toggleColumn(field) {
-        const col = this.columns.find(c => c.field === field);
+        // Check in base columns first
+        let col = this.baseColumns.find(c => c.field === field);
+        if (col) {
+            col.visible = !col.visible;
+            return;
+        }
+        // Check in tag columns
+        col = this.tagColumns.find(c => c.field === field);
         if (col) col.visible = !col.visible;
+    },
+
+    async loadFieldValues(field) {
+        // Don't reload if already cached
+        if (this.fieldValues[field]) return;
+
+        this.loadingValues[field] = true;
+
+        try {
+            if (field === 'resource_type') {
+                // Types: global across inventory (all snapshots)
+                const resp = await fetch('/api/resources/types');
+                const data = await resp.json();
+                this.fieldValues[field] = data.types || [];
+            } else if (field === 'region') {
+                // Regions: global across inventory (all snapshots)
+                const resp = await fetch('/api/resources/regions');
+                const data = await resp.json();
+                this.fieldValues[field] = data.regions || [];
+            } else if (field === 'snapshot_name') {
+                // Snapshots: always global
+                const resp = await fetch('/api/snapshots');
+                const data = await resp.json();
+                this.fieldValues[field] = (data.snapshots || []).map(s => s.name);
+            } else if (field.startsWith('tag:')) {
+                // Tag values: global across inventory (all snapshots)
+                const tagKey = field.substring(4);
+                const resp = await fetch(`/api/resources/tags/values?key=${encodeURIComponent(tagKey)}`);
+                const data = await resp.json();
+                this.fieldValues[field] = data.values || [];
+            }
+        } catch (e) {
+            console.error('Failed to load values for', field, e);
+            this.fieldValues[field] = [];
+        }
+        this.loadingValues[field] = false;
+    },
+
+    getFieldType(field) {
+        const f = this.filterFields.find(ff => ff.value === field);
+        return f ? f.type : 'text';
     },
 
     setSort(field) {
@@ -112,13 +189,22 @@
     evaluateCondition(resource, condition) {
         const searchValue = (condition.value || '').toLowerCase();
 
-        // Special handling for tag fields
+        // Special handling for specific tag key fields (tag:Environment, tag:Name, etc.)
+        if (condition.field.startsWith('tag:')) {
+            const tagKey = condition.field.substring(4);
+            const tags = resource.tags || {};
+            const tagValue = (tags[tagKey] || '').toString().toLowerCase();
+            return this.evaluateSingleValue(tagValue, condition.operator, searchValue);
+        }
+
+        // Legacy tag_key field (any tag key matches)
         if (condition.field === 'tag_key') {
             const tags = resource.tags || {};
             const tagKeys = Object.keys(tags).map(k => k.toLowerCase());
             return this.evaluateTagCondition(tagKeys, condition.operator, searchValue);
         }
 
+        // Legacy tag_value field (any tag value matches)
         if (condition.field === 'tag_value') {
             const tags = resource.tags || {};
             const tagValues = Object.values(tags).map(v => (v || '').toString().toLowerCase());
@@ -128,6 +214,33 @@
         const fieldValue = (resource[condition.field] || '').toString().toLowerCase();
 
         switch (condition.operator) {
+            case 'equals':
+                return fieldValue === searchValue;
+            case 'not_equals':
+                return fieldValue !== searchValue;
+            case 'contains':
+                return fieldValue.includes(searchValue);
+            case 'not_contains':
+                return !fieldValue.includes(searchValue);
+            case 'starts_with':
+                return fieldValue.startsWith(searchValue);
+            case 'not_starts_with':
+                return !fieldValue.startsWith(searchValue);
+            case 'ends_with':
+                return fieldValue.endsWith(searchValue);
+            case 'not_ends_with':
+                return !fieldValue.endsWith(searchValue);
+            case 'is_empty':
+                return !fieldValue || fieldValue.trim() === '';
+            case 'is_not_empty':
+                return fieldValue && fieldValue.trim() !== '';
+            default:
+                return true;
+        }
+    },
+
+    evaluateSingleValue(fieldValue, operator, searchValue) {
+        switch (operator) {
             case 'equals':
                 return fieldValue === searchValue;
             case 'not_equals':
@@ -403,6 +516,7 @@
                     <div class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
                         <!-- Field -->
                         <select x-model="condition.field"
+                                @change="loadFieldValues(condition.field)"
                                 class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                             <template x-for="field in filterFields" :key="field.value">
                                 <option :value="field.value" x-text="field.label"></option>
@@ -417,12 +531,32 @@
                             </template>
                         </select>
 
-                        <!-- Value -->
-                        <input x-show="needsValue(condition.operator)"
-                               type="text"
-                               x-model="condition.value"
-                               placeholder="Enter value..."
-                               class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <!-- Value - Dropdown for fields with available values -->
+                        <template x-if="needsValue(condition.operator) && getFieldType(condition.field) === 'select' && fieldValues[condition.field]?.length > 0">
+                            <select x-model="condition.value"
+                                    class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="">Select value...</option>
+                                <template x-for="val in fieldValues[condition.field]" :key="val">
+                                    <option :value="val" x-text="val"></option>
+                                </template>
+                            </select>
+                        </template>
+
+                        <!-- Value - Text input for other fields -->
+                        <template x-if="needsValue(condition.operator) && (getFieldType(condition.field) !== 'select' || !fieldValues[condition.field]?.length)">
+                            <input type="text"
+                                   x-model="condition.value"
+                                   placeholder="Enter value..."
+                                   class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </template>
+
+                        <!-- Loading indicator -->
+                        <span x-show="loadingValues[condition.field]" class="text-gray-400">
+                            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
 
                         <!-- Remove button -->
                         <button @click="removeCondition(index)"
@@ -473,7 +607,7 @@
 
     <!-- Results -->
     <div class="bg-white shadow rounded-lg overflow-hidden">
-        <div id="resource-table">
+        <div id="resource-table" class="overflow-x-auto">
             <div class="p-8 text-center text-gray-500">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p class="mt-2">Loading resources...</p>
@@ -485,16 +619,40 @@
     <div x-show="showColumnModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showColumnModal = false"></div>
-            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full sm:p-6">
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Customize Columns</h3>
-                <div class="space-y-3">
-                    <template x-for="col in columns" :key="col.field">
-                        <label class="flex items-center">
-                            <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
-                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                            <span class="ml-3 text-sm text-gray-700" x-text="col.label"></span>
-                        </label>
-                    </template>
+                <div class="space-y-4 max-h-96 overflow-y-auto">
+                    <!-- Base Columns -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">Resource Fields</h4>
+                        <div class="space-y-2">
+                            <template x-for="col in baseColumns" :key="col.field">
+                                <label class="flex items-center">
+                                    <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                    <span class="ml-3 text-sm text-gray-700" x-text="col.label"></span>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Tag Columns -->
+                    <div x-show="tagColumns.length > 0">
+                        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">Tag Columns</h4>
+                        <p class="text-xs text-gray-400 mb-2">Show individual tag values as columns</p>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            <template x-for="col in tagColumns" :key="col.field">
+                                <label class="flex items-center">
+                                    <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
+                                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    <span class="ml-3 text-sm text-gray-700">
+                                        <span class="text-indigo-600" x-text="col.tagKey"></span>
+                                    </span>
+                                </label>
+                            </template>
+                        </div>
+                        <p x-show="tagColumns.length === 0" class="text-xs text-gray-400 italic">No tags found in inventory</p>
+                    </div>
                 </div>
                 <div class="mt-5 sm:mt-6">
                     <button @click="showColumnModal = false; searchResources()"
@@ -628,9 +786,15 @@
 
 {% block scripts %}
 <script>
+    // Wait for Alpine to be ready before initializing
     document.addEventListener('DOMContentLoaded', function() {
-        searchResources();
-        loadTagKeys();
+        // Use requestAnimationFrame to ensure Alpine has processed the DOM
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                searchResources();
+                loadTagKeys();
+            });
+        });
     });
 
     document.body.addEventListener('htmx:afterSwap', function(evt) {
@@ -649,10 +813,11 @@
 
         const params = new URLSearchParams();
 
-        // Check if tags column is visible or if filtering by tags
+        // Check if any tags column is visible (including individual tag:KEY columns) or if filtering by tags
         const tagsColumnVisible = data.columns.find(c => c.field === 'tags')?.visible;
+        const anyTagColumnVisible = data.columns.some(c => c.field.startsWith('tag:') && c.visible);
         const hasTagConditions = data.advancedMode && data.filterConditions.some(
-            c => c.field === 'tag_key' || c.field === 'tag_value'
+            c => c.field === 'tag_key' || c.field === 'tag_value' || c.field.startsWith('tag:')
         );
 
         // In advanced mode, fetch all and filter client-side
@@ -664,8 +829,8 @@
             if (data.snapshot) params.append('snapshot', data.snapshot);
         }
 
-        // Include tags if column is visible or filtering by tags
-        if (tagsColumnVisible || hasTagConditions) {
+        // Include tags if any tag column is visible or filtering by tags
+        if (tagsColumnVisible || anyTagColumnVisible || hasTagConditions) {
             params.append('include_tags', 'true');
         }
 
@@ -703,7 +868,8 @@
         const visibleCols = data.visibleColumns;
 
         let html = `
-            <table class="min-w-full divide-y divide-gray-200">
+            <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 table-fixed">
                 <thead class="bg-gray-50">
                     <tr>
         `;
@@ -712,13 +878,20 @@
             const isSorted = data.sortBy === col.field;
             const sortIcon = isSorted
                 ? (data.sortOrder === 'asc'
-                    ? '<svg class="ml-1 h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>'
-                    : '<svg class="ml-1 h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>')
+                    ? '<svg class="ml-1 h-4 w-4 inline flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>'
+                    : '<svg class="ml-1 h-4 w-4 inline flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>')
                 : '';
+            // Set column widths based on field type
+            let widthClass = '';
+            if (col.field === 'arn') widthClass = 'w-64';
+            else if (col.field === 'name') widthClass = 'w-48';
+            else if (col.field === 'tags') widthClass = 'w-64';
+            else if (col.field.startsWith('tag:')) widthClass = 'w-32';
+            else widthClass = 'w-32';
             html += `
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${widthClass}"
                     onclick="sortByColumn('${col.field}')">
-                    ${col.label}${sortIcon}
+                    <span class="truncate block">${col.label}${sortIcon}</span>
                 </th>
             `;
         });
@@ -736,20 +909,20 @@
 
                 if (col.field === 'name') {
                     html += `
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">${value}</div>
+                        <td class="px-4 py-3 max-w-[12rem]">
+                            <div class="text-sm font-medium text-gray-900 truncate" title="${value}">${value}</div>
                         </td>
                     `;
                 } else if (col.field === 'arn') {
                     html += `
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-xs text-gray-500 truncate max-w-xs" title="${value}">${value}</div>
+                        <td class="px-4 py-3 max-w-[16rem]">
+                            <div class="text-xs text-gray-500 truncate" title="${value}">${value}</div>
                         </td>
                     `;
                 } else if (col.field === 'resource_type') {
                     html += `
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-[8rem]" title="${value}">
                                 ${value}
                             </span>
                         </td>
@@ -758,24 +931,42 @@
                     const tags = r.tags || {};
                     const tagEntries = Object.entries(tags);
                     if (tagEntries.length === 0) {
-                        html += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">No tags</td>`;
+                        html += `<td class="px-4 py-3 text-sm text-gray-400">No tags</td>`;
                     } else {
-                        html += `<td class="px-6 py-4"><div class="flex flex-wrap gap-1 max-w-md">`;
-                        tagEntries.slice(0, 5).forEach(([key, val]) => {
-                            const displayVal = val.length > 20 ? val.substring(0, 20) + '...' : val;
+                        html += `<td class="px-4 py-3"><div class="flex flex-wrap gap-1 max-w-[16rem]">`;
+                        tagEntries.slice(0, 3).forEach(([key, val]) => {
+                            const displayVal = val.length > 15 ? val.substring(0, 15) + '...' : val;
+                            const displayKey = key.length > 10 ? key.substring(0, 10) + '...' : key;
                             html += `
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700" title="${key}=${val}">
-                                    <span class="text-gray-500">${key}:</span>&nbsp;${displayVal}
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700" title="${key}=${val}">
+                                    <span class="text-gray-500">${displayKey}:</span>${displayVal}
                                 </span>
                             `;
                         });
-                        if (tagEntries.length > 5) {
-                            html += `<span class="text-xs text-gray-400">+${tagEntries.length - 5} more</span>`;
+                        if (tagEntries.length > 3) {
+                            html += `<span class="text-xs text-gray-400">+${tagEntries.length - 3}</span>`;
                         }
                         html += `</div></td>`;
                     }
+                } else if (col.field.startsWith('tag:')) {
+                    // Individual tag key column (e.g., tag:Environment, tag:Name)
+                    const tagKey = col.field.substring(4);
+                    const tags = r.tags || {};
+                    const tagValue = tags[tagKey] || '';
+                    if (tagValue) {
+                        const displayVal = tagValue.length > 20 ? tagValue.substring(0, 20) + '...' : tagValue;
+                        html += `
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 truncate max-w-[8rem]" title="${tagValue}">
+                                    ${displayVal}
+                                </span>
+                            </td>
+                        `;
+                    } else {
+                        html += `<td class="px-4 py-3 text-sm text-gray-300">-</td>`;
+                    }
                 } else {
-                    html += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${value}</td>`;
+                    html += `<td class="px-4 py-3 text-sm text-gray-500 truncate max-w-[8rem]" title="${value}">${value}</td>`;
                 }
             });
             html += '</tr>';
@@ -784,6 +975,7 @@
         html += `
                 </tbody>
             </table>
+            </div>
             <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
                 <p class="text-sm text-gray-700">
                     Showing <span class="font-medium">${data.resourceData.resources.length}</span> of <span class="font-medium">${data.resourceData.count}</span> results
@@ -1046,13 +1238,15 @@
         window.location.href = '/api/resources/export/yaml?' + params.toString();
     }
 
-    // Load available tag keys on page load
+    // Load available tag keys on page load (global to inventory, not snapshot-specific)
     function loadTagKeys() {
         fetch('/api/resources/tags/keys')
             .then(r => r.json())
             .then(result => {
                 const data = Alpine.$data(document.querySelector('[x-data]'));
                 data.availableTagKeys = result.keys || [];
+                // Initialize tag columns after loading tag keys
+                data.initTagColumns();
             });
     }
 </script>

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] - 2026-01-14
+
+### Added
+- **Dynamic Tag Columns**: Individual tag keys now appear as separate columns in the Resource Explorer
+  - Enable columns like `tag:Environment`, `tag:Name`, `tag:Owner` etc.
+  - Column modal groups base fields and tag columns separately
+  - Tag columns show values as styled badges with truncation
+
+- **Filter Value Dropdowns**: Advanced filter mode now shows dropdown menus with existing values
+  - Select from available types, regions, snapshots, and tag values
+  - Values are loaded globally from the entire inventory (not snapshot-specific)
+  - Async loading with spinner indicator
+
+- **CSV Export Enhancement**: Export now supports individual tag columns (tag:KEY format)
+
+### Fixed
+- Fixed table horizontal overflow when many columns are enabled
+  - Added horizontal scrolling with proper column width constraints
+  - Improved cell truncation and max-width for better readability
+
+### Changed
+- Filter values (types, regions, tags) are now global across all snapshots for consistency
+- Saved filters remain global across snapshots as designed
+
+## [0.10.2] - 2026-01-14
+
+### Fixed
+- Fixed tags column showing "no tags" when enabled (data wasn't being re-fetched)
+
 ## [0.10.1] - 2026-01-14
 
 ### Fixed
