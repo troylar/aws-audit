@@ -983,7 +983,7 @@ invoke quality --fix     # Auto-fix issues
 invoke build             # Build distributable package
 ```
 
-**Test Coverage:** 1490+ tests, 75% overall coverage. Restore module: 98%+ coverage.
+**Test Coverage:** 1550+ tests, 79% overall coverage. Restore module: 98%+ coverage.
 
 ---
 
@@ -1078,11 +1078,11 @@ awsinv snapshot create quick-snap --regions us-east-1 --resource-types ec2,lambd
 
 #### Q: Does this create actual AWS snapshots (EBS, RDS)?
 
-**No.** "Snapshot" in this tool means an *inventory snapshot* — a catalog of what resources exist. It does not create EBS snapshots, RDS snapshots, or any AWS resources. All data is stored locally as YAML files.
+**No.** "Snapshot" in this tool means an *inventory snapshot* — a catalog of what resources exist. It does not create EBS snapshots, RDS snapshots, or any AWS resources. All data is stored locally in a SQLite database.
 
 #### Q: Is my AWS data sent anywhere?
 
-**No.** All data stays local. The tool only makes read API calls to AWS (and delete calls if you use restore/purge). Snapshots are stored in a SQLite database at `~/.snapshots/inventory.db` on your local machine.
+**No.** All data stays local. The tool only makes read API calls to AWS (and delete calls if you use restore/purge). All data is stored in a SQLite database at `~/.snapshots/inventory.db` on your local machine.
 
 #### Q: Can I use this with AWS Organizations?
 
