@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Snapshots - AWS Inventory Browser{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{
+    snapshot1: '',
+    snapshot2: '',
+    loading: false,
+    results: null,
+    error: null
+}">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">Compare Snapshots</h1>
+            <p class="mt-1 text-sm text-gray-500">See what changed between two snapshots</p>
+        </div>
+    </div>
+
+    <!-- Snapshot Selection -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div>
+                <label for="snapshot1" class="block text-sm font-medium text-gray-700">First Snapshot (Before)</label>
+                <select id="snapshot1" x-model="snapshot1"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <option value="">Select snapshot...</option>
+                    {% for s in snapshots %}
+                    <option value="{{ s.name }}">{{ s.name }} ({{ s.resource_count }} resources)</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-end justify-center">
+                <svg class="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+            </div>
+
+            <div>
+                <label for="snapshot2" class="block text-sm font-medium text-gray-700">Second Snapshot (After)</label>
+                <select id="snapshot2" x-model="snapshot2"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <option value="">Select snapshot...</option>
+                    {% for s in snapshots %}
+                    <option value="{{ s.name }}">{{ s.name }} ({{ s.resource_count }} resources)</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <button @click="comparSnapshots()"
+                    :disabled="!snapshot1 || !snapshot2 || loading"
+                    class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span x-show="!loading">Compare</span>
+                <span x-show="loading" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Comparing...
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div x-show="results" x-cloak class="space-y-6">
+        <!-- Summary -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-green-800">Added</p>
+                        <p class="text-2xl font-bold text-green-900" x-text="results?.added?.length || 0"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-red-800">Removed</p>
+                        <p class="text-2xl font-bold text-red-900" x-text="results?.removed?.length || 0"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-amber-800">Modified</p>
+                        <p class="text-2xl font-bold text-amber-900" x-text="results?.modified?.length || 0"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details -->
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <!-- Added -->
+            <div class="bg-white shadow rounded-lg" x-show="results?.added?.length > 0">
+                <div class="px-4 py-5 border-b border-gray-200 bg-green-50 rounded-t-lg">
+                    <h3 class="text-lg font-medium text-green-800">Added Resources</h3>
+                </div>
+                <ul class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                    <template x-for="r in results?.added?.slice(0, 50)" :key="r.arn">
+                        <li class="px-4 py-3">
+                            <p class="text-sm font-medium text-gray-900" x-text="r.name"></p>
+                            <p class="text-xs text-gray-500" x-text="r.resource_type"></p>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+
+            <!-- Removed -->
+            <div class="bg-white shadow rounded-lg" x-show="results?.removed?.length > 0">
+                <div class="px-4 py-5 border-b border-gray-200 bg-red-50 rounded-t-lg">
+                    <h3 class="text-lg font-medium text-red-800">Removed Resources</h3>
+                </div>
+                <ul class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                    <template x-for="r in results?.removed?.slice(0, 50)" :key="r.arn">
+                        <li class="px-4 py-3">
+                            <p class="text-sm font-medium text-gray-900" x-text="r.name"></p>
+                            <p class="text-xs text-gray-500" x-text="r.resource_type"></p>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error -->
+    <div x-show="error" x-cloak class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p class="text-red-800" x-text="error"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function comparSnapshots() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        data.loading = true;
+        data.error = null;
+
+        fetch(`/api/resources/diff?snapshot1=${data.snapshot1}&snapshot2=${data.snapshot2}`)
+            .then(r => r.json())
+            .then(result => {
+                data.results = result;
+                data.loading = false;
+            })
+            .catch(err => {
+                data.error = err.message;
+                data.loading = false;
+            });
+    }
+</script>
+{% endblock %}

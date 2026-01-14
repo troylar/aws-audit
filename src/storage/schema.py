@@ -111,6 +111,44 @@ CREATE TABLE IF NOT EXISTS audit_records (
     estimated_monthly_cost REAL,
     FOREIGN KEY (operation_id) REFERENCES audit_operations(operation_id) ON DELETE CASCADE
 );
+
+-- Saved queries table (for web UI)
+CREATE TABLE IF NOT EXISTS saved_queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    sql_text TEXT NOT NULL,
+    category TEXT DEFAULT 'custom',
+    is_favorite BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    last_run_at TIMESTAMP,
+    run_count INTEGER DEFAULT 0
+);
+
+-- Saved filters table (for resource explorer)
+CREATE TABLE IF NOT EXISTS saved_filters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    filter_config TEXT NOT NULL,
+    is_favorite BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    last_used_at TIMESTAMP,
+    use_count INTEGER DEFAULT 0
+);
+
+-- Saved views table (for customizable resource views)
+CREATE TABLE IF NOT EXISTS saved_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    view_config TEXT NOT NULL,
+    is_default BOOLEAN DEFAULT 0,
+    is_favorite BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    last_used_at TIMESTAMP,
+    use_count INTEGER DEFAULT 0
+);
 """
 
 # Indexes for common queries (created separately for better error handling)
@@ -152,6 +190,20 @@ CREATE INDEX IF NOT EXISTS idx_audit_records_arn ON audit_records(resource_arn);
 CREATE INDEX IF NOT EXISTS idx_audit_records_type ON audit_records(resource_type);
 CREATE INDEX IF NOT EXISTS idx_audit_records_region ON audit_records(region);
 CREATE INDEX IF NOT EXISTS idx_audit_records_status ON audit_records(status);
+
+-- Saved queries indexes
+CREATE INDEX IF NOT EXISTS idx_queries_category ON saved_queries(category);
+CREATE INDEX IF NOT EXISTS idx_queries_favorite ON saved_queries(is_favorite);
+CREATE INDEX IF NOT EXISTS idx_queries_last_run ON saved_queries(last_run_at DESC);
+
+-- Saved filters indexes
+CREATE INDEX IF NOT EXISTS idx_filters_favorite ON saved_filters(is_favorite);
+CREATE INDEX IF NOT EXISTS idx_filters_last_used ON saved_filters(last_used_at DESC);
+
+-- Saved views indexes
+CREATE INDEX IF NOT EXISTS idx_views_default ON saved_views(is_default);
+CREATE INDEX IF NOT EXISTS idx_views_favorite ON saved_views(is_favorite);
+CREATE INDEX IF NOT EXISTS idx_views_last_used ON saved_views(last_used_at DESC);
 """
 
 

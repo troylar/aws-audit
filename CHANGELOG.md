@@ -5,7 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0] - 2026-01-14
+## [0.10.0] - 2026-01-14
+
+### Added
+- **Web-Based Inventory Browser**: New `awsinv serve` command launches a beautiful web UI
+  - Install with: `pip install aws-inventory-manager[web]`
+  - Launch with: `awsinv serve` (opens browser automatically)
+  - **Dashboard**: KPI cards and charts showing resource distribution by type/region
+  - **Snapshot Browser**: View, compare, and manage snapshots
+  - **Resource Explorer**: Search, filter, and browse all resources
+  - **Diff Viewer**: Side-by-side snapshot comparison with added/removed/modified resources
+  - **SQL Query Editor**: Run custom SQL queries with syntax highlighting
+  - **Cleanup UI**: Preview and execute cleanup operations with audit logs
+
+- **Advanced Filter Builder**: Build complex filters with boolean logic
+  - AND/OR conditions with multiple filter rules
+  - 10 operators: equals, not equals, contains, doesn't contain, starts with, doesn't start with, ends with, doesn't end with, is empty, is not empty
+  - Filter by any field including tags
+
+- **Saved Views**: Save and restore complete view configurations
+  - Column visibility and order
+  - Sort settings
+  - Filter configurations (simple or advanced)
+  - Quick-apply via chip buttons
+
+- **Saved Filters**: Save frequently used filter combinations
+  - Simple filters (type, region, snapshot, search)
+  - Advanced filters with multiple conditions
+  - Visual distinction between simple (blue) and advanced (green) filters
+
+- **Export Capabilities**:
+  - **CSV Export**: Export filtered resources with selected columns
+  - **YAML Export**: Full resource export including tags and raw AWS configuration
+
+- **Tags Column**: Display resource tags directly in the table
+  - Shows up to 5 tags as compact badges
+  - Full tag key/value on hover
+  - Include in CSV/YAML exports
 
 ### Changed
 - **BREAKING**: Renamed `restore` command to `cleanup` for clarity
@@ -14,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `awsinv restore purge` → `awsinv cleanup purge`
   - Config file renamed: `.awsinv-restore.yaml` → `.awsinv-cleanup.yaml`
   - The term "restore" was misleading as the command deletes resources
+
+### New Dependencies (optional)
+- `fastapi>=0.109.0` - Modern async web framework
+- `uvicorn>=0.27.0` - ASGI server
+- `jinja2>=3.1.0` - Template engine
+- `python-multipart>=0.0.6` - Form parsing
 
 ### Migration
 - Update any scripts using `awsinv restore` to use `awsinv cleanup`

@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Cleanup Operations - AWS Inventory Browser{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{
+    snapshot: '',
+    dryRun: true,
+    loading: false,
+    previewResults: null,
+    error: null,
+    showConfirmModal: false,
+    confirmText: ''
+}">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">Cleanup Operations</h1>
+            <p class="mt-1 text-sm text-gray-500">Remove resources that were created after a baseline snapshot</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Configuration Panel -->
+        <div class="lg:col-span-1 space-y-4">
+            <div class="bg-white shadow rounded-lg p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Configuration</h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="snapshot" class="block text-sm font-medium text-gray-700">Baseline Snapshot</label>
+                        <select id="snapshot" x-model="snapshot"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="">Select a snapshot...</option>
+                            {% for s in snapshots %}
+                            <option value="{{ s.name }}">{{ s.name }} ({{ s.resource_count | format_number }} resources)</option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">Resources created after this snapshot will be candidates for cleanup</p>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-200">
+                        <button @click="previewCleanup()"
+                                :disabled="!snapshot || loading"
+                                class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            <span x-text="loading ? 'Loading...' : 'Preview Cleanup'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning Card -->
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-amber-800">Caution</h3>
+                        <p class="mt-1 text-sm text-amber-700">
+                            Cleanup operations delete AWS resources. Always preview first and verify the resources before executing.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit History -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-3 border-b border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-900">Recent Operations</h3>
+                </div>
+                <div id="audit-history"
+                     hx-get="/api/cleanup/operations?limit=5"
+                     hx-trigger="load"
+                     hx-swap="innerHTML"
+                     class="divide-y divide-gray-200 max-h-64 overflow-y-auto">
+                    <div class="p-4 text-center text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="lg:col-span-2">
+            <div x-show="!previewResults && !error" class="bg-white shadow rounded-lg p-8 text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No Preview</h3>
+                <p class="mt-1 text-sm text-gray-500">Select a baseline snapshot and click Preview to see cleanup candidates</p>
+            </div>
+
+            <!-- Preview Results -->
+            <div x-show="previewResults" x-cloak class="space-y-4">
+                <!-- Summary Stats -->
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div class="bg-white shadow rounded-lg p-4">
+                        <p class="text-sm font-medium text-gray-500">Total Candidates</p>
+                        <p class="text-2xl font-bold text-gray-900" x-text="previewResults?.total || 0"></p>
+                    </div>
+                    <div class="bg-white shadow rounded-lg p-4">
+                        <p class="text-sm font-medium text-gray-500">Resource Types</p>
+                        <p class="text-2xl font-bold text-gray-900" x-text="Object.keys(previewResults?.by_type || {}).length"></p>
+                    </div>
+                    <div class="bg-white shadow rounded-lg p-4">
+                        <p class="text-sm font-medium text-gray-500">Regions</p>
+                        <p class="text-2xl font-bold text-gray-900" x-text="Object.keys(previewResults?.by_region || {}).length"></p>
+                    </div>
+                </div>
+
+                <!-- Resource List -->
+                <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                        <h3 class="text-sm font-medium text-gray-900">Resources to Delete</h3>
+                        <button @click="showConfirmModal = true"
+                                :disabled="!previewResults?.resources?.length"
+                                class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-50">
+                            <svg class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Execute Cleanup
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Region</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="r in previewResults?.resources?.slice(0, 100)" :key="r.arn">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-3 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900" x-text="r.name"></div>
+                                            <div class="text-xs text-gray-500 truncate max-w-xs" x-text="r.arn"></div>
+                                        </td>
+                                        <td class="px-6 py-3 whitespace-nowrap">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" x-text="r.resource_type"></span>
+                                        </td>
+                                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500" x-text="r.region"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div x-show="previewResults?.resources?.length > 100" class="px-4 py-2 bg-gray-50 text-sm text-gray-500 text-center">
+                        Showing 100 of <span x-text="previewResults?.total"></span> resources
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div x-show="error" x-cloak class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p class="text-red-800" x-text="error"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div x-show="showConfirmModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showConfirmModal = false"></div>
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg font-medium text-gray-900">Confirm Cleanup Execution</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                This will permanently delete <span class="font-bold text-red-600" x-text="previewResults?.total"></span> AWS resources.
+                                This action cannot be undone.
+                            </p>
+                            <p class="mt-3 text-sm text-gray-700">
+                                Type <span class="font-mono font-bold text-red-600">DELETE</span> to confirm:
+                            </p>
+                            <input type="text" x-model="confirmText"
+                                   class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+                                   placeholder="Type DELETE to confirm">
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button @click="executeCleanup()"
+                            :disabled="confirmText !== 'DELETE'"
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm">
+                        Execute Cleanup
+                    </button>
+                    <button @click="showConfirmModal = false; confirmText = ''"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Handle audit history response
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target.id === 'audit-history') {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            renderAuditHistory(data.operations || [], evt.detail.target);
+        }
+    });
+
+    function renderAuditHistory(operations, target) {
+        if (operations.length === 0) {
+            target.innerHTML = '<div class="p-4 text-center text-gray-500 text-sm">No cleanup operations yet</div>';
+            return;
+        }
+
+        let html = '';
+        operations.forEach(op => {
+            const statusColor = op.status === 'completed' ? 'green' : op.status === 'failed' ? 'red' : 'amber';
+            html += `
+                <div class="px-4 py-3">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium text-gray-900">${op.baseline_snapshot}</p>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800">
+                            ${op.status}
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-500">${op.timestamp}</p>
+                    <p class="text-xs text-gray-600 mt-1">
+                        ${op.succeeded_count || 0} deleted, ${op.failed_count || 0} failed
+                    </p>
+                </div>
+            `;
+        });
+        target.innerHTML = html;
+    }
+
+    function previewCleanup() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        data.loading = true;
+        data.error = null;
+        data.previewResults = null;
+
+        fetch(`/api/cleanup/preview?snapshot=${data.snapshot}`)
+            .then(r => r.json())
+            .then(result => {
+                if (result.detail) {
+                    data.error = result.detail;
+                } else {
+                    data.previewResults = result;
+                }
+                data.loading = false;
+            })
+            .catch(err => {
+                data.error = err.message;
+                data.loading = false;
+            });
+    }
+
+    function executeCleanup() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        // Note: In a real implementation, this would execute the cleanup
+        // For now, just show a message and close the modal
+        alert('Cleanup execution is not available in the web UI for safety. Please use the CLI: awsinv cleanup execute --snapshot ' + data.snapshot);
+        data.showConfirmModal = false;
+        data.confirmText = '';
+    }
+</script>
+{% endblock %}

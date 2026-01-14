@@ -3037,6 +3037,72 @@ def query_diff(
 app.add_typer(query_app, name="query")
 
 
+# =============================================================================
+# Serve Command (Web UI)
+# =============================================================================
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host to bind to"),
+    port: int = typer.Option(8080, "--port", "-p", help="Port to bind to"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open browser on startup"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
+):
+    """Launch web-based inventory browser.
+
+    Starts a local web server with a beautiful UI for browsing snapshots,
+    exploring resources, running queries, and managing cleanup operations.
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        console.print(
+            "[red]Web dependencies not installed.[/red]\n"
+            "Install with: [cyan]pip install aws-inventory-manager[web][/cyan]"
+        )
+        raise typer.Exit(code=1)
+
+    from ..web.app import create_app
+
+    # Load config for storage path
+    global config
+    if config is None:
+        config = Config.load()
+
+    console.print(
+        Panel.fit(
+            f"[cyan bold]AWS Inventory Browser[/cyan bold]\n\n"
+            f"[green]Server:[/green] http://{host}:{port}\n"
+            f"[dim]Press Ctrl+C to stop[/dim]",
+            title="Starting Web Server",
+            border_style="blue",
+        )
+    )
+
+    if open_browser:
+        import threading
+        import time
+        import webbrowser
+
+        def open_delayed():
+            time.sleep(1.5)
+            webbrowser.open(f"http://{host}:{port}")
+
+        threading.Thread(target=open_delayed, daemon=True).start()
+
+    # Create app with storage path from config
+    app_instance = create_app(config.storage_path)
+
+    uvicorn.run(
+        app_instance,
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info",
+    )
+
+
 def cli_main():
     """Entry point for console script."""
     app()

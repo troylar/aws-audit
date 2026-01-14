@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}SQL Queries - AWS Inventory Browser{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{
+    query: 'SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type ORDER BY count DESC LIMIT 20',
+    results: null,
+    columns: [],
+    loading: false,
+    error: null,
+    savedQueries: [],
+    showSaveModal: false,
+    queryName: '',
+    queryDescription: ''
+}">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">SQL Query Editor</h1>
+            <p class="mt-1 text-sm text-gray-500">Run SQL queries against your resource database</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Saved Queries Sidebar -->
+        <div class="lg:col-span-1">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-3 border-b border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-900">Saved Queries</h3>
+                </div>
+                <div id="saved-queries-list"
+                     hx-get="/api/queries"
+                     hx-trigger="load"
+                     hx-swap="innerHTML"
+                     class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                    <div class="p-4 text-center text-gray-500 text-sm">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Quick Examples -->
+            <div class="mt-4 bg-white shadow rounded-lg">
+                <div class="px-4 py-3 border-b border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-900">Quick Examples</h3>
+                </div>
+                <ul class="divide-y divide-gray-200 text-sm">
+                    <li class="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                        @click="query = 'SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type ORDER BY count DESC'">
+                        Resources by type
+                    </li>
+                    <li class="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                        @click="query = 'SELECT region, COUNT(*) as count FROM resources GROUP BY region'">
+                        Resources by region
+                    </li>
+                    <li class="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                        @click="query = 'SELECT * FROM resources WHERE resource_type LIKE \\'%s3%\\' LIMIT 50'">
+                        S3 buckets
+                    </li>
+                    <li class="px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                        @click="query = 'SELECT key, value, COUNT(*) as count FROM resource_tags GROUP BY key, value ORDER BY count DESC LIMIT 50'">
+                        Tag distribution
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Query Editor -->
+        <div class="lg:col-span-3 space-y-4">
+            <div class="bg-white shadow rounded-lg">
+                <div class="p-4">
+                    <label for="query" class="block text-sm font-medium text-gray-700 mb-2">SQL Query</label>
+                    <textarea id="query" x-model="query" rows="6"
+                              class="font-mono text-sm w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-900 text-green-400 p-4"
+                              placeholder="Enter your SQL query..."></textarea>
+
+                    <div class="mt-4 flex items-center justify-between">
+                        <div class="flex space-x-2">
+                            <button @click="executeQuery()"
+                                    :disabled="loading || !query.trim()"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+                                <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span x-text="loading ? 'Running...' : 'Run Query'"></span>
+                            </button>
+                            <button @click="showSaveModal = true"
+                                    :disabled="!query.trim()"
+                                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                                </svg>
+                                Save Query
+                            </button>
+                        </div>
+                        <div x-show="results" class="text-sm text-gray-500">
+                            <span x-text="results?.row_count || 0"></span> rows in
+                            <span x-text="results?.execution_time_ms || 0"></span>ms
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div x-show="results" x-cloak class="bg-white shadow rounded-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <template x-for="col in columns" :key="col">
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" x-text="col"></th>
+                                </template>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <template x-for="(row, index) in results?.rows?.slice(0, 100)" :key="index">
+                                <tr class="hover:bg-gray-50">
+                                    <template x-for="col in columns" :key="col">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <span x-text="typeof row[col] === 'object' ? JSON.stringify(row[col]) : row[col]"></span>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div x-show="error" x-cloak class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p class="text-red-800 font-mono text-sm" x-text="error"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Query Modal -->
+    <div x-show="showSaveModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showSaveModal = false"></div>
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Save Query</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" x-model="queryName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Description (optional)</label>
+                        <textarea x-model="queryDescription" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+                    <button @click="saveQuery()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">
+                        Save
+                    </button>
+                    <button @click="showSaveModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function executeQuery() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        data.loading = true;
+        data.error = null;
+
+        fetch('/api/queries/execute?limit=500', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'sql=' + encodeURIComponent(data.query)
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.detail) {
+                data.error = result.detail;
+            } else {
+                data.results = result;
+                data.columns = result.columns || [];
+            }
+            data.loading = false;
+        })
+        .catch(err => {
+            data.error = err.message;
+            data.loading = false;
+        });
+    }
+
+    function saveQuery() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        fetch('/api/queries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: data.queryName,
+                description: data.queryDescription,
+                sql_text: data.query
+            })
+        })
+        .then(r => r.json())
+        .then(() => {
+            data.showSaveModal = false;
+            data.queryName = '';
+            data.queryDescription = '';
+            htmx.trigger('#saved-queries-list', 'load');
+        });
+    }
+
+    // Handle saved queries list response
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target.id === 'saved-queries-list') {
+            const response = JSON.parse(evt.detail.xhr.responseText);
+            renderSavedQueries(response.queries || [], evt.detail.target);
+        }
+    });
+
+    function renderSavedQueries(queries, target) {
+        if (queries.length === 0) {
+            target.innerHTML = '<div class="p-4 text-center text-gray-500 text-sm">No saved queries yet</div>';
+            return;
+        }
+
+        let html = '';
+        queries.forEach(q => {
+            html += `
+                <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer" onclick="loadQuery('${q.sql_text.replace(/'/g, "\\'")}')">
+                    <p class="text-sm font-medium text-gray-900">${q.name}</p>
+                    <p class="text-xs text-gray-500">${q.description || 'No description'}</p>
+                </div>
+            `;
+        });
+        target.innerHTML = html;
+    }
+
+    function loadQuery(sql) {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        data.query = sql;
+    }
+</script>
+{% endblock %}

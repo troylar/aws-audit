@@ -1,0 +1,374 @@
+"""Resource API endpoints."""
+
+from __future__ import annotations
+
+import csv
+import io
+import json
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from urllib.parse import unquote
+
+import yaml
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
+
+from ...dependencies import get_database, get_resource_store, get_snapshot_store
+
+router = APIRouter(prefix="/resources")
+
+
+@router.get("")
+async def search_resources(
+    q: Optional[str] = Query(None, description="Search query (ARN pattern)"),
+    type: Optional[str] = Query(None, description="Filter by resource type"),
+    region: Optional[str] = Query(None, description="Filter by region"),
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+    tag_key: Optional[str] = Query(None, description="Filter by tag key"),
+    tag_value: Optional[str] = Query(None, description="Filter by tag value"),
+    include_tags: bool = Query(False, description="Include tags in response"),
+    limit: int = Query(50, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Search resources across snapshots."""
+    store = get_resource_store()
+
+    resources = store.search(
+        arn_pattern=q,
+        resource_type=type,
+        region=region,
+        snapshot_name=snapshot,
+        tag_key=tag_key,
+        tag_value=tag_value,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Optionally include tags for each resource
+    if include_tags:
+        enriched_resources = []
+        for resource in resources:
+            r = dict(resource)
+            tags = store.get_tags_for_resource(
+                resource["arn"],
+                snapshot_name=resource.get("snapshot_name"),
+            )
+            r["tags"] = tags
+            enriched_resources.append(r)
+        resources = enriched_resources
+
+    return {
+        "count": len(resources),
+        "limit": limit,
+        "offset": offset,
+        "resources": resources,
+    }
+
+
+@router.get("/types")
+async def get_resource_types(
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+):
+    """Get unique resource types."""
+    store = get_resource_store()
+    types = store.get_unique_resource_types(snapshot_name=snapshot)
+    return {"types": types}
+
+
+@router.get("/regions")
+async def get_regions(
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+):
+    """Get unique regions."""
+    store = get_resource_store()
+    regions = store.get_unique_regions(snapshot_name=snapshot)
+    return {"regions": regions}
+
+
+@router.get("/tags/keys")
+async def get_tag_keys(
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+):
+    """Get unique tag keys."""
+    db = get_database()
+
+    if snapshot:
+        query = """
+            SELECT DISTINCT t.key
+            FROM resource_tags t
+            JOIN resources r ON t.resource_id = r.id
+            JOIN snapshots s ON r.snapshot_id = s.id
+            WHERE s.name = ?
+            ORDER BY t.key
+        """
+        rows = db.fetchall(query, (snapshot,))
+    else:
+        query = """
+            SELECT DISTINCT key FROM resource_tags ORDER BY key
+        """
+        rows = db.fetchall(query)
+
+    return {"keys": [row["key"] for row in rows]}
+
+
+@router.get("/tags/values")
+async def get_tag_values(
+    key: str = Query(..., description="Tag key to get values for"),
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+):
+    """Get unique values for a tag key."""
+    db = get_database()
+
+    if snapshot:
+        query = """
+            SELECT DISTINCT t.value
+            FROM resource_tags t
+            JOIN resources r ON t.resource_id = r.id
+            JOIN snapshots s ON r.snapshot_id = s.id
+            WHERE t.key = ? AND s.name = ?
+            ORDER BY t.value
+        """
+        rows = db.fetchall(query, (key, snapshot))
+    else:
+        query = """
+            SELECT DISTINCT value FROM resource_tags WHERE key = ? ORDER BY value
+        """
+        rows = db.fetchall(query, (key,))
+
+    return {"key": key, "values": [row["value"] for row in rows]}
+
+
+@router.get("/stats")
+async def get_stats(
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+    group_by: str = Query("type", description="Group by: type, region, service"),
+):
+    """Get resource statistics."""
+    store = get_resource_store()
+    stats = store.get_stats(snapshot_name=snapshot, group_by=group_by)
+    return {"group_by": group_by, "stats": stats}
+
+
+@router.get("/by-arn/{arn:path}")
+async def get_resource_by_arn(arn: str):
+    """Get resource details by ARN."""
+    # URL decode the ARN
+    decoded_arn = unquote(arn)
+
+    store = get_resource_store()
+    resources = store.search(arn_pattern=decoded_arn, limit=1)
+
+    if not resources:
+        raise HTTPException(status_code=404, detail=f"Resource not found: {decoded_arn}")
+
+    return resources[0]
+
+
+@router.get("/history/{arn:path}")
+async def get_resource_history(arn: str):
+    """Get resource history across snapshots."""
+    decoded_arn = unquote(arn)
+
+    store = get_resource_store()
+    history = store.get_history(decoded_arn)
+
+    if not history:
+        raise HTTPException(status_code=404, detail=f"No history found for: {decoded_arn}")
+
+    return {"arn": decoded_arn, "snapshots": history}
+
+
+@router.get("/diff")
+async def compare_snapshots(
+    snapshot1: str = Query(..., description="First snapshot name"),
+    snapshot2: str = Query(..., description="Second snapshot name"),
+    type: Optional[str] = Query(None, description="Filter by resource type"),
+):
+    """Compare resources between two snapshots."""
+    snapshot_store = get_snapshot_store()
+
+    # Validate snapshots exist
+    if not snapshot_store.exists(snapshot1):
+        raise HTTPException(status_code=404, detail=f"Snapshot '{snapshot1}' not found")
+    if not snapshot_store.exists(snapshot2):
+        raise HTTPException(status_code=404, detail=f"Snapshot '{snapshot2}' not found")
+
+    resource_store = get_resource_store()
+    diff = resource_store.compare_snapshots(snapshot1, snapshot2)
+
+    # Filter by type if specified
+    if type:
+        diff["added"] = [r for r in diff["added"] if r.get("resource_type") == type]
+        diff["removed"] = [r for r in diff["removed"] if r.get("resource_type") == type]
+        diff["modified"] = [r for r in diff["modified"] if r.get("resource_type") == type]
+
+    return diff
+
+
+@router.get("/export/csv")
+async def export_resources_csv(
+    q: Optional[str] = Query(None, description="Search query (ARN pattern)"),
+    type: Optional[str] = Query(None, description="Filter by resource type"),
+    region: Optional[str] = Query(None, description="Filter by region"),
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+    tag_key: Optional[str] = Query(None, description="Filter by tag key"),
+    tag_value: Optional[str] = Query(None, description="Filter by tag value"),
+    columns: Optional[str] = Query(None, description="Comma-separated column names to include"),
+    sort_by: Optional[str] = Query(None, description="Column to sort by"),
+    sort_order: str = Query("asc", description="Sort order: asc or desc"),
+):
+    """Export resources to CSV file."""
+    store = get_resource_store()
+
+    # Define available columns
+    all_columns = ["name", "arn", "resource_type", "region", "snapshot_name", "tags", "created_at"]
+
+    # Check if tags column is requested
+    include_tags = columns and "tags" in columns.split(",")
+
+    # Get all matching resources (no limit for export)
+    resources = store.search(
+        arn_pattern=q,
+        resource_type=type,
+        region=region,
+        snapshot_name=snapshot,
+        tag_key=tag_key,
+        tag_value=tag_value,
+        limit=10000,  # Reasonable limit for export
+        offset=0,
+    )
+
+    if not resources:
+        raise HTTPException(status_code=404, detail="No resources found matching criteria")
+
+    # If tags column requested, fetch tags for each resource
+    if include_tags:
+        enriched_resources = []
+        for resource in resources:
+            r = dict(resource)
+            tags = store.get_tags_for_resource(
+                resource["arn"],
+                snapshot_name=resource.get("snapshot_name"),
+            )
+            # Convert tags dict to string format: "key1=value1; key2=value2"
+            r["tags"] = "; ".join(f"{k}={v}" for k, v in tags.items()) if tags else ""
+            enriched_resources.append(r)
+        resources = enriched_resources
+
+    # Parse requested columns or use defaults
+    if columns:
+        selected_columns = [c.strip() for c in columns.split(",") if c.strip() in all_columns]
+        if not selected_columns:
+            selected_columns = all_columns
+    else:
+        selected_columns = all_columns
+
+    # Sort if requested
+    if sort_by and sort_by in all_columns:
+        reverse = sort_order.lower() == "desc"
+        resources = sorted(
+            resources,
+            key=lambda r: (r.get(sort_by) or "") if isinstance(r.get(sort_by), str) else r.get(sort_by, 0),
+            reverse=reverse,
+        )
+
+    # Generate CSV
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=selected_columns, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(resources)
+
+    # Create response
+    csv_content = output.getvalue()
+    output.close()
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"resources_export_{timestamp}.csv"
+
+    return StreamingResponse(
+        iter([csv_content]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/export/yaml")
+async def export_resources_yaml(
+    q: Optional[str] = Query(None, description="Search query (ARN pattern)"),
+    type: Optional[str] = Query(None, description="Filter by resource type"),
+    region: Optional[str] = Query(None, description="Filter by region"),
+    snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
+    tag_key: Optional[str] = Query(None, description="Filter by tag key"),
+    tag_value: Optional[str] = Query(None, description="Filter by tag value"),
+    include_config: bool = Query(True, description="Include raw configuration"),
+    include_tags: bool = Query(True, description="Include resource tags"),
+):
+    """Export resources to YAML file with all properties."""
+    store = get_resource_store()
+    db = get_database()
+
+    # Get all matching resources
+    resources = store.search(
+        arn_pattern=q,
+        resource_type=type,
+        region=region,
+        snapshot_name=snapshot,
+        tag_key=tag_key,
+        tag_value=tag_value,
+        limit=10000,
+        offset=0,
+    )
+
+    if not resources:
+        raise HTTPException(status_code=404, detail="No resources found matching criteria")
+
+    # Enrich resources with full data
+    enriched_resources: List[Dict[str, Any]] = []
+
+    for resource in resources:
+        enriched = dict(resource)
+
+        # Get tags if requested
+        if include_tags:
+            tags = store.get_tags_for_resource(
+                resource["arn"],
+                snapshot_name=resource.get("snapshot_name"),
+            )
+            enriched["tags"] = tags
+
+        # Get raw config if requested
+        if include_config:
+            # Fetch raw_config from database
+            row = db.fetchone(
+                """
+                SELECT r.raw_config
+                FROM resources r
+                JOIN snapshots s ON r.snapshot_id = s.id
+                WHERE r.arn = ? AND s.name = ?
+                """,
+                (resource["arn"], resource.get("snapshot_name")),
+            )
+            if row and row["raw_config"]:
+                try:
+                    enriched["config"] = json.loads(row["raw_config"])
+                except json.JSONDecodeError:
+                    enriched["config"] = row["raw_config"]
+
+        enriched_resources.append(enriched)
+
+    # Generate YAML
+    yaml_content = yaml.dump(
+        {"resources": enriched_resources, "count": len(enriched_resources)},
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+    )
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"resources_export_{timestamp}.yaml"
+
+    return StreamingResponse(
+        iter([yaml_content]),
+        media_type="application/x-yaml",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

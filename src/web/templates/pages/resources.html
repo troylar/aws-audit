@@ -1,0 +1,1059 @@
+{% extends "base.html" %}
+
+{% block title %}Resources - AWS Inventory Browser{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{
+    // Simple filter mode fields
+    type: '',
+    region: '',
+    snapshot: '',
+    search: '',
+
+    // Advanced filter mode
+    advancedMode: false,
+    filterLogic: 'AND',
+    filterConditions: [],
+    filterFields: [
+        { value: 'name', label: 'Name' },
+        { value: 'arn', label: 'ARN' },
+        { value: 'resource_type', label: 'Type' },
+        { value: 'region', label: 'Region' },
+        { value: 'snapshot_name', label: 'Snapshot' },
+        { value: 'config_hash', label: 'Config Hash' },
+        { value: 'tag_key', label: 'Tag Key' },
+        { value: 'tag_value', label: 'Tag Value' }
+    ],
+    availableTagKeys: [],
+    filterOperators: [
+        { value: 'equals', label: 'equals' },
+        { value: 'not_equals', label: 'does not equal' },
+        { value: 'contains', label: 'contains' },
+        { value: 'not_contains', label: 'does not contain' },
+        { value: 'starts_with', label: 'starts with' },
+        { value: 'not_starts_with', label: 'does not start with' },
+        { value: 'ends_with', label: 'ends with' },
+        { value: 'not_ends_with', label: 'does not end with' },
+        { value: 'is_empty', label: 'is empty' },
+        { value: 'is_not_empty', label: 'is not empty' }
+    ],
+
+    // UI state
+    savedFilters: [],
+    savedViews: [],
+    showSaveFilterModal: false,
+    showSaveViewModal: false,
+    showColumnModal: false,
+    filterName: '',
+    filterDescription: '',
+    viewName: '',
+    viewDescription: '',
+    sortBy: 'name',
+    sortOrder: 'asc',
+    columns: [
+        { field: 'name', label: 'Name', visible: true },
+        { field: 'arn', label: 'ARN', visible: true },
+        { field: 'resource_type', label: 'Type', visible: true },
+        { field: 'region', label: 'Region', visible: true },
+        { field: 'snapshot_name', label: 'Snapshot', visible: true },
+        { field: 'tags', label: 'Tags', visible: false },
+        { field: 'created_at', label: 'Created', visible: false },
+        { field: 'config_hash', label: 'Config Hash', visible: false }
+    ],
+    currentViewId: null,
+    resourceData: null,
+    allResources: null,
+
+    get visibleColumns() {
+        return this.columns.filter(c => c.visible);
+    },
+
+    toggleColumn(field) {
+        const col = this.columns.find(c => c.field === field);
+        if (col) col.visible = !col.visible;
+    },
+
+    setSort(field) {
+        if (this.sortBy === field) {
+            this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortBy = field;
+            this.sortOrder = 'asc';
+        }
+        this.applySort();
+    },
+
+    applySort() {
+        if (this.resourceData && this.resourceData.resources) {
+            this.resourceData.resources.sort((a, b) => {
+                let aVal = a[this.sortBy] || '';
+                let bVal = b[this.sortBy] || '';
+                if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+                if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+                if (aVal < bVal) return this.sortOrder === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+    },
+
+    addCondition() {
+        this.filterConditions.push({ field: 'name', operator: 'contains', value: '' });
+    },
+
+    removeCondition(index) {
+        this.filterConditions.splice(index, 1);
+    },
+
+    needsValue(operator) {
+        return !['is_empty', 'is_not_empty'].includes(operator);
+    },
+
+    evaluateCondition(resource, condition) {
+        const searchValue = (condition.value || '').toLowerCase();
+
+        // Special handling for tag fields
+        if (condition.field === 'tag_key') {
+            const tags = resource.tags || {};
+            const tagKeys = Object.keys(tags).map(k => k.toLowerCase());
+            return this.evaluateTagCondition(tagKeys, condition.operator, searchValue);
+        }
+
+        if (condition.field === 'tag_value') {
+            const tags = resource.tags || {};
+            const tagValues = Object.values(tags).map(v => (v || '').toString().toLowerCase());
+            return this.evaluateTagCondition(tagValues, condition.operator, searchValue);
+        }
+
+        const fieldValue = (resource[condition.field] || '').toString().toLowerCase();
+
+        switch (condition.operator) {
+            case 'equals':
+                return fieldValue === searchValue;
+            case 'not_equals':
+                return fieldValue !== searchValue;
+            case 'contains':
+                return fieldValue.includes(searchValue);
+            case 'not_contains':
+                return !fieldValue.includes(searchValue);
+            case 'starts_with':
+                return fieldValue.startsWith(searchValue);
+            case 'not_starts_with':
+                return !fieldValue.startsWith(searchValue);
+            case 'ends_with':
+                return fieldValue.endsWith(searchValue);
+            case 'not_ends_with':
+                return !fieldValue.endsWith(searchValue);
+            case 'is_empty':
+                return !fieldValue || fieldValue.trim() === '';
+            case 'is_not_empty':
+                return fieldValue && fieldValue.trim() !== '';
+            default:
+                return true;
+        }
+    },
+
+    evaluateTagCondition(values, operator, searchValue) {
+        // For tag arrays, check if ANY value matches the condition
+        switch (operator) {
+            case 'equals':
+                return values.some(v => v === searchValue);
+            case 'not_equals':
+                return !values.some(v => v === searchValue);
+            case 'contains':
+                return values.some(v => v.includes(searchValue));
+            case 'not_contains':
+                return !values.some(v => v.includes(searchValue));
+            case 'starts_with':
+                return values.some(v => v.startsWith(searchValue));
+            case 'not_starts_with':
+                return !values.some(v => v.startsWith(searchValue));
+            case 'ends_with':
+                return values.some(v => v.endsWith(searchValue));
+            case 'not_ends_with':
+                return !values.some(v => v.endsWith(searchValue));
+            case 'is_empty':
+                return values.length === 0;
+            case 'is_not_empty':
+                return values.length > 0;
+            default:
+                return true;
+        }
+    },
+
+    applyAdvancedFilter() {
+        if (!this.allResources) return;
+
+        if (this.filterConditions.length === 0) {
+            this.resourceData = { ...this.allResources };
+            this.applySort();
+            return;
+        }
+
+        const filtered = this.allResources.resources.filter(resource => {
+            if (this.filterLogic === 'AND') {
+                return this.filterConditions.every(cond => this.evaluateCondition(resource, cond));
+            } else {
+                return this.filterConditions.some(cond => this.evaluateCondition(resource, cond));
+            }
+        });
+
+        this.resourceData = {
+            ...this.allResources,
+            resources: filtered,
+            count: filtered.length
+        };
+        this.applySort();
+    },
+
+    getFilterConfig() {
+        if (this.advancedMode) {
+            return {
+                logic: this.filterLogic,
+                conditions: this.filterConditions.map(c => ({
+                    field: c.field,
+                    operator: c.operator,
+                    value: c.value
+                }))
+            };
+        } else {
+            return {
+                resource_type: this.type || null,
+                region: this.region || null,
+                snapshot: this.snapshot || null,
+                search: this.search || null
+            };
+        }
+    },
+
+    loadFilterConfig(config) {
+        if (config.conditions && config.conditions.length > 0) {
+            // Advanced mode filter
+            this.advancedMode = true;
+            this.filterLogic = config.logic || 'AND';
+            this.filterConditions = config.conditions.map(c => ({
+                field: c.field,
+                operator: c.operator,
+                value: c.value || ''
+            }));
+        } else {
+            // Simple mode filter
+            this.advancedMode = false;
+            this.type = config.resource_type || '';
+            this.region = config.region || '';
+            this.snapshot = config.snapshot || '';
+            this.search = config.search || '';
+        }
+    }
+}">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">Resource Explorer</h1>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-2">
+            <button @click="showColumnModal = true"
+                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                </svg>
+                Columns
+            </button>
+            <button @click="exportCSV()"
+                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export CSV
+            </button>
+            <button @click="exportYAML()"
+                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export YAML
+            </button>
+        </div>
+    </div>
+
+    <!-- Saved Views & Filters Bar -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Saved Views -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 class="text-sm font-medium text-gray-900">Saved Views</h3>
+                <button @click="showSaveViewModal = true; viewName = ''; viewDescription = '';"
+                        class="text-sm text-blue-600 hover:text-blue-500">
+                    + Save Current View
+                </button>
+            </div>
+            <div id="saved-views-list"
+                 hx-get="/api/views"
+                 hx-trigger="load"
+                 hx-swap="innerHTML"
+                 class="flex flex-wrap gap-2 p-3 min-h-[52px]">
+                <div class="text-gray-500 text-sm">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Saved Filters -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 class="text-sm font-medium text-gray-900">Saved Filters</h3>
+                <button @click="showSaveFilterModal = true; filterName = ''; filterDescription = '';"
+                        class="text-sm text-blue-600 hover:text-blue-500">
+                    + Save Current Filter
+                </button>
+            </div>
+            <div id="saved-filters-list"
+                 hx-get="/api/filters"
+                 hx-trigger="load"
+                 hx-swap="innerHTML"
+                 class="flex flex-wrap gap-2 p-3 min-h-[52px]">
+                <div class="text-gray-500 text-sm">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white shadow rounded-lg p-4">
+        <!-- Filter Mode Toggle -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-4">
+                <span class="text-sm font-medium text-gray-700">Filter Mode:</span>
+                <div class="flex rounded-md shadow-sm">
+                    <button @click="advancedMode = false"
+                            :class="!advancedMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                            class="px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300">
+                        Simple
+                    </button>
+                    <button @click="advancedMode = true; if (filterConditions.length === 0) addCondition();"
+                            :class="advancedMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                            class="px-4 py-2 text-sm font-medium rounded-r-md border border-l-0 border-gray-300">
+                        Advanced
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simple Mode Filters -->
+        <div x-show="!advancedMode" x-transition>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <!-- Search -->
+                <div class="lg:col-span-2">
+                    <label for="search" class="block text-sm font-medium text-gray-700">Search</label>
+                    <input type="text" name="search" id="search" x-model="search"
+                           placeholder="Search by name or ARN..."
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+
+                <!-- Type Filter -->
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
+                    <select id="type" name="type" x-model="type"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">All Types</option>
+                        {% for t in resource_types %}
+                        <option value="{{ t }}">{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Region Filter -->
+                <div>
+                    <label for="region" class="block text-sm font-medium text-gray-700">Region</label>
+                    <select id="region" name="region" x-model="region"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">All Regions</option>
+                        {% for r in regions %}
+                        <option value="{{ r }}">{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Snapshot Filter -->
+                <div>
+                    <label for="snapshot" class="block text-sm font-medium text-gray-700">Snapshot</label>
+                    <select id="snapshot" name="snapshot" x-model="snapshot"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">All Snapshots</option>
+                        {% for s in snapshots %}
+                        <option value="{{ s.name }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Mode Filters -->
+        <div x-show="advancedMode" x-transition>
+            <!-- Logic Selector -->
+            <div class="mb-4 flex items-center space-x-4">
+                <span class="text-sm font-medium text-gray-700">Match</span>
+                <select x-model="filterLogic"
+                        class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <option value="AND">ALL conditions (AND)</option>
+                    <option value="OR">ANY condition (OR)</option>
+                </select>
+            </div>
+
+            <!-- Conditions -->
+            <div class="space-y-3">
+                <template x-for="(condition, index) in filterConditions" :key="index">
+                    <div class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+                        <!-- Field -->
+                        <select x-model="condition.field"
+                                class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <template x-for="field in filterFields" :key="field.value">
+                                <option :value="field.value" x-text="field.label"></option>
+                            </template>
+                        </select>
+
+                        <!-- Operator -->
+                        <select x-model="condition.operator"
+                                class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <template x-for="op in filterOperators" :key="op.value">
+                                <option :value="op.value" x-text="op.label"></option>
+                            </template>
+                        </select>
+
+                        <!-- Value -->
+                        <input x-show="needsValue(condition.operator)"
+                               type="text"
+                               x-model="condition.value"
+                               placeholder="Enter value..."
+                               class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+
+                        <!-- Remove button -->
+                        <button @click="removeCondition(index)"
+                                class="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+
+                        <!-- Logic indicator between conditions -->
+                        <span x-show="index < filterConditions.length - 1"
+                              class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 px-2 py-0.5 text-xs font-medium rounded-full"
+                              :class="filterLogic === 'AND' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'"
+                              x-text="filterLogic"></span>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Add Condition Button -->
+            <div class="mt-3">
+                <button @click="addCondition()"
+                        class="inline-flex items-center px-3 py-1.5 border border-dashed border-gray-300 text-sm font-medium rounded-md text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-400">
+                    <svg class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Condition
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-4 flex items-center space-x-2">
+            <button @click="searchResources()"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                Search
+            </button>
+            <button @click="if (advancedMode) { filterConditions = []; applyAdvancedFilter(); } else { type = ''; region = ''; snapshot = ''; search = ''; searchResources(); }"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Clear
+            </button>
+            <span x-show="advancedMode && filterConditions.length > 0" class="text-sm text-gray-500">
+                <span x-text="filterConditions.length"></span> condition(s)
+            </span>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div id="resource-table">
+            <div class="p-8 text-center text-gray-500">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-2">Loading resources...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Customization Modal -->
+    <div x-show="showColumnModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showColumnModal = false"></div>
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Customize Columns</h3>
+                <div class="space-y-3">
+                    <template x-for="col in columns" :key="col.field">
+                        <label class="flex items-center">
+                            <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-3 text-sm text-gray-700" x-text="col.label"></span>
+                        </label>
+                    </template>
+                </div>
+                <div class="mt-5 sm:mt-6">
+                    <button @click="showColumnModal = false; renderTable()"
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:text-sm">
+                        Apply
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Filter Modal -->
+    <div x-show="showSaveFilterModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showSaveFilterModal = false"></div>
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Save Filter</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" x-model="filterName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Description (optional)</label>
+                        <textarea x-model="filterDescription" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
+                    </div>
+                    <div class="bg-gray-50 rounded-md p-3">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide mb-2">Filter Configuration</p>
+                        <div x-show="advancedMode">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                Advanced Filter
+                            </span>
+                            <p class="text-sm text-gray-700 mt-1">
+                                <span class="font-medium" x-text="filterLogic"></span> logic with
+                                <span x-text="filterConditions.length"></span> condition(s)
+                            </p>
+                            <ul class="mt-2 text-xs text-gray-600 space-y-1">
+                                <template x-for="(cond, i) in filterConditions" :key="i">
+                                    <li class="flex items-center">
+                                        <span class="w-2 h-2 rounded-full bg-green-400 mr-2"></span>
+                                        <span x-text="filterFields.find(f => f.value === cond.field)?.label || cond.field"></span>
+                                        <span class="mx-1 text-gray-400" x-text="filterOperators.find(o => o.value === cond.operator)?.label || cond.operator"></span>
+                                        <span x-show="needsValue(cond.operator)" class="font-medium" x-text="'\"' + cond.value + '\"'"></span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                        <div x-show="!advancedMode">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                Simple Filter
+                            </span>
+                            <ul class="mt-2 text-xs text-gray-600 space-y-1">
+                                <li x-show="type"><span class="font-medium">Type:</span> <span x-text="type"></span></li>
+                                <li x-show="region"><span class="font-medium">Region:</span> <span x-text="region"></span></li>
+                                <li x-show="snapshot"><span class="font-medium">Snapshot:</span> <span x-text="snapshot"></span></li>
+                                <li x-show="search"><span class="font-medium">Search:</span> <span x-text="search"></span></li>
+                                <li x-show="!type && !region && !snapshot && !search" class="text-gray-400">No filters applied</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+                    <button @click="saveFilter()" :disabled="!filterName.trim()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm">
+                        Save
+                    </button>
+                    <button @click="showSaveFilterModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save View Modal -->
+    <div x-show="showSaveViewModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showSaveViewModal = false"></div>
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Save View</h3>
+                <p class="text-sm text-gray-500 mb-4">Save the current column selection, sorting, and filters as a reusable view.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" x-model="viewName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Description (optional)</label>
+                        <textarea x-model="viewDescription" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
+                    </div>
+                    <div class="bg-gray-50 rounded-md p-3">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide mb-2">View Configuration</p>
+                        <div class="text-sm text-gray-700 space-y-1">
+                            <p><span class="font-medium">Columns:</span> <span x-text="visibleColumns.map(c => c.label).join(', ')"></span></p>
+                            <p><span class="font-medium">Sort:</span> <span x-text="sortBy + ' (' + sortOrder + ')'"></span></p>
+                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                <p class="font-medium mb-1">Filters:</p>
+                                <div x-show="advancedMode">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                        Advanced (<span x-text="filterConditions.length"></span> conditions, <span x-text="filterLogic"></span>)
+                                    </span>
+                                </div>
+                                <div x-show="!advancedMode">
+                                    <span x-show="type || region || snapshot || search" class="text-xs text-gray-600">
+                                        <span x-show="type">Type: <span x-text="type"></span></span>
+                                        <span x-show="type && (region || snapshot || search)">, </span>
+                                        <span x-show="region">Region: <span x-text="region"></span></span>
+                                        <span x-show="region && (snapshot || search)">, </span>
+                                        <span x-show="snapshot">Snapshot: <span x-text="snapshot"></span></span>
+                                        <span x-show="snapshot && search">, </span>
+                                        <span x-show="search">Search: <span x-text="search"></span></span>
+                                    </span>
+                                    <span x-show="!type && !region && !snapshot && !search" class="text-xs text-gray-400">No filters</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+                    <button @click="saveView()" :disabled="!viewName.trim()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm">
+                        Save
+                    </button>
+                    <button @click="showSaveViewModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        searchResources();
+        loadTagKeys();
+    });
+
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target.id === 'saved-views-list') {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            renderSavedViewsChips(data.views || [], evt.detail.target);
+        }
+        if (evt.detail.target.id === 'saved-filters-list') {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            renderSavedFiltersChips(data.filters || [], evt.detail.target);
+        }
+    });
+
+    function searchResources() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        const params = new URLSearchParams();
+
+        // Check if tags column is visible or if filtering by tags
+        const tagsColumnVisible = data.columns.find(c => c.field === 'tags')?.visible;
+        const hasTagConditions = data.advancedMode && data.filterConditions.some(
+            c => c.field === 'tag_key' || c.field === 'tag_value'
+        );
+
+        // In advanced mode, fetch all and filter client-side
+        // In simple mode, apply server-side filters
+        if (!data.advancedMode) {
+            if (data.search) params.append('q', data.search);
+            if (data.type) params.append('type', data.type);
+            if (data.region) params.append('region', data.region);
+            if (data.snapshot) params.append('snapshot', data.snapshot);
+        }
+
+        // Include tags if column is visible or filtering by tags
+        if (tagsColumnVisible || hasTagConditions) {
+            params.append('include_tags', 'true');
+        }
+
+        params.append('limit', '500');
+
+        fetch('/api/resources?' + params.toString())
+            .then(r => r.json())
+            .then(result => {
+                if (data.advancedMode) {
+                    // Store all resources and apply client-side filtering
+                    data.allResources = result;
+                    data.applyAdvancedFilter();
+                } else {
+                    data.resourceData = result;
+                    data.allResources = result;
+                    data.applySort();
+                }
+                renderTable();
+            });
+    }
+
+    function renderTable() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        const target = document.getElementById('resource-table');
+
+        if (!data.resourceData || !data.resourceData.resources || data.resourceData.resources.length === 0) {
+            target.innerHTML = `
+                <div class="p-8 text-center text-gray-500">
+                    <p>No resources found matching your criteria.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const visibleCols = data.visibleColumns;
+
+        let html = `
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+        `;
+
+        visibleCols.forEach(col => {
+            const isSorted = data.sortBy === col.field;
+            const sortIcon = isSorted
+                ? (data.sortOrder === 'asc'
+                    ? '<svg class="ml-1 h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>'
+                    : '<svg class="ml-1 h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>')
+                : '';
+            html += `
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onclick="sortByColumn('${col.field}')">
+                    ${col.label}${sortIcon}
+                </th>
+            `;
+        });
+
+        html += `
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+        `;
+
+        data.resourceData.resources.forEach(r => {
+            html += '<tr class="hover:bg-gray-50">';
+            visibleCols.forEach(col => {
+                let value = r[col.field] || 'N/A';
+
+                if (col.field === 'name') {
+                    html += `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${value}</div>
+                        </td>
+                    `;
+                } else if (col.field === 'arn') {
+                    html += `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-xs text-gray-500 truncate max-w-xs" title="${value}">${value}</div>
+                        </td>
+                    `;
+                } else if (col.field === 'resource_type') {
+                    html += `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                ${value}
+                            </span>
+                        </td>
+                    `;
+                } else if (col.field === 'tags') {
+                    const tags = r.tags || {};
+                    const tagEntries = Object.entries(tags);
+                    if (tagEntries.length === 0) {
+                        html += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">No tags</td>`;
+                    } else {
+                        html += `<td class="px-6 py-4"><div class="flex flex-wrap gap-1 max-w-md">`;
+                        tagEntries.slice(0, 5).forEach(([key, val]) => {
+                            const displayVal = val.length > 20 ? val.substring(0, 20) + '...' : val;
+                            html += `
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700" title="${key}=${val}">
+                                    <span class="text-gray-500">${key}:</span>&nbsp;${displayVal}
+                                </span>
+                            `;
+                        });
+                        if (tagEntries.length > 5) {
+                            html += `<span class="text-xs text-gray-400">+${tagEntries.length - 5} more</span>`;
+                        }
+                        html += `</div></td>`;
+                    }
+                } else {
+                    html += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${value}</td>`;
+                }
+            });
+            html += '</tr>';
+        });
+
+        html += `
+                </tbody>
+            </table>
+            <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+                <p class="text-sm text-gray-700">
+                    Showing <span class="font-medium">${data.resourceData.resources.length}</span> of <span class="font-medium">${data.resourceData.count}</span> results
+                </p>
+            </div>
+        `;
+
+        target.innerHTML = html;
+    }
+
+    function sortByColumn(field) {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        data.setSort(field);
+        renderTable();
+    }
+
+    function renderSavedViewsChips(views, target) {
+        if (views.length === 0) {
+            target.innerHTML = '<span class="text-gray-400 text-sm">No saved views yet</span>';
+            return;
+        }
+
+        let html = '';
+        views.forEach(v => {
+            html += `
+                <button onclick="loadView(${v.id})"
+                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 transition-colors group">
+                    ${v.is_default ? '<svg class="w-3 h-3 mr-1 text-purple-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>' : ''}
+                    ${v.name}
+                    <span onclick="event.stopPropagation(); deleteView(${v.id})" class="ml-1.5 opacity-0 group-hover:opacity-100 text-purple-600 hover:text-purple-900">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </span>
+                </button>
+            `;
+        });
+        target.innerHTML = html;
+    }
+
+    function renderSavedFiltersChips(filters, target) {
+        if (filters.length === 0) {
+            target.innerHTML = '<span class="text-gray-400 text-sm">No saved filters yet</span>';
+            return;
+        }
+
+        let html = '';
+        filters.forEach(f => {
+            const config = f.filter_config || {};
+            const isAdvanced = config.conditions && config.conditions.length > 0;
+            const conditionCount = isAdvanced ? config.conditions.length : 0;
+
+            html += `
+                <button onclick="loadFilter(${f.id}, ${JSON.stringify(config).replace(/"/g, '&quot;')})"
+                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${isAdvanced ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'} transition-colors group"
+                        title="${isAdvanced ? config.logic + ' - ' + conditionCount + ' condition(s)' : 'Simple filter'}">
+                    ${isAdvanced ? '<svg class="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>' : ''}
+                    ${f.name}
+                    ${isAdvanced ? '<span class="ml-1 text-xs opacity-75">(' + conditionCount + ')</span>' : ''}
+                    <span onclick="event.stopPropagation(); deleteFilter(${f.id})" class="ml-1.5 opacity-0 group-hover:opacity-100 ${isAdvanced ? 'text-green-600 hover:text-green-900' : 'text-blue-600 hover:text-blue-900'}">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </span>
+                </button>
+            `;
+        });
+        target.innerHTML = html;
+    }
+
+    function loadView(id) {
+        fetch(`/api/views/${id}`)
+            .then(r => r.json())
+            .then(view => {
+                const data = Alpine.$data(document.querySelector('[x-data]'));
+                const config = view.view_config;
+
+                if (config.columns) {
+                    data.columns.forEach(col => {
+                        const saved = config.columns.find(c => c.field === col.field);
+                        col.visible = saved ? saved.visible : false;
+                    });
+                }
+
+                if (config.sort_by) data.sortBy = config.sort_by;
+                if (config.sort_order) data.sortOrder = config.sort_order;
+
+                if (config.filters) {
+                    // Check if it's an advanced filter
+                    if (config.filters.advanced || (config.filters.conditions && config.filters.conditions.length > 0)) {
+                        data.advancedMode = true;
+                        data.filterLogic = config.filters.logic || 'AND';
+                        data.filterConditions = (config.filters.conditions || []).map(c => ({
+                            field: c.field,
+                            operator: c.operator,
+                            value: c.value || ''
+                        }));
+                    } else {
+                        data.advancedMode = false;
+                        data.type = config.filters.resource_type || '';
+                        data.region = config.filters.region || '';
+                        data.snapshot = config.filters.snapshot || '';
+                        data.search = config.filters.search || '';
+                    }
+                }
+
+                data.currentViewId = id;
+                fetch(`/api/views/${id}/use`, { method: 'POST' });
+                searchResources();
+            });
+    }
+
+    function loadFilter(id, config) {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        // Check if it's an advanced filter (has conditions array)
+        if (config.conditions && config.conditions.length > 0) {
+            data.advancedMode = true;
+            data.filterLogic = config.logic || 'AND';
+            data.filterConditions = config.conditions.map(c => ({
+                field: c.field,
+                operator: c.operator,
+                value: c.value || ''
+            }));
+        } else {
+            // Simple filter
+            data.advancedMode = false;
+            data.type = config.resource_type || '';
+            data.region = config.region || '';
+            data.snapshot = config.snapshot || '';
+            data.search = config.search || '';
+        }
+
+        fetch(`/api/filters/${id}/use`, { method: 'POST' });
+        searchResources();
+    }
+
+    function saveFilter() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        // Build filter config based on mode
+        let filterConfig;
+        if (data.advancedMode) {
+            filterConfig = {
+                logic: data.filterLogic,
+                conditions: data.filterConditions.map(c => ({
+                    field: c.field,
+                    operator: c.operator,
+                    value: c.value
+                }))
+            };
+        } else {
+            filterConfig = {
+                resource_type: data.type || null,
+                region: data.region || null,
+                snapshot: data.snapshot || null,
+                search: data.search || null
+            };
+        }
+
+        fetch('/api/filters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: data.filterName,
+                description: data.filterDescription,
+                filter_config: filterConfig
+            })
+        })
+        .then(r => r.json())
+        .then(() => {
+            data.showSaveFilterModal = false;
+            htmx.trigger('#saved-filters-list', 'load');
+        });
+    }
+
+    function saveView() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        // Build filter config based on mode
+        let filters;
+        if (data.advancedMode) {
+            filters = {
+                advanced: true,
+                logic: data.filterLogic,
+                conditions: data.filterConditions.map(c => ({
+                    field: c.field,
+                    operator: c.operator,
+                    value: c.value
+                }))
+            };
+        } else {
+            filters = {
+                resource_type: data.type || null,
+                region: data.region || null,
+                snapshot: data.snapshot || null,
+                search: data.search || null
+            };
+        }
+
+        fetch('/api/views', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: data.viewName,
+                description: data.viewDescription,
+                view_config: {
+                    columns: data.columns.map(c => ({ field: c.field, label: c.label, visible: c.visible })),
+                    sort_by: data.sortBy,
+                    sort_order: data.sortOrder,
+                    filters: filters
+                }
+            })
+        })
+        .then(r => r.json())
+        .then(() => {
+            data.showSaveViewModal = false;
+            data.viewName = '';
+            data.viewDescription = '';
+            htmx.trigger('#saved-views-list', 'load');
+        });
+    }
+
+    function deleteFilter(id) {
+        if (!confirm('Delete this saved filter?')) return;
+        fetch(`/api/filters/${id}`, { method: 'DELETE' })
+            .then(() => htmx.trigger('#saved-filters-list', 'load'));
+    }
+
+    function deleteView(id) {
+        if (!confirm('Delete this saved view?')) return;
+        fetch(`/api/views/${id}`, { method: 'DELETE' })
+            .then(() => htmx.trigger('#saved-views-list', 'load'));
+    }
+
+    function exportCSV() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        const params = new URLSearchParams();
+        if (data.search) params.append('q', data.search);
+        if (data.type) params.append('type', data.type);
+        if (data.region) params.append('region', data.region);
+        if (data.snapshot) params.append('snapshot', data.snapshot);
+
+        const visibleFields = data.visibleColumns.map(c => c.field);
+        params.append('columns', visibleFields.join(','));
+        params.append('sort_by', data.sortBy);
+        params.append('sort_order', data.sortOrder);
+
+        window.location.href = '/api/resources/export/csv?' + params.toString();
+    }
+
+    function exportYAML() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        const params = new URLSearchParams();
+        if (data.search) params.append('q', data.search);
+        if (data.type) params.append('type', data.type);
+        if (data.region) params.append('region', data.region);
+        if (data.snapshot) params.append('snapshot', data.snapshot);
+        params.append('include_config', 'true');
+        params.append('include_tags', 'true');
+
+        window.location.href = '/api/resources/export/yaml?' + params.toString();
+    }
+
+    // Load available tag keys on page load
+    function loadTagKeys() {
+        fetch('/api/resources/tags/keys')
+            .then(r => r.json())
+            .then(result => {
+                const data = Alpine.$data(document.querySelector('[x-data]'));
+                data.availableTagKeys = result.keys || [];
+            });
+    }
+</script>
+{% endblock %}

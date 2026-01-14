@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs - AWS Inventory Browser{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">Audit Logs</h1>
+            <p class="mt-1 text-sm text-gray-500">History of cleanup operations and their results</p>
+        </div>
+    </div>
+
+    <!-- Operations List -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        {% if operations %}
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Operation</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Baseline</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Results</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for op in operations %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ op.operation_id[:12] }}...</div>
+                        <div class="text-xs text-gray-500">{{ op.mode | default('cleanup') }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <a href="/snapshots/{{ op.baseline_snapshot }}" class="text-sm text-blue-600 hover:text-blue-500">
+                            {{ op.baseline_snapshot }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ op.timestamp }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                {{ op.succeeded_count | default(0) }} succeeded
+                            </span>
+                            {% if op.failed_count %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                {{ op.failed_count }} failed
+                            </span>
+                            {% endif %}
+                            {% if op.skipped_count %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                {{ op.skipped_count }} skipped
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% set status_colors = {'completed': 'green', 'failed': 'red', 'partial': 'amber', 'running': 'blue'} %}
+                        {% set color = status_colors.get(op.status, 'gray') %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-{{ color }}-100 text-{{ color }}-800">
+                            {{ op.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No audit logs</h3>
+            <p class="mt-1 text-sm text-gray-500">Cleanup operations will appear here after they are executed.</p>
+            <div class="mt-6">
+                <a href="/cleanup" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                    Go to Cleanup
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
