@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-01-14
+
+### Changed
+- **BREAKING**: Renamed `restore` command to `cleanup` for clarity
+  - `awsinv restore preview` → `awsinv cleanup preview`
+  - `awsinv restore execute` → `awsinv cleanup execute`
+  - `awsinv restore purge` → `awsinv cleanup purge`
+  - Config file renamed: `.awsinv-restore.yaml` → `.awsinv-cleanup.yaml`
+  - The term "restore" was misleading as the command deletes resources
+
+### Migration
+- Update any scripts using `awsinv restore` to use `awsinv cleanup`
+- Rename any `.awsinv-restore.yaml` files to `.awsinv-cleanup.yaml`
+
 ## [0.8.1] - 2026-01-14
 
 ### Added

@@ -2,7 +2,7 @@
 
 # AWS Inventory Manager
 
-### *Snapshot, Track, Secure, and Restore Your AWS Environment*
+### *Snapshot, Track, Secure, and Clean Up Your AWS Environment*
 
 [![CI](https://github.com/troylar/aws-inventory-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/troylar/aws-inventory-manager/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/troylar/aws-inventory-manager/branch/main/graph/badge.svg)](https://codecov.io/gh/troylar/aws-inventory-manager)
@@ -35,8 +35,8 @@ awsinv delta --snapshot my-baseline --show-diff
 awsinv security scan --severity HIGH
 
 # Remove resources created after the baseline
-awsinv restore preview my-baseline      # See what would be deleted
-awsinv restore execute my-baseline --confirm  # Execute cleanup
+awsinv cleanup preview my-baseline      # See what would be deleted
+awsinv cleanup execute my-baseline --confirm  # Execute cleanup
 ```
 
 ### Why You Need This
@@ -59,7 +59,7 @@ Before diving in, here's the terminology:
 |------|---------|
 | **Snapshot** | A point-in-time inventory of your AWS resources (stored in local SQLite database). Not an EBS/RDS snapshot. |
 | **Inventory** | A named collection of snapshots. Use inventories to organize snapshots by environment, team, or purpose. |
-| **Restore** | Delete resources that were created *after* a snapshot, returning to that baseline state. |
+| **Cleanup** | Delete resources that were created *after* a snapshot, returning to that baseline state. |
 | **Purge** | Delete all resources *except* those matching protection rules (no snapshot comparison needed). |
 | **Query** | Search and analyze resources across snapshots using SQL or built-in filters. |
 
@@ -114,7 +114,7 @@ Before diving in, here's the terminology:
 <td width="33%" valign="top">
 
 ### Resource Cleanup
-- **Restore**: Return to a snapshot baseline
+- **Cleanup**: Return to a snapshot baseline
 - **Purge**: Delete all except protected
 - Preview mode (dry-run)
 - Dependency-aware deletion
@@ -216,12 +216,12 @@ awsinv delta --snapshot my-baseline --show-diff
 awsinv security scan
 
 # Clean up resources created after baseline
-awsinv restore preview my-baseline      # Always preview first!
-awsinv restore execute my-baseline --confirm
+awsinv cleanup preview my-baseline      # Always preview first!
+awsinv cleanup execute my-baseline --confirm
 
 # Clean up a sandbox (keep only tagged resources)
-awsinv restore purge --protect-tag "keep=true" --preview
-awsinv restore purge --protect-tag "keep=true" --confirm
+awsinv cleanup purge --protect-tag "keep=true" --preview
+awsinv cleanup purge --protect-tag "keep=true" --confirm
 ```
 
 ---
@@ -327,7 +327,7 @@ By default, all data is stored locally in a SQLite database:
 ~/.snapshots/
 ├── inventory.db              # SQLite database (snapshots, resources, tags)
 └── audit-logs/
-    └── restore/              # Cleanup operation logs
+    └── cleanup/              # Cleanup operation audit logs
         └── 2026-01-15_cleanup.yaml
 ```
 
@@ -527,7 +527,7 @@ For the `awsinv cost` command:
 }
 ```
 
-### Resource Cleanup (restore/purge)
+### Resource Cleanup
 
 ⚠️ **Warning:** These permissions allow resource deletion. Use with extreme caution.
 
@@ -612,29 +612,29 @@ For the `awsinv cost` command:
 
 ## Documentation
 
-### Resource Cleanup (Restore & Purge)
+### Resource Cleanup
 
-The `restore` command has two modes:
+The `cleanup` command has two modes:
 
-**Restore Mode** - Delete resources created *after* a snapshot:
+**Execute Mode** - Delete resources created *after* a baseline snapshot:
 ```bash
 # Preview what would be deleted
-awsinv restore preview my-baseline
+awsinv cleanup preview my-baseline
 
 # Execute (requires confirmation)
-awsinv restore execute my-baseline --confirm
+awsinv cleanup execute my-baseline --confirm
 ```
 
 **Purge Mode** - Delete *all* resources except those matching protection rules:
 ```bash
 # Preview what would be deleted (everything except keep=true tagged resources)
-awsinv restore purge --protect-tag "keep=true" --preview
+awsinv cleanup purge --protect-tag "keep=true" --preview
 
 # Execute
-awsinv restore purge --protect-tag "keep=true" --confirm
+awsinv cleanup purge --protect-tag "keep=true" --confirm
 ```
 
-> **Why "restore"?** The command "restores" your account to a previous state by removing what was added. Think of it as "restore to baseline" rather than "restore a backup."
+> **Note:** `cleanup execute` compares to a snapshot and deletes newer resources. `cleanup purge` ignores snapshots and deletes everything except protected resources.
 
 ### Protection Rules
 
@@ -642,16 +642,16 @@ Prevent accidental deletion of important resources:
 
 ```bash
 # Protect by tag (OR logic - any match protects)
-awsinv restore preview my-snapshot --protect-tag "env=prod" --protect-tag "keep=true"
+awsinv cleanup preview my-snapshot --protect-tag "env=prod" --protect-tag "keep=true"
 
 # Filter to specific resource type (only delete this type)
-awsinv restore preview my-snapshot --type AWS::EC2::Instance
+awsinv cleanup preview my-snapshot --type AWS::EC2::Instance
 
 # Use a config file for complex rules
-awsinv restore preview my-snapshot --config .awsinv-restore.yaml
+awsinv cleanup preview my-snapshot --config .awsinv-cleanup.yaml
 ```
 
-Example `.awsinv-restore.yaml`:
+Example `.awsinv-cleanup.yaml`:
 ```yaml
 # Protection Rules Configuration
 # Resources matching ANY rule are protected from deletion
@@ -813,13 +813,13 @@ awsinv cost                           # Cost analysis
 # ─────────────────────────────────────────────────────────────
 # RESOURCE CLEANUP
 # ─────────────────────────────────────────────────────────────
-# Restore: Delete resources created AFTER a snapshot
-awsinv restore preview <snapshot>     # Dry-run (safe)
-awsinv restore execute <snapshot> --confirm
+# Cleanup: Delete resources created AFTER a snapshot
+awsinv cleanup preview <snapshot>     # Dry-run (safe)
+awsinv cleanup execute <snapshot> --confirm
 
 # Purge: Delete ALL resources EXCEPT protected ones
-awsinv restore purge --protect-tag <key=value> --preview
-awsinv restore purge --protect-tag <key=value> --confirm
+awsinv cleanup purge --protect-tag <key=value> --preview
+awsinv cleanup purge --protect-tag <key=value> --confirm
 
 # Common options for both:
     [--type <AWS::Service::Type>]     # Filter by resource type
@@ -876,8 +876,8 @@ awsinv query stats --group-by region
 awsinv snapshot create morning-baseline --regions us-east-1
 
 # Evening: Clean up everything created during the day
-awsinv restore preview morning-baseline   # Always preview first!
-awsinv restore execute morning-baseline --confirm
+awsinv cleanup preview morning-baseline   # Always preview first!
+awsinv cleanup execute morning-baseline --confirm
 ```
 
 ### Sandbox Account Cleanup
@@ -888,9 +888,9 @@ awsinv restore execute morning-baseline --confirm
 # Tag your permanent infrastructure with "baseline=true"
 # Then periodically purge everything else
 
-awsinv restore purge --protect-tag "baseline=true" --preview
+awsinv cleanup purge --protect-tag "baseline=true" --preview
 # Review the preview output carefully!
-awsinv restore purge --protect-tag "baseline=true" --confirm
+awsinv cleanup purge --protect-tag "baseline=true" --confirm
 ```
 
 ### Pre/Post Deployment Comparison
@@ -933,7 +933,7 @@ awsinv cost --snapshot team-data
 │                                                               │
 │  CLI Commands                                                 │
 │  ┌─────────┐ ┌─────────┐ ┌──────────┐ ┌──────┐ ┌─────────┐   │
-│  │snapshot │ │ delta   │ │ security │ │ cost │ │ restore │   │
+│  │snapshot │ │ delta   │ │ security │ │ cost │ │ cleanup │   │
 │  └────┬────┘ └────┬────┘ └────┬─────┘ └──┬───┘ └────┬────┘   │
 │       │           │           │          │          │         │
 ├───────┴───────────┴───────────┴──────────┴──────────┴────────┤
@@ -983,7 +983,7 @@ invoke quality --fix     # Auto-fix issues
 invoke build             # Build distributable package
 ```
 
-**Test Coverage:** 1550+ tests, 79% overall coverage. Restore module: 98%+ coverage.
+**Test Coverage:** 1550+ tests, 79% overall coverage. Cleanup module: 98%+ coverage.
 
 ---
 
@@ -1038,11 +1038,11 @@ awsinv snapshot create quick-snap --regions us-east-1 --resource-types ec2,lambd
 3. Check that source accounts are properly linked in the aggregator
 4. Run from the aggregator's account/region (typically management account)
 
-#### Restore preview shows unexpected resources
+#### Cleanup preview shows unexpected resources
 
-**Problem:** The restore preview shows resources you didn't expect to be deleted.
+**Problem:** The cleanup preview shows resources you didn't expect to be deleted.
 
-**Explanation:** Restore deletes resources that exist now but didn't exist in the snapshot. This includes:
+**Explanation:** Cleanup deletes resources that exist now but didn't exist in the snapshot. This includes:
 - Resources created after the snapshot
 - Resources in regions not included in the original snapshot
 - AWS-managed resources that get auto-created
@@ -1082,7 +1082,7 @@ awsinv snapshot create quick-snap --regions us-east-1 --resource-types ec2,lambd
 
 #### Q: Is my AWS data sent anywhere?
 
-**No.** All data stays local. The tool only makes read API calls to AWS (and delete calls if you use restore/purge). All data is stored in a SQLite database at `~/.snapshots/inventory.db` on your local machine.
+**No.** All data stays local. The tool only makes read API calls to AWS (and delete calls if you use cleanup). All data is stored in a SQLite database at `~/.snapshots/inventory.db` on your local machine.
 
 #### Q: Can I use this with AWS Organizations?
 
@@ -1100,12 +1100,12 @@ The tool handles partial Config coverage gracefully:
 
 You can see which method was used per resource via the `source` field in snapshots.
 
-#### Q: How do I undo a restore operation?
+#### Q: How do I undo a cleanup operation?
 
 **You can't.** Deleted resources are permanently deleted. Always:
-1. Use `restore preview` first
+1. Use `cleanup preview` first
 2. Review the output carefully
-3. Consider creating a fresh snapshot before restore
+3. Consider creating a fresh snapshot before cleanup
 4. Use `--protect-tag` to safeguard important resources
 
 #### Q: Can I schedule automatic snapshots?
@@ -1132,14 +1132,14 @@ The tool works anywhere with Python and AWS credentials:
 
 For team use, consider storing snapshots in a shared location (see [Data Storage](#data-storage)).
 
-#### Q: Why does restore delete my VPC?
+#### Q: Why does cleanup delete my VPC?
 
-When you restore to a baseline, the tool deletes resources created after that baseline. If the VPC was created after your snapshot, it will be marked for deletion.
+When you run cleanup execute against a baseline, the tool deletes resources created after that baseline. If the VPC was created after your snapshot, it will be marked for deletion.
 
 **Best practice:** Always include networking infrastructure in your baseline snapshot, or protect it with tags:
 
 ```bash
-awsinv restore execute my-baseline --protect-tag "layer=network" --confirm
+awsinv cleanup execute my-baseline --protect-tag "layer=network" --confirm
 ```
 
 ---
@@ -1175,6 +1175,6 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Star on GitHub](https://img.shields.io/github/stars/troylar/aws-inventory-manager?style=social)](https://github.com/troylar/aws-inventory-manager)
 
-Version 0.8.0 • Python 3.8 - 3.13
+Version 0.9.0 • Python 3.8 - 3.13
 
 </div>
