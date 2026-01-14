@@ -160,11 +160,14 @@ awsinv cost --help
 
 @app.callback()
 def main(
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     storage_path: Optional[str] = typer.Option(
         None,
         "--storage-path",
         help="Custom path for snapshot storage (default: ~/.snapshots or $AWS_INVENTORY_STORAGE_PATH)",
+        envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output except errors"),
@@ -235,7 +238,9 @@ def inventory_create(
     exclude_tags: Optional[str] = typer.Option(
         None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
     ),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name to use"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Create a new inventory for organizing snapshots.
 
@@ -352,7 +357,9 @@ def inventory_create(
 
 @inventory_app.command("list")
 def inventory_list(
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name to use"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """List all inventories for the current AWS account.
 
@@ -409,8 +416,12 @@ def inventory_list(
 
 @inventory_app.command("show")
 def inventory_show(
-    name: str = typer.Argument(..., help="Inventory name to display"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name to use"),
+    name: str = typer.Argument(
+        ..., help="Inventory name to display", envvar="AWSINV_INVENTORY_ID"
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Show detailed information for a specific inventory.
 
@@ -483,7 +494,9 @@ def inventory_show(
 
 @inventory_app.command("migrate")
 def inventory_migrate(
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name to use"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Migrate legacy snapshots to inventory structure.
 
@@ -578,9 +591,11 @@ def inventory_migrate(
 
 @inventory_app.command("delete")
 def inventory_delete(
-    name: str = typer.Argument(..., help="Inventory name to delete"),
+    name: str = typer.Argument(..., help="Inventory name to delete", envvar="AWSINV_INVENTORY_ID"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompts"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name to use"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Delete an inventory, optionally deleting its snapshot files.
 
@@ -681,9 +696,11 @@ app.add_typer(config_app, name="config")
 @config_app.command("check")
 def config_check(
     regions: Optional[str] = typer.Option(
-        None, "--regions", help="Comma-separated list of regions (default: us-east-1)"
+        None, "--regions", help="Comma-separated list of regions (default: us-east-1)", envvar=["AWSINV_REGION", "AWS_REGION"]
     ),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed resource type support"),
 ):
     """Check AWS Config availability and status.
@@ -776,13 +793,20 @@ def config_check(
 
 @snapshot_app.command("create")
 def snapshot_create(
-    name: Optional[str] = typer.Argument(None, help="Snapshot name (auto-generated if not provided)"),
-    regions: Optional[str] = typer.Option(
-        None, "--regions", help="Comma-separated list of regions (default: us-east-1)"
+    name: Optional[str] = typer.Argument(
+        None, help="Snapshot name (auto-generated if not provided)", envvar="AWSINV_SNAPSHOT_ID"
     ),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name to use"),
+    regions: Optional[str] = typer.Option(
+        None, "--regions", help="Comma-separated list of regions (default: us-east-1)", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     inventory: Optional[str] = typer.Option(
-        None, "--inventory", help="Inventory name to use for filters (conflicts with --include-tags/--exclude-tags)"
+        None,
+        "--inventory",
+        help="Inventory name to use for filters (conflicts with --include-tags/--exclude-tags)",
+        envvar="AWSINV_INVENTORY_ID",
     ),
     set_active: bool = typer.Option(True, "--set-active/--no-set-active", help="Set as active snapshot"),
     compress: bool = typer.Option(False, "--compress", help="Compress snapshot with gzip"),
@@ -2592,6 +2616,9 @@ def query_sql(
     query: str = typer.Argument(..., help="SQL query to execute (SELECT only)"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, csv"),
     limit: int = typer.Option(100, "--limit", "-l", help="Maximum results to return"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Filter by snapshot name", envvar="AWSINV_SNAPSHOT_ID"
+    ),
 ):
     """Execute raw SQL query against the resource database.
 
@@ -2605,13 +2632,15 @@ def query_sql(
 
     Examples:
         awsinv query sql "SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type"
-        awsinv query sql "SELECT * FROM snapshots ORDER BY created_at DESC LIMIT 5"
         awsinv query sql "SELECT r.arn, t.key, t.value FROM resources r JOIN resource_tags t ON r.id = t.resource_id WHERE t.key = 'Environment'"
+        # Use --snapshot to automatically filter by snapshot_id
+        awsinv query sql "SELECT * FROM resources" --snapshot my-snapshot
     """
     from ..storage import Database, ResourceStore
     import json
     import csv
     import sys
+    import re
 
     setup_logging()
 
@@ -2619,6 +2648,35 @@ def query_sql(
         db = Database()
         db.ensure_schema()
         store = ResourceStore(db)
+
+        # Apply snapshot filter if provided
+        if snapshot:
+            # Look up snapshot ID
+            rows = db.fetchall("SELECT id FROM snapshots WHERE name = ?", (snapshot,))
+            if not rows:
+                console.print(f"[red]Error: Snapshot '{snapshot}' not found[/red]")
+                raise typer.Exit(code=1)
+            
+            snapshot_id = rows[0]["id"]
+            
+            # Inject WHERE clause logic
+            # 1. Check for existing WHERE
+            match_where = re.search(r'(?i)\bwhere\b', query)
+            if match_where:
+                # Insert AND after WHERE
+                start, end = match_where.span()
+                query = query[:end] + f" snapshot_id = {snapshot_id} AND" + query[end:]
+            else:
+                # 2. Check for clauses that must come AFTER WHERE (GROUP BY, HAVING, ORDER BY, LIMIT)
+                match_clause = re.search(r'(?i)\b(group\s+by|having|order\s+by|limit)\b', query)
+                if match_clause:
+                    start, end = match_clause.span()
+                    query = query[:start] + f" WHERE snapshot_id = {snapshot_id} " + query[start:]
+                else:
+                    # 3. Simple append
+                    query = query.rstrip(";") + f" WHERE snapshot_id = {snapshot_id}"
+            
+            logger.debug(f"Modified query with snapshot filter: {query}")
 
         # Add LIMIT if not present
         query_upper = query.strip().upper()

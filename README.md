@@ -225,6 +225,29 @@ awsinv restore purge --protect-tag "keep=true" --confirm
 ```
 
 ---
+## Environment Variables
+
+You can configure most CLI options via environment variables, which is useful for CI/CD pipelines or setting personal defaults.
+
+| Variable | Description | Equivalent Flag |
+|----------|-------------|-----------------|
+| `AWSINV_SNAPSHOT_ID` | Default snapshot name for queries | `--snapshot` |
+| `AWSINV_INVENTORY_ID` | Default inventory name | `--inventory` |
+| `AWSINV_REGION` | Comma-separated regions (e.g., `us-east-1,us-west-2`) | `--regions` |
+| `AWSINV_PROFILE` | AWS CLI profile to use | `--profile` |
+| `AWSINV_STORAGE_PATH` | Custom path for SQLite DB and logs | `--storage-path` |
+
+Example:
+```bash
+export AWSINV_INVENTORY_ID="prod-baseline"
+export AWSINV_REGION="us-east-1"
+
+# These commands will now use the exported values automatically
+awsinv snapshot create daily-snap
+awsinv delta --snapshot previous-snap
+```
+
+---
 
 ## AWS Config Integration
 
@@ -331,6 +354,10 @@ The SQLite database is a single portable file. To share across a team:
 - Store `inventory.db` in a shared filesystem
 - Sync via S3 or other cloud storage
 - Use separate databases per environment/team
+
+### Database Schema & Power User Queries
+
+For advanced usage, including the full SQLite schema and complex analytical SQL queries, please see [DATABASE.md](DATABASE.md).
 
 ---
 
