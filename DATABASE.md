@@ -399,3 +399,73 @@ awsinv query sql "
   )
 " --snapshot latest-prod
 ```
+
+### 29. CloudFormation-Managed vs Manual Resources
+Identify which resources are managed by Infrastructure as Code vs manually created (IaC Governance):
+
+```bash
+awsinv query sql "
+  SELECT r.resource_type,
+    SUM(CASE WHEN t.key = 'aws:cloudformation:stack-name' THEN 1 ELSE 0 END) as cfn_managed,
+    COUNT(DISTINCT r.id) - SUM(CASE WHEN t.key = 'aws:cloudformation:stack-name' THEN 1 ELSE 0 END) as manual
+  FROM resources r
+  LEFT JOIN resource_tags t ON r.id = t.resource_id AND t.key = 'aws:cloudformation:stack-name'
+  GROUP BY r.resource_type
+  ORDER BY manual DESC
+" --snapshot latest-prod
+```
+
+### 30. Resources with Only System Tags (No User Tags)
+Find resources that were auto-created but never properly tagged by users (Compliance):
+
+```bash
+awsinv query sql "
+  SELECT r.name, r.resource_type, r.region
+  FROM resources r
+  WHERE EXISTS (SELECT 1 FROM resource_tags t WHERE t.resource_id = r.id AND t.key LIKE 'aws:%')
+  AND NOT EXISTS (SELECT 1 FROM resource_tags t WHERE t.resource_id = r.id AND t.key NOT LIKE 'aws:%')
+" --snapshot latest-prod
+```
+
+### 31. User vs System Tag Ratio by Resource Type
+Understand tagging coverage - are users adding their own tags or relying on AWS auto-tags? (Taxonomy):
+
+```bash
+awsinv query sql "
+  SELECT r.resource_type,
+    SUM(CASE WHEN t.key LIKE 'aws:%' THEN 1 ELSE 0 END) as system_tags,
+    SUM(CASE WHEN t.key NOT LIKE 'aws:%' THEN 1 ELSE 0 END) as user_tags
+  FROM resources r
+  JOIN resource_tags t ON r.id = t.resource_id
+  GROUP BY r.resource_type
+  ORDER BY user_tags DESC
+" --snapshot latest-prod
+```
+
+### 32. User Tags by Resource Type
+See which user-defined tags are applied to each resource type (Taxonomy):
+
+```bash
+awsinv query sql "
+  SELECT r.resource_type, t.key, COUNT(*) as count
+  FROM resources r
+  JOIN resource_tags t ON r.id = t.resource_id
+  WHERE t.key NOT LIKE 'aws:%'
+  GROUP BY r.resource_type, t.key
+  ORDER BY r.resource_type, count DESC
+" --snapshot latest-prod
+```
+
+### 33. User Tags by Resource Name
+List all user-defined tags for each resource, useful for tag auditing (Compliance):
+
+```bash
+awsinv query sql "
+  SELECT r.name, r.resource_type, GROUP_CONCAT(t.key || '=' || t.value, ', ') as user_tags
+  FROM resources r
+  JOIN resource_tags t ON r.id = t.resource_id
+  WHERE t.key NOT LIKE 'aws:%'
+  GROUP BY r.id, r.name, r.resource_type
+  ORDER BY r.resource_type, r.name
+" --snapshot latest-prod
+```
