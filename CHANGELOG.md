@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-01-14
+
+### Added
+- **Resizable Table Columns**: Drag column borders to resize columns in Resource Explorer
+  - Visual resize handles appear on hover
+  - Min/max width constraints (80-600px)
+  - Smooth drag feedback with cursor changes
+
+- **Multi-Select Type & Region Filters**: Select multiple types and regions in Simple filter mode
+  - Checkbox dropdown menus with "X selected" display
+  - Clear button to deselect all
+  - Client-side filtering for multi-select combinations
+
+- **Column Widths in Saved Views**: Save and restore column widths along with visibility
+  - Views now preserve custom column sizing
+  - Load a view to restore exact table layout
+
+- **Enhanced Table Styling**:
+  - Avatar icons with first letter for Name column
+  - Color-coded Type badges (S3=green, EC2=orange, Lambda=amber, IAM=red, etc.)
+  - Region badges with globe icon
+  - Copy-to-clipboard button for ARN column
+  - Sticky headers with gradient background
+  - Alternating row colors with hover effects
+  - Custom scrollbar styling
+
+### Changed
+- Type and Region filters changed from single-select to multi-select dropdowns
+- Table uses fixed layout with explicit column widths for better performance
+
 ## [0.10.3] - 2026-01-14
 
 ### Added

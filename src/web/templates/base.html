@@ -36,6 +36,99 @@
         .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
         .htmx-request .htmx-indicator { opacity: 1; }
         .htmx-request.htmx-indicator { opacity: 1; }
+
+        /* Resizable Table Styles */
+        .resizable-table-container {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .resizable-table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .resizable-table-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .resizable-table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .resizable-table-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .resizable-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .resizable-table th,
+        .resizable-table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .resizable-th {
+            position: relative;
+            overflow: hidden;
+            background: inherit;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .resizable-th.resizing {
+            background-color: #eff6ff !important;
+        }
+
+        .resizable-th .resize-handle {
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .resizable-th:hover .resize-handle {
+            opacity: 1;
+            background-color: #93c5fd;
+        }
+
+        .resizable-th .resize-handle:hover,
+        .resizable-th .resize-handle:active {
+            background-color: #3b82f6 !important;
+        }
+
+        .resizable-td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Sort indicator animation */
+        .sort-indicator {
+            animation: sortPop 0.2s ease-out;
+        }
+
+        @keyframes sortPop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Row hover effect */
+        .resizable-table tbody tr {
+            transition: background-color 0.1s ease;
+        }
+
+        /* Sticky header shadow */
+        .resizable-table thead {
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Select none utility for resize */
+        .select-none {
+            user-select: none;
+            -webkit-user-select: none;
+        }
     </style>
 
     {% block head %}{% endblock %}

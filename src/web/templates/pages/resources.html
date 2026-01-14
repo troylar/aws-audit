@@ -5,15 +5,33 @@
 {% block content %}
 <div class="space-y-6" x-data="{
     // Simple filter mode fields
-    type: '',
-    region: '',
+    selectedTypes: [],
+    selectedRegions: [],
     snapshot: '',
     search: '',
+    showTypeDropdown: false,
+    showRegionDropdown: false,
 
-    // Advanced filter mode
+    toggleType(t) {
+        const idx = this.selectedTypes.indexOf(t);
+        if (idx === -1) this.selectedTypes.push(t);
+        else this.selectedTypes.splice(idx, 1);
+    },
+
+    toggleRegion(r) {
+        const idx = this.selectedRegions.indexOf(r);
+        if (idx === -1) this.selectedRegions.push(r);
+        else this.selectedRegions.splice(idx, 1);
+    },
+
+    // Advanced filter mode with nested groups
     advancedMode: false,
-    filterLogic: 'AND',
-    filterConditions: [],
+    // Root filter group - contains conditions and nested groups
+    filterRoot: {
+        logic: 'AND',
+        items: []  // Each item is either {type:'condition',...} or {type:'group', logic:'AND/OR', items:[...]}
+    },
+    nextGroupId: 1,  // For generating unique IDs
     baseFilterFields: [
         { value: 'name', label: 'Name', type: 'text' },
         { value: 'arn', label: 'ARN', type: 'text' },
@@ -39,17 +57,25 @@
     },
 
     filterOperators: [
-        { value: 'equals', label: 'equals' },
-        { value: 'not_equals', label: 'does not equal' },
-        { value: 'contains', label: 'contains' },
-        { value: 'not_contains', label: 'does not contain' },
-        { value: 'starts_with', label: 'starts with' },
-        { value: 'not_starts_with', label: 'does not start with' },
-        { value: 'ends_with', label: 'ends with' },
-        { value: 'not_ends_with', label: 'does not end with' },
-        { value: 'is_empty', label: 'is empty' },
-        { value: 'is_not_empty', label: 'is not empty' }
+        { value: 'equals', label: 'equals', multi: false },
+        { value: 'not_equals', label: 'does not equal', multi: false },
+        { value: 'in', label: 'is one of', multi: true },
+        { value: 'not_in', label: 'is not one of', multi: true },
+        { value: 'contains', label: 'contains', multi: false },
+        { value: 'contains_any', label: 'contains any of', multi: true },
+        { value: 'not_contains', label: 'does not contain', multi: false },
+        { value: 'starts_with', label: 'starts with', multi: false },
+        { value: 'not_starts_with', label: 'does not start with', multi: false },
+        { value: 'ends_with', label: 'ends with', multi: false },
+        { value: 'not_ends_with', label: 'does not end with', multi: false },
+        { value: 'is_empty', label: 'is empty', multi: false },
+        { value: 'is_not_empty', label: 'is not empty', multi: false }
     ],
+
+    isMultiOperator(operator) {
+        const op = this.filterOperators.find(o => o.value === operator);
+        return op ? op.multi : false;
+    },
 
     // UI state
     savedFilters: [],
@@ -64,16 +90,42 @@
     sortBy: 'name',
     sortOrder: 'asc',
     baseColumns: [
-        { field: 'name', label: 'Name', visible: true, isBase: true },
-        { field: 'arn', label: 'ARN', visible: true, isBase: true },
-        { field: 'resource_type', label: 'Type', visible: true, isBase: true },
-        { field: 'region', label: 'Region', visible: true, isBase: true },
-        { field: 'snapshot_name', label: 'Snapshot', visible: true, isBase: true },
-        { field: 'tags', label: 'All Tags', visible: false, isBase: true },
-        { field: 'created_at', label: 'Created', visible: false, isBase: true },
-        { field: 'config_hash', label: 'Config Hash', visible: false, isBase: true }
+        { field: 'name', label: 'Name', visible: true, isBase: true, width: 280 },
+        { field: 'arn', label: 'ARN', visible: true, isBase: true, width: 400 },
+        { field: 'resource_type', label: 'Type', visible: true, isBase: true, width: 180 },
+        { field: 'region', label: 'Region', visible: true, isBase: true, width: 140 },
+        { field: 'snapshot_name', label: 'Snapshot', visible: true, isBase: true, width: 200 },
+        { field: 'tags', label: 'All Tags', visible: false, isBase: true, width: 300 },
+        { field: 'created_at', label: 'Created', visible: false, isBase: true, width: 200 },
+        { field: 'config_hash', label: 'Config Hash', visible: false, isBase: true, width: 180 }
     ],
     tagColumns: [],  // Dynamic tag columns
+
+    // Column resize state
+    resizingColumn: null,
+    resizeStartX: 0,
+    resizeStartWidth: 0,
+
+    getColumnWidth(field) {
+        const col = this.columns.find(c => c.field === field);
+        return col ? col.width : 150;
+    },
+
+    setColumnWidth(field, width) {
+        const minWidth = 80;
+        const maxWidth = 600;
+        const newWidth = Math.max(minWidth, Math.min(maxWidth, width));
+
+        // Check in base columns
+        let col = this.baseColumns.find(c => c.field === field);
+        if (col) {
+            col.width = newWidth;
+            return;
+        }
+        // Check in tag columns
+        col = this.tagColumns.find(c => c.field === field);
+        if (col) col.width = newWidth;
+    },
 
     get columns() {
         return [...this.baseColumns, ...this.tagColumns];
@@ -86,7 +138,8 @@
             label: 'Tag: ' + key,
             visible: false,
             isTag: true,
-            tagKey: key
+            tagKey: key,
+            width: 150
         }));
     },
     currentViewId: null,
@@ -174,62 +227,106 @@
         }
     },
 
-    addCondition() {
-        this.filterConditions.push({ field: 'name', operator: 'contains', value: '' });
+    // Add a condition to a group (or root if no groupId)
+    addCondition(group = null) {
+        const targetGroup = group || this.filterRoot;
+        targetGroup.items.push({
+            type: 'condition',
+            field: 'name',
+            operator: 'contains',
+            values: []  // Array for multi-select support
+        });
     },
 
-    removeCondition(index) {
-        this.filterConditions.splice(index, 1);
+    // Add a nested group
+    addGroup(parentGroup = null) {
+        const targetGroup = parentGroup || this.filterRoot;
+        targetGroup.items.push({
+            type: 'group',
+            id: this.nextGroupId++,
+            logic: targetGroup.logic === 'AND' ? 'OR' : 'AND',  // Alternate logic
+            items: []
+        });
+    },
+
+    // Remove an item (condition or group) from a group
+    removeItem(group, index) {
+        group.items.splice(index, 1);
+    },
+
+    // Toggle value in multi-select
+    toggleValue(condition, value) {
+        const idx = condition.values.indexOf(value);
+        if (idx === -1) {
+            condition.values.push(value);
+        } else {
+            condition.values.splice(idx, 1);
+        }
     },
 
     needsValue(operator) {
         return !['is_empty', 'is_not_empty'].includes(operator);
     },
 
-    evaluateCondition(resource, condition) {
-        const searchValue = (condition.value || '').toLowerCase();
+    // Clear all filters
+    clearFilters() {
+        this.filterRoot = { logic: 'AND', items: [] };
+    },
 
-        // Special handling for specific tag key fields (tag:Environment, tag:Name, etc.)
+    // Evaluate a single condition against a resource
+    evaluateCondition(resource, condition) {
+        // Get search values (array for multi-select)
+        const searchValues = (condition.values || []).map(v => v.toLowerCase());
+        const singleValue = searchValues[0] || '';
+
+        // Get field value from resource
+        let fieldValue = '';
         if (condition.field.startsWith('tag:')) {
             const tagKey = condition.field.substring(4);
             const tags = resource.tags || {};
-            const tagValue = (tags[tagKey] || '').toString().toLowerCase();
-            return this.evaluateSingleValue(tagValue, condition.operator, searchValue);
-        }
-
-        // Legacy tag_key field (any tag key matches)
-        if (condition.field === 'tag_key') {
+            fieldValue = (tags[tagKey] || '').toString().toLowerCase();
+        } else if (condition.field === 'tag_key') {
+            // Legacy: any tag key matches
             const tags = resource.tags || {};
             const tagKeys = Object.keys(tags).map(k => k.toLowerCase());
-            return this.evaluateTagCondition(tagKeys, condition.operator, searchValue);
-        }
-
-        // Legacy tag_value field (any tag value matches)
-        if (condition.field === 'tag_value') {
+            return this.evaluateMultiField(tagKeys, condition.operator, searchValues);
+        } else if (condition.field === 'tag_value') {
+            // Legacy: any tag value matches
             const tags = resource.tags || {};
             const tagValues = Object.values(tags).map(v => (v || '').toString().toLowerCase());
-            return this.evaluateTagCondition(tagValues, condition.operator, searchValue);
+            return this.evaluateMultiField(tagValues, condition.operator, searchValues);
+        } else {
+            fieldValue = (resource[condition.field] || '').toString().toLowerCase();
         }
 
-        const fieldValue = (resource[condition.field] || '').toString().toLowerCase();
+        return this.evaluateOperator(fieldValue, condition.operator, searchValues, singleValue);
+    },
 
-        switch (condition.operator) {
+    // Evaluate operator with support for multi-value conditions
+    evaluateOperator(fieldValue, operator, searchValues, singleValue) {
+        switch (operator) {
             case 'equals':
-                return fieldValue === searchValue;
+                return fieldValue === singleValue;
             case 'not_equals':
-                return fieldValue !== searchValue;
+                return fieldValue !== singleValue;
+            case 'in':
+                return searchValues.includes(fieldValue);
+            case 'not_in':
+                return !searchValues.includes(fieldValue);
             case 'contains':
-                return fieldValue.includes(searchValue);
+                return fieldValue.includes(singleValue);
+            case 'contains_any':
+                return searchValues.some(sv => fieldValue.includes(sv));
             case 'not_contains':
-                return !fieldValue.includes(searchValue);
+                return !fieldValue.includes(singleValue);
             case 'starts_with':
-                return fieldValue.startsWith(searchValue);
+                return fieldValue.startsWith(singleValue);
             case 'not_starts_with':
-                return !fieldValue.startsWith(searchValue);
+                return !fieldValue.startsWith(singleValue);
             case 'ends_with':
-                return fieldValue.endsWith(searchValue);
+                return fieldValue.endsWith(singleValue);
             case 'not_ends_with':
-                return !fieldValue.endsWith(searchValue);
+                return !fieldValue.endsWith(singleValue);
             case 'is_empty':
                 return !fieldValue || fieldValue.trim() === '';
             case 'is_not_empty':
@@ -239,76 +336,71 @@
         }
     },
 
-    evaluateSingleValue(fieldValue, operator, searchValue) {
+    // Evaluate when field has multiple values (like tag keys/values)
+    evaluateMultiField(fieldValues, operator, searchValues) {
+        const singleValue = searchValues[0] || '';
         switch (operator) {
             case 'equals':
-                return fieldValue === searchValue;
+                return fieldValues.some(v => v === singleValue);
             case 'not_equals':
-                return fieldValue !== searchValue;
+                return !fieldValues.some(v => v === singleValue);
+            case 'in':
+                return fieldValues.some(v => searchValues.includes(v));
+            case 'not_in':
+                return !fieldValues.some(v => searchValues.includes(v));
             case 'contains':
-                return fieldValue.includes(searchValue);
+                return fieldValues.some(v => v.includes(singleValue));
+            case 'contains_any':
+                return fieldValues.some(fv => searchValues.some(sv => fv.includes(sv)));
             case 'not_contains':
-                return !fieldValue.includes(searchValue);
+                return !fieldValues.some(v => v.includes(singleValue));
             case 'starts_with':
-                return fieldValue.startsWith(searchValue);
+                return fieldValues.some(v => v.startsWith(singleValue));
             case 'not_starts_with':
-                return !fieldValue.startsWith(searchValue);
+                return !fieldValues.some(v => v.startsWith(singleValue));
             case 'ends_with':
-                return fieldValue.endsWith(searchValue);
+                return fieldValues.some(v => v.endsWith(singleValue));
             case 'not_ends_with':
-                return !fieldValue.endsWith(searchValue);
+                return !fieldValues.some(v => v.endsWith(singleValue));
             case 'is_empty':
-                return !fieldValue || fieldValue.trim() === '';
+                return fieldValues.length === 0;
             case 'is_not_empty':
-                return fieldValue && fieldValue.trim() !== '';
+                return fieldValues.length > 0;
             default:
                 return true;
         }
     },
 
-    evaluateTagCondition(values, operator, searchValue) {
-        // For tag arrays, check if ANY value matches the condition
-        switch (operator) {
-            case 'equals':
-                return values.some(v => v === searchValue);
-            case 'not_equals':
-                return !values.some(v => v === searchValue);
-            case 'contains':
-                return values.some(v => v.includes(searchValue));
-            case 'not_contains':
-                return !values.some(v => v.includes(searchValue));
-            case 'starts_with':
-                return values.some(v => v.startsWith(searchValue));
-            case 'not_starts_with':
-                return !values.some(v => v.startsWith(searchValue));
-            case 'ends_with':
-                return values.some(v => v.endsWith(searchValue));
-            case 'not_ends_with':
-                return !values.some(v => v.endsWith(searchValue));
-            case 'is_empty':
-                return values.length === 0;
-            case 'is_not_empty':
-                return values.length > 0;
-            default:
-                return true;
+    // Recursively evaluate a filter group
+    evaluateGroup(resource, group) {
+        if (!group.items || group.items.length === 0) return true;
+
+        const results = group.items.map(item => {
+            if (item.type === 'group') {
+                return this.evaluateGroup(resource, item);
+            } else {
+                return this.evaluateCondition(resource, item);
+            }
+        });
+
+        if (group.logic === 'AND') {
+            return results.every(r => r);
+        } else {
+            return results.some(r => r);
         }
     },
 
     applyAdvancedFilter() {
         if (!this.allResources) return;
 
-        if (this.filterConditions.length === 0) {
+        if (!this.filterRoot.items || this.filterRoot.items.length === 0) {
             this.resourceData = { ...this.allResources };
             this.applySort();
             return;
         }
 
         const filtered = this.allResources.resources.filter(resource => {
-            if (this.filterLogic === 'AND') {
-                return this.filterConditions.every(cond => this.evaluateCondition(resource, cond));
-            } else {
-                return this.filterConditions.some(cond => this.evaluateCondition(resource, cond));
-            }
+            return this.evaluateGroup(resource, this.filterRoot);
         });
 
         this.resourceData = {
@@ -319,20 +411,107 @@
         this.applySort();
     },
 
+    // Apply simple mode filters client-side (for multi-select)
+    applySimpleFilter() {
+        if (!this.allResources) return;
+
+        let filtered = this.allResources.resources;
+
+        // Filter by search term
+        if (this.search) {
+            const searchLower = this.search.toLowerCase();
+            filtered = filtered.filter(r =>
+                (r.name && r.name.toLowerCase().includes(searchLower)) ||
+                (r.arn && r.arn.toLowerCase().includes(searchLower))
+            );
+        }
+
+        // Filter by selected types
+        if (this.selectedTypes.length > 0) {
+            filtered = filtered.filter(r => this.selectedTypes.includes(r.resource_type));
+        }
+
+        // Filter by selected regions
+        if (this.selectedRegions.length > 0) {
+            filtered = filtered.filter(r => this.selectedRegions.includes(r.region));
+        }
+
+        this.resourceData = {
+            ...this.allResources,
+            resources: filtered,
+            count: filtered.length
+        };
+        this.applySort();
+    },
+
+    // Count total conditions in filter tree
+    countConditions(group = null) {
+        const g = group || this.filterRoot;
+        let count = 0;
+        for (const item of g.items || []) {
+            if (item.type === 'group') {
+                count += this.countConditions(item);
+            } else {
+                count++;
+            }
+        }
+        return count;
+    },
+
+    // Serialize a group for saving
+    serializeGroup(group) {
+        return {
+            logic: group.logic,
+            items: group.items.map(item => {
+                if (item.type === 'group') {
+                    return { type: 'group', ...this.serializeGroup(item) };
+                } else {
+                    return {
+                        type: 'condition',
+                        field: item.field,
+                        operator: item.operator,
+                        values: item.values || []
+                    };
+                }
+            })
+        };
+    },
+
+    // Deserialize a group from saved config
+    deserializeGroup(config) {
+        return {
+            logic: config.logic || 'AND',
+            items: (config.items || []).map(item => {
+                if (item.type === 'group') {
+                    return { type: 'group', id: this.nextGroupId++, ...this.deserializeGroup(item) };
+                } else {
+                    // Handle legacy single value format
+                    let values = item.values || [];
+                    if (values.length === 0 && item.value) {
+                        values = [item.value];
+                    }
+                    return {
+                        type: 'condition',
+                        field: item.field,
+                        operator: item.operator,
+                        values: values
+                    };
+                }
+            })
+        };
+    },
+
     getFilterConfig() {
         if (this.advancedMode) {
             return {
-                logic: this.filterLogic,
-                conditions: this.filterConditions.map(c => ({
-                    field: c.field,
-                    operator: c.operator,
-                    value: c.value
-                }))
+                version: 2,  // New nested format
+                ...this.serializeGroup(this.filterRoot)
             };
         } else {
             return {
-                resource_type: this.type || null,
-                region: this.region || null,
+                version: 3,  // Simple mode with multi-select
+                resource_types: this.selectedTypes.length > 0 ? [...this.selectedTypes] : null,
+                regions: this.selectedRegions.length > 0 ? [...this.selectedRegions] : null,
                 snapshot: this.snapshot || null,
                 search: this.search || null
             };
@@ -340,20 +519,34 @@
     },
 
     loadFilterConfig(config) {
-        if (config.conditions && config.conditions.length > 0) {
-            // Advanced mode filter
+        if (config.version === 2 || config.items) {
+            // New nested format (advanced mode)
             this.advancedMode = true;
-            this.filterLogic = config.logic || 'AND';
-            this.filterConditions = config.conditions.map(c => ({
-                field: c.field,
-                operator: c.operator,
-                value: c.value || ''
-            }));
-        } else {
-            // Simple mode filter
+            this.filterRoot = this.deserializeGroup(config);
+        } else if (config.conditions && config.conditions.length > 0) {
+            // Legacy flat format - convert to new format
+            this.advancedMode = true;
+            this.filterRoot = {
+                logic: config.logic || 'AND',
+                items: config.conditions.map(c => ({
+                    type: 'condition',
+                    field: c.field,
+                    operator: c.operator,
+                    values: c.value ? [c.value] : []
+                }))
+            };
+        } else if (config.version === 3) {
+            // Simple mode with multi-select (v3)
             this.advancedMode = false;
-            this.type = config.resource_type || '';
-            this.region = config.region || '';
+            this.selectedTypes = config.resource_types || [];
+            this.selectedRegions = config.regions || [];
+            this.snapshot = config.snapshot || '';
+            this.search = config.search || '';
+        } else {
+            // Legacy simple mode filter (single values)
+            this.advancedMode = false;
+            this.selectedTypes = config.resource_type ? [config.resource_type] : [];
+            this.selectedRegions = config.region ? [config.region] : [];
             this.snapshot = config.snapshot || '';
             this.search = config.search || '';
         }
@@ -440,7 +633,7 @@
                             class="px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300">
                         Simple
                     </button>
-                    <button @click="advancedMode = true; if (filterConditions.length === 0) addCondition();"
+                    <button @click="advancedMode = true; if (filterRoot.items.length === 0) addCondition();"
                             :class="advancedMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
                             class="px-4 py-2 text-sm font-medium rounded-r-md border border-l-0 border-gray-300">
                         Advanced
@@ -460,28 +653,60 @@
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 </div>
 
-                <!-- Type Filter -->
-                <div>
-                    <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
-                    <select id="type" name="type" x-model="type"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        <option value="">All Types</option>
+                <!-- Type Filter (Multi-select) -->
+                <div class="relative" @click.away="showTypeDropdown = false">
+                    <label class="block text-sm font-medium text-gray-700">Type</label>
+                    <button type="button" @click="showTypeDropdown = !showTypeDropdown"
+                            class="mt-1 relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <span class="block truncate" x-text="selectedTypes.length === 0 ? 'All Types' : selectedTypes.length + ' selected'"></span>
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div x-show="showTypeDropdown" x-cloak
+                         class="absolute z-20 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                        <div class="px-3 py-2 border-b border-gray-200 flex justify-between items-center">
+                            <span class="text-xs text-gray-500" x-text="selectedTypes.length + ' selected'"></span>
+                            <button type="button" @click="selectedTypes = []" class="text-xs text-blue-600 hover:text-blue-800">Clear</button>
+                        </div>
                         {% for t in resource_types %}
-                        <option value="{{ t }}">{{ t }}</option>
+                        <label class="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" :checked="selectedTypes.includes('{{ t }}')" @change="toggleType('{{ t }}')"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-700 truncate">{{ t }}</span>
+                        </label>
                         {% endfor %}
-                    </select>
+                    </div>
                 </div>
 
-                <!-- Region Filter -->
-                <div>
-                    <label for="region" class="block text-sm font-medium text-gray-700">Region</label>
-                    <select id="region" name="region" x-model="region"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        <option value="">All Regions</option>
+                <!-- Region Filter (Multi-select) -->
+                <div class="relative" @click.away="showRegionDropdown = false">
+                    <label class="block text-sm font-medium text-gray-700">Region</label>
+                    <button type="button" @click="showRegionDropdown = !showRegionDropdown"
+                            class="mt-1 relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <span class="block truncate" x-text="selectedRegions.length === 0 ? 'All Regions' : selectedRegions.length + ' selected'"></span>
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div x-show="showRegionDropdown" x-cloak
+                         class="absolute z-20 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                        <div class="px-3 py-2 border-b border-gray-200 flex justify-between items-center">
+                            <span class="text-xs text-gray-500" x-text="selectedRegions.length + ' selected'"></span>
+                            <button type="button" @click="selectedRegions = []" class="text-xs text-blue-600 hover:text-blue-800">Clear</button>
+                        </div>
                         {% for r in regions %}
-                        <option value="{{ r }}">{{ r }}</option>
+                        <label class="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" :checked="selectedRegions.includes('{{ r }}')" @change="toggleRegion('{{ r }}')"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-700">{{ r }}</span>
+                        </label>
                         {% endfor %}
-                    </select>
+                    </div>
                 </div>
 
                 <!-- Snapshot Filter -->
@@ -498,92 +723,257 @@
             </div>
         </div>
 
-        <!-- Advanced Mode Filters -->
+        <!-- Advanced Mode Filters with Nested Groups -->
         <div x-show="advancedMode" x-transition>
-            <!-- Logic Selector -->
-            <div class="mb-4 flex items-center space-x-4">
-                <span class="text-sm font-medium text-gray-700">Match</span>
-                <select x-model="filterLogic"
-                        class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                    <option value="AND">ALL conditions (AND)</option>
-                    <option value="OR">ANY condition (OR)</option>
-                </select>
-            </div>
-
-            <!-- Conditions -->
-            <div class="space-y-3">
-                <template x-for="(condition, index) in filterConditions" :key="index">
-                    <div class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
-                        <!-- Field -->
-                        <select x-model="condition.field"
-                                @change="loadFieldValues(condition.field)"
-                                class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                            <template x-for="field in filterFields" :key="field.value">
-                                <option :value="field.value" x-text="field.label"></option>
-                            </template>
+            <!-- Root Group -->
+            <div class="border-2 border-gray-200 rounded-lg p-4 bg-gray-50">
+                <!-- Root Logic Selector -->
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-sm font-medium text-gray-700">Match</span>
+                        <select x-model="filterRoot.logic"
+                                class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-medium"
+                                :class="filterRoot.logic === 'AND' ? 'text-blue-700 bg-blue-50' : 'text-purple-700 bg-purple-50'">
+                            <option value="AND">ALL of the following (AND)</option>
+                            <option value="OR">ANY of the following (OR)</option>
                         </select>
-
-                        <!-- Operator -->
-                        <select x-model="condition.operator"
-                                class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                            <template x-for="op in filterOperators" :key="op.value">
-                                <option :value="op.value" x-text="op.label"></option>
-                            </template>
-                        </select>
-
-                        <!-- Value - Dropdown for fields with available values -->
-                        <template x-if="needsValue(condition.operator) && getFieldType(condition.field) === 'select' && fieldValues[condition.field]?.length > 0">
-                            <select x-model="condition.value"
-                                    class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                                <option value="">Select value...</option>
-                                <template x-for="val in fieldValues[condition.field]" :key="val">
-                                    <option :value="val" x-text="val"></option>
-                                </template>
-                            </select>
-                        </template>
-
-                        <!-- Value - Text input for other fields -->
-                        <template x-if="needsValue(condition.operator) && (getFieldType(condition.field) !== 'select' || !fieldValues[condition.field]?.length)">
-                            <input type="text"
-                                   x-model="condition.value"
-                                   placeholder="Enter value..."
-                                   class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        </template>
-
-                        <!-- Loading indicator -->
-                        <span x-show="loadingValues[condition.field]" class="text-gray-400">
-                            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </span>
-
-                        <!-- Remove button -->
-                        <button @click="removeCondition(index)"
-                                class="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                        </button>
-
-                        <!-- Logic indicator between conditions -->
-                        <span x-show="index < filterConditions.length - 1"
-                              class="absolute -bottom-4 left-1/2 transform -translate-x-1/2 px-2 py-0.5 text-xs font-medium rounded-full"
-                              :class="filterLogic === 'AND' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'"
-                              x-text="filterLogic"></span>
                     </div>
-                </template>
-            </div>
+                    <div class="flex space-x-2">
+                        <button @click="addCondition(filterRoot)"
+                                class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Condition
+                        </button>
+                        <button @click="addGroup(filterRoot)"
+                                class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
+                            Group
+                        </button>
+                    </div>
+                </div>
 
-            <!-- Add Condition Button -->
-            <div class="mt-3">
-                <button @click="addCondition()"
-                        class="inline-flex items-center px-3 py-1.5 border border-dashed border-gray-300 text-sm font-medium rounded-md text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-400">
-                    <svg class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Add Condition
-                </button>
+                <!-- Items (conditions and nested groups) -->
+                <div class="space-y-2">
+                    <template x-for="(item, index) in filterRoot.items" :key="item.id || index">
+                        <div>
+                            <!-- Logic connector between items -->
+                            <div x-show="index > 0" class="flex justify-center -my-1 relative z-10">
+                                <span class="px-2 py-0.5 text-xs font-bold rounded-full"
+                                      :class="filterRoot.logic === 'AND' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'"
+                                      x-text="filterRoot.logic"></span>
+                            </div>
+
+                            <!-- Nested Group -->
+                            <template x-if="item.type === 'group'">
+                                <div class="border-2 rounded-lg p-3 ml-4"
+                                     :class="item.logic === 'AND' ? 'border-blue-200 bg-blue-50/50' : 'border-purple-200 bg-purple-50/50'">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="flex items-center space-x-2">
+                                            <select x-model="item.logic"
+                                                    class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs font-medium"
+                                                    :class="item.logic === 'AND' ? 'text-blue-700 bg-blue-50' : 'text-purple-700 bg-purple-50'">
+                                                <option value="AND">ALL (AND)</option>
+                                                <option value="OR">ANY (OR)</option>
+                                            </select>
+                                        </div>
+                                        <div class="flex space-x-1">
+                                            <button @click="addCondition(item)"
+                                                    class="p-1 text-gray-500 hover:text-gray-700 hover:bg-white rounded">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                                </svg>
+                                            </button>
+                                            <button @click="addGroup(item)"
+                                                    class="p-1 text-gray-500 hover:text-gray-700 hover:bg-white rounded">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                                </svg>
+                                            </button>
+                                            <button @click="removeItem(filterRoot, index)"
+                                                    class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <!-- Nested items -->
+                                    <div class="space-y-2">
+                                        <template x-for="(subItem, subIndex) in item.items" :key="subItem.id || subIndex">
+                                            <div>
+                                                <div x-show="subIndex > 0" class="flex justify-center -my-1 relative z-10">
+                                                    <span class="px-1.5 py-0.5 text-xs font-bold rounded-full"
+                                                          :class="item.logic === 'AND' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'"
+                                                          x-text="item.logic"></span>
+                                                </div>
+                                                <!-- Sub-condition row -->
+                                                <template x-if="subItem.type === 'condition'">
+                                                    <div class="flex items-center space-x-2 p-2 bg-white rounded-lg border border-gray-200">
+                                                        <select x-model="subItem.field" @change="loadFieldValues(subItem.field)"
+                                                                class="rounded border-gray-300 text-xs">
+                                                            <template x-for="field in filterFields" :key="field.value">
+                                                                <option :value="field.value" x-text="field.label"></option>
+                                                            </template>
+                                                        </select>
+                                                        <select x-model="subItem.operator" class="rounded border-gray-300 text-xs">
+                                                            <template x-for="op in filterOperators" :key="op.value">
+                                                                <option :value="op.value" x-text="op.label"></option>
+                                                            </template>
+                                                        </select>
+                                                        <!-- Multi-select for multi operators -->
+                                                        <template x-if="needsValue(subItem.operator) && isMultiOperator(subItem.operator) && getFieldType(subItem.field) === 'select' && fieldValues[subItem.field]?.length > 0">
+                                                            <div class="flex-1 relative" x-data="{ open: false }">
+                                                                <button @click="open = !open" type="button"
+                                                                        class="w-full text-left rounded border border-gray-300 px-2 py-1 text-xs bg-white flex items-center justify-between">
+                                                                    <span x-text="subItem.values.length ? subItem.values.join(', ') : 'Select values...'"></span>
+                                                                    <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                                    </svg>
+                                                                </button>
+                                                                <div x-show="open" @click.away="open = false"
+                                                                     class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto">
+                                                                    <template x-for="val in fieldValues[subItem.field]" :key="val">
+                                                                        <label class="flex items-center px-2 py-1 hover:bg-gray-50 cursor-pointer">
+                                                                            <input type="checkbox" :checked="subItem.values.includes(val)"
+                                                                                   @change="toggleValue(subItem, val)"
+                                                                                   class="h-3 w-3 text-blue-600 rounded">
+                                                                            <span class="ml-2 text-xs" x-text="val"></span>
+                                                                        </label>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                        <!-- Single select dropdown -->
+                                                        <template x-if="needsValue(subItem.operator) && !isMultiOperator(subItem.operator) && getFieldType(subItem.field) === 'select' && fieldValues[subItem.field]?.length > 0">
+                                                            <select x-model="subItem.values[0]" @change="if(!subItem.values[0]) subItem.values = []; else subItem.values = [subItem.values[0]]"
+                                                                    class="flex-1 rounded border-gray-300 text-xs">
+                                                                <option value="">Select...</option>
+                                                                <template x-for="val in fieldValues[subItem.field]" :key="val">
+                                                                    <option :value="val" x-text="val"></option>
+                                                                </template>
+                                                            </select>
+                                                        </template>
+                                                        <!-- Text input -->
+                                                        <template x-if="needsValue(subItem.operator) && (getFieldType(subItem.field) !== 'select' || !fieldValues[subItem.field]?.length)">
+                                                            <input type="text" x-model="subItem.values[0]"
+                                                                   @input="subItem.values = subItem.values[0] ? [subItem.values[0]] : []"
+                                                                   placeholder="Value..." class="flex-1 rounded border-gray-300 text-xs">
+                                                        </template>
+                                                        <button @click="removeItem(item, subIndex)"
+                                                                class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
+                                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <div x-show="item.items.length === 0" class="text-xs text-gray-400 text-center py-2">
+                                            Empty group - add conditions
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Condition Row -->
+                            <template x-if="item.type === 'condition'">
+                                <div class="flex items-center space-x-2 p-3 bg-white rounded-lg border border-gray-200">
+                                    <!-- Field -->
+                                    <select x-model="item.field"
+                                            @change="loadFieldValues(item.field)"
+                                            class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                        <template x-for="field in filterFields" :key="field.value">
+                                            <option :value="field.value" x-text="field.label"></option>
+                                        </template>
+                                    </select>
+
+                                    <!-- Operator -->
+                                    <select x-model="item.operator"
+                                            class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                        <template x-for="op in filterOperators" :key="op.value">
+                                            <option :value="op.value" x-text="op.label"></option>
+                                        </template>
+                                    </select>
+
+                                    <!-- Multi-select dropdown for multi operators -->
+                                    <template x-if="needsValue(item.operator) && isMultiOperator(item.operator) && getFieldType(item.field) === 'select' && fieldValues[item.field]?.length > 0">
+                                        <div class="flex-1 relative" x-data="{ open: false }">
+                                            <button @click="open = !open" type="button"
+                                                    class="w-full text-left rounded-md border border-gray-300 shadow-sm px-3 py-2 bg-white text-sm flex items-center justify-between">
+                                                <span class="truncate" x-text="item.values.length ? item.values.slice(0,3).join(', ') + (item.values.length > 3 ? ' +' + (item.values.length - 3) : '') : 'Select values...'"></span>
+                                                <svg class="h-5 w-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                </svg>
+                                            </button>
+                                            <div x-show="open" @click.away="open = false"
+                                                 class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                                <template x-for="val in fieldValues[item.field]" :key="val">
+                                                    <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                                        <input type="checkbox" :checked="item.values.includes(val)"
+                                                               @change="toggleValue(item, val)"
+                                                               class="h-4 w-4 text-blue-600 rounded border-gray-300">
+                                                        <span class="ml-2 text-sm" x-text="val"></span>
+                                                    </label>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Single select dropdown -->
+                                    <template x-if="needsValue(item.operator) && !isMultiOperator(item.operator) && getFieldType(item.field) === 'select' && fieldValues[item.field]?.length > 0">
+                                        <select x-model="item.values[0]"
+                                                @change="if(!item.values[0]) item.values = []; else item.values = [item.values[0]]"
+                                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                            <option value="">Select value...</option>
+                                            <template x-for="val in fieldValues[item.field]" :key="val">
+                                                <option :value="val" x-text="val"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+
+                                    <!-- Text input for other fields -->
+                                    <template x-if="needsValue(item.operator) && (getFieldType(item.field) !== 'select' || !fieldValues[item.field]?.length)">
+                                        <input type="text"
+                                               x-model="item.values[0]"
+                                               @input="item.values = item.values[0] ? [item.values[0]] : []"
+                                               placeholder="Enter value..."
+                                               class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                    </template>
+
+                                    <!-- Loading indicator -->
+                                    <span x-show="loadingValues[item.field]" class="text-gray-400">
+                                        <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    </span>
+
+                                    <!-- Remove button -->
+                                    <button @click="removeItem(filterRoot, index)"
+                                            class="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Empty state -->
+                    <div x-show="filterRoot.items.length === 0" class="text-center py-8 text-gray-500">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                        <p class="mt-2 text-sm">No filter conditions yet</p>
+                        <p class="text-xs text-gray-400">Click "Condition" or "Group" above to start building your filter</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -595,12 +985,12 @@
                 </svg>
                 Search
             </button>
-            <button @click="if (advancedMode) { filterConditions = []; applyAdvancedFilter(); } else { type = ''; region = ''; snapshot = ''; search = ''; searchResources(); }"
+            <button @click="if (advancedMode) { clearFilters(); applyAdvancedFilter(); } else { selectedTypes = []; selectedRegions = []; snapshot = ''; search = ''; searchResources(); }"
                     class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Clear
             </button>
-            <span x-show="advancedMode && filterConditions.length > 0" class="text-sm text-gray-500">
-                <span x-text="filterConditions.length"></span> condition(s)
+            <span x-show="advancedMode && countConditions() > 0" class="text-sm text-gray-500">
+                <span x-text="countConditions()"></span> condition(s)
             </span>
         </div>
     </div>
@@ -686,30 +1076,23 @@
                                 Advanced Filter
                             </span>
                             <p class="text-sm text-gray-700 mt-1">
-                                <span class="font-medium" x-text="filterLogic"></span> logic with
-                                <span x-text="filterConditions.length"></span> condition(s)
+                                <span class="font-medium" x-text="filterRoot.logic"></span> logic with
+                                <span x-text="countConditions()"></span> condition(s)
                             </p>
-                            <ul class="mt-2 text-xs text-gray-600 space-y-1">
-                                <template x-for="(cond, i) in filterConditions" :key="i">
-                                    <li class="flex items-center">
-                                        <span class="w-2 h-2 rounded-full bg-green-400 mr-2"></span>
-                                        <span x-text="filterFields.find(f => f.value === cond.field)?.label || cond.field"></span>
-                                        <span class="mx-1 text-gray-400" x-text="filterOperators.find(o => o.value === cond.operator)?.label || cond.operator"></span>
-                                        <span x-show="needsValue(cond.operator)" class="font-medium" x-text="'\"' + cond.value + '\"'"></span>
-                                    </li>
-                                </template>
-                            </ul>
+                            <p class="text-xs text-gray-500 mt-1" x-show="filterRoot.items.some(i => i.type === 'group')">
+                                Includes nested groups
+                            </p>
                         </div>
                         <div x-show="!advancedMode">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                                 Simple Filter
                             </span>
                             <ul class="mt-2 text-xs text-gray-600 space-y-1">
-                                <li x-show="type"><span class="font-medium">Type:</span> <span x-text="type"></span></li>
-                                <li x-show="region"><span class="font-medium">Region:</span> <span x-text="region"></span></li>
+                                <li x-show="selectedTypes.length > 0"><span class="font-medium">Types:</span> <span x-text="selectedTypes.join(', ')"></span></li>
+                                <li x-show="selectedRegions.length > 0"><span class="font-medium">Regions:</span> <span x-text="selectedRegions.join(', ')"></span></li>
                                 <li x-show="snapshot"><span class="font-medium">Snapshot:</span> <span x-text="snapshot"></span></li>
                                 <li x-show="search"><span class="font-medium">Search:</span> <span x-text="search"></span></li>
-                                <li x-show="!type && !region && !snapshot && !search" class="text-gray-400">No filters applied</li>
+                                <li x-show="selectedTypes.length === 0 && selectedRegions.length === 0 && !snapshot && !search" class="text-gray-400">No filters applied</li>
                             </ul>
                         </div>
                     </div>
@@ -751,20 +1134,20 @@
                                 <p class="font-medium mb-1">Filters:</p>
                                 <div x-show="advancedMode">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                        Advanced (<span x-text="filterConditions.length"></span> conditions, <span x-text="filterLogic"></span>)
+                                        Advanced (<span x-text="countConditions()"></span> conditions, <span x-text="filterRoot.logic"></span>)
                                     </span>
                                 </div>
                                 <div x-show="!advancedMode">
-                                    <span x-show="type || region || snapshot || search" class="text-xs text-gray-600">
-                                        <span x-show="type">Type: <span x-text="type"></span></span>
-                                        <span x-show="type && (region || snapshot || search)">, </span>
-                                        <span x-show="region">Region: <span x-text="region"></span></span>
-                                        <span x-show="region && (snapshot || search)">, </span>
+                                    <span x-show="selectedTypes.length > 0 || selectedRegions.length > 0 || snapshot || search" class="text-xs text-gray-600">
+                                        <span x-show="selectedTypes.length > 0">Types: <span x-text="selectedTypes.join(', ')"></span></span>
+                                        <span x-show="selectedTypes.length > 0 && (selectedRegions.length > 0 || snapshot || search)">, </span>
+                                        <span x-show="selectedRegions.length > 0">Regions: <span x-text="selectedRegions.join(', ')"></span></span>
+                                        <span x-show="selectedRegions.length > 0 && (snapshot || search)">, </span>
                                         <span x-show="snapshot">Snapshot: <span x-text="snapshot"></span></span>
                                         <span x-show="snapshot && search">, </span>
                                         <span x-show="search">Search: <span x-text="search"></span></span>
                                     </span>
-                                    <span x-show="!type && !region && !snapshot && !search" class="text-xs text-gray-400">No filters</span>
+                                    <span x-show="selectedTypes.length === 0 && selectedRegions.length === 0 && !snapshot && !search" class="text-xs text-gray-400">No filters</span>
                                 </div>
                             </div>
                         </div>
@@ -808,6 +1191,18 @@
         }
     });
 
+    // Check if filter tree has any tag conditions
+    function hasTagConditionsInGroup(group) {
+        if (!group || !group.items) return false;
+        return group.items.some(item => {
+            if (item.type === 'group') {
+                return hasTagConditionsInGroup(item);
+            } else {
+                return item.field === 'tag_key' || item.field === 'tag_value' || item.field.startsWith('tag:');
+            }
+        });
+    }
+
     function searchResources() {
         const data = Alpine.$data(document.querySelector('[x-data]'));
 
@@ -816,16 +1211,21 @@
         // Check if any tags column is visible (including individual tag:KEY columns) or if filtering by tags
         const tagsColumnVisible = data.columns.find(c => c.field === 'tags')?.visible;
         const anyTagColumnVisible = data.columns.some(c => c.field.startsWith('tag:') && c.visible);
-        const hasTagConditions = data.advancedMode && data.filterConditions.some(
-            c => c.field === 'tag_key' || c.field === 'tag_value' || c.field.startsWith('tag:')
-        );
+        const hasTagConditions = data.advancedMode && hasTagConditionsInGroup(data.filterRoot);
 
-        // In advanced mode, fetch all and filter client-side
-        // In simple mode, apply server-side filters
-        if (!data.advancedMode) {
+        // In advanced mode or when multi-select is used, fetch all and filter client-side
+        // In simple mode with single selections, apply server-side filters
+        const useClientSideFilter = data.advancedMode ||
+            data.selectedTypes.length > 1 ||
+            data.selectedRegions.length > 1;
+
+        if (!useClientSideFilter) {
             if (data.search) params.append('q', data.search);
-            if (data.type) params.append('type', data.type);
-            if (data.region) params.append('region', data.region);
+            if (data.selectedTypes.length === 1) params.append('type', data.selectedTypes[0]);
+            if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
+            if (data.snapshot) params.append('snapshot', data.snapshot);
+        } else if (!data.advancedMode) {
+            // For multi-select in simple mode, only apply snapshot filter server-side
             if (data.snapshot) params.append('snapshot', data.snapshot);
         }
 
@@ -839,13 +1239,16 @@
         fetch('/api/resources?' + params.toString())
             .then(r => r.json())
             .then(result => {
+                data.allResources = result;
+
                 if (data.advancedMode) {
-                    // Store all resources and apply client-side filtering
-                    data.allResources = result;
+                    // Use advanced filter
                     data.applyAdvancedFilter();
+                } else if (useClientSideFilter) {
+                    // Apply simple filters client-side for multi-select
+                    data.applySimpleFilter();
                 } else {
                     data.resourceData = result;
-                    data.allResources = result;
                     data.applySort();
                 }
                 renderTable();
@@ -859,71 +1262,142 @@
         if (!data.resourceData || !data.resourceData.resources || data.resourceData.resources.length === 0) {
             target.innerHTML = `
                 <div class="p-8 text-center text-gray-500">
-                    <p>No resources found matching your criteria.</p>
+                    <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                    </svg>
+                    <p class="mt-2 font-medium">No resources found</p>
+                    <p class="text-sm text-gray-400">Try adjusting your search or filter criteria</p>
                 </div>
             `;
             return;
         }
 
         const visibleCols = data.visibleColumns;
+        const totalWidth = visibleCols.reduce((sum, col) => sum + (col.width || 150), 0);
+
+        // Calculate total width from visible columns
+        const tableWidth = visibleCols.reduce((sum, col) => sum + (col.width || 150), 0);
 
         let html = `
-            <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 table-fixed">
-                <thead class="bg-gray-50">
-                    <tr>
+            <div class="resizable-table-container overflow-x-auto overflow-y-auto max-h-[600px]">
+                <table class="resizable-table divide-y divide-gray-200" style="width: ${tableWidth}px; table-layout: fixed;">
+                    <thead class="bg-gradient-to-b from-gray-50 to-gray-100 sticky top-0 z-10">
+                        <tr>
         `;
 
-        visibleCols.forEach(col => {
+        visibleCols.forEach((col, index) => {
             const isSorted = data.sortBy === col.field;
-            const sortIcon = isSorted
-                ? (data.sortOrder === 'asc'
-                    ? '<svg class="ml-1 h-4 w-4 inline flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>'
-                    : '<svg class="ml-1 h-4 w-4 inline flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>')
-                : '';
-            // Set column widths based on field type
-            let widthClass = '';
-            if (col.field === 'arn') widthClass = 'w-64';
-            else if (col.field === 'name') widthClass = 'w-48';
-            else if (col.field === 'tags') widthClass = 'w-64';
-            else if (col.field.startsWith('tag:')) widthClass = 'w-32';
-            else widthClass = 'w-32';
+            const width = col.width || 150;
+            const isLast = index === visibleCols.length - 1;
+
+            let sortIndicator = '';
+            if (isSorted) {
+                if (data.sortOrder === 'asc') {
+                    sortIndicator = `
+                        <span class="sort-indicator ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/>
+                            </svg>
+                        </span>`;
+                } else {
+                    sortIndicator = `
+                        <span class="sort-indicator ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </span>`;
+                }
+            } else {
+                sortIndicator = `
+                    <span class="sort-indicator-hover ml-1.5 opacity-0 group-hover:opacity-50 inline-flex items-center justify-center w-5 h-5 rounded text-gray-400">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                        </svg>
+                    </span>`;
+            }
+
             html += `
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${widthClass}"
-                    onclick="sortByColumn('${col.field}')">
-                    <span class="truncate block">${col.label}${sortIcon}</span>
+                <th class="resizable-th group relative select-none ${isSorted ? 'bg-blue-50/50' : ''}"
+                    style="width: ${width}px; min-width: 80px; max-width: 600px;"
+                    data-field="${col.field}">
+                    <div class="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-100/80 transition-colors"
+                         onclick="sortByColumn('${col.field}')">
+                        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider truncate">
+                            ${col.label}
+                        </span>
+                        ${sortIndicator}
+                    </div>
+                    ${!isLast ? `
+                    <div class="resize-handle absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500 transition-colors z-20"
+                         onmousedown="startResize(event, '${col.field}')"
+                         title="Drag to resize">
+                        <div class="absolute inset-y-0 -right-1 w-3"></div>
+                    </div>
+                    ` : ''}
                 </th>
             `;
         });
 
         html += `
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
         `;
 
-        data.resourceData.resources.forEach(r => {
-            html += '<tr class="hover:bg-gray-50">';
+        data.resourceData.resources.forEach((r, rowIndex) => {
+            const rowClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30';
+            html += `<tr class="${rowClass} hover:bg-blue-50/50 transition-colors duration-75">`;
+
             visibleCols.forEach(col => {
-                let value = r[col.field] || 'N/A';
+                const width = col.width || 150;
+                let value = r[col.field] || '';
+                const escapedValue = String(value).replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
                 if (col.field === 'name') {
                     html += `
-                        <td class="px-4 py-3 max-w-[12rem]">
-                            <div class="text-sm font-medium text-gray-900 truncate" title="${value}">${value}</div>
+                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
+                                    <span class="text-white text-xs font-bold">${(value || 'N').charAt(0).toUpperCase()}</span>
+                                </div>
+                                <div class="ml-3 overflow-hidden">
+                                    <div class="text-sm font-medium text-gray-900 truncate" title="${escapedValue}">${value || 'N/A'}</div>
+                                </div>
+                            </div>
                         </td>
                     `;
                 } else if (col.field === 'arn') {
+                    // Escape for JS string in onclick
+                    const jsEscaped = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     html += `
-                        <td class="px-4 py-3 max-w-[16rem]">
-                            <div class="text-xs text-gray-500 truncate" title="${value}">${value}</div>
+                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
+                            <div class="flex items-center space-x-2">
+                                <code class="text-xs text-gray-500 truncate font-mono bg-gray-100 px-2 py-1 rounded flex-1" title="${escapedValue}">${value || 'N/A'}</code>
+                                <button onclick="copyToClipboard('${jsEscaped}')" class="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors" title="Copy ARN">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </td>
                     `;
                 } else if (col.field === 'resource_type') {
+                    const typeColor = getTypeColor(value);
                     html += `
-                        <td class="px-4 py-3">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-[8rem]" title="${value}">
-                                ${value}
+                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${typeColor} truncate" title="${escapedValue}">
+                                ${value || 'N/A'}
+                            </span>
+                        </td>
+                    `;
+                } else if (col.field === 'region') {
+                    html += `
+                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                <svg class="w-3 h-3 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                ${value || 'N/A'}
                             </span>
                         </td>
                     `;
@@ -931,59 +1405,179 @@
                     const tags = r.tags || {};
                     const tagEntries = Object.entries(tags);
                     if (tagEntries.length === 0) {
-                        html += `<td class="px-4 py-3 text-sm text-gray-400">No tags</td>`;
+                        html += `<td class="resizable-td px-4 py-3 text-sm text-gray-300" style="width: ${width}px;"><em>No tags</em></td>`;
                     } else {
-                        html += `<td class="px-4 py-3"><div class="flex flex-wrap gap-1 max-w-[16rem]">`;
+                        html += `<td class="resizable-td px-4 py-3" style="width: ${width}px;"><div class="flex flex-wrap gap-1">`;
                         tagEntries.slice(0, 3).forEach(([key, val]) => {
-                            const displayVal = val.length > 15 ? val.substring(0, 15) + '...' : val;
-                            const displayKey = key.length > 10 ? key.substring(0, 10) + '...' : key;
+                            const valStr = String(val || '');
+                            const keyStr = String(key || '');
+                            const displayVal = valStr.length > 12 ? valStr.substring(0, 12) + '...' : valStr;
+                            const displayKey = keyStr.length > 8 ? keyStr.substring(0, 8) + '...' : keyStr;
+                            const escapedTitle = (keyStr + '=' + valStr).replace(/"/g, '&quot;');
                             html += `
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700" title="${key}=${val}">
-                                    <span class="text-gray-500">${displayKey}:</span>${displayVal}
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200" title="${escapedTitle}">
+                                    <span class="font-medium text-emerald-600">${displayKey}:</span>
+                                    <span class="ml-0.5">${displayVal}</span>
                                 </span>
                             `;
                         });
                         if (tagEntries.length > 3) {
-                            html += `<span class="text-xs text-gray-400">+${tagEntries.length - 3}</span>`;
+                            html += `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500">+${tagEntries.length - 3}</span>`;
                         }
                         html += `</div></td>`;
                     }
                 } else if (col.field.startsWith('tag:')) {
-                    // Individual tag key column (e.g., tag:Environment, tag:Name)
                     const tagKey = col.field.substring(4);
                     const tags = r.tags || {};
-                    const tagValue = tags[tagKey] || '';
+                    const tagValue = String(tags[tagKey] || '');
                     if (tagValue) {
                         const displayVal = tagValue.length > 20 ? tagValue.substring(0, 20) + '...' : tagValue;
+                        const escapedTagValue = tagValue.replace(/"/g, '&quot;');
                         html += `
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 truncate max-w-[8rem]" title="${tagValue}">
+                            <td class="resizable-td px-4 py-3" style="width: ${width}px;">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 truncate" title="${escapedTagValue}">
                                     ${displayVal}
                                 </span>
                             </td>
                         `;
                     } else {
-                        html += `<td class="px-4 py-3 text-sm text-gray-300">-</td>`;
+                        html += `<td class="resizable-td px-4 py-3 text-sm text-gray-300" style="width: ${width}px;">-</td>`;
                     }
                 } else {
-                    html += `<td class="px-4 py-3 text-sm text-gray-500 truncate max-w-[8rem]" title="${value}">${value}</td>`;
+                    html += `<td class="resizable-td px-4 py-3 text-sm text-gray-600 truncate" style="width: ${width}px;" title="${escapedValue}">${value || 'N/A'}</td>`;
                 }
             });
             html += '</tr>';
         });
 
         html += `
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
             </div>
-            <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
-                <p class="text-sm text-gray-700">
-                    Showing <span class="font-medium">${data.resourceData.resources.length}</span> of <span class="font-medium">${data.resourceData.count}</span> results
-                </p>
+            <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+                <div class="flex items-center space-x-4">
+                    <p class="text-sm text-gray-600">
+                        Showing <span class="font-semibold text-gray-900">${data.resourceData.resources.length}</span>
+                        of <span class="font-semibold text-gray-900">${data.resourceData.count}</span> resources
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2 text-xs text-gray-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+                    </svg>
+                    <span>Click headers to sort</span>
+                    <span class="mx-2">|</span>
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/>
+                    </svg>
+                    <span>Drag borders to resize</span>
+                </div>
             </div>
         `;
 
         target.innerHTML = html;
+    }
+
+    // Get color scheme based on resource type
+    function getTypeColor(type) {
+        if (!type) return 'bg-gray-100 text-gray-700';
+        const t = type.toLowerCase();
+        if (t.includes('s3')) return 'bg-green-100 text-green-700 border border-green-200';
+        if (t.includes('ec2') || t.includes('instance')) return 'bg-orange-100 text-orange-700 border border-orange-200';
+        if (t.includes('lambda')) return 'bg-amber-100 text-amber-700 border border-amber-200';
+        if (t.includes('rds') || t.includes('database')) return 'bg-blue-100 text-blue-700 border border-blue-200';
+        if (t.includes('iam')) return 'bg-red-100 text-red-700 border border-red-200';
+        if (t.includes('vpc') || t.includes('subnet') || t.includes('security')) return 'bg-purple-100 text-purple-700 border border-purple-200';
+        if (t.includes('sqs') || t.includes('sns')) return 'bg-pink-100 text-pink-700 border border-pink-200';
+        if (t.includes('cloudwatch') || t.includes('logs')) return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
+        if (t.includes('dynamodb')) return 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+        return 'bg-gray-100 text-gray-700 border border-gray-200';
+    }
+
+    // Copy to clipboard helper
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Show brief feedback (you could enhance this with a toast)
+            console.log('Copied to clipboard:', text);
+        });
+    }
+
+    // Column resize functions
+    let resizeState = {
+        isResizing: false,
+        currentField: null,
+        startX: 0,
+        startWidth: 0,
+        th: null
+    };
+
+    function startResize(event, field) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const th = event.target.closest('th');
+        resizeState.isResizing = true;
+        resizeState.currentField = field;
+        resizeState.startX = event.pageX;
+        resizeState.startWidth = th.offsetWidth;
+        resizeState.th = th;
+
+        // Add visual feedback
+        document.body.style.cursor = 'col-resize';
+        document.body.classList.add('select-none');
+        th.classList.add('resizing');
+
+        // Create overlay to capture all mouse events
+        const overlay = document.createElement('div');
+        overlay.id = 'resize-overlay';
+        overlay.style.cssText = 'position: fixed; inset: 0; z-index: 9999; cursor: col-resize;';
+        document.body.appendChild(overlay);
+
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', stopResize);
+    }
+
+    function handleResize(event) {
+        if (!resizeState.isResizing) return;
+
+        const diff = event.pageX - resizeState.startX;
+        const newWidth = Math.max(80, Math.min(600, resizeState.startWidth + diff));
+
+        // Update visual width immediately
+        resizeState.th.style.width = newWidth + 'px';
+
+        // Update corresponding td cells
+        const table = resizeState.th.closest('table');
+        const colIndex = Array.from(resizeState.th.parentNode.children).indexOf(resizeState.th);
+        table.querySelectorAll('tbody tr').forEach(row => {
+            const td = row.children[colIndex];
+            if (td) td.style.width = newWidth + 'px';
+        });
+    }
+
+    function stopResize(event) {
+        if (!resizeState.isResizing) return;
+
+        const finalWidth = resizeState.th.offsetWidth;
+
+        // Update Alpine data
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        data.setColumnWidth(resizeState.currentField, finalWidth);
+
+        // Clean up
+        document.body.style.cursor = '';
+        document.body.classList.remove('select-none');
+        resizeState.th.classList.remove('resizing');
+
+        const overlay = document.getElementById('resize-overlay');
+        if (overlay) overlay.remove();
+
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+
+        resizeState.isResizing = false;
+        resizeState.currentField = null;
+        resizeState.th = null;
     }
 
     function sortByColumn(field) {
@@ -1014,6 +1608,26 @@
         target.innerHTML = html;
     }
 
+    // Count conditions in a filter config (handles both old and new format)
+    function countFilterConditions(config) {
+        if (config.version === 2 || config.items) {
+            // New nested format
+            function countInGroup(group) {
+                let count = 0;
+                for (const item of group.items || []) {
+                    if (item.type === 'group') count += countInGroup(item);
+                    else count++;
+                }
+                return count;
+            }
+            return countInGroup(config);
+        } else if (config.conditions) {
+            // Old flat format
+            return config.conditions.length;
+        }
+        return 0;
+    }
+
     function renderSavedFiltersChips(filters, target) {
         if (filters.length === 0) {
             target.innerHTML = '<span class="text-gray-400 text-sm">No saved filters yet</span>';
@@ -1023,13 +1637,13 @@
         let html = '';
         filters.forEach(f => {
             const config = f.filter_config || {};
-            const isAdvanced = config.conditions && config.conditions.length > 0;
-            const conditionCount = isAdvanced ? config.conditions.length : 0;
+            const isAdvanced = config.version === 2 || config.items || (config.conditions && config.conditions.length > 0);
+            const conditionCount = countFilterConditions(config);
 
             html += `
                 <button onclick="loadFilter(${f.id}, ${JSON.stringify(config).replace(/"/g, '&quot;')})"
                         class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${isAdvanced ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'} transition-colors group"
-                        title="${isAdvanced ? config.logic + ' - ' + conditionCount + ' condition(s)' : 'Simple filter'}">
+                        title="${isAdvanced ? (config.logic || 'AND') + ' - ' + conditionCount + ' condition(s)' : 'Simple filter'}">
                     ${isAdvanced ? '<svg class="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>' : ''}
                     ${f.name}
                     ${isAdvanced ? '<span class="ml-1 text-xs opacity-75">(' + conditionCount + ')</span>' : ''}
@@ -1050,9 +1664,25 @@
                 const config = view.view_config;
 
                 if (config.columns) {
-                    data.columns.forEach(col => {
+                    // Update base columns
+                    data.baseColumns.forEach(col => {
                         const saved = config.columns.find(c => c.field === col.field);
-                        col.visible = saved ? saved.visible : false;
+                        if (saved) {
+                            col.visible = saved.visible;
+                            if (saved.width) col.width = saved.width;
+                        } else {
+                            col.visible = false;
+                        }
+                    });
+                    // Update tag columns
+                    data.tagColumns.forEach(col => {
+                        const saved = config.columns.find(c => c.field === col.field);
+                        if (saved) {
+                            col.visible = saved.visible;
+                            if (saved.width) col.width = saved.width;
+                        } else {
+                            col.visible = false;
+                        }
                     });
                 }
 
@@ -1060,22 +1690,7 @@
                 if (config.sort_order) data.sortOrder = config.sort_order;
 
                 if (config.filters) {
-                    // Check if it's an advanced filter
-                    if (config.filters.advanced || (config.filters.conditions && config.filters.conditions.length > 0)) {
-                        data.advancedMode = true;
-                        data.filterLogic = config.filters.logic || 'AND';
-                        data.filterConditions = (config.filters.conditions || []).map(c => ({
-                            field: c.field,
-                            operator: c.operator,
-                            value: c.value || ''
-                        }));
-                    } else {
-                        data.advancedMode = false;
-                        data.type = config.filters.resource_type || '';
-                        data.region = config.filters.region || '';
-                        data.snapshot = config.filters.snapshot || '';
-                        data.search = config.filters.search || '';
-                    }
+                    data.loadFilterConfig(config.filters);
                 }
 
                 data.currentViewId = id;
@@ -1086,51 +1701,14 @@
 
     function loadFilter(id, config) {
         const data = Alpine.$data(document.querySelector('[x-data]'));
-
-        // Check if it's an advanced filter (has conditions array)
-        if (config.conditions && config.conditions.length > 0) {
-            data.advancedMode = true;
-            data.filterLogic = config.logic || 'AND';
-            data.filterConditions = config.conditions.map(c => ({
-                field: c.field,
-                operator: c.operator,
-                value: c.value || ''
-            }));
-        } else {
-            // Simple filter
-            data.advancedMode = false;
-            data.type = config.resource_type || '';
-            data.region = config.region || '';
-            data.snapshot = config.snapshot || '';
-            data.search = config.search || '';
-        }
-
+        data.loadFilterConfig(config);
         fetch(`/api/filters/${id}/use`, { method: 'POST' });
         searchResources();
     }
 
     function saveFilter() {
         const data = Alpine.$data(document.querySelector('[x-data]'));
-
-        // Build filter config based on mode
-        let filterConfig;
-        if (data.advancedMode) {
-            filterConfig = {
-                logic: data.filterLogic,
-                conditions: data.filterConditions.map(c => ({
-                    field: c.field,
-                    operator: c.operator,
-                    value: c.value
-                }))
-            };
-        } else {
-            filterConfig = {
-                resource_type: data.type || null,
-                region: data.region || null,
-                snapshot: data.snapshot || null,
-                search: data.search || null
-            };
-        }
+        const filterConfig = data.getFilterConfig();
 
         fetch('/api/filters', {
             method: 'POST',
@@ -1150,27 +1728,7 @@
 
     function saveView() {
         const data = Alpine.$data(document.querySelector('[x-data]'));
-
-        // Build filter config based on mode
-        let filters;
-        if (data.advancedMode) {
-            filters = {
-                advanced: true,
-                logic: data.filterLogic,
-                conditions: data.filterConditions.map(c => ({
-                    field: c.field,
-                    operator: c.operator,
-                    value: c.value
-                }))
-            };
-        } else {
-            filters = {
-                resource_type: data.type || null,
-                region: data.region || null,
-                snapshot: data.snapshot || null,
-                search: data.search || null
-            };
-        }
+        const filters = data.getFilterConfig();
 
         fetch('/api/views', {
             method: 'POST',
@@ -1179,7 +1737,12 @@
                 name: data.viewName,
                 description: data.viewDescription,
                 view_config: {
-                    columns: data.columns.map(c => ({ field: c.field, label: c.label, visible: c.visible })),
+                    columns: data.columns.map(c => ({
+                        field: c.field,
+                        label: c.label,
+                        visible: c.visible,
+                        width: c.width || 150
+                    })),
                     sort_by: data.sortBy,
                     sort_order: data.sortOrder,
                     filters: filters
@@ -1212,8 +1775,9 @@
 
         const params = new URLSearchParams();
         if (data.search) params.append('q', data.search);
-        if (data.type) params.append('type', data.type);
-        if (data.region) params.append('region', data.region);
+        // Export uses first selected type/region if any (API limitation)
+        if (data.selectedTypes.length === 1) params.append('type', data.selectedTypes[0]);
+        if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
         if (data.snapshot) params.append('snapshot', data.snapshot);
 
         const visibleFields = data.visibleColumns.map(c => c.field);
@@ -1229,8 +1793,9 @@
 
         const params = new URLSearchParams();
         if (data.search) params.append('q', data.search);
-        if (data.type) params.append('type', data.type);
-        if (data.region) params.append('region', data.region);
+        // Export uses first selected type/region if any (API limitation)
+        if (data.selectedTypes.length === 1) params.append('type', data.selectedTypes[0]);
+        if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
         if (data.snapshot) params.append('snapshot', data.snapshot);
         params.append('include_config', 'true');
         params.append('include_tags', 'true');
