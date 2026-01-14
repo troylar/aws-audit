@@ -2074,13 +2074,13 @@ def security_scan(
 app.add_typer(security_app, name="security")
 
 
-# Restore commands
-restore_app = typer.Typer(help="Resource cleanup and restoration commands")
+# Cleanup commands (destructive operations)
+cleanup_app = typer.Typer(help="Delete resources - returns environment to baseline or removes unprotected resources")
 
 
-@restore_app.command("preview")
-def restore_preview(
-    baseline_snapshot: str = typer.Argument(..., help="Snapshot name to restore to (can be any snapshot)"),
+@cleanup_app.command("preview")
+def cleanup_preview(
+    baseline_snapshot: str = typer.Argument(..., help="Baseline snapshot - resources created after this will be deleted"),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(
@@ -2095,26 +2095,26 @@ def restore_preview(
     ),
     output_format: str = typer.Option("table", "--format", help="Output format: table, json, yaml"),
 ):
-    """Preview resources that would be deleted to restore to a snapshot.
+    """Preview resources that would be DELETED to return to a baseline snapshot.
 
     Shows what resources have been created since the snapshot without
     performing any deletions. This is a safe dry-run operation.
 
     Examples:
-        # Preview resources since a baseline snapshot
-        awsinv restore preview prod-baseline
+        # Preview resources created since a baseline snapshot
+        awsinv cleanup preview prod-baseline
 
         # Preview with tag-based protection
-        awsinv restore preview my-snapshot --protect-tag "project=baseline"
+        awsinv cleanup preview my-snapshot --protect-tag "project=baseline"
 
         # Preview with multiple protection tags
-        awsinv restore preview my-snapshot --protect-tag "project=baseline" --protect-tag "env=prod"
+        awsinv cleanup preview my-snapshot --protect-tag "project=baseline" --protect-tag "env=prod"
 
         # Preview with config file
-        awsinv restore preview my-snapshot --config .awsinv-restore.yaml
+        awsinv cleanup preview my-snapshot --config .awsinv-cleanup.yaml
 
         # Preview only EC2 instances in us-east-1
-        awsinv restore preview my-snapshot --type AWS::EC2::Instance --region us-east-1
+        awsinv cleanup preview my-snapshot --type AWS::EC2::Instance --region us-east-1
     """
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
@@ -2194,9 +2194,9 @@ def restore_preview(
         if operation.total_resources > operation.skipped_count:
             deletable_count = operation.total_resources - operation.skipped_count
             console.print(
-                f"\n[yellow]⚠️  {deletable_count} resource(s) would be DELETED if you run 'restore execute'[/yellow]"
+                f"\n[yellow]⚠️  {deletable_count} resource(s) would be DELETED if you run 'cleanup execute'[/yellow]"
             )
-            console.print("[dim]Use 'awsinv restore execute' with --confirm to actually delete resources[/dim]\n")
+            console.print("[dim]Use 'awsinv cleanup execute' with --confirm to actually delete resources[/dim]\n")
         else:
             console.print("\n[green]✓ No resources would be deleted - environment matches baseline[/green]\n")
 
@@ -2205,13 +2205,13 @@ def restore_preview(
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"\n[red]Unexpected error: {e}[/red]\n")
-        logger.exception("Error in restore preview command")
+        logger.exception("Error in cleanup preview command")
         raise typer.Exit(code=2)
 
 
-@restore_app.command("execute")
-def restore_execute(
-    baseline_snapshot: str = typer.Argument(..., help="Snapshot name to restore to (can be any snapshot)"),
+@cleanup_app.command("execute")
+def cleanup_execute(
+    baseline_snapshot: str = typer.Argument(..., help="Baseline snapshot - resources created after this will be deleted"),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
@@ -2225,25 +2225,25 @@ def restore_execute(
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
 ):
-    """Execute resource deletion to restore environment to a snapshot.
+    """DELETE resources created after a baseline snapshot.
 
-    DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
+    ⚠️  DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
 
-    Deletes resources that were created after the snapshot, restoring
-    your AWS environment to that point in time. Protected resources are skipped.
+    Deletes resources that were created after the snapshot, returning
+    your AWS environment to that baseline state. Protected resources are skipped.
 
     Examples:
-        # Restore with tag-based protection
-        awsinv restore execute my-snapshot --protect-tag "project=baseline" --confirm
+        # Delete resources created after baseline, protecting tagged resources
+        awsinv cleanup execute my-snapshot --protect-tag "project=baseline" --confirm
 
-        # Restore with config file
-        awsinv restore execute my-snapshot --config .awsinv-restore.yaml --confirm
+        # Use config file for protection rules
+        awsinv cleanup execute my-snapshot --config .awsinv-cleanup.yaml --confirm
 
-        # Execute with filters and skip prompt
-        awsinv restore execute my-snapshot --confirm --yes --type AWS::EC2::Instance
+        # Delete only EC2 instances, skip prompt
+        awsinv cleanup execute my-snapshot --confirm --yes --type AWS::EC2::Instance
 
-        # Execute in specific region with profile
-        awsinv restore execute my-snapshot --confirm --region us-east-1 --profile prod
+        # Delete in specific region with profile
+        awsinv cleanup execute my-snapshot --confirm --region us-east-1 --profile prod
     """
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
@@ -2256,7 +2256,7 @@ def restore_execute(
         if not confirm:
             console.print("\n[red]ERROR: --confirm flag is required for deletion operations[/red]")
             console.print("[yellow]This is a safety measure to prevent accidental deletions[/yellow]")
-            console.print("\n[dim]Run with: awsinv restore execute <snapshot> --confirm[/dim]\n")
+            console.print("\n[dim]Run with: awsinv cleanup execute <snapshot> --confirm[/dim]\n")
             raise typer.Exit(code=1)
 
         console.print("\n[bold red]⚠️  DESTRUCTIVE OPERATION[/bold red]\n")
@@ -2377,12 +2377,12 @@ def restore_execute(
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"\n[red]Unexpected error: {e}[/red]\n")
-        logger.exception("Error in restore execute command")
+        logger.exception("Error in cleanup execute command")
         raise typer.Exit(code=2)
 
 
-@restore_app.command("purge")
-def restore_purge(
+@cleanup_app.command("purge")
+def cleanup_purge(
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
@@ -2397,33 +2397,33 @@ def restore_purge(
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
 ):
-    """Delete all resources EXCEPT those matching protection rules.
+    """DELETE all resources EXCEPT those matching protection rules.
 
-    DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
+    ⚠️  DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
 
-    Unlike 'restore', this command does NOT compare to a snapshot. It deletes
+    Unlike 'cleanup execute', this does NOT compare to a snapshot. It deletes
     ALL resources that don't match protection rules (tags, types, etc.).
 
     Use this for lab/sandbox cleanup where baseline resources are tagged.
 
     Examples:
         # Preview what would be deleted (safe)
-        awsinv restore purge --protect-tag "project=baseline" --preview
+        awsinv cleanup purge --protect-tag "project=baseline" --preview
 
         # Delete everything except baseline-tagged resources
-        awsinv restore purge --protect-tag "project=baseline" --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --confirm
 
         # Multiple protection tags (OR logic - protected if ANY match)
-        awsinv restore purge --protect-tag "project=baseline" --protect-tag "env=prod" --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --protect-tag "env=prod" --confirm
 
         # Use config file for protection rules
-        awsinv restore purge --config .awsinv-restore.yaml --confirm
+        awsinv cleanup purge --config .awsinv-cleanup.yaml --confirm
 
         # Purge only specific resource types
-        awsinv restore purge --protect-tag "project=baseline" --type AWS::EC2::Instance --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --type AWS::EC2::Instance --confirm
 
         # Purge in specific region
-        awsinv restore purge --protect-tag "project=baseline" --region us-east-1 --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --region us-east-1 --confirm
     """
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
@@ -2441,7 +2441,7 @@ def restore_purge(
         if not protection_rules:
             console.print("\n[red]ERROR: At least one protection rule is required for purge[/red]")
             console.print("[yellow]Use --protect-tag or --config to specify what to keep[/yellow]")
-            console.print("\n[dim]Example: awsinv restore purge --protect-tag \"project=baseline\" --preview[/dim]\n")
+            console.print("\n[dim]Example: awsinv cleanup purge --protect-tag \"project=baseline\" --preview[/dim]\n")
             raise typer.Exit(code=1)
 
         if preview:
@@ -2450,7 +2450,7 @@ def restore_purge(
             if not confirm:
                 console.print("\n[red]ERROR: --confirm flag is required for purge operations[/red]")
                 console.print("[yellow]This is a safety measure to prevent accidental deletions[/yellow]")
-                console.print("\n[dim]Run with: awsinv restore purge --protect-tag \"key=value\" --confirm[/dim]\n")
+                console.print("\n[dim]Run with: awsinv cleanup purge --protect-tag \"key=value\" --confirm[/dim]\n")
                 raise typer.Exit(code=1)
             console.print("\n[bold red]⚠️  PURGE OPERATION - DESTRUCTIVE[/bold red]\n")
 
@@ -2601,7 +2601,7 @@ def restore_purge(
         raise typer.Exit(code=2)
 
 
-app.add_typer(restore_app, name="restore")
+app.add_typer(cleanup_app, name="cleanup")
 
 
 # ============================================================================
