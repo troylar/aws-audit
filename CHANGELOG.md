@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-01-14
+
+### Added
+- **Environment Variables**: Configure CLI options via environment variables for CI/CD and personal defaults
+  - `AWSINV_PROFILE` / `AWS_PROFILE` - AWS CLI profile to use
+  - `AWSINV_SNAPSHOT_ID` - Default snapshot name for queries
+  - `AWSINV_INVENTORY_ID` - Default inventory name
+  - `AWSINV_REGION` / `AWS_REGION` - Comma-separated regions
+  - `AWSINV_STORAGE_PATH` / `AWS_INVENTORY_STORAGE_PATH` - Custom storage path
+
+- **Query SQL Snapshot Filter**: New `--snapshot` flag for `query sql` command
+  - Automatically injects WHERE clause to filter by snapshot
+  - Works with `AWSINV_SNAPSHOT_ID` environment variable
+  - Simplifies queries by removing need for manual JOIN/WHERE clauses
+
+- **DATABASE.md**: New documentation with full schema and 33 power user SQL queries
+  - Tagging compliance and taxonomy queries
+  - Cost optimization queries (stopped instances, unattached volumes)
+  - Security queries (unencrypted volumes, open security groups)
+  - CloudFormation-managed vs manual resource analysis
+  - User vs system tag analysis
+
+### Testing
+- 19 new unit tests for query commands and environment variables
+- Total test count: 1551 tests passing
+- Coverage: 79%
+
 ## [0.8.0] - 2026-01-13
 
 ### Added
