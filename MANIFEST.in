@@ -11,6 +11,10 @@ include requirements.txt
 # Include all Python source files
 recursive-include src *.py
 
+# Include web templates and static files
+recursive-include src/web/templates *.html
+recursive-include src/web/static *.css *.js
+
 # Exclude test files and build artifacts
 recursive-exclude tests *
 recursive-exclude .github *
