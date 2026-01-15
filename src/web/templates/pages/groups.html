@@ -1,0 +1,721 @@
+{% extends "base.html" %}
+
+{% block title %}Resource Groups - AWS Inventory Browser{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="groupsPage()">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Resource Groups</h1>
+                    <p class="text-sm text-gray-500">Define baseline resource sets for cross-account comparison</p>
+                </div>
+            </div>
+        </div>
+        <button type="button" @click="showCreateModal = true" class="btn btn-primary">
+            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Create Group
+        </button>
+    </div>
+
+    <!-- Groups Grid -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" x-show="groups.length > 0">
+        <template x-for="group in groups" :key="group.name">
+            <div class="group relative bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+                <!-- Gradient top border -->
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+
+                <div class="p-6">
+                    <!-- Header with name and favorite -->
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-900 truncate" x-text="group.name"></h3>
+                        </div>
+                        <button type="button" @click="toggleFavorite(group.name)"
+                                class="p-2 rounded-lg transition-all duration-200"
+                                :class="group.is_favorite ? 'text-amber-500 bg-amber-50' : 'text-gray-300 hover:text-amber-400 hover:bg-amber-50'">
+                            <svg class="h-5 w-5" :fill="group.is_favorite ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Description -->
+                    <p class="mt-3 text-sm text-gray-500 line-clamp-2" x-text="group.description || 'No description provided'"></p>
+
+                    <!-- Stats -->
+                    <div class="mt-5 flex flex-wrap gap-3">
+                        <div class="flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+                            <svg class="w-4 h-4 text-indigo-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
+                            <span class="text-sm font-semibold text-indigo-700" x-text="group.resource_count.toLocaleString()"></span>
+                            <span class="text-sm text-indigo-600 ml-1">resources</span>
+                        </div>
+                        <div x-show="group.source_snapshot" class="flex items-center px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200">
+                            <svg class="w-4 h-4 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            </svg>
+                            <span class="text-xs font-medium text-gray-600 truncate max-w-[120px]" x-text="group.source_snapshot"></span>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-5 pt-5 border-t border-gray-100 flex gap-2">
+                        <button type="button" @click="viewMembers(group.name)"
+                                class="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors">
+                            <svg class="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            View
+                        </button>
+                        <button type="button" @click="showCompareModal = true; compareGroupName = group.name"
+                                class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-xl shadow-md shadow-indigo-200 transition-all">
+                            <svg class="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            Compare
+                        </button>
+                        <button type="button" @click="confirmDelete(group.name)"
+                                class="p-2.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Empty State -->
+    <div x-show="groups.length === 0" class="text-center py-16 bg-white rounded-2xl shadow-lg border border-gray-100">
+        <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mb-6">
+            <svg class="w-10 h-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900">No resource groups yet</h3>
+        <p class="mt-2 text-gray-500 max-w-sm mx-auto">Create a group to define baseline resources for cross-account comparison.</p>
+        <div class="mt-6">
+            <button type="button" @click="showCreateModal = true" class="btn btn-primary">
+                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Create Your First Group
+            </button>
+        </div>
+    </div>
+
+    <!-- Create Group Modal -->
+    <div x-show="showCreateModal" class="fixed z-50 inset-0 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="showCreateModal = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
+                <!-- Modal Header -->
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-5">
+                    <h3 class="text-xl font-bold text-white">Create Resource Group</h3>
+                    <p class="text-indigo-100 text-sm mt-1">Define a new baseline for comparison</p>
+                </div>
+
+                <form @submit.prevent="createGroup" class="p-6 space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Group Name</label>
+                        <input type="text" x-model="newGroup.name" required
+                               class="w-full" placeholder="e.g., production-baseline">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                        <textarea x-model="newGroup.description" rows="2"
+                                  class="w-full" placeholder="Optional description of this group"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Populate from Snapshot</label>
+                        <select x-model="newGroup.from_snapshot" class="w-full">
+                            <option value="">-- Create empty group --</option>
+                            {% for snapshot in snapshots %}
+                            <option value="{{ snapshot.name }}">{{ snapshot.name }} ({{ snapshot.resource_count }} resources)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div x-show="newGroup.from_snapshot" x-transition class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Type Filter</label>
+                            <input type="text" x-model="newGroup.type_filter"
+                                   class="w-full text-sm" placeholder="e.g., iam">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Region Filter</label>
+                            <input type="text" x-model="newGroup.region_filter"
+                                   class="w-full text-sm" placeholder="e.g., us-east-1">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" @click="showCreateModal = false"
+                                class="flex-1 px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 btn btn-primary" :disabled="creating">
+                            <span x-show="!creating">Create Group</span>
+                            <span x-show="creating" class="flex items-center justify-center">
+                                <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Creating...
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compare Modal -->
+    <div x-show="showCompareModal" class="fixed z-50 inset-0 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="showCompareModal = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
+                <!-- Modal Header -->
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-5">
+                    <h3 class="text-xl font-bold text-white">Compare Snapshot to Group</h3>
+                    <p class="text-indigo-100 text-sm mt-1">Comparing against "<span x-text="compareGroupName" class="font-semibold"></span>"</p>
+                </div>
+
+                <div class="p-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Select Snapshot</label>
+                        <select x-model="compareSnapshot" class="w-full">
+                            <option value="">-- Choose a snapshot to compare --</option>
+                            {% for snapshot in snapshots %}
+                            <option value="{{ snapshot.name }}">{{ snapshot.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Results -->
+                    <div x-show="compareResult" x-transition class="mt-6">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-100">
+                                <div class="text-3xl font-bold text-emerald-600" x-text="compareResult?.matched || 0"></div>
+                                <div class="text-sm font-medium text-emerald-700 mt-1">Matched</div>
+                                <div class="text-xs text-emerald-500">In both group & snapshot</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-rose-50 to-red-50 rounded-xl p-4 border border-rose-100">
+                                <div class="text-3xl font-bold text-rose-600" x-text="compareResult?.missing_from_snapshot || 0"></div>
+                                <div class="text-sm font-medium text-rose-700 mt-1">Missing</div>
+                                <div class="text-xs text-rose-500">Not in snapshot</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-4 border border-amber-100">
+                                <div class="text-3xl font-bold text-amber-600" x-text="compareResult?.not_in_group || 0"></div>
+                                <div class="text-sm font-medium text-amber-700 mt-1">Extra</div>
+                                <div class="text-xs text-amber-500">Not in group</div>
+                            </div>
+                        </div>
+
+                        <!-- Missing resources -->
+                        <div x-show="compareResult?.resources?.missing?.length > 0" class="mt-5">
+                            <h4 class="text-sm font-bold text-rose-700 flex items-center">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                Missing from Snapshot
+                            </h4>
+                            <div class="mt-2 max-h-32 overflow-y-auto space-y-1">
+                                <template x-for="r in (compareResult?.resources?.missing || []).slice(0, 20)" :key="r.name + r.resource_type">
+                                    <div class="flex items-center justify-between text-sm py-2 px-3 bg-rose-50 rounded-lg border border-rose-100">
+                                        <span class="font-medium text-gray-900" x-text="r.name"></span>
+                                        <span class="text-xs font-medium text-rose-600 px-2 py-0.5 bg-rose-100 rounded-full" x-text="r.resource_type"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <p x-show="compareResult?.resources?.missing?.length > 20" class="text-xs text-gray-500 mt-2 text-center">
+                                ...and <span x-text="(compareResult?.resources?.missing?.length || 0) - 20" class="font-semibold"></span> more
+                            </p>
+                        </div>
+
+                        <!-- Extra resources -->
+                        <div x-show="compareResult?.resources?.extra?.length > 0" class="mt-5">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-sm font-bold text-amber-700 flex items-center">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                    </svg>
+                                    Extra Resources (Not in Group)
+                                </h4>
+                                <!-- Action buttons for extra resources -->
+                                <div class="flex gap-2">
+                                    <button type="button" @click="showAddToGroupMenu = !showAddToGroupMenu"
+                                            class="text-xs px-3 py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg font-semibold transition-colors flex items-center">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                        </svg>
+                                        Add to Group
+                                    </button>
+                                    <button type="button" @click="openCreateFromExtra()"
+                                            class="text-xs px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg font-semibold transition-colors flex items-center">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                                        </svg>
+                                        Create New Group
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Add to group dropdown menu -->
+                            <div x-show="showAddToGroupMenu" x-transition
+                                 @click.away="showAddToGroupMenu = false"
+                                 class="mb-3 p-3 bg-white border border-gray-200 rounded-xl shadow-lg">
+                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Select target group</p>
+                                <div class="space-y-1 max-h-32 overflow-y-auto">
+                                    <template x-for="g in groups.filter(g => g.name !== compareGroupName)" :key="g.name">
+                                        <button type="button" @click="addExtraToGroup(g.name)"
+                                                class="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-indigo-50 transition-colors flex items-center justify-between"
+                                                :disabled="addingToGroup">
+                                            <span class="font-medium text-gray-900" x-text="g.name"></span>
+                                            <span class="text-xs text-gray-500" x-text="g.resource_count + ' resources'"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                                <div x-show="groups.filter(g => g.name !== compareGroupName).length === 0" class="text-sm text-gray-500 text-center py-2">
+                                    No other groups available
+                                </div>
+                            </div>
+
+                            <div class="mt-2 max-h-32 overflow-y-auto space-y-1">
+                                <template x-for="r in (compareResult?.resources?.extra || []).slice(0, 20)" :key="r.arn">
+                                    <div class="flex items-center justify-between text-sm py-2 px-3 bg-amber-50 rounded-lg border border-amber-100">
+                                        <span class="font-medium text-gray-900" x-text="r.name"></span>
+                                        <span class="text-xs font-medium text-amber-600 px-2 py-0.5 bg-amber-100 rounded-full" x-text="r.resource_type"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <p x-show="compareResult?.resources?.extra?.length > 20" class="text-xs text-gray-500 mt-2 text-center">
+                                ...and <span x-text="(compareResult?.resources?.extra?.length || 0) - 20" class="font-semibold"></span> more
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Add to current group button (when extra resources exist) -->
+                    <div x-show="compareResult?.resources?.extra?.length > 0" class="pt-4 border-t border-gray-100">
+                        <button type="button" @click="addExtraToCurrentGroup()"
+                                class="w-full px-4 py-3 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors flex items-center justify-center"
+                                :disabled="addingToGroup">
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            <span x-show="!addingToGroup">Add All Extra to "<span x-text="compareGroupName"></span>"</span>
+                            <span x-show="addingToGroup">Adding...</span>
+                        </button>
+                    </div>
+
+                    <div class="flex gap-3 pt-6">
+                        <button type="button" @click="showCompareModal = false; compareResult = null"
+                                class="flex-1 px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                            Close
+                        </button>
+                        <button type="button" @click="runComparison()" class="flex-1 btn btn-primary"
+                                :disabled="!compareSnapshot || comparing">
+                            <span x-show="!comparing">Run Comparison</span>
+                            <span x-show="comparing" class="flex items-center justify-center">
+                                <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Comparing...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Group from Extra Modal -->
+    <div x-show="showCreateFromExtraModal" class="fixed z-[60] inset-0 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="showCreateFromExtraModal = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
+                <!-- Modal Header -->
+                <div class="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-5">
+                    <h3 class="text-xl font-bold text-white">Create Group from Extra Resources</h3>
+                    <p class="text-emerald-100 text-sm mt-1">
+                        <span x-text="compareResult?.resources?.extra?.length || 0"></span> resources will be added
+                    </p>
+                </div>
+
+                <form @submit.prevent="createGroupFromExtra" class="p-6 space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Group Name</label>
+                        <input type="text" x-model="newGroupFromExtra.name" required
+                               class="w-full" placeholder="e.g., account-specific-resources">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                        <textarea x-model="newGroupFromExtra.description" rows="2"
+                                  class="w-full" placeholder="Optional description"></textarea>
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" @click="showCreateFromExtraModal = false"
+                                class="flex-1 px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 btn btn-primary bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700" :disabled="creating">
+                            <span x-show="!creating">Create Group</span>
+                            <span x-show="creating" class="flex items-center justify-center">
+                                <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Creating...
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Members Modal -->
+    <div x-show="showMembersModal" class="fixed z-50 inset-0 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="showMembersModal = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
+                <!-- Modal Header -->
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-5">
+                    <h3 class="text-xl font-bold text-white">Group Members</h3>
+                    <p class="text-indigo-100 text-sm mt-1">
+                        <span x-text="membersGroupName" class="font-semibold"></span>
+                        <span class="mx-2">•</span>
+                        <span x-text="members.length"></span> resources
+                    </p>
+                </div>
+
+                <div class="p-6">
+                    <div class="max-h-[60vh] overflow-y-auto rounded-xl border border-gray-200">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Original ARN</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                <template x-for="member in members" :key="member.resource_name + member.resource_type">
+                                    <tr class="hover:bg-indigo-50/50 transition-colors">
+                                        <td class="px-5 py-3 text-sm font-semibold text-gray-900" x-text="member.resource_name"></td>
+                                        <td class="px-5 py-3">
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border border-indigo-100" x-text="member.resource_type"></span>
+                                        </td>
+                                        <td class="px-5 py-3 text-xs text-gray-400 font-mono truncate max-w-xs" x-text="member.original_arn || '-'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-6">
+                        <button type="button" @click="showMembersModal = false"
+                                class="w-full px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function groupsPage() {
+    return {
+        groups: {{ groups | tojson }},
+        showCreateModal: false,
+        showCompareModal: false,
+        showMembersModal: false,
+        showCreateFromExtraModal: false,
+        showAddToGroupMenu: false,
+        creating: false,
+        comparing: false,
+        addingToGroup: false,
+        newGroup: {
+            name: '',
+            description: '',
+            from_snapshot: '',
+            type_filter: '',
+            region_filter: ''
+        },
+        newGroupFromExtra: {
+            name: '',
+            description: ''
+        },
+        compareGroupName: '',
+        compareSnapshot: '',
+        compareResult: null,
+        membersGroupName: '',
+        members: [],
+
+        async createGroup() {
+            if (!this.newGroup.name) return;
+
+            this.creating = true;
+            try {
+                const response = await fetch('/api/groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.newGroup)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create group');
+                }
+
+                // Reload to refresh groups
+                window.location.reload();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                this.creating = false;
+            }
+        },
+
+        async toggleFavorite(name) {
+            try {
+                const response = await fetch('/api/groups/' + encodeURIComponent(name) + '/favorite', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    const group = this.groups.find(g => g.name === name);
+                    if (group) group.is_favorite = result.is_favorite;
+                }
+            } catch (error) {
+                console.error('Failed to toggle favorite:', error);
+            }
+        },
+
+        async confirmDelete(name) {
+            if (!confirm('Are you sure you want to delete group "' + name + '"?')) return;
+
+            try {
+                const response = await fetch('/api/groups/' + encodeURIComponent(name), {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    this.groups = this.groups.filter(g => g.name !== name);
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to delete group');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        },
+
+        async viewMembers(name) {
+            this.membersGroupName = name;
+            this.members = [];
+            this.showMembersModal = true;
+
+            try {
+                const response = await fetch('/api/groups/' + encodeURIComponent(name) + '/members?limit=500');
+                if (response.ok) {
+                    const result = await response.json();
+                    this.members = result.members;
+                }
+            } catch (error) {
+                console.error('Failed to load members:', error);
+            }
+        },
+
+        async runComparison() {
+            if (!this.compareSnapshot || !this.compareGroupName) return;
+
+            this.comparing = true;
+            this.compareResult = null;
+
+            try {
+                const response = await fetch(
+                    '/api/groups/' + encodeURIComponent(this.compareGroupName) + '/compare/' + encodeURIComponent(this.compareSnapshot)
+                );
+
+                if (response.ok) {
+                    this.compareResult = await response.json();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Comparison failed');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                this.comparing = false;
+            }
+        },
+
+        openCreateFromExtra() {
+            this.newGroupFromExtra = {
+                name: '',
+                description: 'Resources not in ' + this.compareGroupName + ' (from ' + this.compareSnapshot + ')'
+            };
+            this.showCreateFromExtraModal = true;
+        },
+
+        async createGroupFromExtra() {
+            if (!this.newGroupFromExtra.name || !this.compareResult?.resources?.extra?.length) return;
+
+            this.creating = true;
+            try {
+                // First create an empty group
+                const createResponse = await fetch('/api/groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: this.newGroupFromExtra.name,
+                        description: this.newGroupFromExtra.description
+                    })
+                });
+
+                if (!createResponse.ok) {
+                    const error = await createResponse.json();
+                    throw new Error(error.detail || 'Failed to create group');
+                }
+
+                // Then add the extra resources to it
+                const arns = this.compareResult.resources.extra.map(r => ({
+                    arn: r.arn,
+                    resource_type: r.resource_type
+                }));
+
+                const addResponse = await fetch('/api/groups/' + encodeURIComponent(this.newGroupFromExtra.name) + '/members', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ arns: arns })
+                });
+
+                if (!addResponse.ok) {
+                    const error = await addResponse.json();
+                    throw new Error(error.detail || 'Failed to add resources');
+                }
+
+                const result = await addResponse.json();
+                alert('Created group "' + this.newGroupFromExtra.name + '" with ' + result.added + ' resources');
+                window.location.reload();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                this.creating = false;
+            }
+        },
+
+        async addExtraToGroup(targetGroupName) {
+            if (!this.compareResult?.resources?.extra?.length) return;
+
+            this.addingToGroup = true;
+            this.showAddToGroupMenu = false;
+
+            try {
+                const arns = this.compareResult.resources.extra.map(r => ({
+                    arn: r.arn,
+                    resource_type: r.resource_type
+                }));
+
+                const response = await fetch('/api/groups/' + encodeURIComponent(targetGroupName) + '/members', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ arns: arns })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to add resources');
+                }
+
+                const result = await response.json();
+                alert('Added ' + result.added + ' resources to group "' + targetGroupName + '"');
+
+                // Update local group count
+                const group = this.groups.find(g => g.name === targetGroupName);
+                if (group) {
+                    group.resource_count += result.added;
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                this.addingToGroup = false;
+            }
+        },
+
+        async addExtraToCurrentGroup() {
+            if (!this.compareResult?.resources?.extra?.length || !this.compareGroupName) return;
+
+            this.addingToGroup = true;
+
+            try {
+                const arns = this.compareResult.resources.extra.map(r => ({
+                    arn: r.arn,
+                    resource_type: r.resource_type
+                }));
+
+                const response = await fetch('/api/groups/' + encodeURIComponent(this.compareGroupName) + '/members', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ arns: arns })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to add resources');
+                }
+
+                const result = await response.json();
+                alert('Added ' + result.added + ' resources to group "' + this.compareGroupName + '"');
+
+                // Re-run comparison to update results
+                await this.runComparison();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                this.addingToGroup = false;
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -12,6 +12,21 @@
     showTypeDropdown: false,
     showRegionDropdown: false,
 
+    // Group filter
+    availableGroups: [],
+    selectedGroupFilter: '',
+    groupFilterMode: 'none',  // 'none', 'in_group', 'not_in_group'
+    showGroupFilterDropdown: false,
+
+    // Add to Group modal
+    showAddToGroupModal: false,
+    selectedResources: [],
+    targetGroupName: '',
+    addToGroupLoading: false,
+
+    // Group members cache for advanced filter
+    groupMembersCache: {},  // { groupName: Set of 'name|type' keys }
+
     toggleType(t) {
         const idx = this.selectedTypes.indexOf(t);
         if (idx === -1) this.selectedTypes.push(t);
@@ -38,7 +53,8 @@
         { value: 'resource_type', label: 'Type', type: 'select' },
         { value: 'region', label: 'Region', type: 'select' },
         { value: 'snapshot_name', label: 'Snapshot', type: 'select' },
-        { value: 'config_hash', label: 'Config Hash', type: 'text' }
+        { value: 'config_hash', label: 'Config Hash', type: 'text' },
+        { value: 'group_membership', label: 'Group Membership', type: 'group' }
     ],
     availableTagKeys: [],
     fieldValues: {},  // Cache of available values per field
@@ -69,8 +85,19 @@
         { value: 'ends_with', label: 'ends with', multi: false },
         { value: 'not_ends_with', label: 'does not end with', multi: false },
         { value: 'is_empty', label: 'is empty', multi: false },
-        { value: 'is_not_empty', label: 'is not empty', multi: false }
+        { value: 'is_not_empty', label: 'is not empty', multi: false },
+        { value: 'in_group', label: 'is in group', multi: false, groupOnly: true },
+        { value: 'not_in_group', label: 'is not in group', multi: false, groupOnly: true }
     ],
+
+    // Get operators available for a field type
+    getOperatorsForField(fieldValue) {
+        const field = this.filterFields.find(f => f.value === fieldValue);
+        if (field && field.type === 'group') {
+            return this.filterOperators.filter(op => op.groupOnly);
+        }
+        return this.filterOperators.filter(op => !op.groupOnly);
+    },
 
     isMultiOperator(operator) {
         const op = this.filterOperators.find(o => o.value === operator);
@@ -90,14 +117,14 @@
     sortBy: 'name',
     sortOrder: 'asc',
     baseColumns: [
-        { field: 'name', label: 'Name', visible: true, isBase: true, width: 280 },
-        { field: 'arn', label: 'ARN', visible: true, isBase: true, width: 400 },
-        { field: 'resource_type', label: 'Type', visible: true, isBase: true, width: 180 },
-        { field: 'region', label: 'Region', visible: true, isBase: true, width: 140 },
-        { field: 'snapshot_name', label: 'Snapshot', visible: true, isBase: true, width: 200 },
-        { field: 'tags', label: 'All Tags', visible: false, isBase: true, width: 300 },
-        { field: 'created_at', label: 'Created', visible: false, isBase: true, width: 200 },
-        { field: 'config_hash', label: 'Config Hash', visible: false, isBase: true, width: 180 }
+        { field: 'name', label: 'Name', visible: true, isBase: true, width: 220, frozen: true },
+        { field: 'arn', label: 'ARN', visible: true, isBase: true, width: 350, frozen: false },
+        { field: 'resource_type', label: 'Type', visible: true, isBase: true, width: 160, frozen: false },
+        { field: 'region', label: 'Region', visible: true, isBase: true, width: 130, frozen: false },
+        { field: 'snapshot_name', label: 'Snapshot', visible: true, isBase: true, width: 180, frozen: false },
+        { field: 'tags', label: 'All Tags', visible: false, isBase: true, width: 280, frozen: false },
+        { field: 'created_at', label: 'Created', visible: false, isBase: true, width: 180, frozen: false },
+        { field: 'config_hash', label: 'Config Hash', visible: false, isBase: true, width: 160, frozen: false }
     ],
     tagColumns: [],  // Dynamic tag columns
 
@@ -139,8 +166,19 @@
             visible: false,
             isTag: true,
             tagKey: key,
-            width: 150
+            width: 150,
+            frozen: false
         }));
+    },
+
+    toggleFrozen(field) {
+        let col = this.baseColumns.find(c => c.field === field);
+        if (col) {
+            col.frozen = !col.frozen;
+            return;
+        }
+        col = this.tagColumns.find(c => c.field === field);
+        if (col) col.frozen = !col.frozen;
     },
     currentViewId: null,
     resourceData: null,
@@ -273,8 +311,64 @@
         this.filterRoot = { logic: 'AND', items: [] };
     },
 
+    // Load group members into cache for filtering
+    async loadGroupMembersForFilter(groupName) {
+        if (this.groupMembersCache[groupName]) return;
+
+        try {
+            const response = await fetch('/api/groups/' + encodeURIComponent(groupName) + '/members?limit=1000');
+            if (response.ok) {
+                const result = await response.json();
+                // Create a Set of 'name|type' keys for fast lookup
+                const memberSet = new Set();
+                for (const member of result.members) {
+                    memberSet.add(member.resource_name + '|' + member.resource_type);
+                }
+                this.groupMembersCache[groupName] = memberSet;
+            }
+        } catch (error) {
+            console.error('Failed to load group members:', error);
+            this.groupMembersCache[groupName] = new Set();
+        }
+    },
+
+    // Check if resource is in a group (by name + type)
+    isResourceInGroup(resource, groupName) {
+        const memberSet = this.groupMembersCache[groupName];
+        if (!memberSet) return false;
+
+        const resourceName = resource.name || this.extractResourceName(resource.arn, resource.resource_type);
+        const key = resourceName + '|' + resource.resource_type;
+        return memberSet.has(key);
+    },
+
+    // Simple resource name extraction from ARN
+    extractResourceName(arn, resourceType) {
+        if (!arn) return '';
+        const parts = arn.split(':');
+        const lastPart = parts[parts.length - 1] || '';
+        if (lastPart.includes('/')) {
+            return lastPart.split('/').pop() || lastPart;
+        }
+        return lastPart;
+    },
+
     // Evaluate a single condition against a resource
     evaluateCondition(resource, condition) {
+        // Handle group_membership field specially
+        if (condition.field === 'group_membership') {
+            const groupName = condition.values[0];
+            if (!groupName) return true;
+
+            const isInGroup = this.isResourceInGroup(resource, groupName);
+            if (condition.operator === 'in_group') {
+                return isInGroup;
+            } else if (condition.operator === 'not_in_group') {
+                return !isInGroup;
+            }
+            return true;
+        }
+
         // Get search values (array for multi-select)
         const searchValues = (condition.values || []).map(v => v.toLowerCase());
         const singleValue = searchValues[0] || '';
@@ -390,7 +484,20 @@
         }
     },
 
-    applyAdvancedFilter() {
+    // Collect all group names from filter conditions
+    collectGroupNamesFromFilter(group) {
+        const groupNames = [];
+        for (const item of (group.items || [])) {
+            if (item.type === 'group') {
+                groupNames.push(...this.collectGroupNamesFromFilter(item));
+            } else if (item.field === 'group_membership' && item.values && item.values[0]) {
+                groupNames.push(item.values[0]);
+            }
+        }
+        return groupNames;
+    },
+
+    async applyAdvancedFilter() {
         if (!this.allResources) return;
 
         if (!this.filterRoot.items || this.filterRoot.items.length === 0) {
@@ -398,6 +505,11 @@
             this.applySort();
             return;
         }
+
+        // Pre-load group members for any group_membership conditions
+        const groupNames = this.collectGroupNamesFromFilter(this.filterRoot);
+        const uniqueGroups = [...new Set(groupNames)];
+        await Promise.all(uniqueGroups.map(name => this.loadGroupMembersForFilter(name)));
 
         const filtered = this.allResources.resources.filter(resource => {
             return this.evaluateGroup(resource, this.filterRoot);
@@ -550,6 +662,82 @@
             this.snapshot = config.snapshot || '';
             this.search = config.search || '';
         }
+    },
+
+    // Load available groups
+    async loadGroups() {
+        try {
+            const resp = await fetch('/api/groups');
+            const data = await resp.json();
+            this.availableGroups = data.groups || [];
+        } catch (e) {
+            console.error('Failed to load groups:', e);
+            this.availableGroups = [];
+        }
+    },
+
+    // Set group filter
+    setGroupFilter(mode, groupName) {
+        this.groupFilterMode = mode;
+        this.selectedGroupFilter = groupName;
+        this.showGroupFilterDropdown = false;
+    },
+
+    // Clear group filter
+    clearGroupFilter() {
+        this.groupFilterMode = 'none';
+        this.selectedGroupFilter = '';
+    },
+
+    // Update selected resources from Tabulator
+    updateSelectedResources(resources) {
+        this.selectedResources = resources || [];
+    },
+
+    // Add selected resources to group
+    async addSelectedToGroup() {
+        if (!this.targetGroupName || this.selectedResources.length === 0) return;
+
+        this.addToGroupLoading = true;
+        try {
+            const arns = this.selectedResources.map(r => ({
+                arn: r.arn,
+                resource_type: r.resource_type
+            }));
+            const resp = await fetch(`/api/groups/${encodeURIComponent(this.targetGroupName)}/members`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ arns: arns })
+            });
+            const result = await resp.json();
+
+            if (result.added > 0) {
+                // Show success notification
+                const groupName = this.targetGroupName;
+                this.showAddToGroupModal = false;
+                this.targetGroupName = '';
+                // Clear selection in Tabulator
+                if (window.resourceTable) {
+                    window.resourceTable.deselectRow();
+                }
+                this.selectedResources = [];
+                // Reload groups to update counts
+                this.loadGroups();
+                alert('Added ' + result.added + ' resource(s) to group');
+            } else if (result.skipped > 0) {
+                alert('All ' + result.skipped + ' resource(s) already exist in the group.');
+            }
+        } catch (e) {
+            console.error('Failed to add resources to group:', e);
+            alert('Failed to add resources to group. Please try again.');
+        }
+        this.addToGroupLoading = false;
+    },
+
+    // Open add to group modal
+    openAddToGroupModal() {
+        this.targetGroupName = '';
+        this.showAddToGroupModal = true;
     }
 }">
     <!-- Header -->
@@ -557,27 +745,24 @@
         <div class="min-w-0 flex-1">
             <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">Resource Explorer</h1>
         </div>
-        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-2">
-            <button @click="showColumnModal = true"
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+            <button @click="showColumnModal = true" class="btn btn-secondary">
+                <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
                 </svg>
                 Columns
             </button>
-            <button @click="exportCSV()"
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button @click="exportCSV()" class="btn btn-secondary">
+                <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
-                Export CSV
+                CSV
             </button>
-            <button @click="exportYAML()"
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button @click="exportYAML()" class="btn btn-secondary">
+                <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
-                Export YAML
+                YAML
             </button>
         </div>
     </div>
@@ -644,9 +829,9 @@
 
         <!-- Simple Mode Filters -->
         <div x-show="!advancedMode" x-transition>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
                 <!-- Search -->
-                <div class="lg:col-span-2">
+                <div class="lg:col-span-1">
                     <label for="search" class="block text-sm font-medium text-gray-700">Search</label>
                     <input type="text" name="search" id="search" x-model="search"
                            placeholder="Search by name or ARN..."
@@ -719,6 +904,74 @@
                         <option value="{{ s.name }}">{{ s.name }}</option>
                         {% endfor %}
                     </select>
+                </div>
+
+                <!-- Group Filter -->
+                <div class="relative" @click.away="showGroupFilterDropdown = false" x-init="loadGroups()">
+                    <label class="block text-sm font-medium text-gray-700">Group Filter</label>
+                    <button type="button" @click="showGroupFilterDropdown = !showGroupFilterDropdown"
+                            class="mt-1 relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            :class="groupFilterMode !== 'none' ? 'border-green-500 ring-1 ring-green-500' : ''">
+                        <span class="block truncate">
+                            <template x-if="groupFilterMode === 'none'">
+                                <span class="text-gray-500">No Group Filter</span>
+                            </template>
+                            <template x-if="groupFilterMode === 'in_group'">
+                                <span class="text-green-700">In: <span x-text="selectedGroupFilter"></span></span>
+                            </template>
+                            <template x-if="groupFilterMode === 'not_in_group'">
+                                <span class="text-amber-700">Not In: <span x-text="selectedGroupFilter"></span></span>
+                            </template>
+                        </span>
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </span>
+                    </button>
+                    <div x-show="showGroupFilterDropdown" x-cloak
+                         class="absolute z-20 mt-1 w-64 bg-white shadow-lg rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm max-h-80">
+                        <!-- Clear option -->
+                        <button type="button" @click="clearGroupFilter(); showGroupFilterDropdown = false; searchResources();"
+                                class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 border-b border-gray-200">
+                            <span class="font-medium">No Group Filter</span>
+                        </button>
+
+                        <!-- Groups list -->
+                        <template x-if="availableGroups.length === 0">
+                            <div class="px-3 py-4 text-center text-gray-500 text-sm">
+                                <p>No groups available.</p>
+                                <a href="/groups" class="text-blue-600 hover:text-blue-800 text-xs">Create a group</a>
+                            </div>
+                        </template>
+
+                        <template x-for="group in availableGroups" :key="group.name">
+                            <div class="border-b border-gray-100 last:border-0">
+                                <div class="px-3 py-2 bg-gray-50">
+                                    <span class="text-xs font-semibold text-gray-600" x-text="group.name"></span>
+                                    <span class="text-xs text-gray-400 ml-1">(<span x-text="group.resource_count"></span> resources)</span>
+                                </div>
+                                <button type="button"
+                                        @click="setGroupFilter('in_group', group.name); $nextTick(() => searchResources());"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-green-50 flex items-center"
+                                        :class="groupFilterMode === 'in_group' && selectedGroupFilter === group.name ? 'bg-green-100 text-green-800' : 'text-gray-700'">
+                                    <svg class="w-4 h-4 mr-2 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Show resources IN this group
+                                </button>
+                                <button type="button"
+                                        @click="setGroupFilter('not_in_group', group.name); $nextTick(() => searchResources());"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-amber-50 flex items-center"
+                                        :class="groupFilterMode === 'not_in_group' && selectedGroupFilter === group.name ? 'bg-amber-100 text-amber-800' : 'text-gray-700'">
+                                    <svg class="w-4 h-4 mr-2 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                    Show resources NOT in this group
+                                </button>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
         </div>
@@ -819,11 +1072,24 @@
                                                                 <option :value="field.value" x-text="field.label"></option>
                                                             </template>
                                                         </select>
-                                                        <select x-model="subItem.operator" class="rounded border-gray-300 text-xs">
-                                                            <template x-for="op in filterOperators" :key="op.value">
+                                                        <select x-model="subItem.operator"
+                                                                @change="if(getFieldType(subItem.field) === 'group') { subItem.values = []; }"
+                                                                class="rounded border-gray-300 text-xs">
+                                                            <template x-for="op in getOperatorsForField(subItem.field)" :key="op.value">
                                                                 <option :value="op.value" x-text="op.label"></option>
                                                             </template>
                                                         </select>
+                                                        <!-- Group selector for group_membership field -->
+                                                        <template x-if="getFieldType(subItem.field) === 'group'">
+                                                            <select x-model="subItem.values[0]"
+                                                                    @change="if(!subItem.values[0]) subItem.values = []; else subItem.values = [subItem.values[0]]"
+                                                                    class="flex-1 rounded border-gray-300 text-xs">
+                                                                <option value="">Select group...</option>
+                                                                <template x-for="g in availableGroups" :key="g.name">
+                                                                    <option :value="g.name" x-text="g.name + ' (' + g.resource_count + ' resources)'"></option>
+                                                                </template>
+                                                            </select>
+                                                        </template>
                                                         <!-- Multi-select for multi operators -->
                                                         <template x-if="needsValue(subItem.operator) && isMultiOperator(subItem.operator) && getFieldType(subItem.field) === 'select' && fieldValues[subItem.field]?.length > 0">
                                                             <div class="flex-1 relative" x-data="{ open: false }">
@@ -857,8 +1123,8 @@
                                                                 </template>
                                                             </select>
                                                         </template>
-                                                        <!-- Text input -->
-                                                        <template x-if="needsValue(subItem.operator) && (getFieldType(subItem.field) !== 'select' || !fieldValues[subItem.field]?.length)">
+                                                        <!-- Text input (exclude group type) -->
+                                                        <template x-if="needsValue(subItem.operator) && getFieldType(subItem.field) !== 'group' && (getFieldType(subItem.field) !== 'select' || !fieldValues[subItem.field]?.length)">
                                                             <input type="text" x-model="subItem.values[0]"
                                                                    @input="subItem.values = subItem.values[0] ? [subItem.values[0]] : []"
                                                                    placeholder="Value..." class="flex-1 rounded border-gray-300 text-xs">
@@ -894,11 +1160,24 @@
 
                                     <!-- Operator -->
                                     <select x-model="item.operator"
+                                            @change="if(getFieldType(item.field) === 'group') { item.values = []; }"
                                             class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                                        <template x-for="op in filterOperators" :key="op.value">
+                                        <template x-for="op in getOperatorsForField(item.field)" :key="op.value">
                                             <option :value="op.value" x-text="op.label"></option>
                                         </template>
                                     </select>
+
+                                    <!-- Group selector for group_membership field -->
+                                    <template x-if="getFieldType(item.field) === 'group'">
+                                        <select x-model="item.values[0]"
+                                                @change="if(!item.values[0]) item.values = []; else item.values = [item.values[0]]"
+                                                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                            <option value="">Select group...</option>
+                                            <template x-for="g in availableGroups" :key="g.name">
+                                                <option :value="g.name" x-text="g.name + ' (' + g.resource_count + ' resources)'"></option>
+                                            </template>
+                                        </select>
+                                    </template>
 
                                     <!-- Multi-select dropdown for multi operators -->
                                     <template x-if="needsValue(item.operator) && isMultiOperator(item.operator) && getFieldType(item.field) === 'select' && fieldValues[item.field]?.length > 0">
@@ -936,8 +1215,8 @@
                                         </select>
                                     </template>
 
-                                    <!-- Text input for other fields -->
-                                    <template x-if="needsValue(item.operator) && (getFieldType(item.field) !== 'select' || !fieldValues[item.field]?.length)">
+                                    <!-- Text input for other fields (exclude group type) -->
+                                    <template x-if="needsValue(item.operator) && getFieldType(item.field) !== 'group' && (getFieldType(item.field) !== 'select' || !fieldValues[item.field]?.length)">
                                         <input type="text"
                                                x-model="item.values[0]"
                                                @input="item.values = item.values[0] ? [item.values[0]] : []"
@@ -977,16 +1256,15 @@
             </div>
         </div>
 
-        <div class="mt-4 flex items-center space-x-2">
-            <button @click="searchResources()"
-                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-                <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="mt-4 flex items-center space-x-3">
+            <button @click="searchResources()" class="btn btn-primary">
+                <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
                 Search
             </button>
-            <button @click="if (advancedMode) { clearFilters(); applyAdvancedFilter(); } else { selectedTypes = []; selectedRegions = []; snapshot = ''; search = ''; searchResources(); }"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <button @click="if (advancedMode) { clearFilters(); applyAdvancedFilter(); } else { selectedTypes = []; selectedRegions = []; snapshot = ''; search = ''; } clearGroupFilter(); searchResources();"
+                    class="btn btn-secondary">
                 Clear
             </button>
             <span x-show="advancedMode && countConditions() > 0" class="text-sm text-gray-500">
@@ -995,12 +1273,32 @@
         </div>
     </div>
 
+    <!-- Selection Toolbar -->
+    <div x-show="selectedResources.length > 0" x-transition
+         class="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-sm" x-text="selectedResources.length"></span>
+            <span class="text-blue-800 font-medium">resource(s) selected</span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button @click="openAddToGroupModal()" class="btn btn-primary btn-sm">
+                <svg class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Add to Group
+            </button>
+            <button @click="selectedResources = []; if(window.resourceTable) window.resourceTable.deselectRow();" class="btn btn-secondary btn-sm">
+                Clear Selection
+            </button>
+        </div>
+    </div>
+
     <!-- Results -->
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-        <div id="resource-table" class="overflow-x-auto">
-            <div class="p-8 text-center text-gray-500">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p class="mt-2">Loading resources...</p>
+    <div class="card">
+        <div id="resource-table">
+            <div class="p-12 text-center text-gray-500">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 font-medium">Loading resources...</p>
             </div>
         </div>
     </div>
@@ -1009,46 +1307,87 @@
     <div x-show="showColumnModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showColumnModal = false"></div>
-            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Customize Columns</h3>
-                <div class="space-y-4 max-h-96 overflow-y-auto">
+            <div class="inline-block align-bottom bg-white rounded-xl px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Customize Columns</h3>
+                    <button @click="showColumnModal = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Legend -->
+                <div class="flex items-center gap-6 text-xs text-gray-500 mb-4 pb-3 border-b">
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-3 h-3 rounded border-2 border-blue-500 bg-blue-50"></div>
+                        <span>Visible</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/>
+                        </svg>
+                        <span>Frozen (sticky when scrolling)</span>
+                    </div>
+                </div>
+
+                <div class="space-y-4 max-h-80 overflow-y-auto pr-2">
                     <!-- Base Columns -->
                     <div>
-                        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">Resource Fields</h4>
-                        <div class="space-y-2">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Resource Fields</h4>
+                        <div class="grid grid-cols-2 gap-2">
                             <template x-for="col in baseColumns" :key="col.field">
-                                <label class="flex items-center">
-                                    <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
-                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                    <span class="ml-3 text-sm text-gray-700" x-text="col.label"></span>
-                                </label>
+                                <div class="flex items-center justify-between p-2.5 rounded-lg border transition-all"
+                                     :class="col.visible ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'">
+                                    <label class="flex items-center flex-1 cursor-pointer">
+                                        <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
+                                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                        <span class="ml-2.5 text-sm font-medium" :class="col.visible ? 'text-gray-900' : 'text-gray-500'" x-text="col.label"></span>
+                                    </label>
+                                    <button @click="toggleFrozen(col.field)" x-show="col.visible"
+                                            class="p-1 rounded hover:bg-white/50 transition-colors"
+                                            :class="col.frozen ? 'text-amber-500' : 'text-gray-300 hover:text-gray-400'"
+                                            :title="col.frozen ? 'Unfreeze column' : 'Freeze column'">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/>
+                                        </svg>
+                                    </button>
+                                </div>
                             </template>
                         </div>
                     </div>
 
                     <!-- Tag Columns -->
                     <div x-show="tagColumns.length > 0">
-                        <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">Tag Columns</h4>
-                        <p class="text-xs text-gray-400 mb-2">Show individual tag values as columns</p>
-                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tag Columns</h4>
+                        <p class="text-xs text-gray-400 mb-3">Show individual tag values as separate columns</p>
+                        <div class="grid grid-cols-2 gap-2">
                             <template x-for="col in tagColumns" :key="col.field">
-                                <label class="flex items-center">
-                                    <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
-                                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                    <span class="ml-3 text-sm text-gray-700">
-                                        <span class="text-indigo-600" x-text="col.tagKey"></span>
-                                    </span>
-                                </label>
+                                <div class="flex items-center justify-between p-2.5 rounded-lg border transition-all"
+                                     :class="col.visible ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200'">
+                                    <label class="flex items-center flex-1 cursor-pointer">
+                                        <input type="checkbox" :checked="col.visible" @change="toggleColumn(col.field)"
+                                               class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                        <span class="ml-2.5 text-sm" :class="col.visible ? 'text-indigo-700 font-medium' : 'text-gray-500'" x-text="col.tagKey"></span>
+                                    </label>
+                                    <button @click="toggleFrozen(col.field)" x-show="col.visible"
+                                            class="p-1 rounded hover:bg-white/50 transition-colors"
+                                            :class="col.frozen ? 'text-amber-500' : 'text-gray-300 hover:text-gray-400'"
+                                            :title="col.frozen ? 'Unfreeze column' : 'Freeze column'">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/>
+                                        </svg>
+                                    </button>
+                                </div>
                             </template>
                         </div>
                         <p x-show="tagColumns.length === 0" class="text-xs text-gray-400 italic">No tags found in inventory</p>
                     </div>
                 </div>
-                <div class="mt-5 sm:mt-6">
-                    <button @click="showColumnModal = false; searchResources()"
-                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:text-sm">
-                        Apply
-                    </button>
+
+                <div class="mt-5 pt-4 border-t flex justify-end gap-3">
+                    <button @click="showColumnModal = false" class="btn btn-secondary">Cancel</button>
+                    <button @click="showColumnModal = false; rebuildTable()" class="btn btn-primary">Apply Changes</button>
                 </div>
             </div>
         </div>
@@ -1097,11 +1436,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
-                    <button @click="saveFilter()" :disabled="!filterName.trim()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm">
-                        Save
+                <div class="mt-5 pt-4 border-t sm:flex sm:flex-row-reverse gap-3">
+                    <button @click="saveFilter()" :disabled="!filterName.trim()" class="btn btn-primary disabled:opacity-50 w-full sm:w-auto">
+                        Save Filter
                     </button>
-                    <button @click="showSaveFilterModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                    <button @click="showSaveFilterModal = false" class="btn btn-secondary mt-3 sm:mt-0 w-full sm:w-auto">
                         Cancel
                     </button>
                 </div>
@@ -1153,11 +1492,101 @@
                         </div>
                     </div>
                 </div>
-                <div class="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
-                    <button @click="saveView()" :disabled="!viewName.trim()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm">
-                        Save
+                <div class="mt-5 pt-4 border-t sm:flex sm:flex-row-reverse gap-3">
+                    <button @click="saveView()" :disabled="!viewName.trim()" class="btn btn-primary disabled:opacity-50 w-full sm:w-auto">
+                        Save View
                     </button>
-                    <button @click="showSaveViewModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                    <button @click="showSaveViewModal = false" class="btn btn-secondary mt-3 sm:mt-0 w-full sm:w-auto">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Group Modal -->
+    <div x-show="showAddToGroupModal" x-cloak class="fixed z-10 inset-0 overflow-y-auto">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showAddToGroupModal = false"></div>
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-lg font-medium text-gray-900">Add to Resource Group</h3>
+                        <p class="text-sm text-gray-500">Add <span x-text="selectedResources.length" class="font-semibold"></span> resource(s) to a group</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Select Group -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Group</label>
+                        <template x-if="availableGroups.length === 0">
+                            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                                <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                <p class="mt-2 text-sm text-gray-500">No groups available</p>
+                                <a href="/groups" class="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800">Create a group first</a>
+                            </div>
+                        </template>
+                        <template x-if="availableGroups.length > 0">
+                            <div class="space-y-2 max-h-60 overflow-y-auto">
+                                <template x-for="group in availableGroups" :key="group.name">
+                                    <label class="flex items-center p-3 rounded-lg border cursor-pointer transition-colors"
+                                           :class="targetGroupName === group.name ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
+                                        <input type="radio" name="targetGroup" :value="group.name" x-model="targetGroupName"
+                                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                        <div class="ml-3 flex-1">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-sm font-medium text-gray-900" x-text="group.name"></span>
+                                                <span class="text-xs text-gray-500"><span x-text="group.resource_count"></span> resources</span>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-0.5" x-show="group.description" x-text="group.description"></p>
+                                        </div>
+                                    </label>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Selected Resources Preview -->
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide mb-2">Selected Resources</p>
+                        <div class="max-h-32 overflow-y-auto space-y-1">
+                            <template x-for="(resource, idx) in selectedResources.slice(0, 5)" :key="resource.arn">
+                                <div class="text-sm text-gray-700 flex items-center">
+                                    <span class="w-4 h-4 flex items-center justify-center bg-blue-100 text-blue-600 rounded text-xs font-bold mr-2" x-text="idx + 1"></span>
+                                    <span class="truncate" x-text="resource.name || resource.arn"></span>
+                                </div>
+                            </template>
+                            <p x-show="selectedResources.length > 5" class="text-xs text-gray-400 pl-6">
+                                ... and <span x-text="selectedResources.length - 5"></span> more
+                            </p>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500">
+                        Resources are matched by Name + Type. Duplicates will be skipped.
+                    </p>
+                </div>
+
+                <div class="mt-5 pt-4 border-t sm:flex sm:flex-row-reverse gap-3">
+                    <button @click="addSelectedToGroup()" :disabled="!targetGroupName || addToGroupLoading"
+                            class="btn btn-primary disabled:opacity-50 w-full sm:w-auto">
+                        <span x-show="addToGroupLoading" class="mr-2">
+                            <svg class="animate-spin h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                        Add to Group
+                    </button>
+                    <button @click="showAddToGroupModal = false" class="btn btn-secondary mt-3 sm:mt-0 w-full sm:w-auto">
                         Cancel
                     </button>
                 </div>
@@ -1169,9 +1598,11 @@
 
 {% block scripts %}
 <script>
+    // Tabulator instance
+    let resourceTable = null;
+
     // Wait for Alpine to be ready before initializing
     document.addEventListener('DOMContentLoaded', function() {
-        // Use requestAnimationFrame to ensure Alpine has processed the DOM
         requestAnimationFrame(function() {
             requestAnimationFrame(function() {
                 searchResources();
@@ -1206,15 +1637,21 @@
     function searchResources() {
         const data = Alpine.$data(document.querySelector('[x-data]'));
 
+        // Clear selected resources when searching
+        data.selectedResources = [];
+
+        // Check if using group filter
+        if (data.groupFilterMode !== 'none' && data.selectedGroupFilter) {
+            searchResourcesWithGroupFilter(data);
+            return;
+        }
+
         const params = new URLSearchParams();
 
-        // Check if any tags column is visible (including individual tag:KEY columns) or if filtering by tags
         const tagsColumnVisible = data.columns.find(c => c.field === 'tags')?.visible;
         const anyTagColumnVisible = data.columns.some(c => c.field.startsWith('tag:') && c.visible);
         const hasTagConditions = data.advancedMode && hasTagConditionsInGroup(data.filterRoot);
 
-        // In advanced mode or when multi-select is used, fetch all and filter client-side
-        // In simple mode with single selections, apply server-side filters
         const useClientSideFilter = data.advancedMode ||
             data.selectedTypes.length > 1 ||
             data.selectedRegions.length > 1;
@@ -1225,11 +1662,9 @@
             if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
             if (data.snapshot) params.append('snapshot', data.snapshot);
         } else if (!data.advancedMode) {
-            // For multi-select in simple mode, only apply snapshot filter server-side
             if (data.snapshot) params.append('snapshot', data.snapshot);
         }
 
-        // Include tags if any tag column is visible or filtering by tags
         if (tagsColumnVisible || anyTagColumnVisible || hasTagConditions) {
             params.append('include_tags', 'true');
         }
@@ -1242,10 +1677,8 @@
                 data.allResources = result;
 
                 if (data.advancedMode) {
-                    // Use advanced filter
                     data.applyAdvancedFilter();
                 } else if (useClientSideFilter) {
-                    // Apply simple filters client-side for multi-select
                     data.applySimpleFilter();
                 } else {
                     data.resourceData = result;
@@ -1255,335 +1688,337 @@
             });
     }
 
+    function searchResourcesWithGroupFilter(data) {
+        const groupName = encodeURIComponent(data.selectedGroupFilter);
+        const endpoint = data.groupFilterMode === 'in_group'
+            ? `/api/groups/${groupName}/resources/in`
+            : `/api/groups/${groupName}/resources/not-in`;
+
+        const params = new URLSearchParams();
+        if (data.snapshot) {
+            params.append('snapshot', data.snapshot);
+        }
+        params.append('limit', '500');
+
+        const tagsColumnVisible = data.columns.find(c => c.field === 'tags')?.visible;
+        const anyTagColumnVisible = data.columns.some(c => c.field.startsWith('tag:') && c.visible);
+        if (tagsColumnVisible || anyTagColumnVisible) {
+            params.append('include_tags', 'true');
+        }
+
+        fetch(`${endpoint}?${params.toString()}`)
+            .then(r => r.json())
+            .then(result => {
+                // Apply additional client-side filters if needed
+                let resources = result.resources || [];
+
+                // Apply search filter
+                if (data.search) {
+                    const searchLower = data.search.toLowerCase();
+                    resources = resources.filter(r =>
+                        (r.name && r.name.toLowerCase().includes(searchLower)) ||
+                        (r.arn && r.arn.toLowerCase().includes(searchLower))
+                    );
+                }
+
+                // Apply type filter
+                if (data.selectedTypes.length > 0) {
+                    resources = resources.filter(r => data.selectedTypes.includes(r.resource_type));
+                }
+
+                // Apply region filter
+                if (data.selectedRegions.length > 0) {
+                    resources = resources.filter(r => data.selectedRegions.includes(r.region));
+                }
+
+                data.allResources = { resources: resources, count: resources.length };
+                data.resourceData = { resources: resources, count: resources.length };
+                data.applySort();
+                renderTable();
+            });
+    }
+
+    // Build Tabulator column definitions from Alpine data
+    function buildColumns() {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        const columns = [];
+
+        data.visibleColumns.forEach(col => {
+            const colDef = {
+                title: col.label,
+                field: col.field,
+                minWidth: col.width || 100,
+                resizable: true,
+                frozen: col.frozen || false,
+                headerSort: true,
+                tooltip: true
+            };
+
+            // Custom formatters for different field types
+            if (col.field === 'name') {
+                colDef.formatter = function(cell) {
+                    const value = cell.getValue() || 'N/A';
+                    const initial = (value || 'N').charAt(0).toUpperCase();
+                    return `<div class="flex items-center">
+                        <div class="flex-shrink-0 h-7 w-7 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-xs font-bold">${initial}</span>
+                        </div>
+                        <span class="ml-2.5 font-medium text-gray-900 truncate">${value}</span>
+                    </div>`;
+                };
+                colDef.cssClass = "tabulator-cell-name";
+            } else if (col.field === 'arn') {
+                colDef.formatter = function(cell) {
+                    const value = cell.getValue() || 'N/A';
+                    const escaped = value.replace(/'/g, "\\'");
+                    return `<div class="flex items-center gap-2">
+                        <code class="text-xs text-gray-500 truncate font-mono bg-gray-100/80 px-1.5 py-0.5 rounded flex-1">${value}</code>
+                        <button onclick="copyToClipboard('${escaped}')" class="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Copy ARN">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </button>
+                    </div>`;
+                };
+            } else if (col.field === 'resource_type') {
+                colDef.formatter = function(cell) {
+                    const value = cell.getValue() || 'N/A';
+                    const colorClass = getTypeBadgeClass(value);
+                    return `<span class="badge ${colorClass}">${value}</span>`;
+                };
+            } else if (col.field === 'region') {
+                colDef.formatter = function(cell) {
+                    const value = cell.getValue() || 'N/A';
+                    return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                        <svg class="w-3 h-3 mr-1 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        ${value}
+                    </span>`;
+                };
+            } else if (col.field === 'tags') {
+                colDef.formatter = function(cell) {
+                    const row = cell.getRow().getData();
+                    const tags = row.tags || {};
+                    const entries = Object.entries(tags);
+                    if (entries.length === 0) return '<span class="text-gray-400 text-xs italic">No tags</span>';
+
+                    let html = '<div class="flex flex-wrap gap-1">';
+                    entries.slice(0, 3).forEach(([key, val]) => {
+                        const k = key.length > 8 ? key.substring(0, 8) + '…' : key;
+                        const v = String(val).length > 10 ? String(val).substring(0, 10) + '…' : val;
+                        html += `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200" title="${key}=${val}">
+                            <span class="font-medium">${k}:</span><span class="ml-0.5">${v}</span>
+                        </span>`;
+                    });
+                    if (entries.length > 3) {
+                        html += `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500">+${entries.length - 3}</span>`;
+                    }
+                    html += '</div>';
+                    return html;
+                };
+            } else if (col.field.startsWith('tag:')) {
+                const tagKey = col.field.substring(4);
+                colDef.formatter = function(cell) {
+                    const row = cell.getRow().getData();
+                    const tags = row.tags || {};
+                    const value = tags[tagKey];
+                    if (!value) return '<span class="text-gray-300">—</span>';
+                    const display = String(value).length > 20 ? String(value).substring(0, 20) + '…' : value;
+                    return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200" title="${value}">${display}</span>`;
+                };
+            }
+
+            columns.push(colDef);
+        });
+
+        return columns;
+    }
+
+    // Get badge class based on resource type
+    function getTypeBadgeClass(type) {
+        if (!type) return 'badge-default';
+        const t = type.toLowerCase();
+        if (t.includes('s3')) return 'badge-s3';
+        if (t.includes('ec2') || t.includes('instance')) return 'badge-ec2';
+        if (t.includes('lambda')) return 'badge-lambda';
+        if (t.includes('iam')) return 'badge-iam';
+        if (t.includes('rds') || t.includes('database')) return 'badge-rds';
+        if (t.includes('dynamodb')) return 'badge-dynamodb';
+        return 'badge-default';
+    }
+
     function renderTable() {
         const data = Alpine.$data(document.querySelector('[x-data]'));
         const target = document.getElementById('resource-table');
 
         if (!data.resourceData || !data.resourceData.resources || data.resourceData.resources.length === 0) {
+            if (resourceTable) {
+                resourceTable.destroy();
+                resourceTable = null;
+            }
             target.innerHTML = `
-                <div class="p-8 text-center text-gray-500">
-                    <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                <div class="p-12 text-center text-gray-500">
+                    <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                     </svg>
-                    <p class="mt-2 font-medium">No resources found</p>
-                    <p class="text-sm text-gray-400">Try adjusting your search or filter criteria</p>
+                    <p class="mt-4 text-lg font-medium">No resources found</p>
+                    <p class="mt-1 text-sm text-gray-400">Try adjusting your search or filter criteria</p>
                 </div>
             `;
             return;
         }
 
-        const visibleCols = data.visibleColumns;
-        const totalWidth = visibleCols.reduce((sum, col) => sum + (col.width || 150), 0);
+        // Clear container for Tabulator
+        target.innerHTML = '';
 
-        // Calculate total width from visible columns
-        const tableWidth = visibleCols.reduce((sum, col) => sum + (col.width || 150), 0);
+        const columns = buildColumns();
 
-        let html = `
-            <div class="resizable-table-container overflow-x-auto overflow-y-auto max-h-[600px]">
-                <table class="resizable-table divide-y divide-gray-200" style="width: ${tableWidth}px; table-layout: fixed;">
-                    <thead class="bg-gradient-to-b from-gray-50 to-gray-100 sticky top-0 z-10">
-                        <tr>
-        `;
-
-        visibleCols.forEach((col, index) => {
-            const isSorted = data.sortBy === col.field;
-            const width = col.width || 150;
-            const isLast = index === visibleCols.length - 1;
-
-            let sortIndicator = '';
-            if (isSorted) {
-                if (data.sortOrder === 'asc') {
-                    sortIndicator = `
-                        <span class="sort-indicator ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600">
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/>
-                            </svg>
-                        </span>`;
-                } else {
-                    sortIndicator = `
-                        <span class="sort-indicator ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600">
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </span>`;
-                }
-            } else {
-                sortIndicator = `
-                    <span class="sort-indicator-hover ml-1.5 opacity-0 group-hover:opacity-50 inline-flex items-center justify-center w-5 h-5 rounded text-gray-400">
-                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
-                        </svg>
-                    </span>`;
+        // Add row selection column at the beginning
+        const selectColumn = {
+            formatter: "rowSelection",
+            titleFormatter: "rowSelection",
+            hozAlign: "center",
+            headerSort: false,
+            width: 50,
+            minWidth: 50,
+            maxWidth: 50,
+            frozen: true,
+            resizable: false,
+            cellClick: function(e, cell) {
+                cell.getRow().toggleSelect();
             }
+        };
 
-            html += `
-                <th class="resizable-th group relative select-none ${isSorted ? 'bg-blue-50/50' : ''}"
-                    style="width: ${width}px; min-width: 80px; max-width: 600px;"
-                    data-field="${col.field}">
-                    <div class="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-100/80 transition-colors"
-                         onclick="sortByColumn('${col.field}')">
-                        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider truncate">
-                            ${col.label}
-                        </span>
-                        ${sortIndicator}
-                    </div>
-                    ${!isLast ? `
-                    <div class="resize-handle absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500 transition-colors z-20"
-                         onmousedown="startResize(event, '${col.field}')"
-                         title="Drag to resize">
-                        <div class="absolute inset-y-0 -right-1 w-3"></div>
-                    </div>
-                    ` : ''}
-                </th>
-            `;
-        });
+        // Create or update Tabulator
+        resourceTable = new Tabulator(target, {
+            data: data.resourceData.resources,
+            columns: [selectColumn, ...columns],
+            layout: "fitColumns",
+            height: "calc(100vh - 380px)",
+            movableColumns: true,
+            resizableColumns: true,
+            placeholder: "No resources to display",
+            initialSort: [{ column: data.sortBy, dir: data.sortOrder }],
+            selectableRows: true,
+            selectableRowsRangeMode: "click",
 
-        html += `
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-        `;
+            // Row selection changed
+            rowSelectionChanged: function(data, rows) {
+                const alpineData = Alpine.$data(document.querySelector('[x-data]'));
+                alpineData.updateSelectedResources(data);
+            },
 
-        data.resourceData.resources.forEach((r, rowIndex) => {
-            const rowClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30';
-            html += `<tr class="${rowClass} hover:bg-blue-50/50 transition-colors duration-75">`;
+            // Column events
+            columnMoved: function(column, columns) {
+                // Update Alpine column order when user drags columns
+                // Filter out the selection column
+                const newOrder = columns.filter(c => c.getField()).map(c => c.getField());
+                reorderAlpineColumns(newOrder);
+            },
 
-            visibleCols.forEach(col => {
-                const width = col.width || 150;
-                let value = r[col.field] || '';
-                const escapedValue = String(value).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            columnResized: function(column) {
+                // Update Alpine column width
+                const field = column.getField();
+                if (!field) return;  // Skip selection column
+                const width = column.getWidth();
+                const alpineData = Alpine.$data(document.querySelector('[x-data]'));
+                alpineData.setColumnWidth(field, width);
+            },
 
-                if (col.field === 'name') {
-                    html += `
-                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
-                                    <span class="text-white text-xs font-bold">${(value || 'N').charAt(0).toUpperCase()}</span>
-                                </div>
-                                <div class="ml-3 overflow-hidden">
-                                    <div class="text-sm font-medium text-gray-900 truncate" title="${escapedValue}">${value || 'N/A'}</div>
-                                </div>
-                            </div>
-                        </td>
-                    `;
-                } else if (col.field === 'arn') {
-                    // Escape for JS string in onclick
-                    const jsEscaped = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                    html += `
-                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
-                            <div class="flex items-center space-x-2">
-                                <code class="text-xs text-gray-500 truncate font-mono bg-gray-100 px-2 py-1 rounded flex-1" title="${escapedValue}">${value || 'N/A'}</code>
-                                <button onclick="copyToClipboard('${jsEscaped}')" class="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors" title="Copy ARN">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                } else if (col.field === 'resource_type') {
-                    const typeColor = getTypeColor(value);
-                    html += `
-                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${typeColor} truncate" title="${escapedValue}">
-                                ${value || 'N/A'}
-                            </span>
-                        </td>
-                    `;
-                } else if (col.field === 'region') {
-                    html += `
-                        <td class="resizable-td px-4 py-3" style="width: ${width}px;">
-                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                                <svg class="w-3 h-3 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                ${value || 'N/A'}
-                            </span>
-                        </td>
-                    `;
-                } else if (col.field === 'tags') {
-                    const tags = r.tags || {};
-                    const tagEntries = Object.entries(tags);
-                    if (tagEntries.length === 0) {
-                        html += `<td class="resizable-td px-4 py-3 text-sm text-gray-300" style="width: ${width}px;"><em>No tags</em></td>`;
-                    } else {
-                        html += `<td class="resizable-td px-4 py-3" style="width: ${width}px;"><div class="flex flex-wrap gap-1">`;
-                        tagEntries.slice(0, 3).forEach(([key, val]) => {
-                            const valStr = String(val || '');
-                            const keyStr = String(key || '');
-                            const displayVal = valStr.length > 12 ? valStr.substring(0, 12) + '...' : valStr;
-                            const displayKey = keyStr.length > 8 ? keyStr.substring(0, 8) + '...' : keyStr;
-                            const escapedTitle = (keyStr + '=' + valStr).replace(/"/g, '&quot;');
-                            html += `
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200" title="${escapedTitle}">
-                                    <span class="font-medium text-emerald-600">${displayKey}:</span>
-                                    <span class="ml-0.5">${displayVal}</span>
-                                </span>
-                            `;
-                        });
-                        if (tagEntries.length > 3) {
-                            html += `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500">+${tagEntries.length - 3}</span>`;
-                        }
-                        html += `</div></td>`;
-                    }
-                } else if (col.field.startsWith('tag:')) {
-                    const tagKey = col.field.substring(4);
-                    const tags = r.tags || {};
-                    const tagValue = String(tags[tagKey] || '');
-                    if (tagValue) {
-                        const displayVal = tagValue.length > 20 ? tagValue.substring(0, 20) + '...' : tagValue;
-                        const escapedTagValue = tagValue.replace(/"/g, '&quot;');
-                        html += `
-                            <td class="resizable-td px-4 py-3" style="width: ${width}px;">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 truncate" title="${escapedTagValue}">
-                                    ${displayVal}
-                                </span>
-                            </td>
-                        `;
-                    } else {
-                        html += `<td class="resizable-td px-4 py-3 text-sm text-gray-300" style="width: ${width}px;">-</td>`;
-                    }
-                } else {
-                    html += `<td class="resizable-td px-4 py-3 text-sm text-gray-600 truncate" style="width: ${width}px;" title="${escapedValue}">${value || 'N/A'}</td>`;
+            // Sorting
+            dataSorted: function(sorters, rows) {
+                if (sorters.length > 0) {
+                    const alpineData = Alpine.$data(document.querySelector('[x-data]'));
+                    alpineData.sortBy = sorters[0].field;
+                    alpineData.sortOrder = sorters[0].dir;
                 }
-            });
-            html += '</tr>';
+            }
         });
 
-        html += `
-                    </tbody>
-                </table>
+        // Make table globally accessible
+        window.resourceTable = resourceTable;
+
+        // Add footer with count
+        const footer = document.createElement('div');
+        footer.className = 'bg-gradient-to-r from-slate-50 to-slate-100 px-4 py-3 flex items-center justify-between border-t border-slate-200 rounded-b-xl';
+        footer.innerHTML = `
+            <div class="flex items-center gap-4">
+                <p class="text-sm text-slate-600">
+                    Showing <span class="font-semibold text-slate-900">${data.resourceData.resources.length}</span>
+                    of <span class="font-semibold text-slate-900">${data.resourceData.count}</span> resources
+                </p>
             </div>
-            <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 flex items-center justify-between border-t border-gray-200">
-                <div class="flex items-center space-x-4">
-                    <p class="text-sm text-gray-600">
-                        Showing <span class="font-semibold text-gray-900">${data.resourceData.resources.length}</span>
-                        of <span class="font-semibold text-gray-900">${data.resourceData.count}</span> resources
-                    </p>
-                </div>
-                <div class="flex items-center space-x-2 text-xs text-gray-400">
+            <div class="flex items-center gap-3 text-xs text-slate-400">
+                <span class="flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Click to select
+                </span>
+                <span>•</span>
+                <span class="flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
                     </svg>
-                    <span>Click headers to sort</span>
-                    <span class="mx-2">|</span>
+                    Click headers to sort
+                </span>
+                <span>•</span>
+                <span class="flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
                     </svg>
-                    <span>Drag borders to resize</span>
-                </div>
+                    Drag to resize
+                </span>
             </div>
         `;
-
-        target.innerHTML = html;
+        target.appendChild(footer);
     }
 
-    // Get color scheme based on resource type
-    function getTypeColor(type) {
-        if (!type) return 'bg-gray-100 text-gray-700';
-        const t = type.toLowerCase();
-        if (t.includes('s3')) return 'bg-green-100 text-green-700 border border-green-200';
-        if (t.includes('ec2') || t.includes('instance')) return 'bg-orange-100 text-orange-700 border border-orange-200';
-        if (t.includes('lambda')) return 'bg-amber-100 text-amber-700 border border-amber-200';
-        if (t.includes('rds') || t.includes('database')) return 'bg-blue-100 text-blue-700 border border-blue-200';
-        if (t.includes('iam')) return 'bg-red-100 text-red-700 border border-red-200';
-        if (t.includes('vpc') || t.includes('subnet') || t.includes('security')) return 'bg-purple-100 text-purple-700 border border-purple-200';
-        if (t.includes('sqs') || t.includes('sns')) return 'bg-pink-100 text-pink-700 border border-pink-200';
-        if (t.includes('cloudwatch') || t.includes('logs')) return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
-        if (t.includes('dynamodb')) return 'bg-indigo-100 text-indigo-700 border border-indigo-200';
-        return 'bg-gray-100 text-gray-700 border border-gray-200';
+    // Reorder Alpine columns to match Tabulator drag order
+    function reorderAlpineColumns(newOrder) {
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+
+        // Create new ordered arrays
+        const newBaseColumns = [];
+        const newTagColumns = [];
+
+        newOrder.forEach(field => {
+            const baseCol = data.baseColumns.find(c => c.field === field);
+            if (baseCol) {
+                newBaseColumns.push(baseCol);
+            } else {
+                const tagCol = data.tagColumns.find(c => c.field === field);
+                if (tagCol) newTagColumns.push(tagCol);
+            }
+        });
+
+        // Add non-visible columns at the end
+        data.baseColumns.forEach(col => {
+            if (!col.visible && !newBaseColumns.find(c => c.field === col.field)) {
+                newBaseColumns.push(col);
+            }
+        });
+        data.tagColumns.forEach(col => {
+            if (!col.visible && !newTagColumns.find(c => c.field === col.field)) {
+                newTagColumns.push(col);
+            }
+        });
+
+        data.baseColumns = newBaseColumns;
+        data.tagColumns = newTagColumns;
+    }
+
+    // Rebuild table when columns change (from modal)
+    function rebuildTable() {
+        searchResources();
     }
 
     // Copy to clipboard helper
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
-            // Show brief feedback (you could enhance this with a toast)
-            console.log('Copied to clipboard:', text);
+            // Brief toast feedback would go here
         });
-    }
-
-    // Column resize functions
-    let resizeState = {
-        isResizing: false,
-        currentField: null,
-        startX: 0,
-        startWidth: 0,
-        th: null
-    };
-
-    function startResize(event, field) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        const th = event.target.closest('th');
-        resizeState.isResizing = true;
-        resizeState.currentField = field;
-        resizeState.startX = event.pageX;
-        resizeState.startWidth = th.offsetWidth;
-        resizeState.th = th;
-
-        // Add visual feedback
-        document.body.style.cursor = 'col-resize';
-        document.body.classList.add('select-none');
-        th.classList.add('resizing');
-
-        // Create overlay to capture all mouse events
-        const overlay = document.createElement('div');
-        overlay.id = 'resize-overlay';
-        overlay.style.cssText = 'position: fixed; inset: 0; z-index: 9999; cursor: col-resize;';
-        document.body.appendChild(overlay);
-
-        document.addEventListener('mousemove', handleResize);
-        document.addEventListener('mouseup', stopResize);
-    }
-
-    function handleResize(event) {
-        if (!resizeState.isResizing) return;
-
-        const diff = event.pageX - resizeState.startX;
-        const newWidth = Math.max(80, Math.min(600, resizeState.startWidth + diff));
-
-        // Update visual width immediately
-        resizeState.th.style.width = newWidth + 'px';
-
-        // Update corresponding td cells
-        const table = resizeState.th.closest('table');
-        const colIndex = Array.from(resizeState.th.parentNode.children).indexOf(resizeState.th);
-        table.querySelectorAll('tbody tr').forEach(row => {
-            const td = row.children[colIndex];
-            if (td) td.style.width = newWidth + 'px';
-        });
-    }
-
-    function stopResize(event) {
-        if (!resizeState.isResizing) return;
-
-        const finalWidth = resizeState.th.offsetWidth;
-
-        // Update Alpine data
-        const data = Alpine.$data(document.querySelector('[x-data]'));
-        data.setColumnWidth(resizeState.currentField, finalWidth);
-
-        // Clean up
-        document.body.style.cursor = '';
-        document.body.classList.remove('select-none');
-        resizeState.th.classList.remove('resizing');
-
-        const overlay = document.getElementById('resize-overlay');
-        if (overlay) overlay.remove();
-
-        document.removeEventListener('mousemove', handleResize);
-        document.removeEventListener('mouseup', stopResize);
-
-        resizeState.isResizing = false;
-        resizeState.currentField = null;
-        resizeState.th = null;
-    }
-
-    function sortByColumn(field) {
-        const data = Alpine.$data(document.querySelector('[x-data]'));
-        data.setSort(field);
-        renderTable();
     }
 
     function renderSavedViewsChips(views, target) {
@@ -1596,7 +2031,7 @@
         views.forEach(v => {
             html += `
                 <button onclick="loadView(${v.id})"
-                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 transition-colors group">
+                        class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-purple-100 to-purple-50 text-purple-800 hover:from-purple-200 hover:to-purple-100 transition-all shadow-sm group">
                     ${v.is_default ? '<svg class="w-3 h-3 mr-1 text-purple-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>' : ''}
                     ${v.name}
                     <span onclick="event.stopPropagation(); deleteView(${v.id})" class="ml-1.5 opacity-0 group-hover:opacity-100 text-purple-600 hover:text-purple-900">
@@ -1608,10 +2043,8 @@
         target.innerHTML = html;
     }
 
-    // Count conditions in a filter config (handles both old and new format)
     function countFilterConditions(config) {
         if (config.version === 2 || config.items) {
-            // New nested format
             function countInGroup(group) {
                 let count = 0;
                 for (const item of group.items || []) {
@@ -1622,7 +2055,6 @@
             }
             return countInGroup(config);
         } else if (config.conditions) {
-            // Old flat format
             return config.conditions.length;
         }
         return 0;
@@ -1642,12 +2074,12 @@
 
             html += `
                 <button onclick="loadFilter(${f.id}, ${JSON.stringify(config).replace(/"/g, '&quot;')})"
-                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${isAdvanced ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'} transition-colors group"
+                        class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${isAdvanced ? 'bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-800 hover:from-emerald-200 hover:to-emerald-100' : 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 hover:from-blue-200 hover:to-blue-100'} transition-all shadow-sm group"
                         title="${isAdvanced ? (config.logic || 'AND') + ' - ' + conditionCount + ' condition(s)' : 'Simple filter'}">
                     ${isAdvanced ? '<svg class="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>' : ''}
                     ${f.name}
                     ${isAdvanced ? '<span class="ml-1 text-xs opacity-75">(' + conditionCount + ')</span>' : ''}
-                    <span onclick="event.stopPropagation(); deleteFilter(${f.id})" class="ml-1.5 opacity-0 group-hover:opacity-100 ${isAdvanced ? 'text-green-600 hover:text-green-900' : 'text-blue-600 hover:text-blue-900'}">
+                    <span onclick="event.stopPropagation(); deleteFilter(${f.id})" class="ml-1.5 opacity-0 group-hover:opacity-100 ${isAdvanced ? 'text-emerald-600 hover:text-emerald-900' : 'text-blue-600 hover:text-blue-900'}">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </span>
                 </button>
@@ -1664,22 +2096,22 @@
                 const config = view.view_config;
 
                 if (config.columns) {
-                    // Update base columns
                     data.baseColumns.forEach(col => {
                         const saved = config.columns.find(c => c.field === col.field);
                         if (saved) {
                             col.visible = saved.visible;
                             if (saved.width) col.width = saved.width;
+                            if (saved.frozen !== undefined) col.frozen = saved.frozen;
                         } else {
                             col.visible = false;
                         }
                     });
-                    // Update tag columns
                     data.tagColumns.forEach(col => {
                         const saved = config.columns.find(c => c.field === col.field);
                         if (saved) {
                             col.visible = saved.visible;
                             if (saved.width) col.width = saved.width;
+                            if (saved.frozen !== undefined) col.frozen = saved.frozen;
                         } else {
                             col.visible = false;
                         }
@@ -1688,10 +2120,7 @@
 
                 if (config.sort_by) data.sortBy = config.sort_by;
                 if (config.sort_order) data.sortOrder = config.sort_order;
-
-                if (config.filters) {
-                    data.loadFilterConfig(config.filters);
-                }
+                if (config.filters) data.loadFilterConfig(config.filters);
 
                 data.currentViewId = id;
                 fetch(`/api/views/${id}/use`, { method: 'POST' });
@@ -1741,7 +2170,8 @@
                         field: c.field,
                         label: c.label,
                         visible: c.visible,
-                        width: c.width || 150
+                        width: c.width || 150,
+                        frozen: c.frozen || false
                     })),
                     sort_by: data.sortBy,
                     sort_order: data.sortOrder,
@@ -1772,10 +2202,8 @@
 
     function exportCSV() {
         const data = Alpine.$data(document.querySelector('[x-data]'));
-
         const params = new URLSearchParams();
         if (data.search) params.append('q', data.search);
-        // Export uses first selected type/region if any (API limitation)
         if (data.selectedTypes.length === 1) params.append('type', data.selectedTypes[0]);
         if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
         if (data.snapshot) params.append('snapshot', data.snapshot);
@@ -1790,10 +2218,8 @@
 
     function exportYAML() {
         const data = Alpine.$data(document.querySelector('[x-data]'));
-
         const params = new URLSearchParams();
         if (data.search) params.append('q', data.search);
-        // Export uses first selected type/region if any (API limitation)
         if (data.selectedTypes.length === 1) params.append('type', data.selectedTypes[0]);
         if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
         if (data.snapshot) params.append('snapshot', data.snapshot);
@@ -1803,14 +2229,12 @@
         window.location.href = '/api/resources/export/yaml?' + params.toString();
     }
 
-    // Load available tag keys on page load (global to inventory, not snapshot-specific)
     function loadTagKeys() {
         fetch('/api/resources/tags/keys')
             .then(r => r.json())
             .then(result => {
                 const data = Alpine.$data(document.querySelector('[x-data]'));
                 data.availableTagKeys = result.keys || [];
-                // Initialize tag columns after loading tag keys
                 data.initTagColumns();
             });
     }

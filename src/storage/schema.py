@@ -149,6 +149,29 @@ CREATE TABLE IF NOT EXISTS saved_views (
     last_used_at TIMESTAMP,
     use_count INTEGER DEFAULT 0
 );
+
+-- Resource groups table (for baseline comparison)
+CREATE TABLE IF NOT EXISTS resource_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    source_snapshot TEXT,
+    resource_count INTEGER DEFAULT 0,
+    is_favorite BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP NOT NULL,
+    last_updated TIMESTAMP NOT NULL
+);
+
+-- Resource group members table (normalized for efficient querying)
+CREATE TABLE IF NOT EXISTS resource_group_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    resource_name TEXT NOT NULL,
+    resource_type TEXT NOT NULL,
+    original_arn TEXT,
+    FOREIGN KEY (group_id) REFERENCES resource_groups(id) ON DELETE CASCADE,
+    UNIQUE (group_id, resource_name, resource_type)
+);
 """
 
 # Indexes for common queries (created separately for better error handling)
@@ -204,6 +227,15 @@ CREATE INDEX IF NOT EXISTS idx_filters_last_used ON saved_filters(last_used_at D
 CREATE INDEX IF NOT EXISTS idx_views_default ON saved_views(is_default);
 CREATE INDEX IF NOT EXISTS idx_views_favorite ON saved_views(is_favorite);
 CREATE INDEX IF NOT EXISTS idx_views_last_used ON saved_views(last_used_at DESC);
+
+-- Resource groups indexes
+CREATE INDEX IF NOT EXISTS idx_groups_name ON resource_groups(name);
+CREATE INDEX IF NOT EXISTS idx_groups_favorite ON resource_groups(is_favorite);
+CREATE INDEX IF NOT EXISTS idx_groups_created ON resource_groups(created_at DESC);
+
+-- Resource group members indexes
+CREATE INDEX IF NOT EXISTS idx_group_members_group ON resource_group_members(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_members_name_type ON resource_group_members(resource_name, resource_type);
 """
 
 

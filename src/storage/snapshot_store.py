@@ -241,6 +241,34 @@ class SnapshotStore:
         row = self.db.fetchone("SELECT 1 FROM snapshots WHERE name = ?", (name,))
         return row is not None
 
+    def rename(self, old_name: str, new_name: str) -> bool:
+        """Rename a snapshot.
+
+        Args:
+            old_name: Current snapshot name
+            new_name: New snapshot name
+
+        Returns:
+            True if renamed, False if old_name not found
+
+        Raises:
+            ValueError: If new_name already exists
+        """
+        if not self.exists(old_name):
+            return False
+
+        if self.exists(new_name):
+            raise ValueError(f"Snapshot '{new_name}' already exists")
+
+        with self.db.transaction() as cursor:
+            cursor.execute(
+                "UPDATE snapshots SET name = ? WHERE name = ?",
+                (new_name, old_name),
+            )
+
+        logger.debug(f"Renamed snapshot '{old_name}' to '{new_name}'")
+        return True
+
     def get_active(self) -> Optional[str]:
         """Get name of active snapshot.
 

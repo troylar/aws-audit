@@ -270,6 +270,66 @@ class SnapshotStorage:
         filepath = self.storage_dir / f"{snapshot_name}.yaml"
         return filepath_gz.exists() or filepath.exists()
 
+    def exists(self, snapshot_name: str) -> bool:
+        """Alias for snapshot_exists for consistency.
+
+        Args:
+            snapshot_name: Name of snapshot
+
+        Returns:
+            True if snapshot exists
+        """
+        return self.snapshot_exists(snapshot_name)
+
+    def rename_snapshot(self, old_name: str, new_name: str) -> bool:
+        """Rename a snapshot.
+
+        Args:
+            old_name: Current snapshot name
+            new_name: New snapshot name
+
+        Returns:
+            True if renamed successfully
+
+        Raises:
+            FileNotFoundError: If old_name doesn't exist
+            ValueError: If new_name already exists
+        """
+        if not self.snapshot_exists(old_name):
+            raise FileNotFoundError(f"Snapshot '{old_name}' not found")
+
+        if self.snapshot_exists(new_name):
+            raise ValueError(f"Snapshot '{new_name}' already exists")
+
+        # Rename in SQLite
+        if self._store.exists(old_name):
+            self._store.rename(old_name, new_name)
+
+            # Update active snapshot reference if needed
+            if self.get_active_snapshot_name() == old_name:
+                self._store.set_active(new_name)
+                self.active_file.write_text(new_name)
+
+            logger.debug(f"Renamed snapshot '{old_name}' to '{new_name}' in SQLite")
+            return True
+
+        # Handle YAML files (legacy)
+        renamed = False
+        for ext in [".yaml.gz", ".yaml"]:
+            old_path = self.storage_dir / f"{old_name}{ext}"
+            new_path = self.storage_dir / f"{new_name}{ext}"
+            if old_path.exists():
+                old_path.rename(new_path)
+                renamed = True
+                logger.debug(f"Renamed {old_path} to {new_path}")
+                break
+
+        # Update active if needed
+        if renamed and self.get_active_snapshot_name() == old_name:
+            self.active_file.write_text(new_name)
+
+        return renamed
+
     # Legacy index methods (kept for backward compatibility)
     def _update_index(self, snapshot: Snapshot) -> None:
         """Update the snapshot index file (no-op for SQLite)."""

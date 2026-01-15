@@ -1318,6 +1318,40 @@ def snapshot_delete(
         raise typer.Exit(code=1)
 
 
+@snapshot_app.command("rename")
+def snapshot_rename(
+    old_name: str = typer.Argument(..., help="Current snapshot name"),
+    new_name: str = typer.Argument(..., help="New snapshot name"),
+    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+):
+    """Rename a snapshot.
+
+    Example:
+        awsinv snapshot rename old-snapshot-name new-snapshot-name
+    """
+    try:
+        storage = SnapshotStorage(config.storage_path)
+
+        # Check if source exists
+        if not storage.exists(old_name):
+            console.print(f"✗ Snapshot '{old_name}' not found", style="bold red")
+            raise typer.Exit(code=1)
+
+        # Check if target already exists
+        if storage.exists(new_name):
+            console.print(f"✗ Snapshot '{new_name}' already exists", style="bold red")
+            raise typer.Exit(code=1)
+
+        # Rename
+        storage.rename_snapshot(old_name, new_name)
+
+        console.print(f"✓ Renamed snapshot [bold]{old_name}[/bold] to [bold]{new_name}[/bold]", style="green")
+
+    except Exception as e:
+        console.print(f"✗ Error renaming snapshot: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
 @snapshot_app.command("report")
 def snapshot_report(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
@@ -3035,6 +3069,486 @@ def query_diff(
 
 
 app.add_typer(query_app, name="query")
+
+
+# =============================================================================
+# Group Commands
+# =============================================================================
+
+group_app = typer.Typer(help="Manage resource groups for baseline comparison")
+
+
+@group_app.command("create")
+def group_create(
+    name: str = typer.Argument(..., help="Name for the new group"),
+    from_snapshot: Optional[str] = typer.Option(
+        None, "--from-snapshot", "-s", help="Create group from resources in this snapshot"
+    ),
+    description: str = typer.Option("", "--description", "-d", help="Group description"),
+    type_filter: Optional[str] = typer.Option(
+        None, "--type", "-t", help="Filter by resource type when creating from snapshot"
+    ),
+    region_filter: Optional[str] = typer.Option(
+        None, "--region", "-r", help="Filter by region when creating from snapshot"
+    ),
+):
+    """Create a new resource group.
+
+    Groups define a set of resources (by name + type) that should exist in every account.
+    Use --from-snapshot to populate the group from an existing snapshot.
+
+    Examples:
+        # Create empty group
+        awsinv group create baseline --description "Production baseline resources"
+
+        # Create from snapshot
+        awsinv group create baseline --from-snapshot "empty-account-2026-01"
+
+        # Create with filters
+        awsinv group create iam-baseline --from-snapshot snap1 --type iam
+    """
+    from ..storage import Database, GroupStore
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        if store.exists(name):
+            console.print(f"[red]Error: Group '{name}' already exists[/red]")
+            raise typer.Exit(code=1)
+
+        if from_snapshot:
+            # Create from snapshot
+            count = store.create_from_snapshot(
+                group_name=name,
+                snapshot_name=from_snapshot,
+                description=description,
+                type_filter=type_filter,
+                region_filter=region_filter,
+            )
+            console.print(f"[green]✓ Created group '{name}' with {count} resources from snapshot '{from_snapshot}'[/green]")
+        else:
+            # Create empty group
+            from ..models.group import ResourceGroup
+
+            group = ResourceGroup(name=name, description=description)
+            store.save(group)
+            console.print(f"[green]✓ Created empty group '{name}'[/green]")
+
+    except ValueError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Group creation failed")
+        raise typer.Exit(code=1)
+
+
+@group_app.command("list")
+def group_list(
+    format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+):
+    """List all resource groups.
+
+    Examples:
+        awsinv group list
+        awsinv group list --format json
+    """
+    from ..storage import Database, GroupStore
+    import json
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        groups = store.list_all()
+
+        if not groups:
+            console.print("[yellow]No groups found. Create one with 'awsinv group create'[/yellow]")
+            return
+
+        if format == "json":
+            console.print(json.dumps(groups, indent=2, default=str))
+        else:
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("Name", style="cyan")
+            table.add_column("Description")
+            table.add_column("Resources", justify="right")
+            table.add_column("Source Snapshot")
+            table.add_column("Favorite", justify="center")
+
+            for g in groups:
+                table.add_row(
+                    g["name"],
+                    g["description"][:40] + "..." if len(g["description"]) > 40 else g["description"],
+                    str(g["resource_count"]),
+                    g["source_snapshot"] or "-",
+                    "★" if g["is_favorite"] else "",
+                )
+
+            console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Failed to list groups")
+        raise typer.Exit(code=1)
+
+
+@group_app.command("show")
+def group_show(
+    name: str = typer.Argument(..., help="Group name"),
+    limit: int = typer.Option(50, "--limit", "-l", help="Maximum members to display"),
+):
+    """Show details of a resource group including its members.
+
+    Examples:
+        awsinv group show baseline
+        awsinv group show baseline --limit 100
+    """
+    from ..storage import Database, GroupStore
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        group = store.load(name)
+        if not group:
+            console.print(f"[red]Error: Group '{name}' not found[/red]")
+            raise typer.Exit(code=1)
+
+        # Show group info
+        console.print(
+            Panel(
+                f"[bold]{group.name}[/bold]\n\n"
+                f"[dim]Description:[/dim] {group.description or '(none)'}\n"
+                f"[dim]Source Snapshot:[/dim] {group.source_snapshot or '(none)'}\n"
+                f"[dim]Resource Count:[/dim] {group.resource_count}\n"
+                f"[dim]Created:[/dim] {group.created_at}\n"
+                f"[dim]Last Updated:[/dim] {group.last_updated}",
+                title="Group Details",
+                border_style="blue",
+            )
+        )
+
+        # Show members
+        if group.members:
+            console.print(f"\n[bold]Members[/bold] (showing first {min(limit, len(group.members))} of {len(group.members)}):")
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("Resource Name", style="cyan")
+            table.add_column("Type")
+            table.add_column("Original ARN", style="dim")
+
+            for member in group.members[:limit]:
+                table.add_row(
+                    member.resource_name,
+                    member.resource_type,
+                    member.original_arn[:60] + "..." if member.original_arn and len(member.original_arn) > 60 else (member.original_arn or "-"),
+                )
+
+            console.print(table)
+        else:
+            console.print("\n[yellow]Group has no members[/yellow]")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Failed to show group")
+        raise typer.Exit(code=1)
+
+
+@group_app.command("delete")
+def group_delete(
+    name: str = typer.Argument(..., help="Group name to delete"),
+    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+):
+    """Delete a resource group.
+
+    Examples:
+        awsinv group delete baseline
+        awsinv group delete baseline --yes
+    """
+    from ..storage import Database, GroupStore
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        if not store.exists(name):
+            console.print(f"[red]Error: Group '{name}' not found[/red]")
+            raise typer.Exit(code=1)
+
+        if not confirm:
+            confirm_input = typer.confirm(f"Are you sure you want to delete group '{name}'?")
+            if not confirm_input:
+                console.print("[yellow]Cancelled[/yellow]")
+                raise typer.Exit(code=0)
+
+        store.delete(name)
+        console.print(f"[green]✓ Deleted group '{name}'[/green]")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Failed to delete group")
+        raise typer.Exit(code=1)
+
+
+@group_app.command("compare")
+def group_compare(
+    name: str = typer.Argument(..., help="Group name"),
+    snapshot: str = typer.Option(..., "--snapshot", "-s", help="Snapshot to compare against"),
+    format: str = typer.Option("summary", "--format", "-f", help="Output format: summary, table, json"),
+    show_details: bool = typer.Option(False, "--details", "-d", help="Show individual resource details"),
+):
+    """Compare a snapshot against a resource group.
+
+    Shows which resources from the group are present in the snapshot,
+    which are missing, and which resources in the snapshot are not in the group.
+
+    Examples:
+        awsinv group compare baseline --snapshot prod-account-2026-01
+        awsinv group compare baseline -s prod-account --format json
+        awsinv group compare baseline -s prod-account --details
+    """
+    from ..storage import Database, GroupStore
+    import json
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        result = store.compare_snapshot(name, snapshot)
+
+        if format == "json":
+            console.print(json.dumps(result, indent=2, default=str))
+            return
+
+        # Summary output
+        console.print(
+            Panel(
+                f"[bold]Comparing snapshot '{snapshot}' against group '{name}'[/bold]\n\n"
+                f"[dim]Total in group:[/dim] {result['total_in_group']}\n"
+                f"[dim]Total in snapshot:[/dim] {result['total_in_snapshot']}\n\n"
+                f"[green]✓ Matched:[/green] {result['matched']}\n"
+                f"[red]✗ Missing from snapshot:[/red] {result['missing_from_snapshot']}\n"
+                f"[yellow]+ Not in group:[/yellow] {result['not_in_group']}",
+                title="Comparison Results",
+                border_style="blue",
+            )
+        )
+
+        if show_details or format == "table":
+            # Show missing resources
+            if result["resources"]["missing"]:
+                console.print("\n[red bold]Missing from snapshot:[/red bold]")
+                table = Table(show_header=True, header_style="bold red")
+                table.add_column("Resource Name")
+                table.add_column("Type")
+                for r in result["resources"]["missing"][:25]:
+                    table.add_row(r["name"], r["resource_type"])
+                console.print(table)
+                if len(result["resources"]["missing"]) > 25:
+                    console.print(f"[dim]... and {len(result['resources']['missing']) - 25} more[/dim]")
+
+            # Show extra resources
+            if result["resources"]["extra"]:
+                console.print("\n[yellow bold]Not in group (extra):[/yellow bold]")
+                table = Table(show_header=True, header_style="bold yellow")
+                table.add_column("Resource Name")
+                table.add_column("Type")
+                table.add_column("ARN", style="dim")
+                for r in result["resources"]["extra"][:25]:
+                    table.add_row(
+                        r["name"],
+                        r["resource_type"],
+                        r["arn"][:50] + "..." if len(r["arn"]) > 50 else r["arn"],
+                    )
+                console.print(table)
+                if len(result["resources"]["extra"]) > 25:
+                    console.print(f"[dim]... and {len(result['resources']['extra']) - 25} more[/dim]")
+
+    except ValueError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Comparison failed")
+        raise typer.Exit(code=1)
+
+
+@group_app.command("add")
+def group_add(
+    name: str = typer.Argument(..., help="Group name"),
+    resource: str = typer.Option(..., "--resource", "-r", help="Resource to add as 'name:type' (e.g., 'my-bucket:s3:bucket')"),
+):
+    """Add a resource to a group manually.
+
+    Resources are specified as 'name:type' where type is the AWS resource type.
+
+    Examples:
+        awsinv group add baseline --resource "my-bucket:s3:bucket"
+        awsinv group add iam-baseline --resource "AdminRole:iam:role"
+    """
+    from ..storage import Database, GroupStore
+    from ..models.group import GroupMember
+
+    setup_logging()
+
+    try:
+        # Parse resource string
+        parts = resource.split(":", 1)
+        if len(parts) != 2:
+            console.print("[red]Error: Resource must be specified as 'name:type' (e.g., 'my-bucket:s3:bucket')[/red]")
+            raise typer.Exit(code=1)
+
+        resource_name, resource_type = parts
+
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        if not store.exists(name):
+            console.print(f"[red]Error: Group '{name}' not found[/red]")
+            raise typer.Exit(code=1)
+
+        member = GroupMember(resource_name=resource_name, resource_type=resource_type)
+        added = store.add_members(name, [member])
+
+        if added > 0:
+            console.print(f"[green]✓ Added '{resource_name}' ({resource_type}) to group '{name}'[/green]")
+        else:
+            console.print(f"[yellow]Resource already exists in group[/yellow]")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Failed to add resource to group")
+        raise typer.Exit(code=1)
+
+
+@group_app.command("remove")
+def group_remove(
+    name: str = typer.Argument(..., help="Group name"),
+    resource: str = typer.Option(..., "--resource", "-r", help="Resource to remove as 'name:type'"),
+):
+    """Remove a resource from a group.
+
+    Examples:
+        awsinv group remove baseline --resource "my-bucket:s3:bucket"
+    """
+    from ..storage import Database, GroupStore
+
+    setup_logging()
+
+    try:
+        # Parse resource string
+        parts = resource.split(":", 1)
+        if len(parts) != 2:
+            console.print("[red]Error: Resource must be specified as 'name:type'[/red]")
+            raise typer.Exit(code=1)
+
+        resource_name, resource_type = parts
+
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        if not store.exists(name):
+            console.print(f"[red]Error: Group '{name}' not found[/red]")
+            raise typer.Exit(code=1)
+
+        removed = store.remove_member(name, resource_name, resource_type)
+
+        if removed:
+            console.print(f"[green]✓ Removed '{resource_name}' ({resource_type}) from group '{name}'[/green]")
+        else:
+            console.print(f"[yellow]Resource not found in group[/yellow]")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Failed to remove resource from group")
+        raise typer.Exit(code=1)
+
+
+@group_app.command("export")
+def group_export(
+    name: str = typer.Argument(..., help="Group name"),
+    format: str = typer.Option("yaml", "--format", "-f", help="Output format: yaml, csv, json"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file (stdout if not specified)"),
+):
+    """Export a group definition.
+
+    Examples:
+        awsinv group export baseline --format yaml
+        awsinv group export baseline --format csv --output baseline.csv
+    """
+    from ..storage import Database, GroupStore
+    import json
+    import yaml
+    import csv
+    import sys
+
+    setup_logging()
+
+    try:
+        db = Database()
+        db.ensure_schema()
+        store = GroupStore(db)
+
+        group = store.load(name)
+        if not group:
+            console.print(f"[red]Error: Group '{name}' not found[/red]")
+            raise typer.Exit(code=1)
+
+        # Prepare output
+        if format == "json":
+            content = json.dumps(group.to_dict(), indent=2, default=str)
+        elif format == "csv":
+            import io
+
+            buffer = io.StringIO()
+            writer = csv.writer(buffer)
+            writer.writerow(["resource_name", "resource_type", "original_arn"])
+            for member in group.members:
+                writer.writerow([member.resource_name, member.resource_type, member.original_arn or ""])
+            content = buffer.getvalue()
+        else:  # yaml
+            content = yaml.dump(group.to_dict(), default_flow_style=False, sort_keys=False)
+
+        if output:
+            with open(output, "w") as f:
+                f.write(content)
+            console.print(f"[green]✓ Exported group '{name}' to {output}[/green]")
+        else:
+            console.print(content)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger.exception("Export failed")
+        raise typer.Exit(code=1)
+
+
+app.add_typer(group_app, name="group")
 
 
 # =============================================================================

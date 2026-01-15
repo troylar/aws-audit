@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from ..dependencies import get_audit_store, get_resource_store, get_snapshot_store
+from ..dependencies import get_audit_store, get_group_store, get_resource_store, get_snapshot_store
 
 router = APIRouter()
 
@@ -174,5 +174,25 @@ async def audit_logs_page(request: Request):
         {
             "request": request,
             "operations": operations,
+        },
+    )
+
+
+@router.get("/groups", response_class=HTMLResponse)
+async def groups_page(request: Request):
+    """Render the resource groups page."""
+    templates = request.app.state.templates
+    group_store = get_group_store()
+    snapshot_store = get_snapshot_store()
+
+    groups = group_store.list_all()
+    snapshots = snapshot_store.list_all()
+
+    return templates.TemplateResponse(
+        "pages/groups.html",
+        {
+            "request": request,
+            "groups": groups,
+            "snapshots": snapshots,
         },
     )

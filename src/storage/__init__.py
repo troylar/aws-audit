@@ -2,6 +2,7 @@
 
 from .audit_store import AuditStore
 from .database import Database, json_deserialize, json_serialize
+from .group_store import GroupStore
 from .inventory_store import InventoryStore
 from .resource_store import ResourceStore
 from .schema import SCHEMA_VERSION
@@ -14,6 +15,7 @@ __all__ = [
     "ResourceStore",
     "InventoryStore",
     "AuditStore",
+    "GroupStore",
     "json_serialize",
     "json_deserialize",
 ]
