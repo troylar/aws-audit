@@ -10,14 +10,17 @@ class GroupMember:
     """A member of a resource group, identified by name and type.
 
     Attributes:
-        resource_name: Resource name (extracted from ARN)
+        resource_name: Resource name (extracted from ARN or logical ID)
         resource_type: Resource type (e.g., s3:bucket, lambda:function)
         original_arn: Original ARN from source snapshot (reference only)
+        match_strategy: How to match this member - 'logical_id' uses CloudFormation
+                       logical-id tag for stable matching, 'physical_name' uses name
     """
 
     resource_name: str
     resource_type: str
     original_arn: Optional[str] = None
+    match_strategy: str = "physical_name"  # 'logical_id' or 'physical_name'
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
@@ -25,6 +28,7 @@ class GroupMember:
             "resource_name": self.resource_name,
             "resource_type": self.resource_type,
             "original_arn": self.original_arn,
+            "match_strategy": self.match_strategy,
         }
 
     @classmethod
@@ -34,6 +38,7 @@ class GroupMember:
             resource_name=data["resource_name"],
             resource_type=data["resource_type"],
             original_arn=data.get("original_arn"),
+            match_strategy=data.get("match_strategy", "physical_name"),
         )
 
 
@@ -119,13 +124,20 @@ class ResourceGroup:
             last_updated=last_updated,
         )
 
-    def add_member(self, resource_name: str, resource_type: str, original_arn: Optional[str] = None) -> bool:
+    def add_member(
+        self,
+        resource_name: str,
+        resource_type: str,
+        original_arn: Optional[str] = None,
+        match_strategy: str = "physical_name",
+    ) -> bool:
         """Add a resource to the group.
 
         Args:
-            resource_name: Resource name
+            resource_name: Resource name (or logical ID if match_strategy is 'logical_id')
             resource_type: Resource type
             original_arn: Optional original ARN
+            match_strategy: 'logical_id' for CloudFormation logical IDs, 'physical_name' for names
 
         Returns:
             True if added, False if already exists
@@ -135,7 +147,7 @@ class ResourceGroup:
             if member.resource_name == resource_name and member.resource_type == resource_type:
                 return False
 
-        self.members.append(GroupMember(resource_name, resource_type, original_arn))
+        self.members.append(GroupMember(resource_name, resource_type, original_arn, match_strategy))
         self.resource_count = len(self.members)
         self.last_updated = datetime.now(timezone.utc)
         return True

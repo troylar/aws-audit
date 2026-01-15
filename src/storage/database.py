@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional
 
 from ..utils.paths import get_snapshot_storage_path
-from .schema import INDEXES_SQL, SCHEMA_SQL, SCHEMA_VERSION
+from .schema import INDEXES_SQL, SCHEMA_SQL, SCHEMA_VERSION, get_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class Database:
         return self._connection
 
     def ensure_schema(self) -> None:
-        """Create database schema if not exists."""
+        """Create database schema if not exists and run migrations."""
         if self._initialized:
             return
 
@@ -76,11 +76,18 @@ class Database:
         cursor = conn.cursor()
 
         try:
+            # Get current schema version before creating tables
+            current_version = self._get_raw_schema_version(cursor)
+
             # Create tables
             cursor.executescript(SCHEMA_SQL)
 
             # Create indexes
             cursor.executescript(INDEXES_SQL)
+
+            # Run migrations if upgrading from older version
+            if current_version and current_version != SCHEMA_VERSION:
+                self._run_migrations(cursor, current_version)
 
             # Set schema version
             cursor.execute(
@@ -96,6 +103,46 @@ class Database:
             conn.rollback()
             logger.error(f"Failed to initialize schema: {e}")
             raise
+
+    def _get_raw_schema_version(self, cursor: sqlite3.Cursor) -> Optional[str]:
+        """Get schema version without ensuring schema exists.
+
+        Args:
+            cursor: Database cursor
+
+        Returns:
+            Schema version string or None if not set
+        """
+        try:
+            cursor.execute("SELECT value FROM schema_info WHERE key = ?", ("schema_version",))
+            row = cursor.fetchone()
+            return row["value"] if row else None
+        except sqlite3.OperationalError:
+            return None
+
+    def _run_migrations(self, cursor: sqlite3.Cursor, from_version: str) -> None:
+        """Run schema migrations from a given version.
+
+        Args:
+            cursor: Database cursor
+            from_version: Version to migrate from
+        """
+        migrations = get_migrations()
+
+        # Simple version comparison - assumes semantic versioning
+        for version, statements in sorted(migrations.items()):
+            if version > from_version:
+                logger.info(f"Running migration to version {version}")
+                for sql in statements:
+                    try:
+                        cursor.execute(sql)
+                        logger.debug(f"Migration SQL executed: {sql[:50]}...")
+                    except sqlite3.OperationalError as e:
+                        # Column may already exist if migration was partially applied
+                        if "duplicate column name" in str(e).lower():
+                            logger.debug(f"Column already exists, skipping: {e}")
+                        else:
+                            raise
 
     def get_schema_version(self) -> Optional[str]:
         """Get current schema version from database.

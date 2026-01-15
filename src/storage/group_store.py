@@ -107,10 +107,10 @@ class GroupStore:
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO resource_group_members
-                (group_id, resource_name, resource_type, original_arn)
-                VALUES (?, ?, ?, ?)
+                (group_id, resource_name, resource_type, original_arn, match_strategy)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (group_id, member.resource_name, member.resource_type, member.original_arn),
+                (group_id, member.resource_name, member.resource_type, member.original_arn, member.match_strategy),
             )
 
     def load(self, name: str) -> Optional[ResourceGroup]:
@@ -164,6 +164,7 @@ class GroupStore:
                     resource_name=r["resource_name"],
                     resource_type=r["resource_type"],
                     original_arn=r["original_arn"],
+                    match_strategy=r.get("match_strategy", "physical_name"),
                 )
                 for r in member_rows
             ]
@@ -304,10 +305,10 @@ class GroupStore:
                     cursor.execute(
                         """
                         INSERT INTO resource_group_members
-                        (group_id, resource_name, resource_type, original_arn)
-                        VALUES (?, ?, ?, ?)
+                        (group_id, resource_name, resource_type, original_arn, match_strategy)
+                        VALUES (?, ?, ?, ?, ?)
                         """,
-                        (group_id, member.resource_name, member.resource_type, member.original_arn),
+                        (group_id, member.resource_name, member.resource_type, member.original_arn, member.match_strategy),
                     )
                     added += 1
                 except Exception:
@@ -332,7 +333,7 @@ class GroupStore:
 
         Args:
             group_name: Group name
-            arns: List of dicts with 'arn' and 'resource_type' keys
+            arns: List of dicts with 'arn', 'resource_type' keys, and optional 'logical_id'
 
         Returns:
             Number of members added
@@ -341,8 +342,18 @@ class GroupStore:
         for item in arns:
             arn = item["arn"]
             resource_type = item["resource_type"]
-            resource_name = extract_resource_name(arn, resource_type)
-            members.append(GroupMember(resource_name, resource_type, arn))
+            logical_id = item.get("logical_id")
+
+            if logical_id:
+                # Use logical ID for stable matching across resource recreations
+                resource_name = logical_id
+                match_strategy = "logical_id"
+            else:
+                # Fallback to physical name from ARN
+                resource_name = extract_resource_name(arn, resource_type)
+                match_strategy = "physical_name"
+
+            members.append(GroupMember(resource_name, resource_type, arn, match_strategy))
 
         return self.add_members(group_name, members)
 
@@ -420,6 +431,7 @@ class GroupStore:
                 resource_name=r["resource_name"],
                 resource_type=r["resource_type"],
                 original_arn=r["original_arn"],
+                match_strategy=r.get("match_strategy", "physical_name"),
             )
             for r in rows
         ]
@@ -645,22 +657,28 @@ class GroupStore:
         if not snap_row:
             raise ValueError(f"Snapshot '{snapshot_name}' not found")
 
-        # Use LEFT JOIN to find resources not in group
-        # Note: We match by name + type, using COALESCE to handle null names
+        # Use NOT EXISTS to find resources not in group
+        # Match strategy determines how to compare:
+        # - 'logical_id': match on canonical_name (CloudFormation logical ID)
+        # - 'physical_name': match on physical name or ARN
         rows = self.db.fetchall(
             """
-            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at
+            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at, r.canonical_name
             FROM resources r
-            LEFT JOIN resource_group_members gm
-                ON COALESCE(r.name, r.arn) = gm.resource_name
-                AND r.resource_type = gm.resource_type
-                AND gm.group_id = ?
             WHERE r.snapshot_id = ?
-                AND gm.id IS NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM resource_group_members gm
+                    WHERE gm.group_id = ?
+                    AND r.resource_type = gm.resource_type
+                    AND (
+                        (gm.match_strategy = 'logical_id' AND r.canonical_name = gm.resource_name)
+                        OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name' AND COALESCE(r.name, r.arn) = gm.resource_name)
+                    )
+                )
             ORDER BY r.resource_type, r.name
             LIMIT ? OFFSET ?
             """,
-            (group_id, snap_row["id"], limit, offset),
+            (snap_row["id"], group_id, limit, offset),
         )
 
         return [dict(r) for r in rows]
@@ -695,12 +713,18 @@ class GroupStore:
             raise ValueError(f"Snapshot '{snapshot_name}' not found")
 
         # Use INNER JOIN to find resources in group
+        # Match strategy determines how to compare:
+        # - 'logical_id': match on canonical_name (CloudFormation logical ID)
+        # - 'physical_name': match on physical name or ARN
         rows = self.db.fetchall(
             """
-            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at
+            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at, r.canonical_name
             FROM resources r
             INNER JOIN resource_group_members gm
-                ON COALESCE(r.name, r.arn) = gm.resource_name
+                ON (
+                    (gm.match_strategy = 'logical_id' AND r.canonical_name = gm.resource_name)
+                    OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name' AND COALESCE(r.name, r.arn) = gm.resource_name)
+                )
                 AND r.resource_type = gm.resource_type
                 AND gm.group_id = ?
             WHERE r.snapshot_id = ?

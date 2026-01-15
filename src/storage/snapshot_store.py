@@ -13,6 +13,27 @@ from .database import Database, json_deserialize, json_serialize
 logger = logging.getLogger(__name__)
 
 
+def compute_canonical_name(name: str, tags: Optional[Dict[str, str]], arn: str) -> str:
+    """Compute canonical name for a resource.
+
+    Priority order:
+    1. aws:cloudformation:logical-id tag (stable across recreations)
+    2. Resource name
+    3. ARN as fallback
+
+    Args:
+        name: Resource physical name
+        tags: Resource tags
+        arn: Resource ARN
+
+    Returns:
+        Canonical name for matching
+    """
+    if tags and "aws:cloudformation:logical-id" in tags:
+        return tags["aws:cloudformation:logical-id"]
+    return name or arn
+
+
 class SnapshotStore:
     """CRUD operations for snapshots in SQLite database."""
 
@@ -62,12 +83,13 @@ class SnapshotStore:
 
             # Insert resources
             for resource in snapshot.resources:
+                canonical = compute_canonical_name(resource.name, resource.tags, resource.arn)
                 cursor.execute(
                     """
                     INSERT INTO resources (
                         snapshot_id, arn, resource_type, name, region,
-                        config_hash, raw_config, created_at, source
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        config_hash, raw_config, created_at, source, canonical_name
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         snapshot_id,
@@ -79,6 +101,7 @@ class SnapshotStore:
                         json_serialize(resource.raw_config),
                         resource.created_at.isoformat() if resource.created_at else None,
                         resource.source,
+                        canonical,
                     ),
                 )
                 resource_id = cursor.lastrowid

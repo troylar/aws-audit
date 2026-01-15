@@ -700,10 +700,19 @@
 
         this.addToGroupLoading = true;
         try {
-            const arns = this.selectedResources.map(r => ({
-                arn: r.arn,
-                resource_type: r.resource_type
-            }));
+            // Build list of resources with optional logical_id for stable CloudFormation matching
+            const arns = this.selectedResources.map(r => {
+                const item = {
+                    arn: r.arn,
+                    resource_type: r.resource_type
+                };
+                // Include CloudFormation logical ID if available for stable matching
+                // across resource recreations (when ARN suffix changes)
+                if (r.tags && r.tags['aws:cloudformation:logical-id']) {
+                    item.logical_id = r.tags['aws:cloudformation:logical-id'];
+                }
+                return item;
+            });
             const resp = await fetch(`/api/groups/${encodeURIComponent(this.targetGroupName)}/members`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

@@ -819,3 +819,279 @@ class TestGetResourcesNotInGroup:
 
         assert len(resources) == 1
         assert resources[0]["resource_type"] == "lambda:function"
+
+
+class TestLogicalIdMatching:
+    """Test logical ID (CloudFormation) matching functionality."""
+
+    def _create_snapshot_with_tags(self, snapshot_store, name, resources):
+        """Helper to create a snapshot with resources that have tags."""
+        resource_objects = [
+            Resource(
+                arn=r["arn"],
+                resource_type=r["resource_type"],
+                region=r["region"],
+                name=r["name"],
+                config_hash=f"hash-{r['name']}",
+                tags=r.get("tags", {}),
+            )
+            for r in resources
+        ]
+        snapshot = Snapshot(
+            name=name,
+            created_at=datetime.now(),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=resource_objects,
+            inventory_name="test-inventory",
+        )
+        snapshot_store.save(snapshot)
+
+    def test_add_members_from_arns_with_logical_id(self, group_store):
+        """Test adding members with logical_id uses logical_id matching strategy."""
+        group_store.save(ResourceGroup(name="logical-group"))
+
+        arns = [
+            {
+                "arn": "arn:aws:lambda:us-east-1:123456789012:function:MyStack-MyFunc-ABC123",
+                "resource_type": "lambda:function",
+                "logical_id": "MyFunc",
+            },
+        ]
+        added = group_store.add_members_from_arns("logical-group", arns)
+
+        assert added == 1
+
+        members = group_store.get_members("logical-group")
+        assert len(members) == 1
+        assert members[0].resource_name == "MyFunc"
+        assert members[0].match_strategy == "logical_id"
+
+    def test_add_members_from_arns_without_logical_id(self, group_store):
+        """Test adding members without logical_id uses physical_name strategy."""
+        group_store.save(ResourceGroup(name="physical-group"))
+
+        arns = [
+            {
+                "arn": "arn:aws:s3:::my-bucket",
+                "resource_type": "s3:bucket",
+            },
+        ]
+        added = group_store.add_members_from_arns("physical-group", arns)
+
+        assert added == 1
+
+        members = group_store.get_members("physical-group")
+        assert len(members) == 1
+        assert members[0].resource_name == "my-bucket"
+        assert members[0].match_strategy == "physical_name"
+
+    def test_logical_id_match_in_group(self, group_store, snapshot_store):
+        """Test get_resources_in_group matches by logical_id."""
+        # Create snapshot with CloudFormation-created resources
+        # These have randomized suffixes but stable logical IDs in tags
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "test-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:MyStack-MyFunc-XYZ789",
+                    "resource_type": "lambda:function",
+                    "name": "MyStack-MyFunc-XYZ789",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunc"},
+                },
+            ],
+        )
+
+        # Create a group with logical_id matching
+        members = [GroupMember(resource_name="MyFunc", resource_type="lambda:function", match_strategy="logical_id")]
+        group = ResourceGroup(name="logical-group", members=members)
+        group_store.save(group)
+
+        # Should match by logical_id despite different physical name
+        resources = group_store.get_resources_in_group("logical-group", "test-snapshot")
+
+        assert len(resources) == 1
+        assert resources[0]["name"] == "MyStack-MyFunc-XYZ789"
+
+    def test_logical_id_match_not_in_group(self, group_store, snapshot_store):
+        """Test get_resources_not_in_group excludes by logical_id."""
+        # Create snapshot with CloudFormation-created resources
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "test-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:MyStack-Func1-ABC",
+                    "resource_type": "lambda:function",
+                    "name": "MyStack-Func1-ABC",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "Func1"},
+                },
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:MyStack-Func2-DEF",
+                    "resource_type": "lambda:function",
+                    "name": "MyStack-Func2-DEF",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "Func2"},
+                },
+            ],
+        )
+
+        # Create a group with Func1 using logical_id
+        members = [GroupMember(resource_name="Func1", resource_type="lambda:function", match_strategy="logical_id")]
+        group = ResourceGroup(name="logical-group", members=members)
+        group_store.save(group)
+
+        # Should only return Func2 (Func1 is in the group)
+        resources = group_store.get_resources_not_in_group("logical-group", "test-snapshot")
+
+        assert len(resources) == 1
+        assert resources[0]["name"] == "MyStack-Func2-DEF"
+
+    def test_resource_recreation_with_logical_id(self, group_store, snapshot_store):
+        """Test that resources with changed ARN suffix still match by logical_id."""
+        # First snapshot - original resource
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "snapshot-v1",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunc-ABC123",
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyFunc-ABC123",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunc"},
+                },
+            ],
+        )
+
+        # Add to group using logical_id
+        group_store.save(ResourceGroup(name="my-group"))
+        arns = [
+            {
+                "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunc-ABC123",
+                "resource_type": "lambda:function",
+                "logical_id": "MyFunc",
+            },
+        ]
+        group_store.add_members_from_arns("my-group", arns)
+
+        # Second snapshot - resource was recreated with different suffix
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "snapshot-v2",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunc-XYZ789",
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyFunc-XYZ789",  # Different suffix!
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunc"},  # Same logical ID
+                },
+            ],
+        )
+
+        # Should still match in the new snapshot
+        resources = group_store.get_resources_in_group("my-group", "snapshot-v2")
+
+        assert len(resources) == 1
+        assert resources[0]["name"] == "Stack-MyFunc-XYZ789"
+
+    def test_mixed_match_strategies(self, group_store, snapshot_store):
+        """Test group with both logical_id and physical_name members."""
+        # Create snapshot with mixed resources
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "test-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunc-ABC",
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyFunc-ABC",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunc"},
+                },
+                {
+                    "arn": "arn:aws:s3:::my-static-bucket",
+                    "resource_type": "s3:bucket",
+                    "name": "my-static-bucket",
+                    "region": "us-east-1",
+                    "tags": {},  # No CloudFormation tag
+                },
+            ],
+        )
+
+        # Create group with mixed strategies
+        members = [
+            GroupMember(resource_name="MyFunc", resource_type="lambda:function", match_strategy="logical_id"),
+            GroupMember(resource_name="my-static-bucket", resource_type="s3:bucket", match_strategy="physical_name"),
+        ]
+        group = ResourceGroup(name="mixed-group", members=members)
+        group_store.save(group)
+
+        # Both should match
+        resources = group_store.get_resources_in_group("mixed-group", "test-snapshot")
+
+        assert len(resources) == 2
+        names = {r["name"] for r in resources}
+        assert names == {"Stack-MyFunc-ABC", "my-static-bucket"}
+
+    def test_physical_name_does_not_match_logical_id(self, group_store, snapshot_store):
+        """Test that physical_name strategy doesn't match on canonical_name."""
+        # Create snapshot where canonical_name differs from physical name
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "test-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunc-ABC",
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyFunc-ABC",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunc"},
+                },
+            ],
+        )
+
+        # Create group using physical_name (should NOT match by logical ID)
+        members = [
+            GroupMember(resource_name="MyFunc", resource_type="lambda:function", match_strategy="physical_name"),
+        ]
+        group = ResourceGroup(name="physical-group", members=members)
+        group_store.save(group)
+
+        # Should NOT match because physical name is "Stack-MyFunc-ABC", not "MyFunc"
+        resources = group_store.get_resources_in_group("physical-group", "test-snapshot")
+
+        assert len(resources) == 0
+
+    def test_logical_id_different_resource_type_no_match(self, group_store, snapshot_store):
+        """Test that same logical_id with different resource_type doesn't match."""
+        # Create snapshot
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "test-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyResource-ABC",
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyResource-ABC",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyResource"},
+                },
+            ],
+        )
+
+        # Create group with same logical_id but different type
+        members = [
+            GroupMember(resource_name="MyResource", resource_type="s3:bucket", match_strategy="logical_id"),
+        ]
+        group = ResourceGroup(name="type-mismatch-group", members=members)
+        group_store.save(group)
+
+        # Should NOT match because resource types differ
+        resources = group_store.get_resources_in_group("type-mismatch-group", "test-snapshot")
+
+        assert len(resources) == 0

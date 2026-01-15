@@ -1,6 +1,6 @@
 """SQLite schema definitions for AWS Inventory Manager."""
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 # Schema creation SQL
 SCHEMA_SQL = """
@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS resources (
     raw_config TEXT,
     created_at TIMESTAMP,
     source TEXT DEFAULT 'direct_api',
+    canonical_name TEXT,
     FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE,
     UNIQUE(snapshot_id, arn)
 );
@@ -169,6 +170,7 @@ CREATE TABLE IF NOT EXISTS resource_group_members (
     resource_name TEXT NOT NULL,
     resource_type TEXT NOT NULL,
     original_arn TEXT,
+    match_strategy TEXT DEFAULT 'physical_name',
     FOREIGN KEY (group_id) REFERENCES resource_groups(id) ON DELETE CASCADE,
     UNIQUE (group_id, resource_name, resource_type)
 );
@@ -187,6 +189,7 @@ CREATE INDEX IF NOT EXISTS idx_resources_region ON resources(region);
 CREATE INDEX IF NOT EXISTS idx_resources_created ON resources(created_at);
 CREATE INDEX IF NOT EXISTS idx_resources_snapshot ON resources(snapshot_id);
 CREATE INDEX IF NOT EXISTS idx_resources_type_region ON resources(resource_type, region);
+CREATE INDEX IF NOT EXISTS idx_resources_canonical_name_type ON resources(canonical_name, resource_type);
 
 -- Tags indexes (for efficient tag queries)
 CREATE INDEX IF NOT EXISTS idx_tags_resource ON resource_tags(resource_id);
@@ -236,7 +239,34 @@ CREATE INDEX IF NOT EXISTS idx_groups_created ON resource_groups(created_at DESC
 -- Resource group members indexes
 CREATE INDEX IF NOT EXISTS idx_group_members_group ON resource_group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_members_name_type ON resource_group_members(resource_name, resource_type);
+CREATE INDEX IF NOT EXISTS idx_group_members_strategy ON resource_group_members(match_strategy);
 """
+
+
+MIGRATIONS = {
+    "1.1.0": [
+        # Add canonical_name column to resources table
+        "ALTER TABLE resources ADD COLUMN canonical_name TEXT",
+        # Add match_strategy column to resource_group_members table
+        "ALTER TABLE resource_group_members ADD COLUMN match_strategy TEXT DEFAULT 'physical_name'",
+        # Backfill canonical_name from CloudFormation logical-id tag
+        """
+        UPDATE resources
+        SET canonical_name = (
+            SELECT value FROM resource_tags
+            WHERE resource_tags.resource_id = resources.id
+            AND key = 'aws:cloudformation:logical-id'
+        )
+        WHERE canonical_name IS NULL
+        """,
+        # Fallback to physical name for resources without CloudFormation tag
+        """
+        UPDATE resources
+        SET canonical_name = COALESCE(name, arn)
+        WHERE canonical_name IS NULL
+        """,
+    ],
+}
 
 
 def get_schema_sql() -> str:
@@ -247,3 +277,12 @@ def get_schema_sql() -> str:
 def get_indexes_sql() -> str:
     """Get the indexes SQL."""
     return INDEXES_SQL
+
+
+def get_migrations() -> dict:
+    """Get the migrations dictionary.
+
+    Returns:
+        Dict mapping version strings to lists of SQL statements
+    """
+    return MIGRATIONS
