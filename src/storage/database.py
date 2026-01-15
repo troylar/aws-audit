@@ -82,12 +82,12 @@ class Database:
             # Create tables
             cursor.executescript(SCHEMA_SQL)
 
-            # Create indexes
-            cursor.executescript(INDEXES_SQL)
-
-            # Run migrations if upgrading from older version
+            # Run migrations BEFORE creating indexes (migrations may add columns that indexes depend on)
             if current_version and current_version != SCHEMA_VERSION:
                 self._run_migrations(cursor, current_version)
+
+            # Create indexes (after migrations so new columns exist)
+            cursor.executescript(INDEXES_SQL)
 
             # Set schema version
             cursor.execute(
