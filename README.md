@@ -146,6 +146,14 @@ Before diving in, here's the terminology:
 
 </td>
 <td width="33%" valign="top">
+
+### Resource Provenance
+- CloudTrail creator tracking
+- `--track-creators` flag
+- Enrich existing snapshots
+- Web UI creator columns
+- Identity type detection
+
 </td>
 <td width="33%" valign="top">
 </td>
@@ -506,6 +514,26 @@ For Config Aggregators (multi-account):
 }
 ```
 
+### CloudTrail (Creator Tracking)
+
+For the `--track-creators` flag and `enrich-creators` command:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudTrailLookup",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:LookupEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
 ### Cost Analysis
 
 For the `awsinv cost` command:
@@ -611,6 +639,39 @@ For the `awsinv cost` command:
 ---
 
 ## Documentation
+
+### Resource Provenance (Creator Tracking)
+
+Track who created each resource in your AWS account using CloudTrail:
+
+```bash
+# Track creators during snapshot creation
+awsinv snapshot create my-snapshot --regions us-east-1 --track-creators
+
+# Enrich an existing snapshot with creator information
+awsinv snapshot enrich-creators my-snapshot --days-back 90
+```
+
+This adds three tags to each resource:
+- `_created_by`: The IAM role/user ARN that created the resource
+- `_created_by_type`: The identity type (AssumedRole, IAMUser, Root, AWSService)
+- `_created_at`: When the resource was created (from CloudTrail)
+
+**Use Cases:**
+- Identify resources created by automation vs. manual creation
+- Track resources created by specific CI/CD pipelines
+- Find resources created by former team members
+- Audit resource creation by identity type
+
+**Web UI Support:**
+The Resource Explorer includes three creator columns (enable via column selector):
+- "Created By" - Shows the creator ARN (truncated for readability)
+- "Creator Type" - Color-coded badge (AssumedRole=blue, IAMUser=green, Root=red, AWSService=orange)
+- "Creation Time" - When the resource was created
+
+> **Note:** CloudTrail has a 90-day lookup window. Resources created more than 90 days ago won't have creator information. The `--days-back` option lets you customize the lookup period (default: 90).
+
+---
 
 ### Resource Cleanup
 
@@ -782,17 +843,22 @@ Some resources have special deletion behavior:
 # SNAPSHOTS
 # ─────────────────────────────────────────────────────────────
 awsinv snapshot create <name> --regions <region1,region2>
-    [--use-config/--no-config]        # AWS Config usage (default: enabled)
+    [--use-config/--no-config]        # AWS Config usage (default: disabled)
     [--config-aggregator <name>]      # Config Aggregator for multi-account
     [--resource-types <svc1,svc2>]    # Filter services (e.g., ec2,s3,lambda)
     [--include-tags <key=value>]      # Only include tagged resources
     [--inventory <name>]              # Assign to inventory group
+    [--track-creators]                # Tag resources with CloudTrail creator info
+    [--created-by-role <role>]        # Only include resources created by role
 
 awsinv snapshot list                  # List all snapshots
 awsinv snapshot report                # Summary of current/specified snapshot
     [--snapshot <name>]
     [--detailed]                      # Show all resources
     [--export <file.json|csv>]
+
+awsinv snapshot enrich-creators <name>  # Add creator info to existing snapshot
+    [--days-back <days>]              # CloudTrail lookup period (default: 90)
 
 # ─────────────────────────────────────────────────────────────
 # ANALYSIS
@@ -1175,6 +1241,6 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Star on GitHub](https://img.shields.io/github/stars/troylar/aws-inventory-manager?style=social)](https://github.com/troylar/aws-inventory-manager)
 
-Version 0.9.0 • Python 3.8 - 3.13
+Version 0.17.1 • Python 3.8 - 3.13
 
 </div>

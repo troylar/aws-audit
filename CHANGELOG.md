@@ -5,6 +5,105 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.1] - 2026-01-16
+
+### Added
+- **Web UI Creator Columns**: New columns in Resource Explorer for creator information
+  - "Created By" column shows the IAM role/user ARN (truncated for readability)
+  - "Creator Type" column with color-coded badges (AssumedRole=blue, IAMUser=green, Root=red, AWSService=orange)
+  - "Creation Time" column showing when the resource was created according to CloudTrail
+
+### Documentation
+- Added Resource Provenance section to README with usage examples
+- Added CloudTrail IAM permissions documentation
+- Updated Command Reference with `--track-creators`, `--created-by-role`, and `enrich-creators`
+- Updated CHANGELOG with versions 0.12.0 through 0.17.0
+
+## [0.17.0] - 2026-01-16
+
+### Added
+- **Resource Creator Tracking**: Query CloudTrail to discover who created each resource
+  - `--track-creators` flag on `snapshot create` - Tags ALL resources with creator info from CloudTrail
+  - `snapshot enrich-creators <snapshot>` - Enrich an existing snapshot with creator information
+  - Adds `_created_by`, `_created_by_type`, and `_created_at` tags to each resource
+  - Supports all identity types: AssumedRole, IAMUser, Root, AWSService
+  - 90-day CloudTrail lookup window
+  - `--days-back` option for `enrich-creators` to customize the lookup period
+
+- **Web UI Creator Columns**: New columns in Resource Explorer for creator information
+  - "Created By" column shows the IAM role/user ARN (truncated for readability)
+  - "Creator Type" column with color-coded badges (AssumedRole=blue, IAMUser=green, Root=red, AWSService=orange)
+  - "Creation Time" column showing when the resource was created according to CloudTrail
+  - All three columns available in column selector (disabled by default)
+
+### IAM Permissions
+New permissions required for creator tracking:
+```json
+{
+  "Effect": "Allow",
+  "Action": ["cloudtrail:LookupEvents"],
+  "Resource": "*"
+}
+```
+
+## [0.16.0] - 2026-01-15
+
+### Added
+- **`--created-by-role` Flag**: Filter snapshot resources by CloudTrail creator role
+  - `awsinv snapshot create my-snap --created-by-role MyRole` - Only include resources created by specific role
+  - Queries CloudTrail to find resources created by the specified role
+  - Supports both full ARN and role name
+  - Useful for tracking resources created by automation, CI/CD pipelines, or specific users
+
+## [0.15.0] - 2026-01-15
+
+### Changed
+- **AWS Config Disabled by Default**: Direct API collection is now the default
+  - Use `--use-config` to explicitly enable AWS Config collection
+  - This change improves reliability for accounts without Config enabled
+  - Config collection is still recommended for large accounts (faster)
+
+### Added
+- **Glue Collector**: New collector for AWS Glue resources
+  - Glue Databases
+  - Glue Tables
+  - Glue Jobs
+  - Glue Crawlers
+
+## [0.14.0] - 2026-01-14
+
+### Added
+- **Intelligent Resource Name Normalization**: Better matching of resources across snapshots
+  - Automatically strips CloudFormation suffixes (e.g., `-ABC123DEF`)
+  - Strips Bedrock/Kendra random suffixes (e.g., `_jnwn1`)
+  - Removes embedded account IDs and regions from names
+  - Priority: CloudFormation logical-id tag > Name tag > Pattern extraction
+  - New `normalized_name` and `normalization_method` columns in database
+
+- **Matching Module**: New `src/matching/` module for name normalization
+  - `ResourceNormalizer` class with pattern detection
+  - Confidence scoring for normalization quality
+  - Preserves extracted patterns for debugging
+
+### Changed
+- Group membership now uses normalized names for more stable matching
+- `create_from_snapshot` uses intelligent match strategy selection
+
+## [0.13.0] - 2026-01-14
+
+### Fixed
+- Fixed PyPI version mismatch (pyproject.toml had incorrect version)
+
+## [0.12.0] - 2026-01-14
+
+### Added
+- **Resource Groups**: Organize resources into named groups for tracking
+  - `group create <name> --snapshot <snap>` - Create group from snapshot resources
+  - `group list` - List all groups
+  - `group show <name>` - Show group members
+  - `group delete <name>` - Delete a group
+  - Match strategies: `logical_id`, `normalized`, `physical_name`
+
 ## [0.11.0] - 2026-01-14
 
 ### Added

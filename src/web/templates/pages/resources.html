@@ -125,6 +125,9 @@
         { field: 'canonical_name', label: 'Canonical Name', visible: false, isBase: true, width: 200, frozen: false },
         { field: 'normalized_name', label: 'Normalized Name', visible: false, isBase: true, width: 200, frozen: false },
         { field: 'normalization_method', label: 'Normalization Method', visible: false, isBase: true, width: 150, frozen: false },
+        { field: '_created_by', label: 'Created By', visible: false, isBase: true, width: 280, frozen: false, isTagField: true },
+        { field: '_created_by_type', label: 'Creator Type', visible: false, isBase: true, width: 120, frozen: false, isTagField: true },
+        { field: '_created_at', label: 'Creation Time', visible: false, isBase: true, width: 180, frozen: false, isTagField: true },
         { field: 'tags', label: 'All Tags', visible: false, isBase: true, width: 280, frozen: false },
         { field: 'created_at', label: 'Created', visible: false, isBase: true, width: 180, frozen: false },
         { field: 'config_hash', label: 'Config Hash', visible: false, isBase: true, width: 160, frozen: false }
@@ -1828,6 +1831,56 @@
                     }
                     html += '</div>';
                     return html;
+                };
+            } else if (col.field === '_created_by') {
+                // Created By column - reads from tags._created_by
+                colDef.formatter = function(cell) {
+                    const row = cell.getRow().getData();
+                    const tags = row.tags || {};
+                    const value = tags['_created_by'];
+                    if (!value) return '<span class="text-gray-300">—</span>';
+                    // Extract role/user name from ARN for display
+                    let display = value;
+                    if (value.includes(':role/')) {
+                        display = value.split(':role/')[1] || value;
+                    } else if (value.includes(':user/')) {
+                        display = value.split(':user/')[1] || value;
+                    } else if (value.startsWith('service:')) {
+                        display = value.replace('service:', '');
+                    }
+                    const truncated = display.length > 30 ? display.substring(0, 30) + '…' : display;
+                    return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200" title="${value}">${truncated}</span>`;
+                };
+            } else if (col.field === '_created_by_type') {
+                // Creator Type column - reads from tags._created_by_type
+                colDef.formatter = function(cell) {
+                    const row = cell.getRow().getData();
+                    const tags = row.tags || {};
+                    const value = tags['_created_by_type'];
+                    if (!value) return '<span class="text-gray-300">—</span>';
+                    const colors = {
+                        'AssumedRole': 'bg-blue-50 text-blue-700 border-blue-200',
+                        'IAMUser': 'bg-green-50 text-green-700 border-green-200',
+                        'Root': 'bg-red-50 text-red-700 border-red-200',
+                        'AWSService': 'bg-orange-50 text-orange-700 border-orange-200'
+                    };
+                    const colorClass = colors[value] || 'bg-gray-50 text-gray-700 border-gray-200';
+                    return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colorClass} border">${value}</span>`;
+                };
+            } else if (col.field === '_created_at') {
+                // Creation Time column - reads from tags._created_at
+                colDef.formatter = function(cell) {
+                    const row = cell.getRow().getData();
+                    const tags = row.tags || {};
+                    const value = tags['_created_at'];
+                    if (!value) return '<span class="text-gray-300">—</span>';
+                    try {
+                        const date = new Date(value);
+                        const formatted = date.toLocaleString();
+                        return `<span class="text-xs text-gray-600" title="${value}">${formatted}</span>`;
+                    } catch (e) {
+                        return `<span class="text-xs text-gray-600">${value}</span>`;
+                    }
                 };
             } else if (col.field.startsWith('tag:')) {
                 const tagKey = col.field.substring(4);
