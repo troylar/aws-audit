@@ -824,7 +824,7 @@ def snapshot_create(
         None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
     ),
     use_config: bool = typer.Option(
-        True, "--use-config/--no-config", help="Use AWS Config for collection when available (default: enabled)"
+        False, "--config", help="Use AWS Config for collection when available (default: disabled, use direct API)"
     ),
     config_aggregator: Optional[str] = typer.Option(
         None, "--config-aggregator", help="AWS Config Aggregator name for multi-account collection"
@@ -835,7 +835,7 @@ def snapshot_create(
 ):
     """Create a new snapshot of AWS resources.
 
-    Captures resources from 25 AWS services:
+    Captures resources from 26 AWS services:
     - IAM: Roles, Users, Groups, Policies
     - Lambda: Functions, Layers
     - S3: Buckets
@@ -860,6 +860,7 @@ def snapshot_create(
     - CodePipeline: Pipelines
     - CodeBuild: Projects
     - Backup: Backup Plans, Backup Vaults
+    - Glue: Databases, Tables, Crawlers, Jobs, Connections
 
     Historical Baselines & Filtering:
     Use --before-date, --after-date, --include-tags, and/or --exclude-tags to create
@@ -1147,7 +1148,7 @@ def snapshot_create(
                 console.print("\n  [dim]Use --verbose to see detailed breakdown by resource type[/dim]")
         elif not use_config:
             console.print("\nCollection Method:")
-            console.print("  All resources collected via Direct API (--no-config specified)")
+            console.print("  All resources collected via Direct API (use --config to enable AWS Config)")
 
     except typer.Exit:
         # Re-raise Exit exceptions (normal exit codes)

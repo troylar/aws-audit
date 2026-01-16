@@ -33,6 +33,7 @@ from .resource_collectors.codebuild import CodeBuildCollector
 from .resource_collectors.codepipeline import CodePipelineCollector
 from .resource_collectors.dynamodb import DynamoDBCollector
 from .resource_collectors.ec2 import EC2Collector
+from .resource_collectors.glue import GlueCollector
 from .resource_collectors.ecs import ECSCollector
 from .resource_collectors.efs_collector import EFSCollector
 from .resource_collectors.eks import EKSCollector
@@ -85,6 +86,7 @@ COLLECTOR_REGISTRY: List[Type[BaseResourceCollector]] = [
     CodePipelineCollector,
     CodeBuildCollector,
     BackupCollector,
+    GlueCollector,
 ]
 
 
