@@ -1664,7 +1664,7 @@
         const params = new URLSearchParams();
 
         const tagsColumnVisible = data.columns.find(c => c.field === 'tags')?.visible;
-        const anyTagColumnVisible = data.columns.some(c => c.field.startsWith('tag:') && c.visible);
+        const anyTagColumnVisible = data.columns.some(c => (c.field.startsWith('tag:') || c.isTagField) && c.visible);
         const hasTagConditions = data.advancedMode && hasTagConditionsInGroup(data.filterRoot);
 
         const useClientSideFilter = data.advancedMode ||
@@ -1716,7 +1716,7 @@
         params.append('limit', '500');
 
         const tagsColumnVisible = data.columns.find(c => c.field === 'tags')?.visible;
-        const anyTagColumnVisible = data.columns.some(c => c.field.startsWith('tag:') && c.visible);
+        const anyTagColumnVisible = data.columns.some(c => (c.field.startsWith('tag:') || c.isTagField) && c.visible);
         if (tagsColumnVisible || anyTagColumnVisible) {
             params.append('include_tags', 'true');
         }

@@ -1466,17 +1466,43 @@ def snapshot_enrich_creators(
 
         console.print(f"   Regions: {', '.join(region_list)}\n")
 
-        # Query CloudTrail for creators
+        # Query CloudTrail for creators with progress
+        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+        from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE
+
         console.print("🔍 Querying CloudTrail for resource creators...")
         console.print(f"   Looking back {days_back} days...")
 
         ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
-        creators = ct_query.get_resource_creators(
-            days_back=min(days_back, 90),  # Max 90 days
-            regions=region_list,
-        )
 
-        console.print(f"   Found {len(creators)} creation events in CloudTrail\n")
+        # Count total event types to query
+        event_types = list(EVENT_TO_RESOURCE_TYPE.keys())
+        total_queries = len(event_types) * len(region_list)
+        completed_queries = 0
+        total_events_found = 0
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task(f"[cyan]Querying {len(event_types)} event types...", total=total_queries)
+
+            def progress_callback(event_name: str, events_found: int):
+                nonlocal completed_queries, total_events_found
+                completed_queries += 1
+                total_events_found += events_found
+                progress.update(task, advance=1, description=f"[cyan]{event_name}: {events_found} events")
+
+            creators = ct_query.get_resource_creators(
+                days_back=min(days_back, 90),
+                regions=region_list,
+                progress_callback=progress_callback,
+            )
+
+        console.print(f"   Found {len(creators)} unique resource creators\n")
 
         # Match resources to their creators
         matched_count = 0
@@ -1499,12 +1525,17 @@ def snapshot_enrich_creators(
                 resource.tags["_created_by_type"] = creator_info["created_by_type"]
                 resource.tags["_created_at"] = creator_info["created_at"]
 
-        # Save updated snapshot
-        filepath = storage.save_snapshot(snapshot, compress=False)
+        # Save updated snapshot by deleting old and re-saving
+        # Need to use snapshot store directly since save_snapshot creates new
+        from ..storage import SnapshotStore
+        snapshot_store = SnapshotStore(storage.db)
+
+        # Delete old snapshot and save updated one
+        snapshot_store.delete(name)
+        snapshot_store.save(snapshot)
 
         console.print("✓ Enrichment complete!", style="bold green")
         console.print(f"\n   Tagged {matched_count}/{snapshot.resource_count} resources with creator info")
-        console.print(f"   Updated: {filepath}")
         console.print(f"\n   [dim](Resources older than {days_back} days won't appear in CloudTrail)[/dim]")
 
         # Show sample of creators found

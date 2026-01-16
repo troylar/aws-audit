@@ -2,6 +2,7 @@
 
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Set
@@ -422,12 +423,14 @@ class CloudTrailQuery:
         self,
         days_back: int = 90,
         regions: Optional[List[str]] = None,
+        progress_callback: Optional[callable] = None,
     ) -> List[ResourceCreationEvent]:
         """Get all resource creation events from CloudTrail.
 
         Args:
             days_back: How many days to look back (max 90 for standard CloudTrail)
             regions: Regions to query
+            progress_callback: Optional callback(event_name, events_found) for progress updates
 
         Returns:
             List of ResourceCreationEvent objects
@@ -437,9 +440,15 @@ class CloudTrailQuery:
 
         logger.info(f"Querying CloudTrail for all creation events (last {days_back} days)")
 
+        # Get unique event names to query
+        event_names = list(EVENT_TO_RESOURCE_TYPE.keys())
+        total_queries = len(event_names) * len(query_regions)
+
         for region in query_regions:
             try:
-                region_events = self._query_all_creation_events(days_back, region)
+                region_events = self._query_all_creation_events_fast(
+                    days_back, region, progress_callback
+                )
                 events.extend(region_events)
                 logger.debug(f"Found {len(region_events)} creation events in {region}")
             except Exception as e:
@@ -448,12 +457,41 @@ class CloudTrailQuery:
         logger.info(f"Total creation events found: {len(events)}")
         return events
 
-    def _query_all_creation_events(
+    def _query_single_event_type(
+        self,
+        client,
+        event_name: str,
+        start_time: datetime,
+        end_time: datetime,
+        region: str,
+    ) -> List[ResourceCreationEvent]:
+        """Query CloudTrail for a single event type."""
+        events = []
+        try:
+            paginator = client.get_paginator("lookup_events")
+            for page in paginator.paginate(
+                LookupAttributes=[
+                    {"AttributeKey": "EventName", "AttributeValue": event_name}
+                ],
+                StartTime=start_time,
+                EndTime=end_time,
+                MaxResults=50,
+            ):
+                for event in page.get("Events", []):
+                    parsed = self._parse_creation_event(event, region)
+                    if parsed:
+                        events.append(parsed)
+        except Exception as e:
+            logger.debug(f"Error querying {event_name}: {e}")
+        return events
+
+    def _query_all_creation_events_fast(
         self,
         days_back: int,
         region: str,
+        progress_callback: Optional[callable] = None,
     ) -> List[ResourceCreationEvent]:
-        """Query CloudTrail for all creation events in a specific region."""
+        """Query CloudTrail for all creation events using parallel queries by event name."""
         client = create_boto_client(
             service_name="cloudtrail",
             region_name=region,
@@ -464,24 +502,41 @@ class CloudTrailQuery:
         start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
         end_time = datetime.now(timezone.utc)
 
-        paginator = client.get_paginator("lookup_events")
+        event_names = list(EVENT_TO_RESOURCE_TYPE.keys())
 
-        try:
-            for page in paginator.paginate(
-                StartTime=start_time,
-                EndTime=end_time,
-                MaxResults=50,
-            ):
-                for event in page.get("Events", []):
-                    parsed = self._parse_creation_event(event, region)
-                    if parsed:
-                        events.append(parsed)
+        # Use ThreadPoolExecutor for parallel queries
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {
+                executor.submit(
+                    self._query_single_event_type,
+                    client,
+                    event_name,
+                    start_time,
+                    end_time,
+                    region,
+                ): event_name
+                for event_name in event_names
+            }
 
-        except Exception as e:
-            logger.error(f"Error querying CloudTrail: {e}")
-            raise
+            for future in as_completed(futures):
+                event_name = futures[future]
+                try:
+                    result = future.result()
+                    events.extend(result)
+                    if progress_callback:
+                        progress_callback(event_name, len(result))
+                except Exception as e:
+                    logger.debug(f"Error querying {event_name}: {e}")
 
         return events
+
+    def _query_all_creation_events(
+        self,
+        days_back: int,
+        region: str,
+    ) -> List[ResourceCreationEvent]:
+        """Query CloudTrail for all creation events in a specific region (legacy method)."""
+        return self._query_all_creation_events_fast(days_back, region)
 
     def _parse_creation_event(
         self,
@@ -549,12 +604,14 @@ class CloudTrailQuery:
         self,
         days_back: int = 90,
         regions: Optional[List[str]] = None,
+        progress_callback: Optional[callable] = None,
     ) -> Dict[str, Dict[str, str]]:
         """Build a mapping of resources to their creators.
 
         Args:
             days_back: Days to look back
             regions: Regions to query
+            progress_callback: Optional callback(event_name, events_found) for progress updates
 
         Returns:
             Dict mapping (resource_type, resource_name) key to creator info:
@@ -566,7 +623,7 @@ class CloudTrailQuery:
                 }
             }
         """
-        events = self.get_all_creation_events(days_back, regions)
+        events = self.get_all_creation_events(days_back, regions, progress_callback)
 
         creators: Dict[str, Dict[str, str]] = {}
         for event in events:
