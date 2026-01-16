@@ -1,0 +1,419 @@
+"""CloudTrail query for resource creation events."""
+
+import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Set
+
+from ..aws.client import create_boto_client
+
+logger = logging.getLogger(__name__)
+
+# Map of CloudTrail event names to resource types
+# This maps creation events to the resource types they create
+EVENT_TO_RESOURCE_TYPE: Dict[str, str] = {
+    # EC2
+    "RunInstances": "AWS::EC2::Instance",
+    "CreateVolume": "AWS::EC2::Volume",
+    "CreateVpc": "AWS::EC2::VPC",
+    "CreateSubnet": "AWS::EC2::Subnet",
+    "CreateSecurityGroup": "AWS::EC2::SecurityGroup",
+    "CreateVpcEndpoint": "AWS::EC2::VPCEndpoint",
+    # Lambda
+    "CreateFunction20150331": "AWS::Lambda::Function",
+    "CreateFunction": "AWS::Lambda::Function",
+    # S3
+    "CreateBucket": "AWS::S3::Bucket",
+    # RDS
+    "CreateDBInstance": "AWS::RDS::DBInstance",
+    "CreateDBCluster": "AWS::RDS::DBCluster",
+    # DynamoDB
+    "CreateTable": "AWS::DynamoDB::Table",
+    # IAM
+    "CreateRole": "AWS::IAM::Role",
+    "CreateUser": "AWS::IAM::User",
+    "CreateGroup": "AWS::IAM::Group",
+    "CreatePolicy": "AWS::IAM::Policy",
+    # CloudWatch
+    "PutMetricAlarm": "AWS::CloudWatch::Alarm",
+    "CreateLogGroup": "AWS::Logs::LogGroup",
+    # SNS
+    "CreateTopic": "AWS::SNS::Topic",
+    # SQS
+    "CreateQueue": "AWS::SQS::Queue",
+    # ELB
+    "CreateLoadBalancer": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+    # CloudFormation
+    "CreateStack": "AWS::CloudFormation::Stack",
+    # API Gateway
+    "CreateRestApi": "AWS::ApiGateway::RestApi",
+    "CreateApi": "AWS::ApiGatewayV2::Api",
+    # EventBridge
+    "CreateEventBus": "AWS::Events::EventBus",
+    "PutRule": "AWS::Events::Rule",
+    # Secrets Manager
+    "CreateSecret": "AWS::SecretsManager::Secret",
+    # KMS
+    "CreateKey": "AWS::KMS::Key",
+    # SSM
+    "PutParameter": "AWS::SSM::Parameter",
+    # Route53
+    "CreateHostedZone": "AWS::Route53::HostedZone",
+    # ECS
+    "CreateCluster": "AWS::ECS::Cluster",
+    "CreateService": "AWS::ECS::Service",
+    "RegisterTaskDefinition": "AWS::ECS::TaskDefinition",
+    # EKS
+    "CreateCluster": "AWS::EKS::Cluster",
+    "CreateNodegroup": "AWS::EKS::Nodegroup",
+    # Step Functions
+    "CreateStateMachine": "AWS::StepFunctions::StateMachine",
+    # WAF
+    "CreateWebACL": "AWS::WAFv2::WebACL",
+    # CodePipeline
+    "CreatePipeline": "AWS::CodePipeline::Pipeline",
+    # CodeBuild
+    "CreateProject": "AWS::CodeBuild::Project",
+    # Backup
+    "CreateBackupPlan": "AWS::Backup::BackupPlan",
+    "CreateBackupVault": "AWS::Backup::BackupVault",
+    # Glue
+    "CreateDatabase": "AWS::Glue::Database",
+    "CreateTable": "AWS::Glue::Table",
+    "CreateCrawler": "AWS::Glue::Crawler",
+    "CreateJob": "AWS::Glue::Job",
+    "CreateConnection": "AWS::Glue::Connection",
+    # EFS
+    "CreateFileSystem": "AWS::EFS::FileSystem",
+    # ElastiCache
+    "CreateCacheCluster": "AWS::ElastiCache::CacheCluster",
+    "CreateReplicationGroup": "AWS::ElastiCache::ReplicationGroup",
+}
+
+
+@dataclass
+class ResourceCreationEvent:
+    """Represents a resource creation event from CloudTrail."""
+
+    event_time: datetime
+    event_name: str
+    resource_type: str
+    resource_name: Optional[str]
+    resource_arn: Optional[str]
+    created_by_arn: str
+    created_by_type: str  # 'Role', 'User', 'AssumedRole'
+    region: str
+    account_id: str
+    raw_event: dict
+
+
+class CloudTrailQuery:
+    """Query CloudTrail for resource creation events."""
+
+    def __init__(
+        self,
+        profile_name: Optional[str] = None,
+        regions: Optional[List[str]] = None,
+    ):
+        """Initialize CloudTrail query.
+
+        Args:
+            profile_name: AWS profile to use
+            regions: Regions to query (defaults to all regions with events)
+        """
+        self.profile_name = profile_name
+        self.regions = regions or ["us-east-1"]  # CloudTrail events are regional
+
+    def get_resources_created_by_role(
+        self,
+        role_arn: str,
+        days_back: int = 90,
+        regions: Optional[List[str]] = None,
+    ) -> List[ResourceCreationEvent]:
+        """Get all resources created by a specific IAM role.
+
+        Args:
+            role_arn: Full ARN of the IAM role (or just role name)
+            days_back: How many days to look back (max 90 for standard CloudTrail)
+            regions: Regions to query
+
+        Returns:
+            List of ResourceCreationEvent objects
+        """
+        events = []
+        query_regions = regions or self.regions
+
+        # Normalize role ARN - extract role name for matching
+        if role_arn.startswith("arn:aws:iam::"):
+            # Full ARN like arn:aws:iam::123456789012:role/MyRole
+            role_name = role_arn.split("/")[-1]
+        elif "/" in role_arn:
+            # Path format like role/MyRole
+            role_name = role_arn.split("/")[-1]
+        else:
+            # Just the role name
+            role_name = role_arn
+
+        logger.info(f"Querying CloudTrail for resources created by role: {role_name}")
+
+        for region in query_regions:
+            try:
+                region_events = self._query_region(role_name, role_arn, days_back, region)
+                events.extend(region_events)
+                logger.debug(f"Found {len(region_events)} creation events in {region}")
+            except Exception as e:
+                logger.warning(f"Error querying CloudTrail in {region}: {e}")
+
+        logger.info(f"Total creation events found: {len(events)}")
+        return events
+
+    def _query_region(
+        self,
+        role_name: str,
+        role_arn: str,
+        days_back: int,
+        region: str,
+    ) -> List[ResourceCreationEvent]:
+        """Query CloudTrail in a specific region."""
+        client = create_boto_client(
+            service_name="cloudtrail",
+            region_name=region,
+            profile_name=self.profile_name,
+        )
+
+        events = []
+        start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
+        end_time = datetime.now(timezone.utc)
+
+        # Query by username (role session name includes role)
+        # CloudTrail stores assumed role sessions as "role/session-name"
+        paginator = client.get_paginator("lookup_events")
+
+        try:
+            # First try looking up by the role ARN pattern
+            for page in paginator.paginate(
+                StartTime=start_time,
+                EndTime=end_time,
+                MaxResults=50,  # CloudTrail max per page
+            ):
+                for event in page.get("Events", []):
+                    parsed = self._parse_event(event, role_name, role_arn, region)
+                    if parsed:
+                        events.append(parsed)
+
+        except Exception as e:
+            logger.error(f"Error querying CloudTrail: {e}")
+            raise
+
+        return events
+
+    def _parse_event(
+        self,
+        event: dict,
+        role_name: str,
+        role_arn: str,
+        region: str,
+    ) -> Optional[ResourceCreationEvent]:
+        """Parse a CloudTrail event and check if it matches our criteria."""
+        try:
+            cloud_trail_event = json.loads(event.get("CloudTrailEvent", "{}"))
+
+            event_name = cloud_trail_event.get("eventName", "")
+
+            # Check if this is a creation event we care about
+            if event_name not in EVENT_TO_RESOURCE_TYPE:
+                return None
+
+            # Check if the identity matches our role
+            user_identity = cloud_trail_event.get("userIdentity", {})
+            identity_type = user_identity.get("type", "")
+
+            # Match by role ARN or role name
+            matches_role = False
+            created_by_arn = ""
+
+            if identity_type == "AssumedRole":
+                # For assumed roles, check the role ARN
+                session_context = user_identity.get("sessionContext", {})
+                session_issuer = session_context.get("sessionIssuer", {})
+                arn = session_issuer.get("arn", "")
+                created_by_arn = arn
+
+                if role_arn and arn == role_arn:
+                    matches_role = True
+                elif role_name and role_name in arn:
+                    matches_role = True
+
+            elif identity_type == "Role":
+                arn = user_identity.get("arn", "")
+                created_by_arn = arn
+
+                if role_arn and arn == role_arn:
+                    matches_role = True
+                elif role_name and role_name in arn:
+                    matches_role = True
+
+            if not matches_role:
+                return None
+
+            # Extract resource information
+            resource_type = EVENT_TO_RESOURCE_TYPE[event_name]
+            resource_name, resource_arn_extracted = self._extract_resource_info(
+                cloud_trail_event, event_name
+            )
+
+            # Get account ID
+            account_id = cloud_trail_event.get("recipientAccountId", "")
+            if not account_id:
+                account_id = user_identity.get("accountId", "")
+
+            return ResourceCreationEvent(
+                event_time=event.get("EventTime", datetime.now(timezone.utc)),
+                event_name=event_name,
+                resource_type=resource_type,
+                resource_name=resource_name,
+                resource_arn=resource_arn_extracted,
+                created_by_arn=created_by_arn,
+                created_by_type=identity_type,
+                region=cloud_trail_event.get("awsRegion", region),
+                account_id=account_id,
+                raw_event=cloud_trail_event,
+            )
+
+        except Exception as e:
+            logger.debug(f"Error parsing CloudTrail event: {e}")
+            return None
+
+    def _extract_resource_info(
+        self, event: dict, event_name: str
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Extract resource name and ARN from CloudTrail event.
+
+        Returns:
+            Tuple of (resource_name, resource_arn)
+        """
+        request_params = event.get("requestParameters", {}) or {}
+        response_elements = event.get("responseElements", {}) or {}
+
+        resource_name = None
+        resource_arn = None
+
+        # Try common patterns for resource names
+        name_keys = [
+            "name",
+            "bucketName",
+            "functionName",
+            "tableName",
+            "roleName",
+            "userName",
+            "groupName",
+            "policyName",
+            "topicName",
+            "queueName",
+            "stackName",
+            "clusterName",
+            "serviceName",
+            "stateMachineName",
+            "projectName",
+            "pipelineName",
+            "dBInstanceIdentifier",
+            "dBClusterIdentifier",
+            "hostedZoneName",
+            "fileSystemId",
+            "cacheClusterId",
+            "replicationGroupId",
+            "webACLName",
+            "eventBusName",
+            "ruleName",
+            "secretId",
+            "parameterName",
+            "databaseName",
+            "crawlerName",
+            "jobName",
+            "connectionName",
+        ]
+
+        for key in name_keys:
+            if key in request_params:
+                resource_name = request_params[key]
+                break
+
+        # Try to extract ARN from response
+        arn_keys = [
+            "functionArn",
+            "roleArn",
+            "topicArn",
+            "queueUrl",  # SQS uses URL
+            "stackId",
+            "arn",
+            "clusterArn",
+            "serviceArn",
+            "stateMachineArn",
+            "webACLArn",
+        ]
+
+        for key in arn_keys:
+            if response_elements and key in response_elements:
+                resource_arn = response_elements[key]
+                break
+
+        # For EC2 instances, extract from response
+        if event_name == "RunInstances" and response_elements:
+            instances = response_elements.get("instancesSet", {}).get("items", [])
+            if instances:
+                resource_name = instances[0].get("instanceId")
+
+        return resource_name, resource_arn
+
+    def get_created_resource_arns(
+        self,
+        role_arn: str,
+        days_back: int = 90,
+        regions: Optional[List[str]] = None,
+    ) -> Set[str]:
+        """Get set of ARNs for resources created by a role.
+
+        Args:
+            role_arn: IAM role ARN or name
+            days_back: Days to look back
+            regions: Regions to query
+
+        Returns:
+            Set of resource ARNs
+        """
+        events = self.get_resources_created_by_role(role_arn, days_back, regions)
+
+        arns = set()
+        for event in events:
+            if event.resource_arn:
+                arns.add(event.resource_arn)
+
+        return arns
+
+    def get_created_resource_names(
+        self,
+        role_arn: str,
+        days_back: int = 90,
+        regions: Optional[List[str]] = None,
+    ) -> Dict[str, Set[str]]:
+        """Get resource names grouped by type for resources created by a role.
+
+        Args:
+            role_arn: IAM role ARN or name
+            days_back: Days to look back
+            regions: Regions to query
+
+        Returns:
+            Dict mapping resource_type to set of resource names
+        """
+        events = self.get_resources_created_by_role(role_arn, days_back, regions)
+
+        by_type: Dict[str, Set[str]] = {}
+        for event in events:
+            if event.resource_name:
+                if event.resource_type not in by_type:
+                    by_type[event.resource_type] = set()
+                by_type[event.resource_type].add(event.resource_name)
+
+        return by_type

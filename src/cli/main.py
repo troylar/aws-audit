@@ -823,6 +823,9 @@ def snapshot_create(
     exclude_tags: Optional[str] = typer.Option(
         None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
     ),
+    created_by_role: Optional[str] = typer.Option(
+        None, "--created-by-role", help="Tag resources created by this IAM role with _created_by_role (queries CloudTrail, 90-day limit)"
+    ),
     use_config: bool = typer.Option(
         False, "--config", help="Use AWS Config for collection when available (default: disabled, use direct API)"
     ),
@@ -1041,6 +1044,50 @@ def snapshot_create(
             use_config=use_config,
             config_aggregator=config_aggregator,
         )
+
+        # Tag resources created by role if specified (uses CloudTrail)
+        if created_by_role:
+            from ..cloudtrail import CloudTrailQuery
+
+            console.print(f"\n🔍 Checking creator role: [bold]{created_by_role}[/bold]")
+            console.print("   Querying CloudTrail (this may take a moment)...")
+
+            ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
+            created_resources = ct_query.get_created_resource_names(
+                role_arn=created_by_role,
+                days_back=90,
+                regions=region_list,
+            )
+
+            # Build a set of (name, type) tuples for matching
+            created_set = set()
+            for resource_type, names in created_resources.items():
+                for name in names:
+                    created_set.add((name, resource_type))
+
+            # Tag resources that were created by this role (add to tags dict)
+            matched_count = 0
+            for resource in snapshot.resources:
+                is_match = False
+                # Match by name and type
+                if (resource.name, resource.resource_type) in created_set:
+                    is_match = True
+                # Also try matching by ARN components
+                elif resource.arn:
+                    arn_name = resource.arn.split("/")[-1].split(":")[-1]
+                    if (arn_name, resource.resource_type) in created_set:
+                        is_match = True
+
+                if is_match:
+                    matched_count += 1
+                    # Add created-by tag to resource (internal tracking, not AWS tag)
+                    if resource.tags is None:
+                        resource.tags = {}
+                    resource.tags["_created_by_role"] = created_by_role
+
+            console.print(f"   Found {len(created_resources)} resource types in CloudTrail")
+            console.print(f"   Tagged {matched_count}/{len(snapshot.resources)} resources as created by this role")
+            console.print(f"   [dim](Resources older than 90 days won't appear in CloudTrail)[/dim]")
 
         # T018: Check for zero resources after filtering
         if snapshot.resource_count == 0:
