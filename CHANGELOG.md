@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.2] - 2026-01-16
+
+### Performance
+- **10x Faster CloudTrail Queries**: Parallel queries by event name instead of scanning all events
+  - Uses 10 concurrent workers to query different event types simultaneously
+  - Filters at the API level with `LookupAttributes` instead of client-side filtering
+
+### Added
+- **Progress Bar for CloudTrail Queries**: Visual feedback during `enrich-creators` command
+  - Shows which event types are being queried
+  - Displays count of events found per type
+
+### Fixed
+- **Web UI Creator Columns Not Showing Data**: Fixed issue where enabling creator columns didn't trigger tag fetching
+  - Now correctly detects `isTagField` columns in addition to `tag:` prefix columns
+
 ## [0.17.1] - 2026-01-16
 
 ### Added
