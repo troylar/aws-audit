@@ -485,7 +485,7 @@ class GroupStore:
             params.append(region_filter)
 
         query = f"""
-            SELECT r.arn, r.resource_type, r.name
+            SELECT r.arn, r.resource_type, r.name, r.canonical_name
             FROM resources r
             WHERE {" AND ".join(conditions)}
             ORDER BY r.resource_type, r.name
@@ -494,14 +494,26 @@ class GroupStore:
         resource_rows = self.db.fetchall(query, tuple(params))
 
         # Create group with members
+        # Use canonical_name (logical ID) when available for stable matching
         members = []
         for row in resource_rows:
-            resource_name = row["name"] or extract_resource_name(row["arn"], row["resource_type"])
+            physical_name = row["name"] or extract_resource_name(row["arn"], row["resource_type"])
+            canonical_name = row.get("canonical_name")
+
+            # If canonical_name differs from physical_name, it's a CloudFormation logical ID
+            if canonical_name and canonical_name != physical_name:
+                resource_name = canonical_name
+                match_strategy = "logical_id"
+            else:
+                resource_name = physical_name
+                match_strategy = "physical_name"
+
             members.append(
                 GroupMember(
                     resource_name=resource_name,
                     resource_type=row["resource_type"],
                     original_arn=row["arn"],
+                    match_strategy=match_strategy,
                 )
             )
 

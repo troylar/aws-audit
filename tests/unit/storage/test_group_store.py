@@ -1095,3 +1095,104 @@ class TestLogicalIdMatching:
         resources = group_store.get_resources_in_group("type-mismatch-group", "test-snapshot")
 
         assert len(resources) == 0
+
+    def test_create_from_snapshot_uses_logical_id(self, group_store, snapshot_store):
+        """Test that create_from_snapshot uses logical_id matching for CloudFormation resources."""
+        # Create snapshot with CloudFormation resources
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "source-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunction-ABC123",
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyFunction-ABC123",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunction"},
+                },
+                {
+                    "arn": "arn:aws:s3:::stack-mybucket-xyz789",
+                    "resource_type": "s3:bucket",
+                    "name": "stack-mybucket-xyz789",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyBucket"},
+                },
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123:instance/i-1234567890",
+                    "resource_type": "ec2:instance",
+                    "name": "manual-instance",
+                    "region": "us-east-1",
+                    "tags": {},  # No CloudFormation tag
+                },
+            ],
+        )
+
+        # Create group from snapshot
+        count = group_store.create_from_snapshot("cfn-resources-group", "source-snapshot")
+
+        # Verify correct count returned
+        assert count == 3
+
+        # Load the group to check members
+        group = group_store.load("cfn-resources-group")
+        assert group is not None
+        assert group.resource_count == 3
+
+        # Check members have correct match strategies
+        members_by_type = {m.resource_type: m for m in group.members}
+
+        # CloudFormation resources should use logical_id strategy
+        lambda_member = members_by_type["lambda:function"]
+        assert lambda_member.resource_name == "MyFunction"
+        assert lambda_member.match_strategy == "logical_id"
+
+        s3_member = members_by_type["s3:bucket"]
+        assert s3_member.resource_name == "MyBucket"
+        assert s3_member.match_strategy == "logical_id"
+
+        # Non-CloudFormation resource should use physical_name strategy
+        ec2_member = members_by_type["ec2:instance"]
+        assert ec2_member.resource_name == "manual-instance"
+        assert ec2_member.match_strategy == "physical_name"
+
+    def test_create_from_snapshot_matches_recreated_resources(self, group_store, snapshot_store):
+        """Test that groups created from snapshot match resources even after recreation."""
+        # Create original snapshot with CloudFormation resources
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "original-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunction-ABC123",
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyFunction-ABC123",
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunction"},
+                },
+            ],
+        )
+
+        # Create group from original snapshot
+        group_store.create_from_snapshot("baseline-group", "original-snapshot")
+
+        # Create new snapshot with RECREATED resources (different suffix but same logical ID)
+        self._create_snapshot_with_tags(
+            snapshot_store,
+            "new-snapshot",
+            [
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:Stack-MyFunction-XYZ789",  # Different suffix!
+                    "resource_type": "lambda:function",
+                    "name": "Stack-MyFunction-XYZ789",  # Different name!
+                    "region": "us-east-1",
+                    "tags": {"aws:cloudformation:logical-id": "MyFunction"},  # Same logical ID
+                },
+            ],
+        )
+
+        # Group should still match the recreated resource via logical ID
+        resources = group_store.get_resources_in_group("baseline-group", "new-snapshot")
+
+        assert len(resources) == 1
+        assert resources[0]["arn"] == "arn:aws:lambda:us-east-1:123:function:Stack-MyFunction-XYZ789"
+        assert resources[0]["name"] == "Stack-MyFunction-XYZ789"
