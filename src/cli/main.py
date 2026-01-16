@@ -826,6 +826,9 @@ def snapshot_create(
     created_by_role: Optional[str] = typer.Option(
         None, "--created-by-role", help="Tag resources created by this IAM role with _created_by_role (queries CloudTrail, 90-day limit)"
     ),
+    track_creators: bool = typer.Option(
+        False, "--track-creators", help="Query CloudTrail to tag ALL resources with their creator (_created_by, _created_by_type)"
+    ),
     use_config: bool = typer.Option(
         False, "--config", help="Use AWS Config for collection when available (default: disabled, use direct API)"
     ),
@@ -1087,6 +1090,44 @@ def snapshot_create(
 
             console.print(f"   Found {len(created_resources)} resource types in CloudTrail")
             console.print(f"   Tagged {matched_count}/{len(snapshot.resources)} resources as created by this role")
+            console.print(f"   [dim](Resources older than 90 days won't appear in CloudTrail)[/dim]")
+
+        # Track creators for ALL resources if --track-creators specified
+        if track_creators:
+            from ..cloudtrail import CloudTrailQuery
+
+            console.print("\n🔍 Tracking resource creators from CloudTrail...")
+            console.print("   Querying CloudTrail for all creation events (this may take a moment)...")
+
+            ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
+            creators = ct_query.get_resource_creators(
+                days_back=90,
+                regions=region_list,
+            )
+
+            # Match resources to their creators
+            matched_count = 0
+            for resource in snapshot.resources:
+                # Try to find creator by resource type and name
+                key = f"{resource.resource_type}:{resource.name}"
+                creator_info = creators.get(key)
+
+                # Also try matching by ARN name components
+                if not creator_info and resource.arn:
+                    arn_name = resource.arn.split("/")[-1].split(":")[-1]
+                    key = f"{resource.resource_type}:{arn_name}"
+                    creator_info = creators.get(key)
+
+                if creator_info:
+                    matched_count += 1
+                    if resource.tags is None:
+                        resource.tags = {}
+                    resource.tags["_created_by"] = creator_info["created_by"]
+                    resource.tags["_created_by_type"] = creator_info["created_by_type"]
+                    resource.tags["_created_at"] = creator_info["created_at"]
+
+            console.print(f"   Found {len(creators)} creation events in CloudTrail")
+            console.print(f"   Tagged {matched_count}/{len(snapshot.resources)} resources with creator info")
             console.print(f"   [dim](Resources older than 90 days won't appear in CloudTrail)[/dim]")
 
         # T018: Check for zero resources after filtering
@@ -1363,6 +1404,131 @@ def snapshot_delete(
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"✗ Error deleting snapshot: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+@snapshot_app.command("enrich-creators")
+def snapshot_enrich_creators(
+    name: Optional[str] = typer.Argument(None, help="Snapshot name (defaults to active snapshot)"),
+    regions: Optional[str] = typer.Option(
+        None, "--regions", help="Comma-separated list of regions to query CloudTrail"
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
+    days_back: int = typer.Option(
+        90, "--days", "-d", help="Days to look back in CloudTrail (max 90)"
+    ),
+):
+    """Enrich an existing snapshot with creator information from CloudTrail.
+
+    Queries CloudTrail for resource creation events and tags resources with:
+    - _created_by: ARN of the creator (role/user)
+    - _created_by_type: Type of creator (AssumedRole, IAMUser, etc.)
+    - _created_at: When the resource was created
+
+    Example:
+        awsinv snapshot enrich-creators my-snapshot --regions us-east-1,us-west-2
+        awsinv snapshot enrich-creators  # uses active snapshot
+    """
+    try:
+        from ..cloudtrail import CloudTrailQuery
+
+        # Validate credentials
+        aws_profile = profile if profile else config.aws_profile
+        console.print("🔐 Validating AWS credentials...")
+        identity = validate_credentials(aws_profile)
+        console.print(f"✓ Authenticated as: {identity['arn']}\n", style="green")
+
+        # Load snapshot
+        storage = SnapshotStorage(config.storage_path)
+
+        if name:
+            snapshot = storage.load_snapshot(name)
+        else:
+            # Get active snapshot
+            active = storage.get_active_snapshot()
+            if not active:
+                console.print("✗ No active snapshot found. Specify a snapshot name.", style="bold red")
+                raise typer.Exit(code=1)
+            snapshot = active
+            name = snapshot.name
+
+        console.print(f"📸 Enriching snapshot: [bold]{name}[/bold]")
+        console.print(f"   Resources: {snapshot.resource_count}")
+
+        # Parse regions
+        if regions:
+            region_list = [r.strip() for r in regions.split(",")]
+        else:
+            # Use regions from snapshot metadata if available
+            region_list = snapshot.metadata.get("regions", ["us-east-1"])
+
+        console.print(f"   Regions: {', '.join(region_list)}\n")
+
+        # Query CloudTrail for creators
+        console.print("🔍 Querying CloudTrail for resource creators...")
+        console.print(f"   Looking back {days_back} days...")
+
+        ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
+        creators = ct_query.get_resource_creators(
+            days_back=min(days_back, 90),  # Max 90 days
+            regions=region_list,
+        )
+
+        console.print(f"   Found {len(creators)} creation events in CloudTrail\n")
+
+        # Match resources to their creators
+        matched_count = 0
+        for resource in snapshot.resources:
+            # Try to find creator by resource type and name
+            key = f"{resource.resource_type}:{resource.name}"
+            creator_info = creators.get(key)
+
+            # Also try matching by ARN name components
+            if not creator_info and resource.arn:
+                arn_name = resource.arn.split("/")[-1].split(":")[-1]
+                key = f"{resource.resource_type}:{arn_name}"
+                creator_info = creators.get(key)
+
+            if creator_info:
+                matched_count += 1
+                if resource.tags is None:
+                    resource.tags = {}
+                resource.tags["_created_by"] = creator_info["created_by"]
+                resource.tags["_created_by_type"] = creator_info["created_by_type"]
+                resource.tags["_created_at"] = creator_info["created_at"]
+
+        # Save updated snapshot
+        filepath = storage.save_snapshot(snapshot, compress=False)
+
+        console.print("✓ Enrichment complete!", style="bold green")
+        console.print(f"\n   Tagged {matched_count}/{snapshot.resource_count} resources with creator info")
+        console.print(f"   Updated: {filepath}")
+        console.print(f"\n   [dim](Resources older than {days_back} days won't appear in CloudTrail)[/dim]")
+
+        # Show sample of creators found
+        if matched_count > 0:
+            console.print("\n📋 Sample of creators found:")
+            shown = 0
+            for resource in snapshot.resources:
+                if resource.tags and "_created_by" in resource.tags:
+                    creator = resource.tags["_created_by"]
+                    # Shorten long ARNs
+                    if len(creator) > 60:
+                        creator = "..." + creator[-57:]
+                    console.print(f"   {resource.name}: {creator}")
+                    shown += 1
+                    if shown >= 5:
+                        if matched_count > 5:
+                            console.print(f"   ... and {matched_count - 5} more")
+                        break
+
+    except FileNotFoundError:
+        console.print(f"✗ Snapshot '{name}' not found", style="bold red")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"✗ Error enriching snapshot: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 

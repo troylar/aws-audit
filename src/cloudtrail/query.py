@@ -417,3 +417,169 @@ class CloudTrailQuery:
                 by_type[event.resource_type].add(event.resource_name)
 
         return by_type
+
+    def get_all_creation_events(
+        self,
+        days_back: int = 90,
+        regions: Optional[List[str]] = None,
+    ) -> List[ResourceCreationEvent]:
+        """Get all resource creation events from CloudTrail.
+
+        Args:
+            days_back: How many days to look back (max 90 for standard CloudTrail)
+            regions: Regions to query
+
+        Returns:
+            List of ResourceCreationEvent objects
+        """
+        events = []
+        query_regions = regions or self.regions
+
+        logger.info(f"Querying CloudTrail for all creation events (last {days_back} days)")
+
+        for region in query_regions:
+            try:
+                region_events = self._query_all_creation_events(days_back, region)
+                events.extend(region_events)
+                logger.debug(f"Found {len(region_events)} creation events in {region}")
+            except Exception as e:
+                logger.warning(f"Error querying CloudTrail in {region}: {e}")
+
+        logger.info(f"Total creation events found: {len(events)}")
+        return events
+
+    def _query_all_creation_events(
+        self,
+        days_back: int,
+        region: str,
+    ) -> List[ResourceCreationEvent]:
+        """Query CloudTrail for all creation events in a specific region."""
+        client = create_boto_client(
+            service_name="cloudtrail",
+            region_name=region,
+            profile_name=self.profile_name,
+        )
+
+        events = []
+        start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
+        end_time = datetime.now(timezone.utc)
+
+        paginator = client.get_paginator("lookup_events")
+
+        try:
+            for page in paginator.paginate(
+                StartTime=start_time,
+                EndTime=end_time,
+                MaxResults=50,
+            ):
+                for event in page.get("Events", []):
+                    parsed = self._parse_creation_event(event, region)
+                    if parsed:
+                        events.append(parsed)
+
+        except Exception as e:
+            logger.error(f"Error querying CloudTrail: {e}")
+            raise
+
+        return events
+
+    def _parse_creation_event(
+        self,
+        event: dict,
+        region: str,
+    ) -> Optional[ResourceCreationEvent]:
+        """Parse a CloudTrail event for any creation event."""
+        try:
+            cloud_trail_event = json.loads(event.get("CloudTrailEvent", "{}"))
+
+            event_name = cloud_trail_event.get("eventName", "")
+
+            # Check if this is a creation event we care about
+            if event_name not in EVENT_TO_RESOURCE_TYPE:
+                return None
+
+            # Extract creator identity
+            user_identity = cloud_trail_event.get("userIdentity", {})
+            identity_type = user_identity.get("type", "")
+            created_by_arn = ""
+
+            if identity_type == "AssumedRole":
+                session_context = user_identity.get("sessionContext", {})
+                session_issuer = session_context.get("sessionIssuer", {})
+                created_by_arn = session_issuer.get("arn", "")
+            elif identity_type == "Role":
+                created_by_arn = user_identity.get("arn", "")
+            elif identity_type == "IAMUser":
+                created_by_arn = user_identity.get("arn", "")
+            elif identity_type == "Root":
+                created_by_arn = "root"
+            elif identity_type == "AWSService":
+                invoking_service = user_identity.get("invokedBy", "")
+                created_by_arn = f"service:{invoking_service}"
+
+            # Extract resource information
+            resource_type = EVENT_TO_RESOURCE_TYPE[event_name]
+            resource_name, resource_arn_extracted = self._extract_resource_info(
+                cloud_trail_event, event_name
+            )
+
+            # Get account ID
+            account_id = cloud_trail_event.get("recipientAccountId", "")
+            if not account_id:
+                account_id = user_identity.get("accountId", "")
+
+            return ResourceCreationEvent(
+                event_time=event.get("EventTime", datetime.now(timezone.utc)),
+                event_name=event_name,
+                resource_type=resource_type,
+                resource_name=resource_name,
+                resource_arn=resource_arn_extracted,
+                created_by_arn=created_by_arn,
+                created_by_type=identity_type,
+                region=cloud_trail_event.get("awsRegion", region),
+                account_id=account_id,
+                raw_event=cloud_trail_event,
+            )
+
+        except Exception as e:
+            logger.debug(f"Error parsing CloudTrail event: {e}")
+            return None
+
+    def get_resource_creators(
+        self,
+        days_back: int = 90,
+        regions: Optional[List[str]] = None,
+    ) -> Dict[str, Dict[str, str]]:
+        """Build a mapping of resources to their creators.
+
+        Args:
+            days_back: Days to look back
+            regions: Regions to query
+
+        Returns:
+            Dict mapping (resource_type, resource_name) key to creator info:
+            {
+                "AWS::S3::Bucket:my-bucket": {
+                    "created_by": "arn:aws:iam::123:role/MyRole",
+                    "created_by_type": "AssumedRole",
+                    "created_at": "2024-01-15T10:30:00Z"
+                }
+            }
+        """
+        events = self.get_all_creation_events(days_back, regions)
+
+        creators: Dict[str, Dict[str, str]] = {}
+        for event in events:
+            if event.resource_name:
+                key = f"{event.resource_type}:{event.resource_name}"
+                # Keep the most recent creation event for each resource
+                if key not in creators or event.event_time > datetime.fromisoformat(
+                    creators[key]["created_at"].replace("Z", "+00:00")
+                ):
+                    creators[key] = {
+                        "created_by": event.created_by_arn,
+                        "created_by_type": event.created_by_type,
+                        "created_at": event.event_time.isoformat(),
+                    }
+
+        return creators
