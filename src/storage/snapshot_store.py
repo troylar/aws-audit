@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ..matching import ResourceNormalizer
 from ..models.resource import Resource
 from ..models.snapshot import Snapshot
 from .database import Database, json_deserialize, json_serialize
@@ -54,6 +55,9 @@ class SnapshotStore:
         Returns:
             Database ID of saved snapshot
         """
+        # Create normalizer for computing normalized names
+        normalizer = ResourceNormalizer()
+
         with self.db.transaction() as cursor:
             # Insert snapshot
             cursor.execute(
@@ -83,13 +87,23 @@ class SnapshotStore:
 
             # Insert resources
             for resource in snapshot.resources:
+                # Compute canonical name (for backward compatibility)
                 canonical = compute_canonical_name(resource.name, resource.tags, resource.arn)
+
+                # Compute normalized name with pattern extraction
+                norm_result = normalizer.normalize_single(
+                    resource.name,
+                    resource.resource_type,
+                    resource.tags,
+                )
+
                 cursor.execute(
                     """
                     INSERT INTO resources (
                         snapshot_id, arn, resource_type, name, region,
-                        config_hash, raw_config, created_at, source, canonical_name
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        config_hash, raw_config, created_at, source, canonical_name,
+                        normalized_name, extracted_patterns, normalization_method
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         snapshot_id,
@@ -102,6 +116,9 @@ class SnapshotStore:
                         resource.created_at.isoformat() if resource.created_at else None,
                         resource.source,
                         canonical,
+                        norm_result.normalized_name,
+                        json_serialize(norm_result.extracted_patterns),
+                        norm_result.method,
                     ),
                 )
                 resource_id = cursor.lastrowid

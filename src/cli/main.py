@@ -3617,6 +3617,157 @@ def serve(
     )
 
 
+# =============================================================================
+# Normalize Command (AI Normalization)
+# =============================================================================
+
+
+@app.command()
+def normalize(
+    snapshot: str = typer.Option(..., "--snapshot", "-s", help="Snapshot name to normalize"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview normalizations without saving"),
+    use_ai: bool = typer.Option(True, "--ai/--no-ai", help="Use AI for ambiguous names (default: enabled)"),
+):
+    """Re-run AI normalization on an existing snapshot.
+
+    This command updates the normalized_name column for all resources
+    in the specified snapshot using AI-based name normalization.
+
+    Use this to:
+    - Backfill normalized names for snapshots created before AI normalization
+    - Re-normalize with updated AI models or prompts
+    - Preview normalizations with --dry-run before committing
+
+    Example:
+        awsinv normalize --snapshot my-snapshot-20260113
+        awsinv normalize --snapshot my-snapshot --dry-run
+        awsinv normalize --snapshot my-snapshot --no-ai
+    """
+    global config
+    if config is None:
+        config = Config.load()
+
+    from ..storage import Database, SnapshotStore
+
+    try:
+        from ..matching import NormalizerConfig, ResourceNormalizer
+    except ImportError:
+        console.print(
+            "[red]AI dependencies not installed.[/red]\n"
+            "Install with: [cyan]pip install aws-inventory-manager[ai][/cyan]"
+        )
+        raise typer.Exit(code=1)
+
+    # Initialize database
+    db = Database(config.storage_path)
+    snapshot_store = SnapshotStore(db)
+
+    # Check snapshot exists
+    if not snapshot_store.exists(snapshot):
+        console.print(f"[red]✗ Snapshot '{snapshot}' not found[/red]")
+        raise typer.Exit(code=1)
+
+    # Load the snapshot
+    console.print(f"[cyan]Loading snapshot '[bold]{snapshot}[/bold]'...[/cyan]")
+    snapshot_obj = snapshot_store.load(snapshot)
+
+    if not snapshot_obj or not snapshot_obj.resources:
+        console.print(f"[yellow]⚠ Snapshot '{snapshot}' has no resources to normalize[/yellow]")
+        raise typer.Exit(code=0)
+
+    console.print(f"  Found [bold]{len(snapshot_obj.resources)}[/bold] resources")
+
+    # Initialize normalizer
+    normalizer_config = NormalizerConfig.from_env()
+
+    if use_ai and not normalizer_config.is_ai_enabled:
+        console.print("[yellow]⚠ OPENAI_API_KEY not set - using rules-based normalization only[/yellow]")
+        use_ai = False
+
+    normalizer = ResourceNormalizer(normalizer_config)
+
+    # Prepare resources for normalization
+    resource_dicts = [
+        {
+            "arn": r.arn,
+            "name": r.name,
+            "resource_type": r.resource_type,
+            "tags": r.tags,
+        }
+        for r in snapshot_obj.resources
+    ]
+
+    # Run normalization
+    if use_ai:
+        console.print("[cyan]Running AI-assisted normalization...[/cyan]")
+    else:
+        console.print("[cyan]Running rules-based normalization...[/cyan]")
+
+    with console.status("[bold green]Normalizing resources..."):
+        normalized_names = normalizer.normalize_resources(resource_dicts, use_ai=use_ai)
+
+    console.print(f"  Normalized [bold]{len(normalized_names)}[/bold] resource names")
+
+    if normalizer.tokens_used > 0:
+        console.print(f"  AI tokens used: [dim]{normalizer.tokens_used}[/dim]")
+
+    # Show preview in dry-run mode
+    if dry_run:
+        console.print("\n[yellow]DRY RUN - No changes saved[/yellow]\n")
+
+        # Build a table of changes
+        table = Table(title="Normalization Preview (first 20)")
+        table.add_column("Resource Type", style="cyan")
+        table.add_column("Original Name", style="white")
+        table.add_column("Normalized Name", style="green")
+
+        count = 0
+        for r in snapshot_obj.resources:
+            if count >= 20:
+                break
+            norm_name = normalized_names.get(r.arn, r.name)
+            # Only show if different or meaningful
+            table.add_row(
+                r.resource_type.split("::")[-1] if r.resource_type else "Unknown",
+                r.name or "(no name)",
+                norm_name,
+            )
+            count += 1
+
+        console.print(table)
+
+        if len(snapshot_obj.resources) > 20:
+            console.print(f"\n[dim]... and {len(snapshot_obj.resources) - 20} more resources[/dim]")
+
+        console.print("\n[yellow]Run without --dry-run to save changes[/yellow]")
+        raise typer.Exit(code=0)
+
+    # Update database with normalized names
+    console.print("[cyan]Updating database...[/cyan]")
+
+    snapshot_id = snapshot_store.get_id(snapshot)
+    if snapshot_id is None:
+        console.print("[red]✗ Failed to get snapshot ID[/red]")
+        raise typer.Exit(code=1)
+
+    updated_count = 0
+    with db.transaction() as cursor:
+        for r in snapshot_obj.resources:
+            norm_name = normalized_names.get(r.arn)
+            if norm_name:
+                cursor.execute(
+                    """
+                    UPDATE resources
+                    SET normalized_name = ?
+                    WHERE snapshot_id = ? AND arn = ?
+                    """,
+                    (norm_name, snapshot_id, r.arn),
+                )
+                updated_count += cursor.rowcount
+
+    console.print(f"[green]✓ Updated {updated_count} resources with normalized names[/green]")
+
+
 def cli_main():
     """Entry point for console script."""
     app()

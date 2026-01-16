@@ -1,6 +1,6 @@
 """SQLite schema definitions for AWS Inventory Manager."""
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
 
 # Schema creation SQL
 SCHEMA_SQL = """
@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS resources (
     created_at TIMESTAMP,
     source TEXT DEFAULT 'direct_api',
     canonical_name TEXT,
+    normalized_name TEXT,
+    extracted_patterns TEXT,
+    normalization_method TEXT,
     FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE,
     UNIQUE(snapshot_id, arn)
 );
@@ -190,6 +193,7 @@ CREATE INDEX IF NOT EXISTS idx_resources_created ON resources(created_at);
 CREATE INDEX IF NOT EXISTS idx_resources_snapshot ON resources(snapshot_id);
 CREATE INDEX IF NOT EXISTS idx_resources_type_region ON resources(resource_type, region);
 CREATE INDEX IF NOT EXISTS idx_resources_canonical_name_type ON resources(canonical_name, resource_type);
+CREATE INDEX IF NOT EXISTS idx_resources_normalized_name_type ON resources(normalized_name, resource_type);
 
 -- Tags indexes (for efficient tag queries)
 CREATE INDEX IF NOT EXISTS idx_tags_resource ON resource_tags(resource_id);
@@ -264,6 +268,53 @@ MIGRATIONS = {
         UPDATE resources
         SET canonical_name = COALESCE(name, arn)
         WHERE canonical_name IS NULL
+        """,
+    ],
+    "1.2.0": [
+        # Add normalized_name column for pattern-stripped names
+        "ALTER TABLE resources ADD COLUMN normalized_name TEXT",
+        # Add extracted_patterns column for storing what was stripped (JSON)
+        "ALTER TABLE resources ADD COLUMN extracted_patterns TEXT",
+        # Add normalization_method column for tracking how normalization was done
+        "ALTER TABLE resources ADD COLUMN normalization_method TEXT",
+        # Backfill normalized_name from CloudFormation logical-id tag
+        """
+        UPDATE resources
+        SET normalized_name = (
+            SELECT value FROM resource_tags
+            WHERE resource_tags.resource_id = resources.id
+            AND key = 'aws:cloudformation:logical-id'
+        ),
+        normalization_method = 'tag:logical-id'
+        WHERE normalized_name IS NULL
+        AND EXISTS (
+            SELECT 1 FROM resource_tags
+            WHERE resource_tags.resource_id = resources.id
+            AND key = 'aws:cloudformation:logical-id'
+        )
+        """,
+        # Backfill from Name tag
+        """
+        UPDATE resources
+        SET normalized_name = (
+            SELECT value FROM resource_tags
+            WHERE resource_tags.resource_id = resources.id
+            AND key = 'Name'
+        ),
+        normalization_method = 'tag:Name'
+        WHERE normalized_name IS NULL
+        AND EXISTS (
+            SELECT 1 FROM resource_tags
+            WHERE resource_tags.resource_id = resources.id
+            AND key = 'Name'
+        )
+        """,
+        # Fallback to physical name (pattern extraction needs Python, done on re-snapshot)
+        """
+        UPDATE resources
+        SET normalized_name = COALESCE(name, arn),
+            normalization_method = 'none'
+        WHERE normalized_name IS NULL
         """,
     ],
 }

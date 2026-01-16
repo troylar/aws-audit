@@ -485,7 +485,8 @@ class GroupStore:
             params.append(region_filter)
 
         query = f"""
-            SELECT r.arn, r.resource_type, r.name, r.canonical_name
+            SELECT r.arn, r.resource_type, r.name, r.canonical_name,
+                   r.normalized_name, r.normalization_method
             FROM resources r
             WHERE {" AND ".join(conditions)}
             ORDER BY r.resource_type, r.name
@@ -494,17 +495,24 @@ class GroupStore:
         resource_rows = self.db.fetchall(query, tuple(params))
 
         # Create group with members
-        # Use canonical_name (logical ID) when available for stable matching
+        # Choose the best match strategy based on how the resource was normalized
         members = []
         for row in resource_rows:
             physical_name = row["name"] or extract_resource_name(row["arn"], row["resource_type"])
-            canonical_name = row.get("canonical_name")
+            normalized_name = row.get("normalized_name")
+            normalization_method = row.get("normalization_method") or "none"
 
-            # If canonical_name differs from physical_name, it's a CloudFormation logical ID
-            if canonical_name and canonical_name != physical_name:
-                resource_name = canonical_name
+            # Choose match strategy based on normalization method
+            if normalization_method == "tag:logical-id":
+                # CloudFormation logical ID - most reliable
+                resource_name = row.get("canonical_name") or normalized_name
                 match_strategy = "logical_id"
+            elif normalization_method in ("tag:Name", "pattern"):
+                # Name tag or pattern extraction - use normalized name
+                resource_name = normalized_name or physical_name
+                match_strategy = "normalized"
             else:
+                # No normalization - use physical name
                 resource_name = physical_name
                 match_strategy = "physical_name"
 
@@ -672,10 +680,12 @@ class GroupStore:
         # Use NOT EXISTS to find resources not in group
         # Match strategy determines how to compare:
         # - 'logical_id': match on canonical_name (CloudFormation logical ID)
+        # - 'normalized': match on normalized_name (pattern-stripped semantic name)
         # - 'physical_name': match on physical name or ARN
         rows = self.db.fetchall(
             """
-            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at, r.canonical_name
+            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at,
+                   r.canonical_name, r.normalized_name, r.normalization_method
             FROM resources r
             WHERE r.snapshot_id = ?
                 AND NOT EXISTS (
@@ -684,6 +694,7 @@ class GroupStore:
                     AND r.resource_type = gm.resource_type
                     AND (
                         (gm.match_strategy = 'logical_id' AND r.canonical_name = gm.resource_name)
+                        OR (gm.match_strategy = 'normalized' AND r.normalized_name = gm.resource_name)
                         OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name' AND COALESCE(r.name, r.arn) = gm.resource_name)
                     )
                 )
@@ -727,14 +738,17 @@ class GroupStore:
         # Use INNER JOIN to find resources in group
         # Match strategy determines how to compare:
         # - 'logical_id': match on canonical_name (CloudFormation logical ID)
+        # - 'normalized': match on normalized_name (pattern-stripped semantic name)
         # - 'physical_name': match on physical name or ARN
         rows = self.db.fetchall(
             """
-            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at, r.canonical_name
+            SELECT r.arn, r.resource_type, r.name, r.region, r.created_at,
+                   r.canonical_name, r.normalized_name, r.normalization_method
             FROM resources r
             INNER JOIN resource_group_members gm
                 ON (
                     (gm.match_strategy = 'logical_id' AND r.canonical_name = gm.resource_name)
+                    OR (gm.match_strategy = 'normalized' AND r.normalized_name = gm.resource_name)
                     OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name' AND COALESCE(r.name, r.arn) = gm.resource_name)
                 )
                 AND r.resource_type = gm.resource_type

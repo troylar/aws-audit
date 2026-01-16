@@ -90,6 +90,9 @@ class ResourceStore:
                 r.config_hash,
                 r.created_at,
                 r.source,
+                r.canonical_name,
+                r.normalized_name,
+                r.normalization_method,
                 s.name as snapshot_name,
                 s.created_at as snapshot_created_at,
                 s.account_id
