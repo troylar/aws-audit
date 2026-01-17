@@ -54,7 +54,10 @@
         { value: 'region', label: 'Region', type: 'select' },
         { value: 'snapshot_name', label: 'Snapshot', type: 'select' },
         { value: 'config_hash', label: 'Config Hash', type: 'text' },
-        { value: 'group_membership', label: 'Group Membership', type: 'group' }
+        { value: 'group_membership', label: 'Group Membership', type: 'group' },
+        { value: '_created_by', label: 'Created By', type: 'text', isTagField: true },
+        { value: '_created_by_type', label: 'Creator Type', type: 'select', isTagField: true },
+        { value: '_created_at', label: 'Creation Time', type: 'text', isTagField: true }
     ],
     availableTagKeys: [],
     fieldValues: {},  // Cache of available values per field
@@ -381,10 +384,16 @@
 
         // Get field value from resource
         let fieldValue = '';
+        // Check if this is a tag field (either tag:KEY or a creator field like _created_by)
+        const fieldDef = this.baseFilterFields.find(f => f.value === condition.field);
         if (condition.field.startsWith('tag:')) {
             const tagKey = condition.field.substring(4);
             const tags = resource.tags || {};
             fieldValue = (tags[tagKey] || '').toString().toLowerCase();
+        } else if (fieldDef && fieldDef.isTagField) {
+            // Creator fields are stored in tags
+            const tags = resource.tags || {};
+            fieldValue = (tags[condition.field] || '').toString().toLowerCase();
         } else if (condition.field === 'tag_key') {
             // Legacy: any tag key matches
             const tags = resource.tags || {};
@@ -1959,7 +1968,7 @@
         resourceTable = new Tabulator(target, {
             data: data.resourceData.resources,
             columns: [selectColumn, ...columns],
-            layout: "fitColumns",
+            layout: "fitDataStretch",
             height: "calc(100vh - 380px)",
             movableColumns: true,
             resizableColumns: true,
