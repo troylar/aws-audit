@@ -3,7 +3,10 @@
 {% block title %}Resources - AWS Inventory Browser{% endblock %}
 
 {% block content %}
-<div class="space-y-6" x-data="{
+<div class="flex flex-col h-full max-w-full overflow-hidden gap-4" x-data="{
+    // Collapsible filters
+    filtersCollapsed: false,
+
     // Simple filter mode fields
     selectedTypes: [],
     selectedRegions: [],
@@ -765,7 +768,7 @@
     }
 }">
     <!-- Header -->
-    <div class="md:flex md:items-center md:justify-between">
+    <div class="md:flex md:items-center md:justify-between flex-shrink-0">
         <div class="min-w-0 flex-1">
             <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">Resource Explorer</h1>
         </div>
@@ -792,7 +795,7 @@
     </div>
 
     <!-- Saved Views & Filters Bar -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
         <!-- Saved Views -->
         <div class="bg-white shadow rounded-lg">
             <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
@@ -831,25 +834,48 @@
     </div>
 
     <!-- Filters -->
-    <div class="bg-white shadow rounded-lg p-4">
-        <!-- Filter Mode Toggle -->
-        <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center space-x-4">
-                <span class="text-sm font-medium text-gray-700">Filter Mode:</span>
-                <div class="flex rounded-md shadow-sm">
-                    <button @click="advancedMode = false"
-                            :class="!advancedMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
-                            class="px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300">
-                        Simple
-                    </button>
-                    <button @click="advancedMode = true; if (filterRoot.items.length === 0) addCondition();"
-                            :class="advancedMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
-                            class="px-4 py-2 text-sm font-medium rounded-r-md border border-l-0 border-gray-300">
-                        Advanced
-                    </button>
+    <div class="bg-white shadow rounded-lg flex-shrink-0">
+        <!-- Collapsible Header -->
+        <div class="px-4 py-3 flex items-center justify-between cursor-pointer border-b border-gray-200"
+             @click="filtersCollapsed = !filtersCollapsed">
+            <div class="flex items-center space-x-2">
+                <svg class="h-5 w-5 text-gray-500 transition-transform duration-200"
+                     :class="filtersCollapsed ? '' : 'rotate-90'"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+                <h3 class="text-sm font-medium text-gray-900">Filters</h3>
+                <span x-show="advancedMode && countConditions() > 0" class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                    <span x-text="countConditions()"></span> condition(s)
+                </span>
+                <span x-show="!advancedMode && (selectedTypes.length > 0 || selectedRegions.length > 0 || snapshot || search)"
+                      class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                    Active
+                </span>
+            </div>
+            <span class="text-xs text-gray-400" x-text="filtersCollapsed ? 'Click to expand' : 'Click to collapse'"></span>
+        </div>
+
+        <!-- Collapsible Content -->
+        <div x-show="!filtersCollapsed" x-collapse class="p-4">
+            <!-- Filter Mode Toggle -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm font-medium text-gray-700">Filter Mode:</span>
+                    <div class="flex rounded-md shadow-sm">
+                        <button @click.stop="advancedMode = false"
+                                :class="!advancedMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                class="px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300">
+                            Simple
+                        </button>
+                        <button @click.stop="advancedMode = true; if (filterRoot.items.length === 0) addCondition();"
+                                :class="advancedMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                class="px-4 py-2 text-sm font-medium rounded-r-md border border-l-0 border-gray-300">
+                            Advanced
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <!-- Simple Mode Filters -->
         <div x-show="!advancedMode" x-transition>
@@ -1280,26 +1306,24 @@
             </div>
         </div>
 
-        <div class="mt-4 flex items-center space-x-3">
-            <button @click="searchResources()" class="btn btn-primary">
-                <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-                Search
-            </button>
-            <button @click="if (advancedMode) { clearFilters(); applyAdvancedFilter(); } else { selectedTypes = []; selectedRegions = []; snapshot = ''; search = ''; } clearGroupFilter(); searchResources();"
-                    class="btn btn-secondary">
-                Clear
-            </button>
-            <span x-show="advancedMode && countConditions() > 0" class="text-sm text-gray-500">
-                <span x-text="countConditions()"></span> condition(s)
-            </span>
+            <div class="mt-4 flex items-center space-x-3">
+                <button @click.stop="searchResources()" class="btn btn-primary">
+                    <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    Search
+                </button>
+                <button @click.stop="if (advancedMode) { clearFilters(); applyAdvancedFilter(); } else { selectedTypes = []; selectedRegions = []; snapshot = ''; search = ''; } clearGroupFilter(); searchResources();"
+                        class="btn btn-secondary">
+                    Clear
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Selection Toolbar -->
     <div x-show="selectedResources.length > 0" x-transition
-         class="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+         class="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between flex-shrink-0">
         <div class="flex items-center space-x-3">
             <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-sm" x-text="selectedResources.length"></span>
             <span class="text-blue-800 font-medium">resource(s) selected</span>
@@ -1318,8 +1342,8 @@
     </div>
 
     <!-- Results -->
-    <div class="card">
-        <div id="resource-table">
+    <div class="card flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div id="resource-table" class="flex-1 min-h-0 overflow-auto">
             <div class="p-12 text-center text-gray-500">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
                 <p class="mt-4 font-medium">Loading resources...</p>
@@ -1969,7 +1993,7 @@
             data: data.resourceData.resources,
             columns: [selectColumn, ...columns],
             layout: "fitDataStretch",
-            height: "calc(100vh - 380px)",
+            height: "100%",
             movableColumns: true,
             resizableColumns: true,
             placeholder: "No resources to display",

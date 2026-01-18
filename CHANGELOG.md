@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.4] - 2026-01-18
+
+### Added
+- **Collapsible Filters**: Filter section can now be collapsed/expanded with a click
+  - Shows "Active" badge when filters are applied
+  - Shows condition count when using advanced filters
+  - Retains filter state when collapsed
+
+### Fixed
+- **Single-Page App Layout**: Resources page now fits within browser viewport
+  - No more vertical/horizontal page blowout
+  - Table fills remaining space and scrolls within its container
+  - Fixed header, filters, and footer stay in place while table scrolls
+- **Proper Flexbox Layout**: All page sections use proper flex-shrink-0 to maintain size
+  - Header, views bar, filters, and selection toolbar don't shrink
+  - Table card expands to fill available space
+
 ## [0.17.3] - 2026-01-17
 
 ### Added
