@@ -300,8 +300,8 @@ async def export_resources_csv(
 @router.get("/export/yaml")
 async def export_resources_yaml(
     q: Optional[str] = Query(None, description="Search query (ARN pattern)"),
-    type: Optional[str] = Query(None, description="Filter by resource type"),
-    region: Optional[str] = Query(None, description="Filter by region"),
+    type: Optional[str] = Query(None, description="Filter by resource type (comma-separated for multiple)"),
+    region: Optional[str] = Query(None, description="Filter by region (comma-separated for multiple)"),
     snapshot: Optional[str] = Query(None, description="Limit to specific snapshot"),
     tag_key: Optional[str] = Query(None, description="Filter by tag key"),
     tag_value: Optional[str] = Query(None, description="Filter by tag value"),
@@ -312,17 +312,31 @@ async def export_resources_yaml(
     store = get_resource_store()
     db = get_database()
 
+    # Parse comma-separated types and regions
+    types_list = [t.strip() for t in type.split(",")] if type else []
+    regions_list = [r.strip() for r in region.split(",")] if region else []
+
+    # For single value, use API filter; for multiple, we'll post-filter
+    api_type = types_list[0] if len(types_list) == 1 else None
+    api_region = regions_list[0] if len(regions_list) == 1 else None
+
     # Get all matching resources
     resources = store.search(
         arn_pattern=q,
-        resource_type=type,
-        region=region,
+        resource_type=api_type,
+        region=api_region,
         snapshot_name=snapshot,
         tag_key=tag_key,
         tag_value=tag_value,
         limit=10000,
         offset=0,
     )
+
+    # Post-filter for multiple types/regions
+    if len(types_list) > 1:
+        resources = [r for r in resources if r.get("resource_type") in types_list]
+    if len(regions_list) > 1:
+        resources = [r for r in resources if r.get("region") in regions_list]
 
     if not resources:
         raise HTTPException(status_code=404, detail="No resources found matching criteria")

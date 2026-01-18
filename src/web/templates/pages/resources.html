@@ -2358,42 +2358,62 @@
 
     function exportYAML() {
         // Use server-side export to get ALL properties including raw_config
-        // Build query params from current filter state
-        const data = Alpine.$data(document.querySelector('[x-data]'));
-        const params = new URLSearchParams();
+        console.log('exportYAML called');
 
-        // Add basic filters
-        if (data.searchQuery) params.set('q', data.searchQuery);
-        if (data.selectedSnapshot) params.set('snapshot', data.selectedSnapshot);
-        if (data.selectedType) params.set('type', data.selectedType);
-        if (data.selectedRegion) params.set('region', data.selectedRegion);
+        try {
+            // Build query params from current filter state
+            const data = Alpine.$data(document.querySelector('[x-data]'));
+            const params = new URLSearchParams();
 
-        // Include full config and tags (server defaults to true, but be explicit)
-        params.set('include_config', 'true');
-        params.set('include_tags', 'true');
+            // Add basic filters (property names match Alpine data model)
+            if (data && data.search) params.set('q', data.search);
+            if (data && data.snapshot) params.set('snapshot', data.snapshot);
+            // Arrays - pass as comma-separated (API supports multiple)
+            if (data && data.selectedTypes && data.selectedTypes.length > 0) {
+                params.set('type', data.selectedTypes.join(','));
+            }
+            if (data && data.selectedRegions && data.selectedRegions.length > 0) {
+                params.set('region', data.selectedRegions.join(','));
+            }
 
-        // Fetch from server API
-        const url = '/api/resources/export/yaml?' + params.toString();
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.detail || 'Export failed');
-                    });
-                }
-                return response.blob();
-            })
-            .then(blob => {
-                const downloadUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = 'resources_export_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.yaml';
-                a.click();
-                URL.revokeObjectURL(downloadUrl);
-            })
-            .catch(error => {
-                alert('Export failed: ' + error.message);
-            });
+            // Include full config and tags (server defaults to true, but be explicit)
+            params.set('include_config', 'true');
+            params.set('include_tags', 'true');
+
+            // Fetch from server API
+            const url = '/api/resources/export/yaml?' + params.toString();
+            console.log('Fetching YAML from:', url);
+
+            fetch(url)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.detail || 'Export failed');
+                        });
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    console.log('Blob received, size:', blob.size);
+                    const downloadUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = 'resources_export_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.yaml';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(downloadUrl);
+                    console.log('Download triggered');
+                })
+                .catch(error => {
+                    console.error('Export error:', error);
+                    alert('Export failed: ' + error.message);
+                });
+        } catch (e) {
+            console.error('exportYAML error:', e);
+            alert('Export error: ' + e.message);
+        }
     }
 
     function loadTagKeys() {
