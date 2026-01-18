@@ -148,7 +148,7 @@ async def create_saved_filter(filter_data: SavedFilter):
                 datetime.utcnow().isoformat(),
             ),
         )
-        db._conn.commit()  # type: ignore
+        db.commit()
         return {"id": cursor.lastrowid, "message": "Filter saved"}
     except Exception as e:
         if "UNIQUE constraint" in str(e):
@@ -196,7 +196,7 @@ async def update_saved_filter(filter_id: int, filter_data: SavedFilter):
         """,
         (filter_data.name, filter_data.description, config_json, filter_data.is_favorite, filter_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "Filter updated"}
 
 
@@ -210,7 +210,7 @@ async def delete_saved_filter(filter_id: int):
         raise HTTPException(status_code=404, detail="Filter not found")
 
     db.execute("DELETE FROM saved_filters WHERE id = ?", (filter_id,))
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "Filter deleted"}
 
 
@@ -231,7 +231,7 @@ async def mark_filter_used(filter_id: int):
         """,
         (datetime.utcnow().isoformat(), filter_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "Filter marked as used"}
 
 
@@ -249,5 +249,5 @@ async def toggle_filter_favorite(filter_id: int):
         "UPDATE saved_filters SET is_favorite = ? WHERE id = ?",
         (new_favorite, filter_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "Favorite toggled", "is_favorite": new_favorite}

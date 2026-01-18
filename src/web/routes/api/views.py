@@ -140,7 +140,7 @@ async def create_saved_view(view: SavedView):
                 datetime.utcnow().isoformat(),
             ),
         )
-        db._conn.commit()  # type: ignore
+        db.commit()
         return {"id": cursor.lastrowid, "message": "View saved"}
     except Exception as e:
         if "UNIQUE constraint" in str(e):
@@ -185,7 +185,7 @@ async def update_saved_view(view_id: int, view: SavedView):
         """,
         (view.name, view.description, config_json, view.is_default, view.is_favorite, view_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "View updated"}
 
 
@@ -199,7 +199,7 @@ async def delete_saved_view(view_id: int):
         raise HTTPException(status_code=404, detail="View not found")
 
     db.execute("DELETE FROM saved_views WHERE id = ?", (view_id,))
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "View deleted"}
 
 
@@ -220,7 +220,7 @@ async def mark_view_used(view_id: int):
         """,
         (datetime.utcnow().isoformat(), view_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "View marked as used"}
 
 
@@ -238,7 +238,7 @@ async def set_default_view(view_id: int):
 
     # Set new default
     db.execute("UPDATE saved_views SET is_default = 1 WHERE id = ?", (view_id,))
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "View set as default"}
 
 
@@ -256,5 +256,5 @@ async def toggle_view_favorite(view_id: int):
         "UPDATE saved_views SET is_favorite = ? WHERE id = ?",
         (new_favorite, view_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "Favorite toggled", "is_favorite": new_favorite}

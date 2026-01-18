@@ -246,6 +246,11 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
+    def commit(self) -> None:
+        """Commit the current transaction."""
+        if self._connection:
+            self._connection.commit()
+
     def close(self) -> None:
         """Close database connection."""
         if self._connection:

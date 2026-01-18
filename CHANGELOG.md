@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.14] - 2026-01-18
+
+### Fixed
+- **Save Filters/Views**: Fixed saved filters and views not persisting to database
+  - Database class was missing `commit()` method
+  - API routes were using wrong attribute name (`_conn` vs `_connection`)
+  - Saved filters and views now persist correctly and appear in selection
+
 ## [0.17.13] - 2026-01-18
 
 ### Fixed

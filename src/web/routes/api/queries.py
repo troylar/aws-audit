@@ -77,7 +77,7 @@ async def create_saved_query(query: SavedQuery):
                 datetime.utcnow().isoformat(),
             ),
         )
-        db._conn.commit()  # type: ignore
+        db.commit()
         return {"id": cursor.lastrowid, "message": "Query saved"}
     except Exception as e:
         if "UNIQUE constraint" in str(e):
@@ -114,7 +114,7 @@ async def update_saved_query(query_id: int, query: SavedQuery):
         """,
         (query.name, query.description, query.sql_text, query.category, query.is_favorite, query_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "Query updated"}
 
 
@@ -128,7 +128,7 @@ async def delete_saved_query(query_id: int):
         raise HTTPException(status_code=404, detail="Query not found")
 
     db.execute("DELETE FROM saved_queries WHERE id = ?", (query_id,))
-    db._conn.commit()  # type: ignore
+    db.commit()
     return {"message": "Query deleted"}
 
 
@@ -155,7 +155,7 @@ async def run_saved_query(
         """,
         (datetime.utcnow().isoformat(), query_id),
     )
-    db._conn.commit()  # type: ignore
+    db.commit()
 
     # Execute the query
     return await _execute_sql(sql_text, limit)
