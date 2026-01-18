@@ -1095,15 +1095,39 @@ def snapshot_create(
         # Track creators for ALL resources if --track-creators specified
         if track_creators:
             from ..cloudtrail import CloudTrailQuery
+            from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+            from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE
 
             console.print("\n🔍 Tracking resource creators from CloudTrail...")
-            console.print("   Querying CloudTrail for all creation events (this may take a moment)...")
 
             ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
-            creators = ct_query.get_resource_creators(
-                days_back=90,
-                regions=region_list,
-            )
+
+            # Count total event types to query
+            event_types = list(EVENT_TO_RESOURCE_TYPE.keys())
+            total_queries = len(event_types) * len(region_list)
+            completed_queries = 0
+            total_events_found = 0
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task(f"[cyan]Querying {len(event_types)} event types...", total=total_queries)
+
+                def progress_callback(event_name: str, events_found: int):
+                    nonlocal completed_queries, total_events_found
+                    completed_queries += 1
+                    total_events_found += events_found
+                    progress.update(task, advance=1, description=f"[cyan]{event_name}: {events_found} events")
+
+                creators = ct_query.get_resource_creators(
+                    days_back=90,
+                    regions=region_list,
+                    progress_callback=progress_callback,
+                )
 
             # Match resources to their creators
             matched_count = 0
