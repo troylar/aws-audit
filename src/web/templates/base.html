@@ -656,16 +656,27 @@
             font-family: inherit;
             background: #ffffff;
             box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .tabulator .tabulator-tableholder {
+            overflow-x: auto;
+            overflow-y: auto;
         }
 
         .tabulator-table {
-            width: 100% !important;
+            table-layout: auto;
         }
 
         .tabulator .tabulator-header {
             background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
             border-bottom: 2px solid #e2e8f0;
             font-weight: 600;
+            overflow: visible;
+        }
+
+        .tabulator .tabulator-header .tabulator-headers {
+            overflow: visible;
         }
 
         .tabulator .tabulator-header .tabulator-col {
