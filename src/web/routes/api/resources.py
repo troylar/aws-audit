@@ -391,3 +391,102 @@ async def export_resources_yaml(
         media_type="application/x-yaml",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.post("/export/yaml")
+async def export_resources_yaml_by_arns(
+    request_body: Dict[str, Any],
+    include_config: bool = Query(True, description="Include raw configuration"),
+    include_tags: bool = Query(True, description="Include resource tags"),
+):
+    """Export specific resources by ARN to YAML file with all properties.
+
+    Request body should contain:
+    - arns: List of ARN strings to export
+    - snapshot: Optional snapshot name to scope the lookup
+    """
+    db = get_database()
+    store = get_resource_store()
+
+    arns = request_body.get("arns", [])
+    snapshot_name = request_body.get("snapshot")
+
+    if not arns:
+        raise HTTPException(status_code=400, detail="No ARNs provided")
+
+    if len(arns) > 10000:
+        raise HTTPException(status_code=400, detail="Too many ARNs (max 10000)")
+
+    enriched_resources: List[Dict[str, Any]] = []
+
+    for arn in arns:
+        # Build query for this ARN
+        if snapshot_name:
+            row = db.fetchone(
+                """
+                SELECT r.*, s.name as snapshot_name, s.created_at as snapshot_created_at,
+                       s.account_id
+                FROM resources r
+                JOIN snapshots s ON r.snapshot_id = s.id
+                WHERE r.arn = ? AND s.name = ?
+                """,
+                (arn, snapshot_name),
+            )
+        else:
+            # Get most recent snapshot for this ARN
+            row = db.fetchone(
+                """
+                SELECT r.*, s.name as snapshot_name, s.created_at as snapshot_created_at,
+                       s.account_id
+                FROM resources r
+                JOIN snapshots s ON r.snapshot_id = s.id
+                WHERE r.arn = ?
+                ORDER BY s.created_at DESC
+                LIMIT 1
+                """,
+                (arn,),
+            )
+
+        if not row:
+            continue
+
+        enriched = dict(row)
+
+        # Get tags if requested
+        if include_tags:
+            tags = store.get_tags_for_resource(arn, snapshot_name=enriched.get("snapshot_name"))
+            enriched["tags"] = tags
+
+        # Parse raw config if requested
+        if include_config and enriched.get("raw_config"):
+            try:
+                enriched["config"] = json.loads(enriched["raw_config"])
+            except json.JSONDecodeError:
+                enriched["config"] = enriched["raw_config"]
+
+        # Remove internal fields
+        enriched.pop("raw_config", None)
+        enriched.pop("id", None)
+        enriched.pop("snapshot_id", None)
+
+        enriched_resources.append(enriched)
+
+    if not enriched_resources:
+        raise HTTPException(status_code=404, detail="No resources found for provided ARNs")
+
+    # Generate YAML
+    yaml_content = yaml.dump(
+        {"resources": enriched_resources, "count": len(enriched_resources)},
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+    )
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"resources_export_{timestamp}.yaml"
+
+    return StreamingResponse(
+        iter([yaml_content]),
+        media_type="application/x-yaml",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

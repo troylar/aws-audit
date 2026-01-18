@@ -2357,34 +2357,41 @@
     }
 
     function exportYAML() {
-        // Use server-side export to get ALL properties including raw_config
+        // Export the currently filtered table data with full config from server
         console.log('exportYAML called');
 
         try {
-            // Build query params from current filter state
+            // Get the filtered data from the table (respects ALL filters including advanced)
+            if (!window.resourceTable) {
+                alert('No data to export');
+                return;
+            }
+
+            // getData("active") returns only filtered/visible rows
+            const tableData = window.resourceTable.getData("active");
+            if (tableData.length === 0) {
+                alert('No data to export (check your filters)');
+                return;
+            }
+
+            // Extract ARNs and snapshot from filtered table data
+            const arns = tableData.map(row => row.arn).filter(Boolean);
             const data = Alpine.$data(document.querySelector('[x-data]'));
-            const params = new URLSearchParams();
+            const snapshot = data && data.snapshot ? data.snapshot : null;
 
-            // Add basic filters (property names match Alpine data model)
-            if (data && data.search) params.set('q', data.search);
-            if (data && data.snapshot) params.set('snapshot', data.snapshot);
-            // Arrays - pass as comma-separated (API supports multiple)
-            if (data && data.selectedTypes && data.selectedTypes.length > 0) {
-                params.set('type', data.selectedTypes.join(','));
-            }
-            if (data && data.selectedRegions && data.selectedRegions.length > 0) {
-                params.set('region', data.selectedRegions.join(','));
-            }
+            console.log(`Exporting ${arns.length} resources (filtered from table)`);
 
-            // Include full config and tags (server defaults to true, but be explicit)
-            params.set('include_config', 'true');
-            params.set('include_tags', 'true');
-
-            // Fetch from server API
-            const url = '/api/resources/export/yaml?' + params.toString();
-            console.log('Fetching YAML from:', url);
-
-            fetch(url)
+            // POST to API with ARNs to get full data including raw_config
+            fetch('/api/resources/export/yaml?include_config=true&include_tags=true', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    arns: arns,
+                    snapshot: snapshot
+                })
+            })
                 .then(response => {
                     console.log('Response status:', response.status);
                     if (!response.ok) {
