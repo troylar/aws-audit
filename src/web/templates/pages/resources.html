@@ -2280,32 +2280,96 @@
     }
 
     function exportCSV() {
+        // Export the currently visible/filtered data from the table
+        if (!window.resourceTable) {
+            alert('No data to export');
+            return;
+        }
+
         const data = Alpine.$data(document.querySelector('[x-data]'));
-        const params = new URLSearchParams();
-        if (data.search) params.append('q', data.search);
-        if (data.selectedTypes.length === 1) params.append('type', data.selectedTypes[0]);
-        if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
-        if (data.snapshot) params.append('snapshot', data.snapshot);
+        const visibleColumns = data.visibleColumns.map(c => c.field);
 
-        const visibleFields = data.visibleColumns.map(c => c.field);
-        params.append('columns', visibleFields.join(','));
-        params.append('sort_by', data.sortBy);
-        params.append('sort_order', data.sortOrder);
+        // Get data from table (respects current filters/sorting)
+        const tableData = window.resourceTable.getData();
 
-        window.location.href = '/api/resources/export/csv?' + params.toString();
+        if (tableData.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        // Build CSV content
+        const headers = visibleColumns.filter(f => f !== 'tags'); // Skip complex objects
+        let csv = headers.join(',') + '\n';
+
+        tableData.forEach(row => {
+            const values = headers.map(field => {
+                let val = row[field];
+                if (val === null || val === undefined) val = '';
+                // Handle tag: fields
+                if (field.startsWith('tag:') && row.tags) {
+                    const tagKey = field.substring(4);
+                    val = row.tags[tagKey] || '';
+                }
+                // Escape quotes and wrap in quotes if contains comma
+                val = String(val).replace(/"/g, '""');
+                if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+                    val = '"' + val + '"';
+                }
+                return val;
+            });
+            csv += values.join(',') + '\n';
+        });
+
+        // Download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'resources_export_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     function exportYAML() {
-        const data = Alpine.$data(document.querySelector('[x-data]'));
-        const params = new URLSearchParams();
-        if (data.search) params.append('q', data.search);
-        if (data.selectedTypes.length === 1) params.append('type', data.selectedTypes[0]);
-        if (data.selectedRegions.length === 1) params.append('region', data.selectedRegions[0]);
-        if (data.snapshot) params.append('snapshot', data.snapshot);
-        params.append('include_config', 'true');
-        params.append('include_tags', 'true');
+        // Export the currently visible/filtered data from the table
+        if (!window.resourceTable) {
+            alert('No data to export');
+            return;
+        }
 
-        window.location.href = '/api/resources/export/yaml?' + params.toString();
+        // Get data from table (respects current filters/sorting)
+        const tableData = window.resourceTable.getData();
+
+        if (tableData.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        // Build YAML content manually (simple format)
+        let yaml = 'resources:\n';
+        tableData.forEach(row => {
+            yaml += '  - name: ' + (row.name || '') + '\n';
+            yaml += '    arn: ' + (row.arn || '') + '\n';
+            yaml += '    type: ' + (row.resource_type || '') + '\n';
+            yaml += '    region: ' + (row.region || '') + '\n';
+            yaml += '    snapshot: ' + (row.snapshot_name || '') + '\n';
+            if (row.tags && Object.keys(row.tags).length > 0) {
+                yaml += '    tags:\n';
+                Object.entries(row.tags).forEach(([k, v]) => {
+                    yaml += '      ' + k + ': ' + JSON.stringify(v) + '\n';
+                });
+            }
+            yaml += '\n';
+        });
+
+        // Download
+        const blob = new Blob([yaml], { type: 'text/yaml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'resources_export_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.yaml';
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     function loadTagKeys() {
