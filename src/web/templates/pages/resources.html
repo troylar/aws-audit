@@ -3,9 +3,9 @@
 {% block title %}Resources - AWS Inventory Browser{% endblock %}
 
 {% block content %}
-<div class="flex flex-col h-full max-w-full overflow-hidden gap-4" x-data="{
-    // Collapsible filters
-    filtersCollapsed: false,
+<div class="flex flex-col h-full max-w-full overflow-hidden gap-2" x-data="{
+    // Collapsible filters - collapsed by default to maximize table space
+    filtersCollapsed: true,
 
     // Simple filter mode fields
     selectedTypes: [],
@@ -767,12 +767,10 @@
         this.showAddToGroupModal = true;
     }
 }">
-    <!-- Header -->
-    <div class="md:flex md:items-center md:justify-between flex-shrink-0">
-        <div class="min-w-0 flex-1">
-            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl">Resource Explorer</h1>
-        </div>
-        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+    <!-- Header - Compact -->
+    <div class="flex items-center justify-between flex-shrink-0">
+        <h1 class="text-xl font-bold text-gray-900">Resource Explorer</h1>
+        <div class="flex space-x-2">
             <button @click="showColumnModal = true" class="btn btn-secondary">
                 <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
@@ -794,66 +792,49 @@
         </div>
     </div>
 
-    <!-- Saved Views & Filters Bar -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
-        <!-- Saved Views -->
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                <h3 class="text-sm font-medium text-gray-900">Saved Views</h3>
-                <button @click="showSaveViewModal = true; viewName = ''; viewDescription = '';"
-                        class="text-sm text-blue-600 hover:text-blue-500">
-                    + Save Current View
-                </button>
+    <!-- Saved Views & Filters Bar - Compact single row -->
+    <div class="bg-white shadow rounded-lg px-3 py-2 flex items-center gap-4 flex-shrink-0 text-sm">
+        <div class="flex items-center gap-2">
+            <span class="text-gray-500 font-medium">Views:</span>
+            <div id="saved-views-list" hx-get="/api/views" hx-trigger="load" hx-swap="innerHTML" class="flex flex-wrap gap-1">
+                <span class="text-gray-400">...</span>
             </div>
-            <div id="saved-views-list"
-                 hx-get="/api/views"
-                 hx-trigger="load"
-                 hx-swap="innerHTML"
-                 class="flex flex-wrap gap-2 p-3 min-h-[52px]">
-                <div class="text-gray-500 text-sm">Loading...</div>
-            </div>
+            <button @click="showSaveViewModal = true; viewName = ''; viewDescription = '';"
+                    class="text-blue-600 hover:text-blue-500 text-xs">+ Save</button>
         </div>
-
-        <!-- Saved Filters -->
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                <h3 class="text-sm font-medium text-gray-900">Saved Filters</h3>
-                <button @click="showSaveFilterModal = true; filterName = ''; filterDescription = '';"
-                        class="text-sm text-blue-600 hover:text-blue-500">
-                    + Save Current Filter
-                </button>
+        <div class="border-l border-gray-200 h-5"></div>
+        <div class="flex items-center gap-2">
+            <span class="text-gray-500 font-medium">Filters:</span>
+            <div id="saved-filters-list" hx-get="/api/filters" hx-trigger="load" hx-swap="innerHTML" class="flex flex-wrap gap-1">
+                <span class="text-gray-400">...</span>
             </div>
-            <div id="saved-filters-list"
-                 hx-get="/api/filters"
-                 hx-trigger="load"
-                 hx-swap="innerHTML"
-                 class="flex flex-wrap gap-2 p-3 min-h-[52px]">
-                <div class="text-gray-500 text-sm">Loading...</div>
-            </div>
+            <button @click="showSaveFilterModal = true; filterName = ''; filterDescription = '';"
+                    class="text-blue-600 hover:text-blue-500 text-xs">+ Save</button>
         </div>
     </div>
 
     <!-- Filters -->
     <div class="bg-white shadow rounded-lg flex-shrink-0">
-        <!-- Collapsible Header -->
-        <div class="px-4 py-3 flex items-center justify-between cursor-pointer border-b border-gray-200"
+        <!-- Collapsible Header - Compact -->
+        <div class="px-3 py-2 flex items-center justify-between cursor-pointer"
+             :class="filtersCollapsed ? '' : 'border-b border-gray-200'"
              @click="filtersCollapsed = !filtersCollapsed">
-            <div class="flex items-center space-x-2">
-                <svg class="h-5 w-5 text-gray-500 transition-transform duration-200"
+            <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-gray-500 transition-transform duration-200"
                      :class="filtersCollapsed ? '' : 'rotate-90'"
                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
-                <h3 class="text-sm font-medium text-gray-900">Filters</h3>
-                <span x-show="advancedMode && countConditions() > 0" class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                    <span x-text="countConditions()"></span> condition(s)
+                <span class="text-sm font-medium text-gray-900">Filters</span>
+                <span x-show="advancedMode && countConditions() > 0" class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                    <span x-text="countConditions()"></span> conditions
                 </span>
                 <span x-show="!advancedMode && (selectedTypes.length > 0 || selectedRegions.length > 0 || snapshot || search)"
-                      class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                      class="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
                     Active
                 </span>
             </div>
-            <span class="text-xs text-gray-400" x-text="filtersCollapsed ? 'Click to expand' : 'Click to collapse'"></span>
+            <span class="text-xs text-gray-400" x-text="filtersCollapsed ? 'expand' : 'collapse'"></span>
         </div>
 
         <!-- Collapsible Content -->
