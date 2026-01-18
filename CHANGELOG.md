@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.9] - 2026-01-18
+
+### Fixed
+- **Column Sorting**: Fixed sorting for creator and tag columns
+  - Created By, Creator Type, and Creation Time columns now sort correctly
+  - Dynamic tag columns (tag:*) now sort correctly
+  - All columns properly read values from nested tags object
+- **Advanced Filter**: Fixed issue requiring double-click to search with creator field filters
+  - Creator fields (_created_by, _created_by_type, _created_at) now properly detected as tag conditions
+  - Tags are automatically included in API request when filtering by creator fields
+
+### Changed
+- **Compact Column Modal**: Converted column customization from cards to compact checklist
+  - 3-column grid layout for more efficient space usage
+  - Smaller checkboxes and text
+  - Freeze button inline with each item
+  - Reduced visual clutter while maintaining functionality
+
 ## [0.17.8] - 2026-01-18
 
 ### Changed
