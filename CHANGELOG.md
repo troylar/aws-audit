@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.11] - 2026-01-18
+
+### Changed
+- **YAML Export**: Now exports ALL resource properties including full AWS configuration
+  - Uses server-side API endpoint for complete data
+  - Includes `config` object with full raw_config from AWS
+  - Includes all metadata fields and tags
+  - Respects current filter state (snapshot, type, region, search)
+
 ## [0.17.10] - 2026-01-18
 
 ### Fixed

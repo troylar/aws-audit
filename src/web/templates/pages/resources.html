@@ -2357,45 +2357,43 @@
     }
 
     function exportYAML() {
-        // Export the currently visible/filtered data from the table
-        if (!window.resourceTable) {
-            alert('No data to export');
-            return;
-        }
+        // Use server-side export to get ALL properties including raw_config
+        // Build query params from current filter state
+        const data = Alpine.$data(document.querySelector('[x-data]'));
+        const params = new URLSearchParams();
 
-        // Get data from table (respects current filters/sorting)
-        const tableData = window.resourceTable.getData();
+        // Add basic filters
+        if (data.searchQuery) params.set('q', data.searchQuery);
+        if (data.selectedSnapshot) params.set('snapshot', data.selectedSnapshot);
+        if (data.selectedType) params.set('type', data.selectedType);
+        if (data.selectedRegion) params.set('region', data.selectedRegion);
 
-        if (tableData.length === 0) {
-            alert('No data to export');
-            return;
-        }
+        // Include full config and tags (server defaults to true, but be explicit)
+        params.set('include_config', 'true');
+        params.set('include_tags', 'true');
 
-        // Build YAML content manually (simple format)
-        let yaml = 'resources:\n';
-        tableData.forEach(row => {
-            yaml += '  - name: ' + (row.name || '') + '\n';
-            yaml += '    arn: ' + (row.arn || '') + '\n';
-            yaml += '    type: ' + (row.resource_type || '') + '\n';
-            yaml += '    region: ' + (row.region || '') + '\n';
-            yaml += '    snapshot: ' + (row.snapshot_name || '') + '\n';
-            if (row.tags && Object.keys(row.tags).length > 0) {
-                yaml += '    tags:\n';
-                Object.entries(row.tags).forEach(([k, v]) => {
-                    yaml += '      ' + k + ': ' + JSON.stringify(v) + '\n';
-                });
-            }
-            yaml += '\n';
-        });
-
-        // Download
-        const blob = new Blob([yaml], { type: 'text/yaml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'resources_export_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.yaml';
-        a.click();
-        URL.revokeObjectURL(url);
+        // Fetch from server API
+        const url = '/api/resources/export/yaml?' + params.toString();
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.detail || 'Export failed');
+                    });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const downloadUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = 'resources_export_' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.yaml';
+                a.click();
+                URL.revokeObjectURL(downloadUrl);
+            })
+            .catch(error => {
+                alert('Export failed: ' + error.message);
+            });
     }
 
     function loadTagKeys() {
