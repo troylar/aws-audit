@@ -449,7 +449,13 @@ class CloudTrailQuery:
                 event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items()
                 if res_type in resource_types
             ]
-            logger.info(f"Filtering to {len(filtered_event_names)} event types matching snapshot resources")
+            # If no matches found, fall back to querying all event types
+            if not filtered_event_names:
+                logger.warning(f"No matching event types found for resource types: {resource_types}")
+                logger.info("Falling back to querying all event types")
+                filtered_event_names = None
+            else:
+                logger.info(f"Filtering to {len(filtered_event_names)} event types matching snapshot resources")
         else:
             filtered_event_names = None
 

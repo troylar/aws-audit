@@ -1505,12 +1505,20 @@ def snapshot_enrich_creators(
             event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items()
             if res_type in snapshot_resource_types
         ]
-        console.print(f"   Filtering to {len(relevant_event_types)} event types (matching snapshot resources)")
+
+        # If no matching event types, fall back to all (don't filter)
+        if relevant_event_types:
+            console.print(f"   Filtering to {len(relevant_event_types)} event types (matching snapshot resources)")
+            event_count = len(relevant_event_types)
+        else:
+            console.print(f"   [yellow]No matching event types for snapshot resources, querying all {len(EVENT_TO_RESOURCE_TYPE)} event types[/yellow]")
+            snapshot_resource_types = None  # Don't filter
+            event_count = len(EVENT_TO_RESOURCE_TYPE)
 
         ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
 
-        # Count total event types to query (filtered)
-        total_queries = len(relevant_event_types) * len(region_list)
+        # Count total event types to query
+        total_queries = event_count * len(region_list)
         completed_queries = 0
         total_events_found = 0
 
@@ -1521,7 +1529,7 @@ def snapshot_enrich_creators(
             TaskProgressColumn(),
             console=console,
         ) as progress:
-            task = progress.add_task(f"[cyan]Querying {len(relevant_event_types)} event types...", total=total_queries)
+            task = progress.add_task(f"[cyan]Querying {event_count} event types...", total=total_queries)
 
             def progress_callback(event_name: str, events_found: int):
                 nonlocal completed_queries, total_events_found
