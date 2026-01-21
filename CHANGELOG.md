@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.18] - 2026-01-21
+
+### Improved
+- **Enrich Creators Performance**: Significantly sped up `snapshot enrich-creators` command
+  - Parallelized CloudTrail queries across regions (was serial before)
+  - Increased thread pool workers from 10 to 20 for event type queries
+  - Smart filtering: Only queries event types matching resource types in your snapshot
+  - Example: If your snapshot only has Lambdas and S3 buckets, skips 40+ irrelevant event queries
+  - Combined optimizations can reduce query time by 50-80% depending on snapshot contents
+
 ## [0.17.16] - 2026-01-21
 
 ### Added
