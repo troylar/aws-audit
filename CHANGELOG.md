@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.15] - 2026-01-21
+
+### Added
+- **Cleanup Purge Creator/Date Filters**: New options to filter resources for deletion by creator and creation date
+  - `--from-snapshot`: Load resources from an enriched snapshot (required for creator filters)
+  - `--created-by`: Filter by creator name/ARN (substring match)
+  - `--created-after`: Filter by creation date (resources created after this date)
+  - `--created-before`: Filter by creation date (resources created before this date)
+  - Requires running `awsinv snapshot enrich-creators <snapshot>` first to populate creator info
+  - Example: `awsinv cleanup purge --from-snapshot my-snapshot --created-by "john.doe" --preview`
+
 ## [0.17.14] - 2026-01-18
 
 ### Fixed

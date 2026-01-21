@@ -2696,6 +2696,18 @@ def cleanup_purge(
     config_file: Optional[str] = typer.Option(
         None, "--config", help="Path to protection rules config file"
     ),
+    from_snapshot: Optional[str] = typer.Option(
+        None, "--from-snapshot", "-s", help="Use resources from an enriched snapshot (required for --created-by filters)"
+    ),
+    created_by: Optional[str] = typer.Option(
+        None, "--created-by", help="Only delete resources created by this user/role (substring match on creator ARN)"
+    ),
+    created_after: Optional[str] = typer.Option(
+        None, "--created-after", help="Only delete resources created after this date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+    ),
+    created_before: Optional[str] = typer.Option(
+        None, "--created-before", help="Only delete resources created before this date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+    ),
     preview: bool = typer.Option(False, "--preview", help="Preview mode - show what would be deleted without deleting"),
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
@@ -2708,6 +2720,10 @@ def cleanup_purge(
     ALL resources that don't match protection rules (tags, types, etc.).
 
     Use this for lab/sandbox cleanup where baseline resources are tagged.
+
+    Creator/Date Filters:
+        Use --from-snapshot with an enriched snapshot to filter by creator.
+        First run: awsinv snapshot enrich-creators <snapshot-name>
 
     Examples:
         # Preview what would be deleted (safe)
@@ -2727,15 +2743,58 @@ def cleanup_purge(
 
         # Purge in specific region
         awsinv cleanup purge --protect-tag "project=baseline" --region us-east-1 --confirm
+
+        # Delete resources created by a specific user (requires enriched snapshot)
+        awsinv cleanup purge --from-snapshot my-snapshot --created-by "john.doe" --preview
+
+        # Delete resources created by a specific role
+        awsinv cleanup purge --from-snapshot my-snapshot --created-by "AWSReservedSSO_Developer" --confirm
+
+        # Delete resources created after a specific date
+        awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --preview
+
+        # Delete resources created within a date range
+        awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --created-before "2025-01-15" --preview
+
+        # Combine creator and date filters
+        awsinv cleanup purge --from-snapshot my-snapshot --created-by "john" --created-after "2025-01-10" --preview
     """
+    from datetime import datetime as dt
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
     from ..restore.config import build_protection_rules, load_config_file
     from ..restore.deleter import ResourceDeleter
     from ..restore.safety import SafetyChecker
-    from ..snapshot.capturer import SnapshotCapturer
+    from ..snapshot.capturer import create_snapshot
+    from ..models.resource import Resource
 
     try:
+        # Validate creator/date filters require --from-snapshot
+        if (created_by or created_after or created_before) and not from_snapshot:
+            console.print("\n[red]ERROR: --created-by, --created-after, and --created-before require --from-snapshot[/red]")
+            console.print("[yellow]First enrich a snapshot with creator info:[/yellow]")
+            console.print("[dim]  awsinv snapshot enrich-creators <snapshot-name>[/dim]")
+            console.print("[dim]Then use: awsinv cleanup purge --from-snapshot <snapshot-name> --created-by <name>[/dim]\n")
+            raise typer.Exit(code=1)
+
+        # Parse date filters
+        created_after_dt = None
+        created_before_dt = None
+        if created_after:
+            try:
+                created_after_dt = dt.fromisoformat(created_after.replace("Z", "+00:00"))
+            except ValueError:
+                console.print(f"\n[red]ERROR: Invalid date format for --created-after: {created_after}[/red]")
+                console.print("[yellow]Use ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS[/yellow]\n")
+                raise typer.Exit(code=1)
+        if created_before:
+            try:
+                created_before_dt = dt.fromisoformat(created_before.replace("Z", "+00:00"))
+            except ValueError:
+                console.print(f"\n[red]ERROR: Invalid date format for --created-before: {created_before}[/red]")
+                console.print("[yellow]Use ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS[/yellow]\n")
+                raise typer.Exit(code=1)
+
         # Load config and build protection rules
         config = load_config_file(config_file)
         protection_rules = build_protection_rules(config, protect_tags)
@@ -2774,24 +2833,102 @@ def cleanup_purge(
         # Initialize safety checker
         safety_checker = SafetyChecker(rules=protection_rules)
 
-        # Collect current resources
-        console.print("\n[bold]Scanning resources...[/bold]")
-        capturer = SnapshotCapturer(profile_name=profile)
-        target_regions = regions if regions else ["us-east-1"]  # Default to us-east-1 if not specified
+        # Collect resources - either from snapshot or live scan
+        all_resources = []
 
-        with console.status("[bold green]Collecting resources..."):
-            all_resources = []
-            for region in target_regions:
+        if from_snapshot:
+            # Load from enriched snapshot
+            console.print(f"\n[bold]Loading resources from snapshot: {from_snapshot}[/bold]")
+            storage = SnapshotStorage()
+            snapshot_data = storage.load_snapshot(from_snapshot)
+            if not snapshot_data:
+                console.print(f"[red]ERROR: Snapshot '{from_snapshot}' not found[/red]")
+                raise typer.Exit(code=1)
+
+            # snapshot_data.resources already contains Resource objects
+            all_resources = list(snapshot_data.resources)
+            console.print(f"[dim]Loaded {len(all_resources)} resources from snapshot[/dim]")
+
+            # Check if snapshot has creator info
+            has_creator_info = any(
+                r.tags and "_created_by" in r.tags
+                for r in all_resources[:100]  # Sample first 100
+            )
+            if (created_by or created_after or created_before) and not has_creator_info:
+                console.print("\n[yellow]WARNING: Snapshot may not have creator information[/yellow]")
+                console.print("[dim]Run 'awsinv snapshot enrich-creators <snapshot>' first[/dim]\n")
+
+            # Display active filters
+            if created_by or created_after or created_before:
+                console.print("[dim]Active filters:[/dim]")
+                if created_by:
+                    console.print(f"[dim]  • Created by: {created_by}[/dim]")
+                if created_after_dt:
+                    console.print(f"[dim]  • Created after: {created_after_dt}[/dim]")
+                if created_before_dt:
+                    console.print(f"[dim]  • Created before: {created_before_dt}[/dim]")
+
+            # Apply creator/date filters
+            filtered_resources = []
+            for resource in all_resources:
+                tags = resource.tags or {}
+
+                # Filter by creator
+                if created_by:
+                    resource_creator = tags.get("_created_by", "")
+                    if created_by.lower() not in resource_creator.lower():
+                        continue
+
+                # Filter by creation date
+                resource_created_at = tags.get("_created_at")
+                if resource_created_at and (created_after_dt or created_before_dt):
+                    try:
+                        resource_dt = dt.fromisoformat(resource_created_at.replace("Z", "+00:00"))
+                        if created_after_dt and resource_dt < created_after_dt:
+                            continue
+                        if created_before_dt and resource_dt > created_before_dt:
+                            continue
+                    except ValueError:
+                        # Skip resources with invalid dates when date filter is active
+                        continue
+                elif (created_after_dt or created_before_dt) and not resource_created_at:
+                    # Skip resources without creation date when date filter is active
+                    continue
+
+                filtered_resources.append(resource)
+
+            console.print(f"[dim]After creator/date filters: {len(filtered_resources)} resources[/dim]")
+            all_resources = filtered_resources
+        else:
+            # Live scan using create_snapshot
+            console.print("\n[bold]Scanning resources...[/bold]")
+            target_regions = regions if regions else ["us-east-1"]  # Default to us-east-1 if not specified
+
+            with console.status("[bold green]Collecting resources..."):
                 try:
-                    resources = capturer.collect_resources(
-                        regions=[region],
+                    snapshot_data = create_snapshot(
+                        name="purge-temp",
+                        account_id=account_id,
+                        regions=target_regions,
                         resource_types=resource_types,
+                        aws_profile=profile,
                     )
-                    all_resources.extend(resources)
+                    all_resources = [Resource.from_dict(r) for r in snapshot_data.resources]
                 except Exception as e:
-                    logger.warning(f"Error collecting resources in {region}: {e}")
+                    console.print(f"[red]Error collecting resources: {e}[/red]")
+                    logger.exception("Error in purge resource collection")
+                    raise typer.Exit(code=1)
 
-        console.print(f"[dim]Found {len(all_resources)} total resources[/dim]")
+            console.print(f"[dim]Found {len(all_resources)} total resources[/dim]")
+
+        # Apply type/region filters (for snapshot mode)
+        if from_snapshot:
+            if resource_types:
+                all_resources = [r for r in all_resources if r.resource_type in resource_types]
+                console.print(f"[dim]After type filter: {len(all_resources)} resources[/dim]")
+            if regions:
+                all_resources = [r for r in all_resources if r.region in regions]
+                console.print(f"[dim]After region filter: {len(all_resources)} resources[/dim]")
 
         # Apply protection rules
         to_delete = []
