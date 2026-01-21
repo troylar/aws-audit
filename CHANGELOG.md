@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.16] - 2026-01-21
+
+### Added
+- **Lambda Code Collection**: Enhanced Lambda collector to download and store actual deployment code
+  - Downloads Lambda function deployment packages from presigned URLs
+  - Stores code as base64 for packages under 10MB, hash-only for larger
+  - Captures S3 bucket/key if code was deployed from S3
+  - Includes code SHA256 hash for change detection
+  - Also collects Lambda layer code with same approach
+  - Code stored in `raw_config._code` field
+
 ## [0.17.15] - 2026-01-21
 
 ### Added
