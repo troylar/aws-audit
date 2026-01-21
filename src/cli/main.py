@@ -2911,9 +2911,9 @@ def cleanup_purge(
                         account_id=account_id,
                         regions=target_regions,
                         resource_types=resource_types,
-                        aws_profile=profile,
+                        profile_name=profile,
                     )
-                    all_resources = [Resource.from_dict(r) for r in snapshot_data.resources]
+                    all_resources = list(snapshot_data.resources)
                 except Exception as e:
                     console.print(f"[red]Error collecting resources: {e}[/red]")
                     logger.exception("Error in purge resource collection")
