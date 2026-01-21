@@ -60,7 +60,7 @@ Before diving in, here's the terminology:
 | **Snapshot** | A point-in-time inventory of your AWS resources (stored in local SQLite database). Not an EBS/RDS snapshot. |
 | **Inventory** | A named collection of snapshots. Use inventories to organize snapshots by environment, team, or purpose. |
 | **Cleanup** | Delete resources that were created *after* a snapshot, returning to that baseline state. |
-| **Purge** | Delete all resources *except* those matching protection rules (no snapshot comparison needed). |
+| **Purge** | Delete all resources *except* those matching protection rules. Filter by creator or date range. |
 | **Query** | Search and analyze resources across snapshots using SQL or built-in filters. |
 
 ---
@@ -75,7 +75,8 @@ Before diving in, here's the terminology:
 - 27 AWS services, 80+ resource types
 - Multi-region collection
 - Tag-based filtering
-- Export to JSON/CSV
+- **Lambda code collection** (deployment packages)
+- Export to JSON/CSV/YAML
 - SQLite storage with SQL queries
 
 </td>
@@ -695,6 +696,29 @@ awsinv cleanup purge --protect-tag "keep=true" --preview
 awsinv cleanup purge --protect-tag "keep=true" --confirm
 ```
 
+**Purge by Creator/Date** - Delete resources created by specific users or within date ranges:
+```bash
+# First, enrich a snapshot with creator information from CloudTrail
+awsinv snapshot enrich-creators my-snapshot
+
+# Preview resources created by a specific user
+awsinv cleanup purge --from-snapshot my-snapshot --created-by "john.doe" --preview
+
+# Preview resources created by a specific role
+awsinv cleanup purge --from-snapshot my-snapshot --created-by "AWSReservedSSO_Developer" --preview
+
+# Delete resources created after a specific date
+awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --confirm
+
+# Delete resources created within a date range
+awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --created-before "2025-01-15" --confirm
+
+# Combine creator and date filters
+awsinv cleanup purge --from-snapshot my-snapshot --created-by "john" --created-after "2025-01-10" --preview
+```
+
+> **Note:** Creator/date filters require `--from-snapshot` with an enriched snapshot. The `--created-by` option does substring matching on the creator ARN.
+
 > **Note:** `cleanup execute` compares to a snapshot and deletes newer resources. `cleanup purge` ignores snapshots and deletes everything except protected resources.
 
 ### Protection Rules
@@ -773,7 +797,7 @@ Some resources have special deletion behavior:
 | Service | Resource Types |
 |---------|---------------|
 | EC2 | Instances, Volumes, VPCs, Subnets, Security Groups, ENIs, Internet Gateways, NAT Gateways, Route Tables, Key Pairs, Elastic IPs, VPC Endpoints |
-| Lambda | Functions, Layers, Event Source Mappings |
+| Lambda | Functions (with deployment code), Layers (with code), Event Source Mappings |
 | ECS | Clusters, Services, Task Definitions |
 | EKS | Clusters, Node Groups, Fargate Profiles |
 
