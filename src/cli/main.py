@@ -3117,10 +3117,12 @@ def cleanup_purge(
         awsinv cleanup purge --from-snapshot my-snapshot --created-by "john" --created-after "2025-01-10" --preview
     """
     from datetime import datetime as dt
+    from collections import defaultdict
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
     from ..restore.config import build_protection_rules, load_config_file
     from ..restore.deleter import ResourceDeleter
+    from ..restore.dependency import sort_resources_for_deletion, get_deletion_tier
     from ..restore.safety import SafetyChecker
     from ..snapshot.capturer import create_snapshot
     from ..models.resource import Resource
@@ -3156,20 +3158,13 @@ def cleanup_purge(
         config = load_config_file(config_file)
         protection_rules = build_protection_rules(config, protect_tags)
 
-        # Require at least one protection rule for purge
-        if not protection_rules:
-            console.print("\n[red]ERROR: At least one protection rule is required for purge[/red]")
-            console.print("[yellow]Use --protect-tag or --config to specify what to keep[/yellow]")
-            console.print("\n[dim]Example: awsinv cleanup purge --protect-tag \"project=baseline\" --preview[/dim]\n")
-            raise typer.Exit(code=1)
-
         if preview:
             console.print("\n[bold cyan]🔍 Purge Preview (dry-run)[/bold cyan]\n")
         else:
             if not confirm:
                 console.print("\n[red]ERROR: --confirm flag is required for purge operations[/red]")
                 console.print("[yellow]This is a safety measure to prevent accidental deletions[/yellow]")
-                console.print("\n[dim]Run with: awsinv cleanup purge --protect-tag \"key=value\" --confirm[/dim]\n")
+                console.print("\n[dim]Run with: awsinv cleanup purge --confirm[/dim]\n")
                 raise typer.Exit(code=1)
             console.print("\n[bold red]⚠️  PURGE OPERATION - DESTRUCTIVE[/bold red]\n")
 
@@ -3331,6 +3326,9 @@ def cleanup_purge(
             else:
                 to_delete.append(resource)
 
+        # Sort resources by deletion order (dependency tree)
+        to_delete = sort_resources_for_deletion(to_delete)
+
         # Display summary
         console.print(f"\n[bold]Summary:[/bold]")
         console.print(f"  • Total resources: {len(all_resources)}")
@@ -3340,11 +3338,38 @@ def cleanup_purge(
         console.print(f"  • Unprotected (will delete): [red]{len(to_delete)}[/red]")
 
         if preview:
-            # Show what would be deleted
+            # Show what would be deleted, grouped by deletion tier
             if to_delete:
-                console.print("\n[bold yellow]Resources that would be DELETED:[/bold yellow]")
+                console.print("\n[bold yellow]Resources that would be DELETED (in dependency order):[/bold yellow]")
+
+                # Group resources by deletion tier
+                resources_by_tier: Dict[int, List] = defaultdict(list)
                 for resource in to_delete:
-                    console.print(f"  [red]✗[/red] {resource.resource_type}: {resource.name} ({resource.region})")
+                    tier = get_deletion_tier(resource.resource_type)
+                    resources_by_tier[tier].append(resource)
+
+                # Display by tier (lower tiers deleted first)
+                tier_names = {
+                    1: "Application Layer (ECS Services, Lambda, API Gateway, etc.)",
+                    2: "Compute Layer (EC2, RDS, EKS, etc.)",
+                    3: "Load Balancers",
+                    4: "Networking (NAT Gateways, ENIs, VPC Endpoints)",
+                    5: "Security Groups",
+                    6: "Subnets & Route Tables",
+                    7: "Internet Gateways",
+                    8: "VPCs",
+                    9: "Standalone Resources (S3, DynamoDB, etc.)",
+                    10: "IAM Resources",
+                }
+
+                for tier in sorted(resources_by_tier.keys()):
+                    tier_resources = resources_by_tier[tier]
+                    tier_name = tier_names.get(tier, f"Tier {tier}")
+                    console.print(f"\n  [bold magenta]Tier {tier}: {tier_name}[/bold magenta] ({len(tier_resources)} resources)")
+
+                    for resource in tier_resources:
+                        type_short = resource.resource_type.split("::")[-1] if "::" in resource.resource_type else resource.resource_type
+                        console.print(f"    [red]✗[/red] {type_short}: {resource.name} ({resource.region})")
 
             if excluded:
                 console.print("\n[bold cyan]Resources EXCLUDED by pattern (will keep):[/bold cyan]")

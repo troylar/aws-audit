@@ -7,7 +7,118 @@ using Kahn's topological sort algorithm.
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Any
+from typing import Any, List
+
+# Resource type deletion order (delete first → delete last)
+# Lower tier = delete first, Higher tier = delete last
+# Resources in the same tier can be deleted in any order
+RESOURCE_TYPE_DELETION_ORDER = {
+    # Tier 1: Application layer (depend on compute/infra)
+    "AWS::ECS::Service": 1,
+    "AWS::ECS::TaskDefinition": 1,
+    "AWS::CodePipeline::Pipeline": 1,
+    "AWS::CodeBuild::Project": 1,
+    "AWS::StepFunctions::StateMachine": 1,
+    "AWS::Events::Rule": 1,
+    "AWS::ApiGateway::RestApi": 1,
+    "AWS::Lambda::Function": 1,
+
+    # Tier 2: Compute layer (depend on networking)
+    "AWS::EC2::Instance": 2,
+    "AWS::ECS::Cluster": 2,
+    "AWS::EKS::Cluster": 2,
+    "AWS::RDS::DBInstance": 2,
+    "AWS::RDS::DBCluster": 2,
+    "AWS::ElastiCache::CacheCluster": 2,
+    "AWS::EFS::FileSystem": 2,
+    "AWS::CloudFormation::Stack": 2,
+
+    # Tier 3: Load balancers (depend on networking, target compute)
+    "AWS::ElasticLoadBalancing::LoadBalancer": 3,
+    "AWS::ElasticLoadBalancingV2::LoadBalancer": 3,
+    "AWS::ElasticLoadBalancingV2::TargetGroup": 3,
+
+    # Tier 4: Networking accessories (depend on VPC)
+    "AWS::EC2::NatGateway": 4,
+    "AWS::EC2::NetworkInterface": 4,
+    "AWS::EC2::VPCEndpoint": 4,
+    "AWS::EC2::EIP": 4,
+
+    # Tier 5: Security groups (depend on VPC, used by compute)
+    "AWS::EC2::SecurityGroup": 5,
+
+    # Tier 6: Subnets and route tables (depend on VPC)
+    "AWS::EC2::Subnet": 6,
+    "AWS::EC2::RouteTable": 6,
+    "AWS::EC2::NetworkAcl": 6,
+
+    # Tier 7: Internet/NAT gateways attachment (depend on VPC)
+    "AWS::EC2::InternetGateway": 7,
+
+    # Tier 8: VPCs (root networking infrastructure)
+    "AWS::EC2::VPC": 8,
+
+    # Tier 9: Standalone resources (no VPC dependencies)
+    "AWS::S3::Bucket": 9,
+    "AWS::DynamoDB::Table": 9,
+    "AWS::SNS::Topic": 9,
+    "AWS::SQS::Queue": 9,
+    "AWS::SecretsManager::Secret": 9,
+    "AWS::SSM::Parameter": 9,
+    "AWS::CloudWatch::Alarm": 9,
+    "AWS::CloudWatch::LogGroup": 9,
+    "AWS::Route53::HostedZone": 9,
+    "AWS::Backup::BackupPlan": 9,
+    "AWS::Backup::BackupVault": 9,
+    "AWS::WAFv2::WebACL": 9,
+    "AWS::WAFv2::RuleGroup": 9,
+    "AWS::KMS::Key": 9,
+    "AWS::EC2::Volume": 9,
+    "AWS::EC2::KeyPair": 9,
+
+    # Tier 10: IAM (delete last - may be needed by other resources)
+    "AWS::IAM::Role": 10,
+    "AWS::IAM::User": 10,
+    "AWS::IAM::Policy": 10,
+    "AWS::IAM::InstanceProfile": 10,
+}
+
+# Default tier for unknown resource types (middle of the order)
+DEFAULT_DELETION_TIER = 5
+
+
+def get_deletion_tier(resource_type: str) -> int:
+    """Get the deletion tier for a resource type.
+
+    Args:
+        resource_type: AWS resource type (e.g., "AWS::EC2::Instance")
+
+    Returns:
+        Deletion tier number (lower = delete first)
+    """
+    return RESOURCE_TYPE_DELETION_ORDER.get(resource_type, DEFAULT_DELETION_TIER)
+
+
+def sort_resources_for_deletion(resources: List[Any]) -> List[Any]:
+    """Sort resources by deletion order (dependencies first).
+
+    Resources are sorted by their deletion tier, with lower tiers deleted first.
+    Within the same tier, resources are sorted by type then name for consistency.
+
+    Args:
+        resources: List of resource objects with resource_type attribute
+
+    Returns:
+        Sorted list of resources in safe deletion order
+    """
+    return sorted(
+        resources,
+        key=lambda r: (
+            get_deletion_tier(r.resource_type),
+            r.resource_type,
+            getattr(r, 'name', '') or getattr(r, 'arn', ''),
+        )
+    )
 
 
 class DependencyResolver:

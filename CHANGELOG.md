@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-01-22
+
+### Added
+- **Dependency-Ordered Deletion**: `cleanup purge` now deletes resources in correct dependency order
+  - Resources sorted into 10 deletion tiers based on AWS dependency relationships
+  - Applications (Lambda, ECS, API Gateway) deleted before compute (EC2, RDS)
+  - Compute deleted before networking (security groups, subnets)
+  - Networking deleted before VPCs
+  - IAM resources deleted last (may be needed by other resources)
+  - Preview shows resources grouped by deletion tier with tier descriptions
+
+### Changed
+- **Purge No Longer Requires Protect Tag**: Removed `--protect-tag` requirement from `cleanup purge`
+  - Command now works without specifying a protect tag
+  - Resources can still be protected with `--protect-tag` option if desired
+
 ## [0.22.1] - 2026-01-22
 
 ### Improved
