@@ -76,6 +76,7 @@ Before diving in, here's the terminology:
 - Multi-region collection
 - Tag-based filtering
 - **Lambda code collection** (deployment packages)
+- Lambda CLI: list, extract, show, diff
 - Export to JSON/CSV/YAML
 - SQLite storage with SQL queries
 
@@ -117,6 +118,7 @@ Before diving in, here's the terminology:
 ### Resource Cleanup
 - **Cleanup**: Return to a snapshot baseline
 - **Purge**: Delete all except protected
+- **Exclusion filters**: Wildcard name/tag patterns
 - Preview mode (dry-run)
 - Dependency-aware deletion
 - 43 deletable resource types*
@@ -674,6 +676,54 @@ The Resource Explorer includes three creator columns (enable via column selector
 
 ---
 
+### Lambda Code Management
+
+Work with Lambda function deployment code stored in snapshots:
+
+```bash
+# List all Lambda functions with code info
+awsinv lambda list [--snapshot my-snapshot]
+
+# Extract Lambda code to disk
+awsinv lambda extract my-function                    # Single function
+awsinv lambda extract --all --output ./lambda-code  # All functions
+
+# View code with syntax highlighting
+awsinv lambda show my-function
+awsinv lambda show my-function --handler           # Just the handler file
+
+# Compare code between snapshots
+awsinv lambda diff my-function --snapshot1 snap-before --snapshot2 snap-after
+
+# Fetch code for existing snapshots (without recreating)
+awsinv lambda fetch my-snapshot                    # Fetch missing code
+awsinv lambda fetch my-snapshot --function my-func # Specific function only
+awsinv lambda fetch my-snapshot --force            # Re-fetch all code
+awsinv lambda fetch my-snapshot --max-size 50      # Store inline up to 50MB
+```
+
+**Code Storage Options:**
+
+When creating snapshots, control how Lambda code is stored:
+
+```bash
+# Default: Store code inline up to 10MB, hash-only for larger
+awsinv snapshot create my-snap --regions us-east-1
+
+# Store code inline up to 50MB
+awsinv snapshot create my-snap --regions us-east-1 --lambda-code-max-size 50
+
+# Store all code externally (none inline)
+awsinv snapshot create my-snap --regions us-east-1 --lambda-code-max-size 0
+
+# Store all code inline regardless of size
+awsinv snapshot create my-snap --regions us-east-1 --lambda-code-max-size -1
+```
+
+Large packages are stored to `~/.snapshots/lambda-code/<snapshot>/` and automatically loaded when needed.
+
+---
+
 ### Resource Cleanup
 
 The `cleanup` command has two modes:
@@ -716,6 +766,29 @@ awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --
 # Combine creator and date filters
 awsinv cleanup purge --from-snapshot my-snapshot --created-by "john" --created-after "2025-01-10" --preview
 ```
+
+**Exclusion Filters** - Protect specific resources by name or tag pattern (supports wildcards):
+```bash
+# Exclude resources by name pattern (wildcards: * and ?)
+awsinv cleanup purge --protect-tag "env=dev" --exclude-name "*-prod-*" --preview
+awsinv cleanup purge --protect-tag "env=dev" -x "critical-*" -x "important-*" --preview
+
+# Exclude resources by tag pattern
+awsinv cleanup purge --protect-tag "env=dev" --exclude-tag "protected=yes" --preview
+awsinv cleanup purge --protect-tag "env=dev" --exclude-tag "Name=*production*" --preview
+
+# Exclude by tag key only (any value matches)
+awsinv cleanup purge --protect-tag "env=dev" --exclude-tag "do-not-delete=*" --preview
+
+# Combine name and tag exclusions (OR logic - excluded if ANY match)
+awsinv cleanup purge --protect-tag "env=dev" \
+  --exclude-name "*-prod-*" \
+  --exclude-name "*-staging-*" \
+  --exclude-tag "critical=true" \
+  --preview
+```
+
+> **Note:** Exclusion filters use `*` (any characters) and `?` (single character) wildcards. Matching is case-insensitive.
 
 > **Note:** Creator/date filters require `--from-snapshot` with an enriched snapshot. The `--created-by` option does substring matching on the creator ARN.
 
@@ -874,6 +947,7 @@ awsinv snapshot create <name> --regions <region1,region2>
     [--inventory <name>]              # Assign to inventory group
     [--track-creators]                # Tag resources with CloudTrail creator info
     [--created-by-role <role>]        # Only include resources created by role
+    [--lambda-code-max-size <MB>]     # Max Lambda code size to store inline (default: 10)
 
 awsinv snapshot list                  # List all snapshots
 awsinv snapshot report                # Summary of current/specified snapshot
@@ -911,12 +985,42 @@ awsinv cleanup execute <snapshot> --confirm
 awsinv cleanup purge --protect-tag <key=value> --preview
 awsinv cleanup purge --protect-tag <key=value> --confirm
 
+# Purge exclusion filters (wildcards: * and ?):
+    [--exclude-name <pattern>]        # Exclude by name pattern (repeatable)
+    [-x <pattern>]                    # Short form of --exclude-name
+    [--exclude-tag <key=value>]       # Exclude by tag pattern (repeatable)
+
 # Common options for both:
     [--type <AWS::Service::Type>]     # Filter by resource type
     [--region <region>]               # Filter by region
     [--protect-tag <key=value>]       # Protect matching resources (repeatable)
     [--config <path>]                 # Protection rules file
     [-y, --yes]                       # Skip interactive prompts
+
+# ─────────────────────────────────────────────────────────────
+# LAMBDA CODE
+# ─────────────────────────────────────────────────────────────
+awsinv lambda list                    # List Lambda functions with code info
+    [--snapshot <name>]               # Specific snapshot (default: active)
+
+awsinv lambda extract <function>      # Extract code to disk
+    [--snapshot <name>]
+    [--output <dir>]                  # Output directory
+    [--all]                           # Extract all functions
+
+awsinv lambda show <function>         # View code with syntax highlighting
+    [--snapshot <name>]
+    [--handler]                       # Show only handler file
+
+awsinv lambda diff <function>         # Compare code between snapshots
+    --snapshot1 <name>
+    --snapshot2 <name>
+
+awsinv lambda fetch <snapshot>        # Fetch code for existing snapshot
+    [--function <name>]               # Specific function only
+    [--max-size <MB>]                 # Max inline size (default: 50)
+    [--force]                         # Re-fetch even if code exists
+    [--profile <name>]                # AWS profile
 
 # ─────────────────────────────────────────────────────────────
 # QUERY & ANALYSIS
@@ -1073,7 +1177,7 @@ invoke quality --fix     # Auto-fix issues
 invoke build             # Build distributable package
 ```
 
-**Test Coverage:** 1550+ tests, 79% overall coverage. Cleanup module: 98%+ coverage.
+**Test Coverage:** 1690+ tests, 79% overall coverage. Cleanup module: 98%+ coverage.
 
 ---
 
@@ -1265,6 +1369,6 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Star on GitHub](https://img.shields.io/github/stars/troylar/aws-inventory-manager?style=social)](https://github.com/troylar/aws-inventory-manager)
 
-Version 0.17.1 • Python 3.8 - 3.13
+Version 0.21.0 • Python 3.8 - 3.13
 
 </div>
