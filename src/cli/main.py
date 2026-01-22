@@ -3343,24 +3343,18 @@ def cleanup_purge(
             # Show what would be deleted
             if to_delete:
                 console.print("\n[bold yellow]Resources that would be DELETED:[/bold yellow]")
-                for resource in to_delete[:20]:  # Show first 20
+                for resource in to_delete:
                     console.print(f"  [red]✗[/red] {resource.resource_type}: {resource.name} ({resource.region})")
-                if len(to_delete) > 20:
-                    console.print(f"  ... and {len(to_delete) - 20} more")
 
             if excluded:
                 console.print("\n[bold cyan]Resources EXCLUDED by pattern (will keep):[/bold cyan]")
-                for resource, reason in excluded[:10]:  # Show first 10
+                for resource, reason in excluded:
                     console.print(f"  [cyan]○[/cyan] {resource.resource_type}: {resource.name} - {reason}")
-                if len(excluded) > 10:
-                    console.print(f"  ... and {len(excluded) - 10} more")
 
             if protected:
                 console.print("\n[bold green]Resources PROTECTED by rules (will keep):[/bold green]")
-                for resource, reason in protected[:10]:  # Show first 10
+                for resource, reason in protected:
                     console.print(f"  [green]✓[/green] {resource.resource_type}: {resource.name} - {reason}")
-                if len(protected) > 10:
-                    console.print(f"  ... and {len(protected) - 10} more")
 
             console.print("\n[dim]This was a preview. Use --confirm to actually delete resources.[/dim]\n")
             raise typer.Exit(code=0)
