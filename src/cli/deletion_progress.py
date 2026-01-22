@@ -57,6 +57,19 @@ class DeletionProgressDisplay:
         10: "IAM Resources",
     }
 
+    TIER_EMOJIS: Dict[int, str] = {
+        1: "🚀",  # Application Layer - rockets/apps
+        2: "💻",  # Compute Layer - computers
+        3: "⚖️",   # Load Balancers - balance scales
+        4: "🔌",  # Networking Accessories - plugs
+        5: "🛡️",   # Security Groups - shields
+        6: "🛤️",   # Subnets & Route Tables - railway tracks
+        7: "🌐",  # Internet Gateways - globe
+        8: "🏠",  # VPCs - houses/networks
+        9: "📦",  # Standalone Resources - packages
+        10: "🔑", # IAM Resources - keys
+    }
+
     # Threshold for switching to compact mode
     COMPACT_THRESHOLD = 50
 
@@ -372,50 +385,86 @@ class DeletionProgressDisplay:
 
         self.console.print()
 
-        # Build summary table
-        table = Table(
-            title="Deletion Summary by Tier",
-            show_header=True,
-            header_style="bold",
-            border_style="dim",
-        )
-        table.add_column("Tier", style="cyan", width=6)
-        table.add_column("Layer", style="bold", width=24)
-        table.add_column("Success", style="green", justify="right", width=8)
-        table.add_column("Failed", style="red", justify="right", width=8)
-        table.add_column("Total", justify="right", width=8)
-
+        # Calculate totals first for the header
         total_success = 0
         total_failed = 0
+        for tier_resources in self.resources_by_tier.values():
+            total_success += sum(1 for r in tier_resources if r.status == ResourceStatus.SUCCEEDED)
+            total_failed += sum(1 for r in tier_resources if r.status == ResourceStatus.FAILED)
+
+        # Determine overall status emoji
+        if total_failed == 0 and total_success > 0:
+            status_emoji = "✨"
+            status_text = "All resources deleted successfully!"
+            status_style = "bold green"
+        elif total_failed > 0 and total_success > 0:
+            status_emoji = "⚠️"
+            status_text = f"{total_success} succeeded, {total_failed} failed"
+            status_style = "bold yellow"
+        elif total_failed > 0:
+            status_emoji = "❌"
+            status_text = "Deletion encountered errors"
+            status_style = "bold red"
+        else:
+            status_emoji = "📋"
+            status_text = "No resources to delete"
+            status_style = "dim"
+
+        # Print header
+        self.console.print()
+        self.console.print(f"  {status_emoji}  [{status_style}]{status_text}[/{status_style}]")
+        self.console.print()
+
+        # Build summary table
+        table = Table(
+            title="🗑️  Deletion Summary by Tier",
+            show_header=True,
+            header_style="bold white on dark_blue",
+            border_style="blue",
+            title_style="bold cyan",
+            row_styles=["", "dim"],
+        )
+        table.add_column("", width=3, justify="center")  # Emoji column
+        table.add_column("Tier", style="cyan", width=4, justify="center")
+        table.add_column("Layer", width=26)
+        table.add_column("✅ Success", style="green", justify="right", width=10)
+        table.add_column("❌ Failed", style="red", justify="right", width=10)
+        table.add_column("📊 Total", justify="right", width=10)
 
         for tier in sorted(self.resources_by_tier.keys()):
             tier_resources = self.resources_by_tier[tier]
             tier_name = self.TIER_NAMES.get(tier, f"Tier {tier}")
+            tier_emoji = self.TIER_EMOJIS.get(tier, "📦")
 
             success_count = sum(1 for r in tier_resources if r.status == ResourceStatus.SUCCEEDED)
             failed_count = sum(1 for r in tier_resources if r.status == ResourceStatus.FAILED)
             tier_total = len(tier_resources)
 
-            total_success += success_count
-            total_failed += failed_count
-
             # Only show tiers that have resources
             if tier_total > 0:
+                # Add checkmark or X based on tier completion
+                if failed_count == 0:
+                    success_display = f"[green]{success_count}[/green]"
+                else:
+                    success_display = str(success_count)
+
                 table.add_row(
+                    tier_emoji,
                     str(tier),
                     tier_name,
-                    str(success_count),
-                    str(failed_count) if failed_count > 0 else "-",
+                    success_display,
+                    f"[red]{failed_count}[/red]" if failed_count > 0 else "[dim]-[/dim]",
                     str(tier_total),
                 )
 
         # Add totals row
         table.add_section()
         table.add_row(
+            "🎯",
             "",
             "[bold]TOTAL[/bold]",
             f"[bold green]{total_success}[/bold green]",
-            f"[bold red]{total_failed}[/bold red]" if total_failed > 0 else "-",
+            f"[bold red]{total_failed}[/bold red]" if total_failed > 0 else "[dim]-[/dim]",
             f"[bold]{self.total}[/bold]",
         )
 
@@ -424,7 +473,8 @@ class DeletionProgressDisplay:
         # Show failed resources detail if any
         if total_failed > 0:
             self.console.print()
-            self.console.print("[bold red]Failed Resources:[/bold red]")
+            self.console.print("  ❌  [bold red]Failed Resources[/bold red]")
+            self.console.print("  " + "─" * 50)
 
             for tier in sorted(self.resources_by_tier.keys()):
                 tier_resources = self.resources_by_tier[tier]
@@ -432,7 +482,8 @@ class DeletionProgressDisplay:
 
                 if failed_in_tier:
                     tier_name = self.TIER_NAMES.get(tier, f"Tier {tier}")
-                    self.console.print(f"\n  [bold]Tier {tier}: {tier_name}[/bold]")
+                    tier_emoji = self.TIER_EMOJIS.get(tier, "📦")
+                    self.console.print(f"\n  {tier_emoji}  [bold]Tier {tier}: {tier_name}[/bold]")
 
                     for tracked in failed_in_tier:
                         label = self._get_resource_label(tracked)
@@ -440,5 +491,11 @@ class DeletionProgressDisplay:
                         # Truncate long errors
                         if len(error_msg) > 60:
                             error_msg = error_msg[:57] + "..."
-                        self.console.print(f"    [red]✗[/red] {label}")
-                        self.console.print(f"      [dim]{error_msg}[/dim]")
+                        self.console.print(f"      [red]✗[/red] {label}")
+                        self.console.print(f"        [dim italic]{error_msg}[/dim italic]")
+
+            self.console.print()
+        else:
+            self.console.print()
+            self.console.print("  🎉  [green]All resources cleaned up successfully![/green]")
+            self.console.print()
