@@ -267,6 +267,7 @@ class ResourceDeleter:
                 "AWS.SimpleQueueService.NonExistentQueue",  # SQS full error code
                 "DBInstanceNotFound",  # RDS instance already deleted
                 "DBClusterNotFoundFault",  # RDS cluster already deleted
+                "EntityNotFoundException",  # Glue/generic entity not found
             ]:
                 # Resource already deleted
                 logger.info(f"Resource {resource_id} already deleted")
