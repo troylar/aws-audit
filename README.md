@@ -154,6 +154,7 @@ Before diving in, here's the terminology:
 - CloudTrail creator tracking
 - `--track-creators` flag
 - Enrich existing snapshots
+- **List creators by snapshot**
 - Web UI creator columns
 - Identity type detection
 
@@ -666,6 +667,30 @@ This adds three tags to each resource:
 - Find resources created by former team members
 - Audit resource creation by identity type
 
+**List Creators:**
+View a summary of all resource creators for a snapshot:
+
+```bash
+# Show creators summary for active snapshot
+awsinv snapshot creators
+
+# Show creators for specific snapshot
+awsinv snapshot creators my-snapshot
+
+# Show detailed resources for each creator
+awsinv snapshot creators --detailed
+
+# Export to JSON or CSV
+awsinv snapshot creators --export creators.json
+awsinv snapshot creators --export creators.csv
+```
+
+**Output includes:**
+- Unique creators count
+- Resources with/without creator info
+- Table with creator name, type, resource count, and top resource types
+- With `--detailed`: individual resources grouped by type for each creator
+
 **Web UI Support:**
 The Resource Explorer includes three creator columns (enable via column selector):
 - "Created By" - Shows the creator ARN (truncated for readability)
@@ -957,6 +982,11 @@ awsinv snapshot report                # Summary of current/specified snapshot
 
 awsinv snapshot enrich-creators <name>  # Add creator info to existing snapshot
     [--days-back <days>]              # CloudTrail lookup period (default: 90)
+
+awsinv snapshot creators              # List resource creators for a snapshot
+    [<snapshot-name>]                 # Specific snapshot (default: active)
+    [--detailed]                      # Show individual resources per creator
+    [--export <file.json|csv>]        # Export to JSON or CSV
 
 # ─────────────────────────────────────────────────────────────
 # ANALYSIS
@@ -1369,6 +1399,6 @@ MIT License - see [LICENSE](LICENSE)
 
 [![Star on GitHub](https://img.shields.io/github/stars/troylar/aws-inventory-manager?style=social)](https://github.com/troylar/aws-inventory-manager)
 
-Version 0.21.0 • Python 3.8 - 3.13
+Version 0.22.0 • Python 3.8 - 3.13
 
 </div>
