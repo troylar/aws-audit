@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-01-22
+
+### Added
+- **Purge Exclusion Filters**: New options to exclude specific resources from deletion in `cleanup purge`
+  - `--exclude-name` / `-x`: Exclude resources by name pattern (supports `*` and `?` wildcards)
+  - `--exclude-tag`: Exclude resources by tag pattern (format: `key=value`, supports wildcards)
+  - Both options can be repeated multiple times (OR logic - excluded if ANY match)
+  - Examples:
+    - `--exclude-name "*-prod-*"` - Exclude all resources with "-prod-" in their name
+    - `--exclude-name "critical-*" -x "important-*"` - Exclude multiple name patterns
+    - `--exclude-tag "protected=yes"` - Exclude resources with specific tag
+    - `--exclude-tag "Name=*production*"` - Exclude resources where Name tag contains "production"
+
 ## [0.20.0] - 2026-01-22
 
 ### Added

@@ -2728,6 +2728,63 @@ def cleanup_execute(
         raise typer.Exit(code=2)
 
 
+def _matches_wildcard_pattern(value: str, pattern: str) -> bool:
+    """Check if value matches a wildcard pattern.
+
+    Supports * (any characters) and ? (single character) wildcards.
+    Case-insensitive matching.
+
+    Args:
+        value: The string to check
+        pattern: The pattern with optional wildcards
+
+    Returns:
+        True if value matches pattern
+    """
+    import fnmatch
+    return fnmatch.fnmatch(value.lower(), pattern.lower())
+
+
+def _resource_matches_exclusion(
+    resource_name: str,
+    resource_tags: Dict[str, str],
+    exclude_names: Optional[List[str]],
+    exclude_tags: Optional[List[str]],
+) -> tuple:
+    """Check if a resource should be excluded from deletion.
+
+    Args:
+        resource_name: The resource name
+        resource_tags: The resource tags
+        exclude_names: List of name patterns to exclude (supports wildcards)
+        exclude_tags: List of tag patterns to exclude (format: key=value, supports wildcards)
+
+    Returns:
+        Tuple of (is_excluded, reason) where reason explains why excluded
+    """
+    # Check name exclusions
+    if exclude_names:
+        for pattern in exclude_names:
+            if _matches_wildcard_pattern(resource_name or "", pattern):
+                return True, f"name matches exclusion pattern '{pattern}'"
+
+    # Check tag exclusions
+    if exclude_tags and resource_tags:
+        for tag_pattern in exclude_tags:
+            if "=" in tag_pattern:
+                key_pattern, value_pattern = tag_pattern.split("=", 1)
+            else:
+                # If no =, match any value for this key
+                key_pattern = tag_pattern
+                value_pattern = "*"
+
+            for tag_key, tag_value in resource_tags.items():
+                if _matches_wildcard_pattern(tag_key, key_pattern) and _matches_wildcard_pattern(tag_value, value_pattern):
+                    return True, f"tag '{tag_key}={tag_value}' matches exclusion pattern '{tag_pattern}'"
+
+    return False, ""
+
+
 @cleanup_app.command("purge")
 def cleanup_purge(
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
@@ -2736,6 +2793,12 @@ def cleanup_purge(
     regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
     protect_tags: Optional[List[str]] = typer.Option(
         None, "--protect-tag", help="Protect resources with tag (format: key=value, can repeat)"
+    ),
+    exclude_names: Optional[List[str]] = typer.Option(
+        None, "--exclude-name", "-x", help="Exclude resources by name pattern (supports * and ? wildcards, can repeat)"
+    ),
+    exclude_tags: Optional[List[str]] = typer.Option(
+        None, "--exclude-tag", help="Exclude resources by tag (format: key=value, supports wildcards, can repeat)"
     ),
     config_file: Optional[str] = typer.Option(
         None, "--config", help="Path to protection rules config file"
@@ -2756,7 +2819,7 @@ def cleanup_purge(
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
 ):
-    """DELETE all resources EXCEPT those matching protection rules.
+    """DELETE all resources EXCEPT those matching protection rules or exclusions.
 
     ⚠️  DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
 
@@ -2764,6 +2827,11 @@ def cleanup_purge(
     ALL resources that don't match protection rules (tags, types, etc.).
 
     Use this for lab/sandbox cleanup where baseline resources are tagged.
+
+    Exclusion Filters:
+        Use --exclude-name and --exclude-tag to protect specific resources from deletion.
+        Supports wildcards: * (any characters) and ? (single character).
+        Can specify multiple exclusions (OR logic - excluded if ANY match).
 
     Creator/Date Filters:
         Use --from-snapshot with an enriched snapshot to filter by creator.
@@ -2778,6 +2846,23 @@ def cleanup_purge(
 
         # Multiple protection tags (OR logic - protected if ANY match)
         awsinv cleanup purge --protect-tag "project=baseline" --protect-tag "env=prod" --confirm
+
+        # Exclude specific resources by name pattern (wildcards supported)
+        awsinv cleanup purge --protect-tag "env=dev" --exclude-name "*-prod-*" --preview
+        awsinv cleanup purge --protect-tag "env=dev" --exclude-name "my-critical-function" --preview
+
+        # Exclude multiple resources by name (can repeat option)
+        awsinv cleanup purge --protect-tag "env=dev" -x "*-prod-*" -x "*-staging-*" -x "critical-*" --preview
+
+        # Exclude resources by tag pattern (wildcards on key and value)
+        awsinv cleanup purge --protect-tag "env=dev" --exclude-tag "Name=*production*" --preview
+        awsinv cleanup purge --protect-tag "env=dev" --exclude-tag "critical=true" --preview
+
+        # Exclude by tag key only (any value)
+        awsinv cleanup purge --protect-tag "env=dev" --exclude-tag "do-not-delete=*" --preview
+
+        # Combine name and tag exclusions
+        awsinv cleanup purge --protect-tag "env=dev" --exclude-name "*-prod-*" --exclude-tag "protected=yes" --preview
 
         # Use config file for protection rules
         awsinv cleanup purge --config .awsinv-cleanup.yaml --confirm
@@ -2974,12 +3059,35 @@ def cleanup_purge(
                 all_resources = [r for r in all_resources if r.region in regions]
                 console.print(f"[dim]After region filter: {len(all_resources)} resources[/dim]")
 
-        # Apply protection rules
+        # Display exclusion filters if provided
+        if exclude_names or exclude_tags:
+            console.print("[dim]Exclusion filters:[/dim]")
+            if exclude_names:
+                for pattern in exclude_names:
+                    console.print(f"[dim]  • Exclude name: {pattern}[/dim]")
+            if exclude_tags:
+                for pattern in exclude_tags:
+                    console.print(f"[dim]  • Exclude tag: {pattern}[/dim]")
+
+        # Apply protection rules and exclusions
         to_delete = []
         protected = []
+        excluded = []
 
         for resource in all_resources:
-            # Convert Resource object to dict for safety checker
+            # First check exclusions (by name or tag pattern)
+            is_excluded, exclude_reason = _resource_matches_exclusion(
+                resource.name or "",
+                resource.tags or {},
+                exclude_names,
+                exclude_tags,
+            )
+
+            if is_excluded:
+                excluded.append((resource, exclude_reason))
+                continue
+
+            # Then check protection rules
             resource_dict = {
                 "resource_id": resource.name,
                 "resource_type": resource.resource_type,
@@ -2998,7 +3106,9 @@ def cleanup_purge(
         # Display summary
         console.print(f"\n[bold]Summary:[/bold]")
         console.print(f"  • Total resources: {len(all_resources)}")
-        console.print(f"  • Protected (will keep): [green]{len(protected)}[/green]")
+        console.print(f"  • Protected by rules (will keep): [green]{len(protected)}[/green]")
+        if excluded:
+            console.print(f"  • Excluded by pattern (will keep): [cyan]{len(excluded)}[/cyan]")
         console.print(f"  • Unprotected (will delete): [red]{len(to_delete)}[/red]")
 
         if preview:
@@ -3010,8 +3120,15 @@ def cleanup_purge(
                 if len(to_delete) > 20:
                     console.print(f"  ... and {len(to_delete) - 20} more")
 
+            if excluded:
+                console.print("\n[bold cyan]Resources EXCLUDED by pattern (will keep):[/bold cyan]")
+                for resource, reason in excluded[:10]:  # Show first 10
+                    console.print(f"  [cyan]○[/cyan] {resource.resource_type}: {resource.name} - {reason}")
+                if len(excluded) > 10:
+                    console.print(f"  ... and {len(excluded) - 10} more")
+
             if protected:
-                console.print("\n[bold green]Resources that would be PROTECTED:[/bold green]")
+                console.print("\n[bold green]Resources PROTECTED by rules (will keep):[/bold green]")
                 for resource, reason in protected[:10]:  # Show first 10
                     console.print(f"  [green]✓[/green] {resource.resource_type}: {resource.name} - {reason}")
                 if len(protected) > 10:
@@ -3061,11 +3178,12 @@ def cleanup_purge(
 
         status_color = "green" if failed == 0 else "yellow" if succeeded > 0 else "red"
 
+        excluded_line = f"\n• Excluded by pattern: {len(excluded)}" if excluded else ""
         summary_text = f"""
 [bold]Results:[/bold]
 • Succeeded: [green]{succeeded}[/green]
 • Failed: [red]{failed}[/red]
-• Protected (skipped): {len(protected)}
+• Protected by rules: {len(protected)}{excluded_line}
 • Total scanned: {len(all_resources)}
         """
 
