@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2026-01-21
+
+### Added
+- **Lambda CLI Unit Tests**: Comprehensive test coverage for lambda commands (29 tests)
+  - Tests for list, extract, show, and diff commands
+  - Edge case tests for missing code, empty configs, unnamed functions
+
+### Fixed
+- **Lambda CLI**: Fixed `get_active_snapshot` method call (was using wrong method name)
+
 ## [0.18.0] - 2026-01-21
 
 ### Added

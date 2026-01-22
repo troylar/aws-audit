@@ -1471,12 +1471,12 @@ def snapshot_enrich_creators(
             snapshot = storage.load_snapshot(name)
         else:
             # Get active snapshot
-            active = storage.get_active_snapshot()
-            if not active:
+            active_name = storage.get_active_snapshot_name()
+            if not active_name:
                 console.print("✗ No active snapshot found. Specify a snapshot name.", style="bold red")
                 raise typer.Exit(code=1)
-            snapshot = active
-            name = snapshot.name
+            snapshot = storage.load_snapshot(active_name)
+            name = active_name
 
         console.print(f"📸 Enriching snapshot: [bold]{name}[/bold]")
         console.print(f"   Resources: {snapshot.resource_count}")
@@ -4220,11 +4220,12 @@ def lambda_list(
     if snapshot_name:
         snapshot = storage.load_snapshot(snapshot_name)
     else:
-        snapshot = storage.get_active_snapshot()
-        if not snapshot:
+        active_name = storage.get_active_snapshot_name()
+        if not active_name:
             console.print("[red]No active snapshot. Specify a snapshot name.[/red]")
             raise typer.Exit(code=1)
-        snapshot_name = snapshot.name
+        snapshot = storage.load_snapshot(active_name)
+        snapshot_name = active_name
 
     console.print(f"\n[bold]🔍 Lambda Functions in snapshot: {snapshot_name}[/bold]\n")
 
@@ -4297,11 +4298,12 @@ def lambda_extract(
     if snapshot_name:
         snapshot = storage.load_snapshot(snapshot_name)
     else:
-        snapshot = storage.get_active_snapshot()
-        if not snapshot:
+        active_name = storage.get_active_snapshot_name()
+        if not active_name:
             console.print("[red]No active snapshot. Use --snapshot to specify.[/red]")
             raise typer.Exit(code=1)
-        snapshot_name = snapshot.name
+        snapshot = storage.load_snapshot(active_name)
+        snapshot_name = active_name
 
     # Find Lambda functions
     lambdas = [r for r in snapshot.resources if r.resource_type == "AWS::Lambda::Function"]
@@ -4383,10 +4385,11 @@ def lambda_show(
     if snapshot_name:
         snapshot = storage.load_snapshot(snapshot_name)
     else:
-        snapshot = storage.get_active_snapshot()
-        if not snapshot:
+        active_name = storage.get_active_snapshot_name()
+        if not active_name:
             console.print("[red]No active snapshot. Use --snapshot to specify.[/red]")
             raise typer.Exit(code=1)
+        snapshot = storage.load_snapshot(active_name)
 
     # Find the function
     fn = next((r for r in snapshot.resources
