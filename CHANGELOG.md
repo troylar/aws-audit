@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-01-22
+
+### Added
+- **Lambda Fetch Command**: New `awsinv lambda fetch` command to download Lambda code for existing snapshots
+  - Fetches code from AWS for Lambda functions that don't have stored code
+  - Handles versioned functions by parsing qualifier from ARN
+  - Stores code inline or externally based on `--max-size` option
+  - Use `--force` to re-fetch code even for functions that already have it
+  - Filter by function name with `--function` option
+  - Example: `awsinv lambda fetch my-snapshot --max-size 50`
+
 ## [0.19.0] - 2026-01-21
 
 ### Added

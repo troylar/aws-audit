@@ -361,3 +361,46 @@ class SnapshotStore:
         """
         row = self.db.fetchone("SELECT COUNT(*) as count FROM snapshots")
         return row["count"] if row else 0
+
+    def update_resource_config(
+        self,
+        snapshot_name: str,
+        resource_arn: str,
+        raw_config: Dict[str, Any],
+        config_hash: Optional[str] = None,
+    ) -> bool:
+        """Update raw_config for a specific resource in a snapshot.
+
+        Args:
+            snapshot_name: Name of the snapshot
+            resource_arn: ARN of the resource to update
+            raw_config: New raw_config dictionary
+            config_hash: Optional new config hash (computed if not provided)
+
+        Returns:
+            True if updated, False if resource not found
+        """
+        snapshot_id = self.get_id(snapshot_name)
+        if not snapshot_id:
+            return False
+
+        # Compute config hash if not provided
+        if config_hash is None:
+            from ..utils.hash import compute_config_hash
+            config_hash = compute_config_hash(raw_config)
+
+        with self.db.transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE resources
+                SET raw_config = ?, config_hash = ?
+                WHERE snapshot_id = ? AND arn = ?
+                """,
+                (json_serialize(raw_config), config_hash, snapshot_id, resource_arn),
+            )
+            updated = cursor.rowcount > 0
+
+        if updated:
+            logger.debug(f"Updated raw_config for {resource_arn} in snapshot '{snapshot_name}'")
+
+        return updated

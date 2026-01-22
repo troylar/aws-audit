@@ -4727,6 +4727,226 @@ def lambda_diff(
     zip2.close()
 
 
+@lambda_app.command("fetch")
+def lambda_fetch(
+    snapshot_name: str = typer.Argument(..., help="Snapshot name to fetch code for"),
+    function_name: Optional[str] = typer.Option(
+        None, "--function", "-f", help="Specific function name (default: all without code)"
+    ),
+    max_size: int = typer.Option(
+        50, "--max-size", "-m", help="Max code size (MB) to store inline. Larger stored to files. -1 for unlimited."
+    ),
+    force: bool = typer.Option(False, "--force", help="Re-fetch code even if already stored"),
+    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+):
+    """Fetch Lambda code from AWS for an existing snapshot.
+
+    Downloads deployment packages for Lambda functions that don't have code stored,
+    or re-fetches all code with --force.
+
+    Handles versioned functions - will fetch code for the specific version/alias
+    if specified in the function ARN.
+
+    Examples:
+        awsinv lambda fetch my-snapshot
+        awsinv lambda fetch my-snapshot --function my-func
+        awsinv lambda fetch my-snapshot --max-size 100
+        awsinv lambda fetch my-snapshot --force
+    """
+    import hashlib
+    import requests
+    import boto3
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+
+    from ..snapshot.lambda_code_storage import LambdaCodeStorage
+    from ..storage.snapshot_store import SnapshotStore
+    from ..storage.database import Database
+    from ..utils.hash import compute_config_hash
+
+    storage = SnapshotStorage()
+
+    try:
+        snapshot = storage.load_snapshot(snapshot_name)
+    except FileNotFoundError:
+        console.print(f"[red]Snapshot '{snapshot_name}' not found.[/red]")
+        raise typer.Exit(code=1)
+
+    # Find Lambda functions
+    lambdas = [r for r in snapshot.resources if r.resource_type == "AWS::Lambda::Function"]
+
+    if not lambdas:
+        console.print("[yellow]No Lambda functions in this snapshot.[/yellow]")
+        raise typer.Exit(0)
+
+    # Filter to specific function if requested
+    if function_name:
+        lambdas = [fn for fn in lambdas if fn.name == function_name]
+        if not lambdas:
+            console.print(f"[red]Lambda function '{function_name}' not found in snapshot.[/red]")
+            raise typer.Exit(code=1)
+
+    # Filter to functions without code (unless --force)
+    if not force:
+        lambdas = [
+            fn for fn in lambdas
+            if not (fn.raw_config or {}).get("_code", {}).get("code_stored", False)
+        ]
+
+    if not lambdas:
+        console.print("[green]All Lambda functions already have code stored.[/green]")
+        console.print("[dim]Use --force to re-fetch code.[/dim]")
+        raise typer.Exit(0)
+
+    console.print(f"\n[bold]📥 Fetching code for {len(lambdas)} Lambda function(s)[/bold]")
+    if max_size == -1:
+        console.print("[dim]Storage: unlimited inline[/dim]")
+    else:
+        console.print(f"[dim]Storage: inline up to {max_size}MB, larger to files[/dim]")
+
+    # Convert max_size to bytes
+    max_size_bytes = -1 if max_size == -1 else max_size * 1024 * 1024
+
+    # Initialize code storage for external files
+    code_storage = LambdaCodeStorage()
+
+    # Create boto3 session
+    session_kwargs = {}
+    if profile:
+        session_kwargs["profile_name"] = profile
+    session = boto3.Session(**session_kwargs)
+
+    # Get database for updates
+    db = Database()
+    snapshot_store = SnapshotStore(db)
+
+    # Process each function
+    success_count = 0
+    skip_count = 0
+    error_count = 0
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Fetching...", total=len(lambdas))
+
+        for fn in lambdas:
+            progress.update(task, description=f"📦 {fn.name}")
+
+            try:
+                # Extract region and function details from ARN
+                # ARN format: arn:aws:lambda:region:account:function:name[:qualifier]
+                arn_parts = fn.arn.split(":")
+                region = arn_parts[3] if len(arn_parts) > 3 else fn.region
+
+                # Get function name and qualifier from ARN
+                func_name = fn.name
+                qualifier = None
+                if len(arn_parts) > 7:
+                    qualifier = arn_parts[7]  # Version or alias
+
+                # Create Lambda client for the function's region
+                lambda_client = session.client("lambda", region_name=region)
+
+                # Get function info including code location
+                get_func_kwargs = {"FunctionName": func_name}
+                if qualifier:
+                    get_func_kwargs["Qualifier"] = qualifier
+
+                try:
+                    func_response = lambda_client.get_function(**get_func_kwargs)
+                except Exception as e:
+                    console.print(f"[yellow]⚠ {fn.name}: Function not found in AWS ({e})[/yellow]")
+                    skip_count += 1
+                    progress.advance(task)
+                    continue
+
+                code_location = func_response.get("Code", {}).get("Location")
+                if not code_location:
+                    console.print(f"[yellow]⚠ {fn.name}: No code location available[/yellow]")
+                    skip_count += 1
+                    progress.advance(task)
+                    continue
+
+                # Download the code
+                response = requests.get(code_location, timeout=120)
+                response.raise_for_status()
+
+                code_bytes = response.content
+                code_size = len(code_bytes)
+                code_hash = hashlib.sha256(code_bytes).hexdigest()
+
+                # Get existing raw_config or create new one
+                raw_config = dict(fn.raw_config) if fn.raw_config else {}
+
+                # Build code data
+                code_data = raw_config.get("_code", {})
+                code_data["code_size_bytes"] = code_size
+                code_data["code_sha256"] = code_hash
+
+                # Preserve existing S3 info if present
+                code_info = func_response.get("Code", {})
+                if "S3Bucket" in code_info:
+                    code_data["s3_bucket"] = code_info["S3Bucket"]
+                if "S3Key" in code_info:
+                    code_data["s3_key"] = code_info["S3Key"]
+
+                # Store based on size
+                if max_size_bytes == -1 or code_size <= max_size_bytes:
+                    # Store inline
+                    code_data["code_base64"] = base64.b64encode(code_bytes).decode("utf-8")
+                    code_data["code_stored"] = True
+                    code_data["storage_type"] = "inline"
+                    if "code_file_path" in code_data:
+                        del code_data["code_file_path"]
+                    storage_type = "inline"
+                else:
+                    # Store externally
+                    file_path, _ = code_storage.store_code(snapshot_name, fn.name, code_bytes)
+                    code_data["code_stored"] = True
+                    code_data["storage_type"] = "external"
+                    code_data["code_file_path"] = file_path
+                    if "code_base64" in code_data:
+                        del code_data["code_base64"]
+                    storage_type = "file"
+
+                # Remove the too_large flag if it was set
+                if "code_too_large" in code_data:
+                    del code_data["code_too_large"]
+
+                raw_config["_code"] = code_data
+
+                # Update in database
+                new_hash = compute_config_hash(raw_config)
+                snapshot_store.update_resource_config(
+                    snapshot_name, fn.arn, raw_config, new_hash
+                )
+
+                size_str = f"{code_size / (1024 * 1024):.1f}MB" if code_size >= 1024 * 1024 else f"{code_size / 1024:.1f}KB"
+                console.print(f"[green]✓[/green] {fn.name}: {size_str} ({storage_type})")
+                success_count += 1
+
+            except requests.RequestException as e:
+                console.print(f"[red]✗ {fn.name}: Download failed - {e}[/red]")
+                error_count += 1
+            except Exception as e:
+                console.print(f"[red]✗ {fn.name}: {e}[/red]")
+                error_count += 1
+
+            progress.advance(task)
+
+    # Summary
+    console.print(f"\n[bold]Summary:[/bold]")
+    if success_count:
+        console.print(f"  [green]✓ {success_count} fetched[/green]")
+    if skip_count:
+        console.print(f"  [yellow]⚠ {skip_count} skipped[/yellow]")
+    if error_count:
+        console.print(f"  [red]✗ {error_count} failed[/red]")
+
+
 def cli_main():
     """Entry point for console script."""
     app()
