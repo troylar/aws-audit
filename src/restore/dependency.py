@@ -75,6 +75,9 @@ RESOURCE_TYPE_DELETION_ORDER = {
     "AWS::KMS::Key": 9,
     "AWS::EC2::Volume": 9,
     "AWS::EC2::KeyPair": 9,
+    "AWS::Glue::Job": 9,
+    "AWS::Glue::Database": 9,
+    "AWS::Glue::Crawler": 9,
 
     # Tier 10: IAM (delete last - may be needed by other resources)
     "AWS::IAM::Role": 10,

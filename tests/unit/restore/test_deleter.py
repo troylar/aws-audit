@@ -402,6 +402,10 @@ class TestResourceDeleter:
         """Test IAM policy deletion uses ARN in parameter."""
         mock_client = Mock()
         mock_client.delete_policy.return_value = {}
+        # Set up paginator for list_policy_versions (prerequisite cleanup)
+        mock_paginator = Mock()
+        mock_paginator.paginate.return_value = [{"Versions": []}]  # No versions to delete
+        mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()

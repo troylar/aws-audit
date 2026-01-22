@@ -22,6 +22,7 @@ RESOURCES_WITH_PREREQUISITES = {
     "AWS::S3::Bucket",
     "AWS::IAM::Role",
     "AWS::IAM::User",
+    "AWS::IAM::Policy",
     "AWS::Events::Rule",
     "AWS::Route53::HostedZone",
     "AWS::Backup::BackupVault",
@@ -101,6 +102,10 @@ class ResourceDeleter:
         "AWS::CodePipeline::Pipeline": ("codepipeline", "delete_pipeline", "name"),
         # CloudFormation
         "AWS::CloudFormation::Stack": ("cloudformation", "delete_stack", "StackName"),
+        # Glue
+        "AWS::Glue::Job": ("glue", "delete_job", "JobName"),
+        "AWS::Glue::Database": ("glue", "delete_database", "Name"),
+        "AWS::Glue::Crawler": ("glue", "delete_crawler", "Name"),
         # Route53
         "AWS::Route53::HostedZone": ("route53", "delete_hosted_zone", "Id"),
         # Backup
@@ -257,10 +262,25 @@ class ResourceDeleter:
                 "ResourceNotFoundException",
                 "WAFNonexistentItemException",
                 "NoSuchHostedZone",
+                "NonExistentQueue",  # SQS queue already deleted
+                "QueueDoesNotExist",  # SQS alternative error code
+                "AWS.SimpleQueueService.NonExistentQueue",  # SQS full error code
             ]:
                 # Resource already deleted
                 logger.info(f"Resource {resource_id} already deleted")
                 return (True, None)
+            elif error_code == "InvalidDBInstanceState":
+                # RDS instance already being deleted
+                if "already being deleted" in error_message.lower():
+                    logger.info(f"RDS instance {resource_id} already being deleted")
+                    return (True, None)
+                return (False, f"{error_code}: {error_message}")
+            elif error_code == "InvalidRequestException":
+                # Handle Secrets Manager secrets owned by RDS
+                if "owned by" in error_message.lower():
+                    logger.info(f"Secret {resource_id} is managed by another service, skipping")
+                    return (True, None)
+                return (False, f"{error_code}: {error_message}")
             elif error_code == "DependencyViolation":
                 # Dependencies still exist
                 logger.debug(f"Dependency violation for {resource_id}: {error_message}")
@@ -356,6 +376,8 @@ class ResourceDeleter:
                 return self._cleanup_iam_role(resource_id)
             elif resource_type == "AWS::IAM::User":
                 return self._cleanup_iam_user(resource_id)
+            elif resource_type == "AWS::IAM::Policy":
+                return self._cleanup_iam_policy(arn)
             elif resource_type == "AWS::Events::Rule":
                 return self._cleanup_eventbridge_rule(resource_id, region)
             elif resource_type == "AWS::Route53::HostedZone":
@@ -661,6 +683,49 @@ class ResourceDeleter:
                 return (True, None)  # User already deleted
 
             return (False, f"Failed to cleanup IAM user: {error_code}: {error_message}")
+
+    def _cleanup_iam_policy(self, policy_arn: str) -> tuple[bool, Optional[str]]:
+        """Delete all non-default versions of an IAM policy before deletion.
+
+        IAM policies with multiple versions cannot be deleted until all non-default
+        versions are removed first. The default version is deleted with the policy.
+
+        Args:
+            policy_arn: ARN of the IAM policy
+
+        Returns:
+            Tuple of (success: bool, error_message: Optional[str])
+        """
+        try:
+            iam_client = create_boto_client(
+                service_name="iam",
+                region_name="us-east-1",  # IAM is global
+                profile_name=self.aws_profile,
+            )
+
+            # List all policy versions
+            paginator = iam_client.get_paginator("list_policy_versions")
+            for page in paginator.paginate(PolicyArn=policy_arn):
+                for version in page.get("Versions", []):
+                    # Skip the default version - it's deleted with the policy
+                    if not version.get("IsDefaultVersion", False):
+                        iam_client.delete_policy_version(
+                            PolicyArn=policy_arn,
+                            VersionId=version["VersionId"],
+                        )
+                        logger.debug(f"Deleted policy version {version['VersionId']} for {policy_arn}")
+
+            logger.info(f"Cleaned up IAM policy versions for {policy_arn}")
+            return (True, None)
+
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            error_message = e.response.get("Error", {}).get("Message", str(e))
+
+            if error_code == "NoSuchEntity":
+                return (True, None)  # Policy already deleted
+
+            return (False, f"Failed to cleanup IAM policy versions: {error_code}: {error_message}")
 
     def _cleanup_eventbridge_rule(self, rule_name: str, region: str) -> tuple[bool, Optional[str]]:
         """Remove all targets from an EventBridge rule before deletion.

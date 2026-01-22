@@ -16,6 +16,7 @@ from ..aws.credentials import CredentialValidationError, validate_credentials
 from ..snapshot.storage import SnapshotStorage
 from ..utils.logging import setup_logging
 from .config import Config
+from .deletion_progress import DeletionProgressDisplay
 
 logger = logging.getLogger(__name__)
 
@@ -3397,8 +3398,8 @@ def cleanup_purge(
                 console.print("\n[yellow]Aborted - no resources were deleted[/yellow]\n")
                 raise typer.Exit(code=0)
 
-        # Execute deletion
-        console.print("\n[bold red]Executing deletion...[/bold red]")
+        # Execute deletion with real-time progress display
+        console.print("\n[bold red]Executing deletion...[/bold red]\n")
         deleter = ResourceDeleter(aws_profile=profile)
         audit_storage = AuditStorage()
 
@@ -3406,21 +3407,32 @@ def cleanup_purge(
         failed = 0
         failures = []  # Track failed resources with error details
 
-        with console.status("[bold red]Deleting resources..."):
+        progress_display = DeletionProgressDisplay(to_delete, console)
+
+        try:
+            progress_display.start()
+
             for resource in to_delete:
+                progress_display.mark_in_progress(resource)
+
                 success, error = deleter.delete_resource(
                     resource_type=resource.resource_type,
                     resource_id=resource.name,
                     region=resource.region,
                     arn=resource.arn,
                 )
+
                 if success:
+                    progress_display.mark_succeeded(resource)
                     succeeded += 1
                     logger.info(f"Deleted {resource.resource_type}: {resource.name}")
                 else:
+                    progress_display.mark_failed(resource, error)
                     failed += 1
                     failures.append((resource, error))
                     logger.warning(f"Failed to delete {resource.resource_type}: {resource.name} - {error}")
+        finally:
+            progress_display.stop()
 
         # Display results
         console.print("\n[bold]Purge Complete[/bold]\n")

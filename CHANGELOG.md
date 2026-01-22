@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2026-01-22
+
+### Added
+- **Real-Time Deletion Progress Display**: `cleanup purge` now shows a live dependency tree during deletion
+  - Resources grouped by deletion tier with real-time status updates
+  - Status icons: ✓ Done, ⋯ In Progress, ○ Pending, ✗ Failed
+  - Detailed mode (< 50 resources) shows all resources with status
+  - Compact mode (50+ resources) shows tier progress bars
+  - Elapsed time tracking
+- **Glue Resource Support**: Added deletion support for AWS Glue resources
+  - `AWS::Glue::Job`, `AWS::Glue::Database`, `AWS::Glue::Crawler`
+
+### Fixed
+- **RDS Already Deleting**: Treat `InvalidDBInstanceState` (already being deleted) as success
+- **SQS Queue Not Found**: Treat `NonExistentQueue` errors as success (already deleted)
+- **RDS-Managed Secrets**: Skip secrets owned by RDS (cannot be deleted directly)
+- **IAM Policy Versions**: Delete non-default policy versions before deleting policy
+
 ## [0.23.0] - 2026-01-22
 
 ### Added
