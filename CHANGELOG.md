@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-01-22
+
+### Added
+- **Snapshot Creators Command**: New `awsinv snapshot creators` command to list resource creators
+  - Shows summary of who created resources in a snapshot (requires creator tracking)
+  - Aggregates resources by creator with counts by resource type
+  - Displays creator type (AssumedRole, IAMUser, Root, Service)
+  - `--detailed` flag shows individual resources for each creator
+  - Export to JSON or CSV with `--export` option
+  - Examples:
+    - `awsinv snapshot creators my-snapshot` - Show creators summary
+    - `awsinv snapshot creators --detailed` - Show detailed resources per creator
+    - `awsinv snapshot creators --export creators.json` - Export to JSON
+    - `awsinv snapshot creators --export creators.csv` - Export to CSV
+
 ## [0.21.2] - 2026-01-22
 
 ### Improved

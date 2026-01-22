@@ -414,3 +414,120 @@ class ResourceStore:
 
         rows = self.db.fetchall(query, tuple(params))
         return [row["region"] for row in rows]
+
+    def get_creators_summary(self, snapshot_name: str) -> List[Dict[str, Any]]:
+        """Get summary of resource creators for a snapshot.
+
+        Aggregates resources by creator (from _created_by tag) and returns
+        statistics including resource counts by type.
+
+        Args:
+            snapshot_name: Snapshot name to analyze
+
+        Returns:
+            List of creator summaries, each containing:
+            - creator: Creator ARN
+            - creator_type: Type (AssumedRole, IAMUser, Root, Service)
+            - resource_count: Total resources created
+            - resource_types: Dict of resource type -> count
+            - resources: List of resource details
+        """
+        # Query all resources with creator info
+        query = """
+            SELECT
+                r.arn,
+                r.resource_type,
+                r.name,
+                r.region,
+                t_by.value as created_by,
+                t_type.value as created_by_type,
+                t_at.value as created_at
+            FROM resources r
+            JOIN snapshots s ON r.snapshot_id = s.id
+            JOIN resource_tags t_by ON r.id = t_by.resource_id AND t_by.key = '_created_by'
+            LEFT JOIN resource_tags t_type ON r.id = t_type.resource_id AND t_type.key = '_created_by_type'
+            LEFT JOIN resource_tags t_at ON r.id = t_at.resource_id AND t_at.key = '_created_at'
+            WHERE s.name = ?
+            ORDER BY t_by.value, r.resource_type, r.name
+        """
+
+        rows = self.db.fetchall(query, (snapshot_name,))
+
+        # Aggregate by creator
+        creators: Dict[str, Dict[str, Any]] = {}
+
+        for row in rows:
+            creator = row["created_by"]
+            if creator not in creators:
+                creators[creator] = {
+                    "creator": creator,
+                    "creator_type": row.get("created_by_type") or "Unknown",
+                    "resource_count": 0,
+                    "resource_types": {},
+                    "resources": [],
+                }
+
+            creators[creator]["resource_count"] += 1
+
+            # Count by resource type
+            rtype = row["resource_type"]
+            if rtype not in creators[creator]["resource_types"]:
+                creators[creator]["resource_types"][rtype] = 0
+            creators[creator]["resource_types"][rtype] += 1
+
+            # Add resource details
+            creators[creator]["resources"].append({
+                "arn": row["arn"],
+                "resource_type": rtype,
+                "name": row["name"],
+                "region": row["region"],
+                "created_at": row.get("created_at"),
+            })
+
+        # Convert to list and sort by resource count descending
+        result = list(creators.values())
+        result.sort(key=lambda x: x["resource_count"], reverse=True)
+
+        return result
+
+    def get_creators_count(self, snapshot_name: str) -> int:
+        """Get count of unique creators in a snapshot.
+
+        Args:
+            snapshot_name: Snapshot name to analyze
+
+        Returns:
+            Number of unique creators
+        """
+        query = """
+            SELECT COUNT(DISTINCT t.value) as count
+            FROM resources r
+            JOIN snapshots s ON r.snapshot_id = s.id
+            JOIN resource_tags t ON r.id = t.resource_id
+            WHERE s.name = ? AND t.key = '_created_by'
+        """
+
+        row = self.db.fetchone(query, (snapshot_name,))
+        return row["count"] if row else 0
+
+    def get_resources_without_creator(self, snapshot_name: str) -> int:
+        """Get count of resources without creator information.
+
+        Args:
+            snapshot_name: Snapshot name to analyze
+
+        Returns:
+            Number of resources without _created_by tag
+        """
+        query = """
+            SELECT COUNT(*) as count
+            FROM resources r
+            JOIN snapshots s ON r.snapshot_id = s.id
+            WHERE s.name = ?
+            AND r.id NOT IN (
+                SELECT resource_id FROM resource_tags WHERE key = '_created_by'
+            )
+        """
+
+        row = self.db.fetchone(query, (snapshot_name,))
+        return row["count"] if row else 0

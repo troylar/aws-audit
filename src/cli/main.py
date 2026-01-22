@@ -1938,6 +1938,221 @@ def snapshot_report(
         raise typer.Exit(code=2)
 
 
+@snapshot_app.command("creators")
+def snapshot_creators(
+    snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
+    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location"),
+    detailed: bool = typer.Option(False, "--detailed", "-d", help="Show individual resources for each creator"),
+    export: Optional[str] = typer.Option(
+        None, "--export", help="Export to file (format detected from extension: .json, .csv)"
+    ),
+):
+    """List all resource creators for a snapshot.
+
+    Shows a summary of who created resources in the snapshot, including resource
+    counts by creator and resource type breakdown. Requires snapshots to have
+    creator information (use --track-creators when creating or enrich-creators).
+
+    Examples:
+        awsinv snapshot creators                    # Creators for active snapshot
+        awsinv snapshot creators baseline-2025      # Creators for specific snapshot
+        awsinv snapshot creators --detailed         # Show individual resources
+        awsinv snapshot creators --export out.json  # Export to JSON
+        awsinv snapshot creators --export out.csv   # Export to CSV
+    """
+    from rich.table import Table
+
+    from ..storage.database import Database
+    from ..storage.resource_store import ResourceStore
+
+    try:
+        # Use provided storage path or default from config
+        storage = SnapshotStorage(storage_path or config.storage_path)
+
+        # Determine which snapshot to use
+        target_snapshot_name: str
+        if snapshot_name:
+            target_snapshot_name = snapshot_name
+        else:
+            active_name = storage.get_active_snapshot_name()
+            if not active_name:
+                console.print("✗ No active snapshot found", style="bold red")
+                console.print("\nSet an active snapshot with:")
+                console.print("  awsinv snapshot set-active <name>")
+                console.print("\nOr specify a snapshot explicitly:")
+                console.print("  awsinv snapshot creators <snapshot-name>")
+                raise typer.Exit(code=1)
+            target_snapshot_name = active_name
+
+        # Verify snapshot exists
+        try:
+            snapshot = storage.load_snapshot(target_snapshot_name)
+        except FileNotFoundError:
+            console.print(f"✗ Snapshot '{target_snapshot_name}' not found", style="bold red")
+            raise typer.Exit(code=1)
+
+        # Initialize database and resource store
+        db = Database(storage_path or config.storage_path)
+        resource_store = ResourceStore(db)
+
+        # Get creators summary
+        creators_summary = resource_store.get_creators_summary(target_snapshot_name)
+        resources_without_creator = resource_store.get_resources_without_creator(target_snapshot_name)
+
+        # Export mode
+        if export:
+            import json
+            from pathlib import Path
+
+            export_path = Path(export)
+            ext = export_path.suffix.lower()
+
+            if ext == ".json":
+                export_data = {
+                    "snapshot_name": target_snapshot_name,
+                    "snapshot_created_at": snapshot.created_at.isoformat(),
+                    "total_creators": len(creators_summary),
+                    "resources_without_creator": resources_without_creator,
+                    "creators": creators_summary,
+                }
+                with open(export_path, "w") as f:
+                    json.dump(export_data, f, indent=2, default=str)
+                console.print(f"✓ Exported {len(creators_summary)} creators to JSON: {export_path}", style="bold green")
+
+            elif ext == ".csv":
+                import csv
+
+                with open(export_path, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    if detailed:
+                        # Detailed CSV with one row per resource
+                        writer.writerow(["creator", "creator_type", "resource_arn", "resource_type", "name", "region", "created_at"])
+                        for creator_info in creators_summary:
+                            for resource in creator_info["resources"]:
+                                writer.writerow([
+                                    creator_info["creator"],
+                                    creator_info["creator_type"],
+                                    resource["arn"],
+                                    resource["resource_type"],
+                                    resource["name"],
+                                    resource["region"],
+                                    resource.get("created_at", ""),
+                                ])
+                    else:
+                        # Summary CSV with one row per creator
+                        writer.writerow(["creator", "creator_type", "resource_count", "resource_types"])
+                        for creator_info in creators_summary:
+                            types_str = ", ".join(f"{k}:{v}" for k, v in creator_info["resource_types"].items())
+                            writer.writerow([
+                                creator_info["creator"],
+                                creator_info["creator_type"],
+                                creator_info["resource_count"],
+                                types_str,
+                            ])
+                console.print(f"✓ Exported creators to CSV: {export_path}", style="bold green")
+
+            else:
+                console.print(f"✗ Unsupported export format: {ext}", style="bold red")
+                console.print("  Supported formats: .json, .csv")
+                raise typer.Exit(code=1)
+
+            raise typer.Exit(code=0)
+
+        # Display mode
+        console.print(f"\n[bold cyan]Resource Creators for Snapshot: {target_snapshot_name}[/bold cyan]")
+        console.print(f"[dim]Created: {snapshot.created_at.strftime('%Y-%m-%d %H:%M:%S')}[/dim]\n")
+
+        if not creators_summary:
+            console.print("⚠️  No creator information found in this snapshot.", style="yellow")
+            console.print("\nTo add creator information, use one of:")
+            console.print("  • awsinv snapshot create --track-creators")
+            console.print("  • awsinv snapshot enrich-creators <snapshot-name>")
+            raise typer.Exit(code=0)
+
+        # Summary stats
+        total_tracked = sum(c["resource_count"] for c in creators_summary)
+        console.print(f"[bold]Summary:[/bold]")
+        console.print(f"  • Unique creators: {len(creators_summary)}")
+        console.print(f"  • Resources with creator info: {total_tracked:,}")
+        if resources_without_creator > 0:
+            console.print(f"  • Resources without creator info: {resources_without_creator:,}", style="yellow")
+        console.print()
+
+        # Create table
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Creator", style="cyan", no_wrap=False)
+        table.add_column("Type", style="dim")
+        table.add_column("Resources", justify="right")
+        table.add_column("Top Resource Types", no_wrap=False)
+
+        for creator_info in creators_summary:
+            # Extract just the name from ARN for display
+            creator_arn = creator_info["creator"]
+            if "/" in creator_arn:
+                creator_display = creator_arn.split("/")[-1]
+            elif ":" in creator_arn:
+                creator_display = creator_arn.split(":")[-1]
+            else:
+                creator_display = creator_arn
+
+            # Get top 3 resource types
+            sorted_types = sorted(creator_info["resource_types"].items(), key=lambda x: x[1], reverse=True)[:3]
+            types_display = ", ".join(f"{t.split('::')[-1]}({c})" for t, c in sorted_types)
+
+            table.add_row(
+                creator_display,
+                creator_info["creator_type"],
+                str(creator_info["resource_count"]),
+                types_display,
+            )
+
+        console.print(table)
+
+        # Detailed view
+        if detailed:
+            console.print("\n[bold cyan]Detailed Resources by Creator:[/bold cyan]\n")
+
+            for creator_info in creators_summary:
+                creator_arn = creator_info["creator"]
+                if "/" in creator_arn:
+                    creator_display = creator_arn.split("/")[-1]
+                else:
+                    creator_display = creator_arn
+
+                console.print(f"[bold]{creator_display}[/bold] ({creator_info['resource_count']} resources)")
+                console.print(f"  [dim]Full ARN: {creator_arn}[/dim]")
+                console.print(f"  [dim]Type: {creator_info['creator_type']}[/dim]\n")
+
+                # Show resources grouped by type
+                resources_by_type: Dict[str, List[Dict]] = {}
+                for resource in creator_info["resources"]:
+                    rtype = resource["resource_type"]
+                    if rtype not in resources_by_type:
+                        resources_by_type[rtype] = []
+                    resources_by_type[rtype].append(resource)
+
+                for rtype, resources in sorted(resources_by_type.items()):
+                    type_short = rtype.split("::")[-1] if "::" in rtype else rtype
+                    console.print(f"  [cyan]{type_short}[/cyan] ({len(resources)})")
+                    for resource in resources[:5]:  # Show max 5 per type
+                        console.print(f"    • {resource['name'] or resource['arn']}")
+                        if resource.get("region"):
+                            console.print(f"      [dim]Region: {resource['region']}[/dim]")
+                    if len(resources) > 5:
+                        console.print(f"    [dim]... and {len(resources) - 5} more[/dim]")
+                    console.print()
+
+                console.print()
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"✗ Error listing creators: {e}", style="bold red")
+        logger.exception("Error in snapshot creators command")
+        raise typer.Exit(code=2)
+
+
 @app.command()
 def delta(
     snapshot: Optional[str] = typer.Option(
