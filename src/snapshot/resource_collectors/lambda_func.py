@@ -8,10 +8,14 @@ from typing import Any, Dict, List, Optional
 
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
+from ..lambda_code_storage import LambdaCodeStorage
 from .base import BaseResourceCollector
 
-# Maximum code size to store inline (10MB base64 encoded ~ 7.5MB raw)
-MAX_INLINE_CODE_SIZE = 10 * 1024 * 1024
+# Default maximum code size to store inline (10MB)
+DEFAULT_MAX_INLINE_CODE_SIZE = 10 * 1024 * 1024
+
+# Maximum code size to download at all (250MB - Lambda's max)
+MAX_DOWNLOAD_SIZE = 250 * 1024 * 1024
 
 
 def _parse_lambda_timestamp(timestamp_str: Optional[str]) -> Optional[datetime]:
@@ -38,6 +42,31 @@ def _parse_lambda_timestamp(timestamp_str: Optional[str]) -> Optional[datetime]:
 
 class LambdaCollector(BaseResourceCollector):
     """Collector for AWS Lambda functions and layers."""
+
+    def __init__(
+        self,
+        session: Any,
+        region: str,
+        max_inline_code_size: int = DEFAULT_MAX_INLINE_CODE_SIZE,
+        snapshot_name: Optional[str] = None,
+        external_storage_path: Optional[str] = None,
+    ):
+        """Initialize Lambda collector.
+
+        Args:
+            session: boto3 Session
+            region: AWS region
+            max_inline_code_size: Maximum code size (bytes) to store inline.
+                                  Larger packages are stored externally.
+                                  Set to 0 to disable inline storage.
+                                  Set to -1 for unlimited inline storage.
+            snapshot_name: Snapshot name (required for external storage)
+            external_storage_path: Base path for external code storage
+        """
+        super().__init__(session, region)
+        self.max_inline_code_size = max_inline_code_size
+        self.snapshot_name = snapshot_name
+        self.code_storage = LambdaCodeStorage(external_storage_path) if snapshot_name else None
 
     @property
     def service_name(self) -> str:
@@ -157,16 +186,38 @@ class LambdaCollector(BaseResourceCollector):
                 code_hash = hashlib.sha256(code_bytes).hexdigest()
                 code_data["code_sha256"] = code_hash
 
-                # Store code inline if small enough, otherwise just store hash
-                if code_size <= MAX_INLINE_CODE_SIZE:
+                # Determine storage strategy based on size and config
+                # -1 means unlimited inline storage
+                if self.max_inline_code_size == -1 or code_size <= self.max_inline_code_size:
+                    # Store inline (base64 encoded)
                     code_data["code_base64"] = base64.b64encode(code_bytes).decode("utf-8")
                     code_data["code_stored"] = True
+                    code_data["storage_type"] = "inline"
+                elif self.code_storage and self.snapshot_name:
+                    # Store externally to file
+                    try:
+                        file_path, _ = self.code_storage.store_code(
+                            self.snapshot_name, function_name, code_bytes
+                        )
+                        code_data["code_stored"] = True
+                        code_data["storage_type"] = "external"
+                        code_data["code_file_path"] = file_path
+                        self.logger.debug(
+                            f"Code for {function_name} ({code_size / 1024 / 1024:.1f}MB) "
+                            f"stored externally at {file_path}"
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"Failed to store code externally for {function_name}: {e}")
+                        code_data["code_stored"] = False
+                        code_data["code_too_large"] = True
+                        code_data["storage_error"] = str(e)
                 else:
+                    # No external storage available, skip storing
                     code_data["code_stored"] = False
                     code_data["code_too_large"] = True
                     self.logger.debug(
                         f"Code for {function_name} is {code_size / 1024 / 1024:.1f}MB, "
-                        "storing hash only"
+                        "storing hash only (no external storage configured)"
                     )
 
             except requests.RequestException as e:
@@ -278,16 +329,38 @@ class LambdaCollector(BaseResourceCollector):
                 code_hash = hashlib.sha256(code_bytes).hexdigest()
                 code_data["downloaded_code_sha256"] = code_hash
 
-                # Store code inline if small enough
-                if code_size <= MAX_INLINE_CODE_SIZE:
+                # Determine storage strategy based on size and config
+                # -1 means unlimited inline storage
+                if self.max_inline_code_size == -1 or code_size <= self.max_inline_code_size:
+                    # Store inline (base64 encoded)
                     code_data["code_base64"] = base64.b64encode(code_bytes).decode("utf-8")
                     code_data["code_stored"] = True
+                    code_data["storage_type"] = "inline"
+                elif self.code_storage and self.snapshot_name:
+                    # Store externally to file (use layer_ prefix to distinguish)
+                    try:
+                        file_path, _ = self.code_storage.store_code(
+                            self.snapshot_name, f"layer_{layer_name}", code_bytes
+                        )
+                        code_data["code_stored"] = True
+                        code_data["storage_type"] = "external"
+                        code_data["code_file_path"] = file_path
+                        self.logger.debug(
+                            f"Code for layer {layer_name} ({code_size / 1024 / 1024:.1f}MB) "
+                            f"stored externally at {file_path}"
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"Failed to store code externally for layer {layer_name}: {e}")
+                        code_data["code_stored"] = False
+                        code_data["code_too_large"] = True
+                        code_data["storage_error"] = str(e)
                 else:
+                    # No external storage available, skip storing
                     code_data["code_stored"] = False
                     code_data["code_too_large"] = True
                     self.logger.debug(
                         f"Code for layer {layer_name} is {code_size / 1024 / 1024:.1f}MB, "
-                        "storing hash only"
+                        "storing hash only (no external storage configured)"
                     )
 
             except requests.RequestException as e:

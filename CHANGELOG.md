@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-01-21
+
+### Added
+- **Lambda Code Size Configuration**: New `--lambda-code-max-size` option for `snapshot create`
+  - Set maximum Lambda code size (in MB) to store inline in snapshots
+  - Larger packages automatically stored to external files in `~/.snapshots/lambda-code/`
+  - Use `-1` for unlimited inline storage, `0` for external-only storage
+  - Example: `awsinv snapshot create my-snap --lambda-code-max-size 50`
+- **External Lambda Code Storage**: Large Lambda deployment packages now stored to disk
+  - Packages larger than inline limit saved to `~/.snapshots/lambda-code/<snapshot>/`
+  - Lambda CLI commands automatically read from external files when needed
+  - Shows "File" as source type in `lambda list` output
+
 ## [0.18.1] - 2026-01-21
 
 ### Added

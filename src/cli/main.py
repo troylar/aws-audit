@@ -1,9 +1,10 @@
 """Main CLI entry point using Typer."""
 
+import base64
 import logging
 import sys
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import typer
 from rich.console import Console
@@ -838,6 +839,12 @@ def snapshot_create(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Show detailed collection method breakdown"
     ),
+    lambda_code_max_size: Optional[int] = typer.Option(
+        None,
+        "--lambda-code-max-size",
+        help="Max Lambda code size (MB) to store inline. Larger packages stored to files. "
+             "Default: 10. Use 0 for external-only, -1 for unlimited inline.",
+    ),
 ):
     """Create a new snapshot of AWS resources.
 
@@ -1036,6 +1043,24 @@ def snapshot_create(
         else:
             console.print("🔧 AWS Config collection: [bold yellow]disabled[/bold yellow] (using direct API)")
 
+        # Convert lambda code max size from MB to bytes (handle special values)
+        lambda_code_max_size_bytes = None
+        if lambda_code_max_size is not None:
+            if lambda_code_max_size == -1:
+                lambda_code_max_size_bytes = -1  # Unlimited
+            elif lambda_code_max_size == 0:
+                lambda_code_max_size_bytes = 0  # External only
+            else:
+                lambda_code_max_size_bytes = lambda_code_max_size * 1024 * 1024
+
+            # Show Lambda code storage setting
+            if lambda_code_max_size == -1:
+                console.print("📦 Lambda code storage: [bold green]unlimited inline[/bold green]")
+            elif lambda_code_max_size == 0:
+                console.print("📦 Lambda code storage: [bold cyan]external files only[/bold cyan]")
+            else:
+                console.print(f"📦 Lambda code storage: inline up to [bold]{lambda_code_max_size}MB[/bold], larger to files")
+
         snapshot = create_snapshot(
             name=name,
             regions=region_list,
@@ -1046,6 +1071,7 @@ def snapshot_create(
             inventory_name=inventory_name,
             use_config=use_config,
             config_aggregator=config_aggregator,
+            lambda_code_max_size=lambda_code_max_size_bytes,
         )
 
         # Tag resources created by role if specified (uses CloudTrail)
@@ -4200,6 +4226,76 @@ lambda_app = typer.Typer(help="Extract, view, and diff Lambda function code from
 app.add_typer(lambda_app, name="lambda")
 
 
+def _get_lambda_code_bytes(code_info: Dict[str, Any]) -> Optional[bytes]:
+    """Get Lambda code bytes from either inline or external storage.
+
+    Args:
+        code_info: The _code dict from a Lambda resource's raw_config
+
+    Returns:
+        Raw bytes of the deployment package, or None if not available
+    """
+    if not code_info.get("code_stored"):
+        return None
+
+    storage_type = code_info.get("storage_type", "inline")
+
+    if storage_type == "external":
+        # Load from external file
+        file_path = code_info.get("code_file_path")
+        if not file_path:
+            return None
+        try:
+            from pathlib import Path
+            path = Path(file_path)
+            if path.exists():
+                with open(path, "rb") as f:
+                    return f.read()
+            else:
+                return None
+        except Exception:
+            return None
+    else:
+        # Inline base64 encoded
+        code_b64 = code_info.get("code_base64")
+        if code_b64:
+            return base64.b64decode(code_b64)
+        return None
+
+
+def _get_lambda_code_size(code_info: Dict[str, Any]) -> int:
+    """Get Lambda code size in bytes.
+
+    Args:
+        code_info: The _code dict from a Lambda resource's raw_config
+
+    Returns:
+        Size in bytes, or 0 if not available
+    """
+    # First check if we have explicit size info
+    if "code_size_bytes" in code_info:
+        return code_info["code_size_bytes"]
+
+    storage_type = code_info.get("storage_type", "inline")
+
+    if storage_type == "external":
+        file_path = code_info.get("code_file_path")
+        if file_path:
+            try:
+                from pathlib import Path
+                path = Path(file_path)
+                if path.exists():
+                    return path.stat().st_size
+            except Exception:
+                pass
+        return 0
+    else:
+        code_b64 = code_info.get("code_base64", "")
+        if code_b64:
+            return len(base64.b64decode(code_b64))
+        return 0
+
+
 @lambda_app.command("list")
 def lambda_list(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (defaults to active)"),
@@ -4250,11 +4346,11 @@ def lambda_list(
         runtime = fn.raw_config.get("Runtime", "N/A") if fn.raw_config else "N/A"
 
         has_code = code_info.get("code_stored", False)
-        code_b64 = code_info.get("code_base64", "")
+        storage_type = code_info.get("storage_type", "inline")
 
         if has_code:
             stored_count += 1
-            size_bytes = len(base64.b64decode(code_b64)) if code_b64 else 0
+            size_bytes = _get_lambda_code_size(code_info)
             if size_bytes >= 1024 * 1024:
                 size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
             elif size_bytes >= 1024:
@@ -4262,7 +4358,13 @@ def lambda_list(
             else:
                 size_str = f"{size_bytes} B"
             sha = code_info.get("code_sha256", "")[:12] + "..." if code_info.get("code_sha256") else ""
-            source = "S3" if code_info.get("s3_bucket") else "Inline"
+            # Determine source display
+            if code_info.get("s3_bucket"):
+                source = "S3"
+            elif storage_type == "external":
+                source = "File"
+            else:
+                source = "Inline"
             table.add_row(fn.name or "unnamed", runtime, "✓", size_str, sha, source)
         elif show_all:
             sha = code_info.get("code_sha256", "")[:12] + "..." if code_info.get("code_sha256") else "—"
@@ -4330,14 +4432,13 @@ def lambda_extract(
 
     for fn in targets:
         code_info = fn.raw_config.get("_code", {}) if fn.raw_config else {}
-        code_b64 = code_info.get("code_base64")
+        zip_bytes = _get_lambda_code_bytes(code_info)
 
-        if not code_b64:
-            console.print(f"[yellow]⚠ {fn.name}: No code stored (package > 10MB)[/yellow]")
+        if not zip_bytes:
+            console.print(f"[yellow]⚠ {fn.name}: No code stored[/yellow]")
             continue
 
         try:
-            zip_bytes = base64.b64decode(code_b64)
 
             if flatten:
                 extract_path = output_dir
@@ -4400,15 +4501,13 @@ def lambda_show(
         raise typer.Exit(code=1)
 
     code_info = fn.raw_config.get("_code", {}) if fn.raw_config else {}
-    code_b64 = code_info.get("code_base64")
+    zip_bytes = _get_lambda_code_bytes(code_info)
 
-    if not code_b64:
-        console.print(f"[yellow]No code stored for '{function_name}' (package > 10MB)[/yellow]")
+    if not zip_bytes:
+        console.print(f"[yellow]No code stored for '{function_name}'[/yellow]")
         if code_info.get("code_sha256"):
             console.print(f"[dim]SHA256: {code_info['code_sha256']}[/dim]")
         raise typer.Exit(1)
-
-    zip_bytes = base64.b64decode(code_b64)
 
     with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
         files = zf.namelist()
@@ -4538,15 +4637,15 @@ def lambda_diff(
     console.print(f"[dim]{snapshot1}: {hash1[:16]}...[/dim]")
     console.print(f"[dim]{snapshot2}: {hash2[:16]}...[/dim]\n")
 
-    b64_1 = code1.get("code_base64")
-    b64_2 = code2.get("code_base64")
+    bytes1 = _get_lambda_code_bytes(code1)
+    bytes2 = _get_lambda_code_bytes(code2)
 
-    if not b64_1 or not b64_2:
-        console.print("[yellow]Cannot show diff - one or both snapshots missing code (>10MB)[/yellow]")
+    if not bytes1 or not bytes2:
+        console.print("[yellow]Cannot show diff - one or both snapshots missing code[/yellow]")
         raise typer.Exit(0)
 
-    zip1 = zipfile.ZipFile(BytesIO(base64.b64decode(b64_1)))
-    zip2 = zipfile.ZipFile(BytesIO(base64.b64decode(b64_2)))
+    zip1 = zipfile.ZipFile(BytesIO(bytes1))
+    zip2 = zipfile.ZipFile(BytesIO(bytes2))
 
     files1 = set(zip1.namelist())
     files2 = set(zip2.namelist())

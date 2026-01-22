@@ -11,7 +11,7 @@ import requests
 from src.snapshot.resource_collectors.lambda_func import (
     LambdaCollector,
     _parse_lambda_timestamp,
-    MAX_INLINE_CODE_SIZE,
+    DEFAULT_MAX_INLINE_CODE_SIZE,
 )
 
 
@@ -426,8 +426,8 @@ class TestLambdaCodeCollection:
 
     def test_get_code_data_large_package_hash_only(self, collector):
         """Test that large code packages only store hash, not the code."""
-        # Create a code larger than MAX_INLINE_CODE_SIZE
-        large_code = b"x" * (MAX_INLINE_CODE_SIZE + 1000)
+        # Create a code larger than DEFAULT_MAX_INLINE_CODE_SIZE
+        large_code = b"x" * (DEFAULT_MAX_INLINE_CODE_SIZE + 1000)
         code_info = {
             "RepositoryType": "Zip",
             "Location": "https://presigned-url.s3.amazonaws.com/...",

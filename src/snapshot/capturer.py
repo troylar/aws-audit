@@ -102,6 +102,7 @@ def create_snapshot(
     inventory_name: str = "default",
     use_config: bool = True,
     config_aggregator: Optional[str] = None,
+    lambda_code_max_size: Optional[int] = None,
 ) -> Snapshot:
     """Create a comprehensive snapshot of AWS resources.
 
@@ -200,7 +201,15 @@ def create_snapshot(
         def collect_service(collector_class: Type[BaseResourceCollector], region: str, is_global: bool = False) -> Dict:
             """Collect resources for a single service in a region (thread-safe)."""
             try:
-                collector = collector_class(session, region)
+                # Special handling for LambdaCollector to pass code storage options
+                if collector_class == LambdaCollector and lambda_code_max_size is not None:
+                    collector = collector_class(
+                        session, region,
+                        max_inline_code_size=lambda_code_max_size,
+                        snapshot_name=name,
+                    )
+                else:
+                    collector = collector_class(session, region)
                 service_name = collector.service_name.upper()
                 region_label = "global" if is_global else region
 

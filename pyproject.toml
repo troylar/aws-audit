@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aws-inventory-manager"
-version = "0.18.1"
+version = "0.19.0"
 description = "AWS Resource Inventory Management & Delta Tracking CLI tool"
 readme = "README.md"
 requires-python = ">=3.8"
