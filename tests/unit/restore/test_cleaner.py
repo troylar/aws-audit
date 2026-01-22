@@ -392,9 +392,9 @@ class TestResourceCleanerExecute:
 
         # Mock AWS deletion
         with patch.object(cleaner, "_collect_current_resources", return_value=mock_current_resources), patch.object(
-            cleaner, "_delete_resource", return_value=True
+            cleaner, "_delete_resource", return_value=(True, None)
         ) as mock_delete:
-            operation = cleaner.execute(
+            operation, deletion_records = cleaner.execute(
                 baseline_snapshot="baseline-snapshot",
                 account_id="123456789012",
                 confirmed=True,
@@ -441,9 +441,9 @@ class TestResourceCleanerExecute:
 
         # Mock AWS deletion
         with patch.object(cleaner, "_collect_current_resources", return_value=mock_current_resources), patch.object(
-            cleaner, "_delete_resource", return_value=True
+            cleaner, "_delete_resource", return_value=(True, None)
         ) as mock_delete:
-            operation = cleaner.execute(
+            operation, deletion_records = cleaner.execute(
                 baseline_snapshot="baseline-snapshot",
                 account_id="123456789012",
                 confirmed=True,
@@ -488,9 +488,9 @@ class TestResourceCleanerExecute:
 
         # Mock AWS deletion failure
         with patch.object(cleaner, "_collect_current_resources", return_value=mock_current_resources), patch.object(
-            cleaner, "_delete_resource", return_value=False
+            cleaner, "_delete_resource", return_value=(False, "Deletion failed")
         ) as mock_delete:  # Deletion fails
-            operation = cleaner.execute(
+            operation, deletion_records = cleaner.execute(
                 baseline_snapshot="baseline-snapshot",
                 account_id="123456789012",
                 confirmed=True,
@@ -539,7 +539,7 @@ class TestResourceCleanerExecute:
 
         # Mock AWS deletion
         with patch.object(cleaner, "_collect_current_resources", return_value=mock_current_resources), patch.object(
-            cleaner, "_delete_resource", return_value=True
+            cleaner, "_delete_resource", return_value=(True, None)
         ):
             cleaner.execute(
                 baseline_snapshot="baseline-snapshot",
@@ -728,8 +728,8 @@ class TestResourceCleanerEdgeCases:
         )
 
         # Mock _delete_resource to return success for first, fail for second
-        with patch.object(cleaner, "_delete_resource", side_effect=[True, False]):
-            operation = cleaner.execute(
+        with patch.object(cleaner, "_delete_resource", side_effect=[(True, None), (False, "Deletion failed")]):
+            operation, deletion_records = cleaner.execute(
                 baseline_snapshot="test-snapshot",
                 account_id="123456789012",
                 confirmed=True,

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.2] - 2026-01-22
+
+### Improved
+- **Better Deletion Error Details**: Improved error reporting for `cleanup purge` and `cleanup execute`
+  - Failed deletions now show detailed error messages including resource type, name, region, ARN, and specific error
+  - Error messages from AWS are now captured and displayed instead of generic "Deletion failed"
+  - Failed resources listed individually before the summary panel
+
 ## [0.21.1] - 2026-01-22
 
 ### Added

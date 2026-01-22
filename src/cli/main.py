@@ -2680,7 +2680,7 @@ def cleanup_execute(
         # Execute deletion
         console.print("\n[bold red]Executing deletion...[/bold red]")
         with console.status("[bold red]Deleting resources..."):
-            operation = cleaner.execute(
+            operation, deletion_records = cleaner.execute(
                 baseline_snapshot=baseline_snapshot,
                 account_id=account_id,
                 confirmed=True,
@@ -2691,6 +2691,19 @@ def cleanup_execute(
 
         # Display results
         console.print("\n[bold]Deletion Complete[/bold]\n")
+
+        # Show failure details if any
+        failed_records = [r for r in deletion_records if r.status.value == "failed"]
+        if failed_records:
+            console.print("[bold red]Failed Deletions:[/bold red]\n")
+            for record in failed_records:
+                # Extract just the resource type name (e.g., "Instance" from "AWS::EC2::Instance")
+                type_short = record.resource_type.split("::")[-1] if "::" in record.resource_type else record.resource_type
+                console.print(f"  [red]✗[/red] [bold]{type_short}[/bold]: {record.resource_id}")
+                console.print(f"    [dim]Region:[/dim] {record.region}")
+                console.print(f"    [dim]ARN:[/dim] {record.resource_arn}")
+                console.print(f"    [dim]Error:[/dim] [yellow]{record.error_message}[/yellow]")
+                console.print()
 
         # Results summary
         status_color = (
@@ -3157,6 +3170,7 @@ def cleanup_purge(
 
         succeeded = 0
         failed = 0
+        failures = []  # Track failed resources with error details
 
         with console.status("[bold red]Deleting resources..."):
             for resource in to_delete:
@@ -3171,10 +3185,23 @@ def cleanup_purge(
                     logger.info(f"Deleted {resource.resource_type}: {resource.name}")
                 else:
                     failed += 1
+                    failures.append((resource, error))
                     logger.warning(f"Failed to delete {resource.resource_type}: {resource.name} - {error}")
 
         # Display results
         console.print("\n[bold]Purge Complete[/bold]\n")
+
+        # Show failure details if any
+        if failures:
+            console.print("[bold red]Failed Deletions:[/bold red]\n")
+            for resource, error in failures:
+                # Extract just the resource type name (e.g., "Instance" from "AWS::EC2::Instance")
+                type_short = resource.resource_type.split("::")[-1] if "::" in resource.resource_type else resource.resource_type
+                console.print(f"  [red]✗[/red] [bold]{type_short}[/bold]: {resource.name}")
+                console.print(f"    [dim]Region:[/dim] {resource.region}")
+                console.print(f"    [dim]ARN:[/dim] {resource.arn}")
+                console.print(f"    [dim]Error:[/dim] [yellow]{error}[/yellow]")
+                console.print()
 
         status_color = "green" if failed == 0 else "yellow" if succeeded > 0 else "red"
 

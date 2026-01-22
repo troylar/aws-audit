@@ -156,7 +156,7 @@ class ResourceCleaner:
         aws_profile: Optional[str] = None,
         resource_types: Optional[list[str]] = None,
         regions: Optional[list[str]] = None,
-    ) -> DeletionOperation:
+    ) -> tuple:
         """Execute resource deletion to restore to baseline (execution mode).
 
         Performs actual deletion of resources created after baseline snapshot with
@@ -171,7 +171,7 @@ class ResourceCleaner:
             regions: Filter by regions (optional)
 
         Returns:
-            DeletionOperation with execution results
+            Tuple of (DeletionOperation, List[DeletionRecord]) with execution results
 
         Raises:
             ValueError: If not confirmed or snapshot not found or account ID mismatch
@@ -255,7 +255,7 @@ class ResourceCleaner:
                 continue
 
             # Attempt deletion
-            success = self._delete_resource(resource, aws_profile)
+            success, error_message = self._delete_resource(resource, aws_profile)
 
             if success:
                 succeeded_count += 1
@@ -272,7 +272,7 @@ class ResourceCleaner:
                 )
             else:
                 failed_count += 1
-                # Create failed deletion record
+                # Create failed deletion record with actual error message
                 record = DeletionRecord(
                     record_id=record_id,
                     operation_id=operation_id,
@@ -282,7 +282,7 @@ class ResourceCleaner:
                     region=resource.get("region", ""),
                     status=DeletionStatus.FAILED,
                     error_code="DeletionFailed",
-                    error_message="Resource deletion failed",
+                    error_message=error_message or "Resource deletion failed",
                     timestamp=datetime.utcnow(),
                 )
             deletion_records.append(record)
@@ -315,9 +315,9 @@ class ResourceCleaner:
         # Log operation to audit storage with deletion records
         self.audit_storage.log_operation(operation, deletion_records)
 
-        return operation
+        return operation, deletion_records
 
-    def _delete_resource(self, resource: dict, aws_profile: Optional[str] = None) -> bool:
+    def _delete_resource(self, resource: dict, aws_profile: Optional[str] = None) -> tuple:
         """Delete a single AWS resource.
 
         Args:
@@ -325,7 +325,7 @@ class ResourceCleaner:
             aws_profile: AWS profile name (optional)
 
         Returns:
-            True if deletion succeeded, False otherwise
+            Tuple of (success: bool, error_message: str or None)
         """
         from src.restore.deleter import ResourceDeleter
 
@@ -346,7 +346,7 @@ class ResourceCleaner:
         if not success:
             logger.warning(f"Failed to delete {resource_type} {resource_id}: {error_message}")
 
-        return success
+        return success, error_message
 
     def _collect_current_resources(self, account_id: str, regions: Optional[list[str]] = None) -> list[dict]:
         """Collect current resources from AWS account.
