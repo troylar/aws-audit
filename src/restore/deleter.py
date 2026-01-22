@@ -265,6 +265,8 @@ class ResourceDeleter:
                 "NonExistentQueue",  # SQS queue already deleted
                 "QueueDoesNotExist",  # SQS alternative error code
                 "AWS.SimpleQueueService.NonExistentQueue",  # SQS full error code
+                "DBInstanceNotFound",  # RDS instance already deleted
+                "DBClusterNotFoundFault",  # RDS cluster already deleted
             ]:
                 # Resource already deleted
                 logger.info(f"Resource {resource_id} already deleted")
@@ -328,6 +330,12 @@ class ResourceDeleter:
                 id_field: resource_id,
                 "SkipFinalSnapshot": True,
                 "DeleteAutomatedBackups": True,
+            }
+        elif resource_type == "AWS::RDS::DBCluster":
+            # Skip final snapshot for faster deletion
+            return {
+                id_field: resource_id,
+                "SkipFinalSnapshot": True,
             }
         elif resource_type == "AWS::KMS::Key":
             # Schedule deletion with minimum waiting period
