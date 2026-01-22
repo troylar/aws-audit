@@ -4192,6 +4192,439 @@ def normalize(
     console.print(f"[green]✓ Updated {updated_count} resources with normalized names[/green]")
 
 
+# =============================================================================
+# Lambda Code Commands
+# =============================================================================
+
+lambda_app = typer.Typer(help="Extract, view, and diff Lambda function code from snapshots")
+app.add_typer(lambda_app, name="lambda")
+
+
+@lambda_app.command("list")
+def lambda_list(
+    snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (defaults to active)"),
+    show_all: bool = typer.Option(False, "--all", "-a", help="Show all lambdas including those without code"),
+):
+    """List Lambda functions with code information.
+
+    Shows which functions have code stored, their size, and hash.
+
+    Example:
+        awsinv lambda list my-snapshot
+        awsinv lambda list --all
+    """
+    import base64
+
+    storage = SnapshotStorage()
+
+    if snapshot_name:
+        snapshot = storage.load_snapshot(snapshot_name)
+    else:
+        snapshot = storage.get_active_snapshot()
+        if not snapshot:
+            console.print("[red]No active snapshot. Specify a snapshot name.[/red]")
+            raise typer.Exit(code=1)
+        snapshot_name = snapshot.name
+
+    console.print(f"\n[bold]🔍 Lambda Functions in snapshot: {snapshot_name}[/bold]\n")
+
+    # Find all Lambda functions
+    lambdas = [r for r in snapshot.resources if r.resource_type == "AWS::Lambda::Function"]
+
+    if not lambdas:
+        console.print("[yellow]No Lambda functions found in this snapshot.[/yellow]")
+        raise typer.Exit(0)
+
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Function Name", style="white")
+    table.add_column("Runtime", style="dim")
+    table.add_column("Code Stored", style="green")
+    table.add_column("Size", justify="right")
+    table.add_column("SHA256", style="dim")
+    table.add_column("Source", style="yellow")
+
+    stored_count = 0
+    for fn in sorted(lambdas, key=lambda x: x.name or ""):
+        code_info = fn.raw_config.get("_code", {}) if fn.raw_config else {}
+        runtime = fn.raw_config.get("Runtime", "N/A") if fn.raw_config else "N/A"
+
+        has_code = code_info.get("code_stored", False)
+        code_b64 = code_info.get("code_base64", "")
+
+        if has_code:
+            stored_count += 1
+            size_bytes = len(base64.b64decode(code_b64)) if code_b64 else 0
+            if size_bytes >= 1024 * 1024:
+                size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
+            elif size_bytes >= 1024:
+                size_str = f"{size_bytes / 1024:.1f} KB"
+            else:
+                size_str = f"{size_bytes} B"
+            sha = code_info.get("code_sha256", "")[:12] + "..." if code_info.get("code_sha256") else ""
+            source = "S3" if code_info.get("s3_bucket") else "Inline"
+            table.add_row(fn.name or "unnamed", runtime, "✓", size_str, sha, source)
+        elif show_all:
+            sha = code_info.get("code_sha256", "")[:12] + "..." if code_info.get("code_sha256") else "—"
+            table.add_row(fn.name or "unnamed", runtime, "[dim]✗ (>10MB)[/dim]", "—", sha, "—")
+
+    console.print(table)
+    console.print(f"\n[dim]{stored_count}/{len(lambdas)} functions have code stored[/dim]")
+
+
+@lambda_app.command("extract")
+def lambda_extract(
+    function_name: str = typer.Argument(..., help="Lambda function name (or 'all' for all functions)"),
+    snapshot_name: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name (defaults to active)"),
+    output_dir: str = typer.Option("./lambda_code", "--output", "-o", help="Output directory"),
+    flatten: bool = typer.Option(False, "--flatten", "-f", help="Extract all to single directory (no subdirs)"),
+):
+    """Extract Lambda function code to disk.
+
+    Extracts the deployment package (zip) and unpacks it.
+
+    Examples:
+        awsinv lambda extract my-function
+        awsinv lambda extract all --output ./code
+        awsinv lambda extract my-function -s my-snapshot -o ./extracted
+    """
+    import base64
+    import os
+    import zipfile
+    from io import BytesIO
+
+    storage = SnapshotStorage()
+
+    if snapshot_name:
+        snapshot = storage.load_snapshot(snapshot_name)
+    else:
+        snapshot = storage.get_active_snapshot()
+        if not snapshot:
+            console.print("[red]No active snapshot. Use --snapshot to specify.[/red]")
+            raise typer.Exit(code=1)
+        snapshot_name = snapshot.name
+
+    # Find Lambda functions
+    lambdas = [r for r in snapshot.resources if r.resource_type == "AWS::Lambda::Function"]
+
+    if function_name.lower() == "all":
+        targets = [fn for fn in lambdas if fn.raw_config and fn.raw_config.get("_code", {}).get("code_stored")]
+    else:
+        targets = [fn for fn in lambdas if fn.name == function_name]
+        if not targets:
+            console.print(f"[red]Lambda function '{function_name}' not found in snapshot.[/red]")
+            available = [fn.name for fn in lambdas[:10]]
+            if available:
+                console.print(f"[dim]Available: {', '.join(available)}{'...' if len(lambdas) > 10 else ''}[/dim]")
+            raise typer.Exit(code=1)
+
+    if not targets:
+        console.print("[yellow]No Lambda functions with stored code found.[/yellow]")
+        raise typer.Exit(0)
+
+    console.print(f"\n[bold]📦 Extracting {len(targets)} Lambda function(s)[/bold]\n")
+
+    os.makedirs(output_dir, exist_ok=True)
+    extracted_count = 0
+
+    for fn in targets:
+        code_info = fn.raw_config.get("_code", {}) if fn.raw_config else {}
+        code_b64 = code_info.get("code_base64")
+
+        if not code_b64:
+            console.print(f"[yellow]⚠ {fn.name}: No code stored (package > 10MB)[/yellow]")
+            continue
+
+        try:
+            zip_bytes = base64.b64decode(code_b64)
+
+            if flatten:
+                extract_path = output_dir
+            else:
+                extract_path = os.path.join(output_dir, fn.name or "unnamed")
+                os.makedirs(extract_path, exist_ok=True)
+
+            with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
+                zf.extractall(extract_path)
+                file_count = len(zf.namelist())
+
+            console.print(f"[green]✓[/green] {fn.name}: {file_count} files → {extract_path}")
+            extracted_count += 1
+
+        except Exception as e:
+            console.print(f"[red]✗ {fn.name}: {e}[/red]")
+
+    console.print(f"\n[bold green]Extracted {extracted_count} function(s) to {output_dir}[/bold green]")
+
+
+@lambda_app.command("show")
+def lambda_show(
+    function_name: str = typer.Argument(..., help="Lambda function name"),
+    snapshot_name: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name (defaults to active)"),
+    file_path: Optional[str] = typer.Option(None, "--file", "-f", help="Show specific file from package"),
+    list_files: bool = typer.Option(False, "--list", "-l", help="List files in package"),
+):
+    """Show Lambda function code with syntax highlighting.
+
+    View code directly in terminal without extracting to disk.
+
+    Examples:
+        awsinv lambda show my-function --list
+        awsinv lambda show my-function --file index.js
+        awsinv lambda show my-function --file handler.py
+    """
+    import base64
+    import zipfile
+    from io import BytesIO
+
+    from rich.syntax import Syntax
+
+    storage = SnapshotStorage()
+
+    if snapshot_name:
+        snapshot = storage.load_snapshot(snapshot_name)
+    else:
+        snapshot = storage.get_active_snapshot()
+        if not snapshot:
+            console.print("[red]No active snapshot. Use --snapshot to specify.[/red]")
+            raise typer.Exit(code=1)
+
+    # Find the function
+    fn = next((r for r in snapshot.resources
+               if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None)
+
+    if not fn:
+        console.print(f"[red]Lambda function '{function_name}' not found.[/red]")
+        raise typer.Exit(code=1)
+
+    code_info = fn.raw_config.get("_code", {}) if fn.raw_config else {}
+    code_b64 = code_info.get("code_base64")
+
+    if not code_b64:
+        console.print(f"[yellow]No code stored for '{function_name}' (package > 10MB)[/yellow]")
+        if code_info.get("code_sha256"):
+            console.print(f"[dim]SHA256: {code_info['code_sha256']}[/dim]")
+        raise typer.Exit(1)
+
+    zip_bytes = base64.b64decode(code_b64)
+
+    with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
+        files = zf.namelist()
+
+        if list_files:
+            console.print(f"\n[bold]📁 Files in {function_name} ({len(files)} files)[/bold]\n")
+            table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("File", style="white")
+            table.add_column("Size", justify="right")
+
+            for f in sorted(files):
+                if not f.endswith("/"):
+                    info = zf.getinfo(f)
+                    size = info.file_size
+                    if size >= 1024:
+                        size_str = f"{size / 1024:.1f} KB"
+                    else:
+                        size_str = f"{size} B"
+                    table.add_row(f, size_str)
+
+            console.print(table)
+            return
+
+        # Determine which file to show
+        if file_path:
+            target_file = file_path
+        else:
+            # Auto-detect main handler file
+            handler = fn.raw_config.get("Handler", "") if fn.raw_config else ""
+            if "." in handler:
+                module = handler.split(".")[0]
+                # Try common extensions
+                for ext in [".py", ".js", ".ts", ".mjs", ".rb", ".java", ".go"]:
+                    candidate = f"{module}{ext}"
+                    if candidate in files:
+                        target_file = candidate
+                        break
+                else:
+                    target_file = files[0] if files else None
+            else:
+                target_file = files[0] if files else None
+
+        if not target_file or target_file not in files:
+            console.print(f"[red]File '{target_file}' not found in package.[/red]")
+            console.print(f"[dim]Available: {', '.join(files[:10])}{'...' if len(files) > 10 else ''}[/dim]")
+            raise typer.Exit(1)
+
+        # Read and display the file
+        content = zf.read(target_file).decode("utf-8", errors="replace")
+
+        # Detect language from extension
+        ext = target_file.rsplit(".", 1)[-1] if "." in target_file else ""
+        lang_map = {
+            "py": "python", "js": "javascript", "ts": "typescript",
+            "mjs": "javascript", "rb": "ruby", "java": "java",
+            "go": "go", "rs": "rust", "json": "json", "yaml": "yaml",
+            "yml": "yaml", "xml": "xml", "html": "html", "css": "css",
+            "sh": "bash", "bash": "bash", "md": "markdown",
+        }
+        lang = lang_map.get(ext, "text")
+
+        console.print(f"\n[bold]📄 {function_name}/{target_file}[/bold]\n")
+        syntax = Syntax(content, lang, theme="monokai", line_numbers=True)
+        console.print(syntax)
+
+
+@lambda_app.command("diff")
+def lambda_diff(
+    function_name: str = typer.Argument(..., help="Lambda function name"),
+    snapshot1: str = typer.Argument(..., help="First snapshot (older)"),
+    snapshot2: str = typer.Argument(..., help="Second snapshot (newer)"),
+    file_path: Optional[str] = typer.Option(None, "--file", "-f", help="Diff specific file"),
+):
+    """Compare Lambda function code between two snapshots.
+
+    Shows what changed in the code between snapshots.
+
+    Examples:
+        awsinv lambda diff my-function snapshot-v1 snapshot-v2
+        awsinv lambda diff my-function old new --file handler.py
+    """
+    import base64
+    import difflib
+    import zipfile
+    from io import BytesIO
+
+    from rich.syntax import Syntax
+
+    storage = SnapshotStorage()
+
+    snap1 = storage.load_snapshot(snapshot1)
+    snap2 = storage.load_snapshot(snapshot2)
+
+    if not snap1:
+        console.print(f"[red]Snapshot '{snapshot1}' not found.[/red]")
+        raise typer.Exit(code=1)
+    if not snap2:
+        console.print(f"[red]Snapshot '{snapshot2}' not found.[/red]")
+        raise typer.Exit(code=1)
+
+    # Find the function in both snapshots
+    fn1 = next((r for r in snap1.resources
+                if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None)
+    fn2 = next((r for r in snap2.resources
+                if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None)
+
+    if not fn1:
+        console.print(f"[red]Function '{function_name}' not found in {snapshot1}[/red]")
+        raise typer.Exit(code=1)
+    if not fn2:
+        console.print(f"[red]Function '{function_name}' not found in {snapshot2}[/red]")
+        raise typer.Exit(code=1)
+
+    code1 = fn1.raw_config.get("_code", {}) if fn1.raw_config else {}
+    code2 = fn2.raw_config.get("_code", {}) if fn2.raw_config else {}
+
+    # Quick hash comparison
+    hash1 = code1.get("code_sha256", "")
+    hash2 = code2.get("code_sha256", "")
+
+    if hash1 == hash2:
+        console.print(f"\n[green]✓ No changes in {function_name} between snapshots[/green]")
+        console.print(f"[dim]SHA256: {hash1[:16]}...[/dim]")
+        return
+
+    console.print(f"\n[bold yellow]⚡ Code changed in {function_name}[/bold yellow]")
+    console.print(f"[dim]{snapshot1}: {hash1[:16]}...[/dim]")
+    console.print(f"[dim]{snapshot2}: {hash2[:16]}...[/dim]\n")
+
+    b64_1 = code1.get("code_base64")
+    b64_2 = code2.get("code_base64")
+
+    if not b64_1 or not b64_2:
+        console.print("[yellow]Cannot show diff - one or both snapshots missing code (>10MB)[/yellow]")
+        raise typer.Exit(0)
+
+    zip1 = zipfile.ZipFile(BytesIO(base64.b64decode(b64_1)))
+    zip2 = zipfile.ZipFile(BytesIO(base64.b64decode(b64_2)))
+
+    files1 = set(zip1.namelist())
+    files2 = set(zip2.namelist())
+
+    added = files2 - files1
+    removed = files1 - files2
+    common = files1 & files2
+
+    if added:
+        console.print(f"[green]+ Added files: {', '.join(sorted(added))}[/green]")
+    if removed:
+        console.print(f"[red]- Removed files: {', '.join(sorted(removed))}[/red]")
+
+    # Determine which file to diff
+    if file_path:
+        diff_files = [file_path] if file_path in common else []
+        if not diff_files:
+            if file_path in added:
+                console.print(f"\n[green]New file in {snapshot2}:[/green]")
+                content = zip2.read(file_path).decode("utf-8", errors="replace")
+                ext = file_path.rsplit(".", 1)[-1] if "." in file_path else "text"
+                syntax = Syntax(content, ext, theme="monokai", line_numbers=True)
+                console.print(syntax)
+                return
+            elif file_path in removed:
+                console.print(f"\n[red]File removed in {snapshot2} (was in {snapshot1}):[/red]")
+                content = zip1.read(file_path).decode("utf-8", errors="replace")
+                ext = file_path.rsplit(".", 1)[-1] if "." in file_path else "text"
+                syntax = Syntax(content, ext, theme="monokai", line_numbers=True)
+                console.print(syntax)
+                return
+            console.print(f"[red]File '{file_path}' not found in either snapshot[/red]")
+            raise typer.Exit(1)
+    else:
+        # Auto-detect handler file
+        handler = fn2.raw_config.get("Handler", "") if fn2.raw_config else ""
+        if "." in handler:
+            module = handler.split(".")[0]
+            for ext in [".py", ".js", ".ts", ".mjs"]:
+                candidate = f"{module}{ext}"
+                if candidate in common:
+                    diff_files = [candidate]
+                    break
+            else:
+                diff_files = list(common)[:3]  # Show first 3 changed files
+        else:
+            diff_files = list(common)[:3]
+
+    # Show diffs for changed files
+    for diff_file in diff_files:
+        if diff_file.endswith("/"):
+            continue
+
+        try:
+            content1 = zip1.read(diff_file).decode("utf-8", errors="replace")
+            content2 = zip2.read(diff_file).decode("utf-8", errors="replace")
+
+            if content1 == content2:
+                continue
+
+            console.print(f"\n[bold]📝 {diff_file}[/bold]")
+
+            diff = difflib.unified_diff(
+                content1.splitlines(keepends=True),
+                content2.splitlines(keepends=True),
+                fromfile=f"{snapshot1}/{diff_file}",
+                tofile=f"{snapshot2}/{diff_file}",
+            )
+
+            diff_text = "".join(diff)
+            if diff_text:
+                syntax = Syntax(diff_text, "diff", theme="monokai", line_numbers=False)
+                console.print(syntax)
+
+        except Exception as e:
+            console.print(f"[red]Error diffing {diff_file}: {e}[/red]")
+
+    zip1.close()
+    zip2.close()
+
+
 def cli_main():
     """Entry point for console script."""
     app()

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-01-21
+
+### Added
+- **Lambda Code CLI Commands**: New `awsinv lambda` command group for working with Lambda code
+  - `awsinv lambda list` - List all Lambda functions with code info (size, hash, storage status)
+  - `awsinv lambda extract` - Extract code to disk (single function or all at once)
+  - `awsinv lambda show` - View code with syntax highlighting directly in terminal
+  - `awsinv lambda diff` - Compare code between two snapshots with unified diff output
+  - Auto-detects handler files and programming language for syntax highlighting
+  - Supports Python, JavaScript, TypeScript, Go, Ruby, Java, and more
+
+## [0.17.19] - 2026-01-21
+
+### Fixed
+- **Enrich Creators Filter**: Fixed issue where 0 creation events were found
+  - Now falls back to querying all event types if no matches found
+  - Added warning message when filter produces no matches
+
 ## [0.17.18] - 2026-01-21
 
 ### Improved
