@@ -364,3 +364,81 @@ class DeletionProgressDisplay:
         if self.live:
             self.live.stop()
             self.live = None
+
+    def print_final_summary(self) -> None:
+        """Print a final summary report of all deletions organized by tier."""
+        from rich.panel import Panel
+        from rich.table import Table
+
+        self.console.print()
+
+        # Build summary table
+        table = Table(
+            title="Deletion Summary by Tier",
+            show_header=True,
+            header_style="bold",
+            border_style="dim",
+        )
+        table.add_column("Tier", style="cyan", width=6)
+        table.add_column("Layer", style="bold", width=24)
+        table.add_column("Success", style="green", justify="right", width=8)
+        table.add_column("Failed", style="red", justify="right", width=8)
+        table.add_column("Total", justify="right", width=8)
+
+        total_success = 0
+        total_failed = 0
+
+        for tier in sorted(self.resources_by_tier.keys()):
+            tier_resources = self.resources_by_tier[tier]
+            tier_name = self.TIER_NAMES.get(tier, f"Tier {tier}")
+
+            success_count = sum(1 for r in tier_resources if r.status == ResourceStatus.SUCCEEDED)
+            failed_count = sum(1 for r in tier_resources if r.status == ResourceStatus.FAILED)
+            tier_total = len(tier_resources)
+
+            total_success += success_count
+            total_failed += failed_count
+
+            # Only show tiers that have resources
+            if tier_total > 0:
+                table.add_row(
+                    str(tier),
+                    tier_name,
+                    str(success_count),
+                    str(failed_count) if failed_count > 0 else "-",
+                    str(tier_total),
+                )
+
+        # Add totals row
+        table.add_section()
+        table.add_row(
+            "",
+            "[bold]TOTAL[/bold]",
+            f"[bold green]{total_success}[/bold green]",
+            f"[bold red]{total_failed}[/bold red]" if total_failed > 0 else "-",
+            f"[bold]{self.total}[/bold]",
+        )
+
+        self.console.print(table)
+
+        # Show failed resources detail if any
+        if total_failed > 0:
+            self.console.print()
+            self.console.print("[bold red]Failed Resources:[/bold red]")
+
+            for tier in sorted(self.resources_by_tier.keys()):
+                tier_resources = self.resources_by_tier[tier]
+                failed_in_tier = [r for r in tier_resources if r.status == ResourceStatus.FAILED]
+
+                if failed_in_tier:
+                    tier_name = self.TIER_NAMES.get(tier, f"Tier {tier}")
+                    self.console.print(f"\n  [bold]Tier {tier}: {tier_name}[/bold]")
+
+                    for tracked in failed_in_tier:
+                        label = self._get_resource_label(tracked)
+                        error_msg = tracked.error or "Unknown error"
+                        # Truncate long errors
+                        if len(error_msg) > 60:
+                            error_msg = error_msg[:57] + "..."
+                        self.console.print(f"    [red]✗[/red] {label}")
+                        self.console.print(f"      [dim]{error_msg}[/dim]")

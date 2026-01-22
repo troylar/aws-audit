@@ -3434,21 +3434,11 @@ def cleanup_purge(
         finally:
             progress_display.stop()
 
-        # Display results
-        console.print("\n[bold]Purge Complete[/bold]\n")
+        # Display final summary report by tier
+        console.print("\n[bold]Purge Complete[/bold]")
+        progress_display.print_final_summary()
 
-        # Show failure details if any
-        if failures:
-            console.print("[bold red]Failed Deletions:[/bold red]\n")
-            for resource, error in failures:
-                # Extract just the resource type name (e.g., "Instance" from "AWS::EC2::Instance")
-                type_short = resource.resource_type.split("::")[-1] if "::" in resource.resource_type else resource.resource_type
-                console.print(f"  [red]✗[/red] [bold]{type_short}[/bold]: {resource.name}")
-                console.print(f"    [dim]Region:[/dim] {resource.region}")
-                console.print(f"    [dim]ARN:[/dim] {resource.arn}")
-                console.print(f"    [dim]Error:[/dim] [yellow]{error}[/yellow]")
-                console.print()
-
+        # Show overall summary panel
         status_color = "green" if failed == 0 else "yellow" if succeeded > 0 else "red"
 
         excluded_line = f"\n• Excluded by pattern: {len(excluded)}" if excluded else ""
