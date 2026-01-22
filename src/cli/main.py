@@ -4856,6 +4856,9 @@ def lambda_fetch(
     ),
     force: bool = typer.Option(False, "--force", help="Re-fetch code even if already stored"),
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    no_ssl_verify: bool = typer.Option(
+        False, "--no-ssl-verify", help="Disable SSL certificate verification for S3 downloads"
+    ),
 ):
     """Fetch Lambda code from AWS for an existing snapshot.
 
@@ -4870,6 +4873,7 @@ def lambda_fetch(
         awsinv lambda fetch my-snapshot --function my-func
         awsinv lambda fetch my-snapshot --max-size 100
         awsinv lambda fetch my-snapshot --force
+        awsinv lambda fetch my-snapshot --no-ssl-verify
     """
     import hashlib
     import requests
@@ -4880,6 +4884,12 @@ def lambda_fetch(
     from ..storage.snapshot_store import SnapshotStore
     from ..storage.database import Database
     from ..utils.hash import compute_config_hash
+
+    # Suppress SSL warnings if verification is disabled
+    if no_ssl_verify:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        console.print("[yellow]⚠ SSL certificate verification disabled[/yellow]")
 
     storage = SnapshotStorage()
 
@@ -4989,7 +4999,7 @@ def lambda_fetch(
                     continue
 
                 # Download the code
-                response = requests.get(code_location, timeout=120)
+                response = requests.get(code_location, timeout=120, verify=not no_ssl_verify)
                 response.raise_for_status()
 
                 code_bytes = response.content
