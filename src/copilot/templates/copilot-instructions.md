@@ -16,6 +16,49 @@ last-updated: 2026-01-29
 
 Context for generating Infrastructure as Code from AWS inventory YAML snapshots.
 
+## Commands
+
+```bash
+# Snapshot management
+awsinv snapshot create <name>           # Create new snapshot
+awsinv snapshot list                    # List all snapshots
+awsinv snapshot show <name>             # Show snapshot details
+awsinv snapshot diff <name1> <name2>    # Compare two snapshots
+
+# Resource inventory
+awsinv inventory list                   # List discovered resources
+awsinv inventory export --format yaml   # Export to YAML
+
+# IaC generation (use prompts)
+# /generate-terraform - Generate Terraform from snapshot
+# /generate-cdk-typescript - Generate CDK TypeScript
+# /generate-cdk-python - Generate CDK Python
+```
+
+## Boundaries
+
+### Always Do
+
+- Use the YAML schema defined below when parsing snapshot files
+- Follow AWS Well-Architected best practices for generated IaC
+- Include resource tags from the snapshot in generated code
+- Use variables for environment-specific values (regions, account IDs)
+- Generate separate files for logical groupings (networking, compute, etc.)
+
+### Ask First
+
+- Before generating IaC for 50+ resources (may need batching)
+- Before choosing between Terraform and CDK if not specified
+- When snapshot contains resources with missing or incomplete configurations
+- When generating cross-account or cross-region references
+
+### Never Do
+
+- Never hardcode AWS credentials or secrets in generated code
+- Never use overly permissive IAM policies (avoid `*` wildcards)
+- Never generate resources without encryption configuration
+- Never ignore existing tags from the snapshot
+
 ## Inventory YAML Schema
 
 | Field | Type | Description |
@@ -41,6 +84,70 @@ Context for generating Infrastructure as Code from AWS inventory YAML snapshots.
     InstanceType: t3.medium
     SubnetId: subnet-abc123
     SecurityGroups: [sg-abc123]
+```
+
+## Good vs Bad Examples
+
+### IAM Policy Generation
+
+```hcl
+# Bad: Overly permissive
+resource "aws_iam_policy" "app" {
+  policy = jsonencode({
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "*"
+      Resource = "*"
+    }]
+  })
+}
+
+# Good: Least privilege from snapshot
+resource "aws_iam_policy" "app" {
+  policy = jsonencode({
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:GetObject", "s3:PutObject"]
+      Resource = "arn:aws:s3:::${var.bucket_name}/*"
+    }]
+  })
+}
+```
+
+### Resource Tagging
+
+```hcl
+# Bad: Ignores snapshot tags
+resource "aws_instance" "web" {
+  ami           = var.ami_id
+  instance_type = "t3.medium"
+}
+
+# Good: Preserves snapshot tags
+resource "aws_instance" "web" {
+  ami           = var.ami_id
+  instance_type = "t3.medium"
+
+  tags = {
+    Name        = "web-server-1"
+    Environment = "production"  # From snapshot
+    Team        = "platform"    # From snapshot
+  }
+}
+```
+
+### Secrets Handling
+
+```hcl
+# Bad: Hardcoded secrets
+resource "aws_db_instance" "main" {
+  password = "supersecret123"
+}
+
+# Good: Reference secrets manager
+resource "aws_db_instance" "main" {
+  password = data.aws_secretsmanager_secret_version.db.secret_string
+}
 ```
 
 ## AWS Best Practices
