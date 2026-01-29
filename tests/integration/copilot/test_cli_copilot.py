@@ -190,7 +190,7 @@ class TestCopilotListCommand:
         data = json.loads(result.stdout)
         assert "files" in data
         assert isinstance(data["files"], list)
-        assert len(data["files"]) == 4
+        assert len(data["files"]) == 5
 
 
 class TestCopilotHelp:

@@ -12,6 +12,7 @@ class FileType(Enum):
 
     INSTRUCTIONS = "instructions"  # copilot-instructions.md
     PROMPT = "prompt"  # prompts/*.prompt.md
+    INSTRUCTION = "instruction"  # instructions/*.instructions.md
     CUSTOM = "custom"  # copilot-custom.md (user-created)
 
 

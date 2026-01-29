@@ -15,6 +15,7 @@ TEMPLATE_FILES = [
     "prompts/generate-terraform.prompt.md",
     "prompts/generate-cdk-typescript.prompt.md",
     "prompts/generate-cdk-python.prompt.md",
+    "instructions/terraform.instructions.md",
 ]
 
 # Dangerous paths that should never be installation targets
@@ -289,6 +290,10 @@ def install_files(target_path: Path) -> InstallResult:
     prompts_dir = github_dir / "prompts"
     prompts_dir.mkdir(exist_ok=True)
 
+    # Create instructions directory if needed
+    instructions_dir = github_dir / "instructions"
+    instructions_dir.mkdir(exist_ok=True)
+
     # Check for custom file (never overwrite)
     custom_file = github_dir / "copilot-custom.md"
     if custom_file.exists():
@@ -365,6 +370,14 @@ def uninstall_files(target_path: Path) -> UninstallResult:
         except OSError:
             pass  # Ignore errors removing empty directory
 
+    # Remove empty instructions directory
+    instructions_dir = github_dir / "instructions"
+    if instructions_dir.exists() and not any(instructions_dir.iterdir()):
+        try:
+            instructions_dir.rmdir()
+        except OSError:
+            pass  # Ignore errors removing empty directory
+
     return result
 
 
@@ -402,5 +415,11 @@ def list_installed_files(target_path: Path) -> List[InstalledFile]:
     if prompts_dir.exists():
         for prompt_file in prompts_dir.glob("*.md"):
             files.append(get_installed_file_info(prompt_file))
+
+    # Check for instruction files
+    instructions_dir = github_dir / "instructions"
+    if instructions_dir.exists():
+        for instruction_file in instructions_dir.glob("*.md"):
+            files.append(get_installed_file_info(instruction_file))
 
     return files

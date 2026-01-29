@@ -60,6 +60,9 @@ def get_installed_file_info(path: Path) -> InstalledFile:
     elif filename == "copilot-instructions.md":
         file_type = FileType.INSTRUCTIONS
         is_custom = False
+    elif filename.endswith(".instructions.md") or "/instructions/" in str(path):
+        file_type = FileType.INSTRUCTION
+        is_custom = False
     elif filename.endswith(".prompt.md") or "/prompts/" in str(path):
         file_type = FileType.PROMPT
         is_custom = False
