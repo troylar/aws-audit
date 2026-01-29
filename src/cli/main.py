@@ -5369,9 +5369,9 @@ def copilot_install(
 
     Installs the following files to .github/:
     - copilot-instructions.md: Base instructions with AWS schema context
-    - copilot-prompts/generate-terraform.md: Terraform generation prompt
-    - copilot-prompts/generate-cdk-typescript.md: CDK TypeScript prompt
-    - copilot-prompts/generate-cdk-python.md: CDK Python prompt
+    - prompts/generate-terraform.prompt.md: Terraform generation prompt
+    - prompts/generate-cdk-typescript.prompt.md: CDK TypeScript prompt
+    - prompts/generate-cdk-python.prompt.md: CDK Python prompt
 
     Existing files are backed up with .bak.{timestamp} suffix.
     Custom org instructions in copilot-custom.md are never touched.

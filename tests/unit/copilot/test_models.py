@@ -48,8 +48,8 @@ class TestInstalledFile:
     def test_installed_file_with_optional_fields(self) -> None:
         """InstalledFile can be created with optional fields."""
         file = InstalledFile(
-            path=Path("/project/.github/copilot-prompts/generate-terraform.md"),
-            filename="generate-terraform.md",
+            path=Path("/project/.github/prompts/generate-terraform.prompt.md"),
+            filename="generate-terraform.prompt.md",
             file_type=FileType.PROMPT,
             model="gpt-4.1",
             last_updated=date(2026, 1, 29),
@@ -121,7 +121,7 @@ class TestInstallResult:
         result = InstallResult(
             installed=[
                 Path("/project/.github/copilot-instructions.md"),
-                Path("/project/.github/copilot-prompts/generate-terraform.md"),
+                Path("/project/.github/prompts/generate-terraform.prompt.md"),
             ]
         )
         assert len(result.installed) == 2
@@ -150,9 +150,7 @@ class TestInstallResult:
 
     def test_install_result_with_errors(self) -> None:
         """InstallResult tracks errors and reports failure."""
-        result = InstallResult(
-            errors=[(Path("/project/.github/test.md"), "Permission denied")]
-        )
+        result = InstallResult(errors=[(Path("/project/.github/test.md"), "Permission denied")])
         assert len(result.errors) == 1
         assert result.success is False
 
@@ -184,7 +182,7 @@ class TestUninstallResult:
         result = UninstallResult(
             removed=[
                 Path("/project/.github/copilot-instructions.md"),
-                Path("/project/.github/copilot-prompts/generate-terraform.md"),
+                Path("/project/.github/prompts/generate-terraform.prompt.md"),
             ]
         )
         assert len(result.removed) == 2
@@ -192,9 +190,7 @@ class TestUninstallResult:
 
     def test_uninstall_result_with_not_found(self) -> None:
         """UninstallResult tracks files that weren't found."""
-        result = UninstallResult(
-            not_found=[Path("/project/.github/copilot-instructions.md")]
-        )
+        result = UninstallResult(not_found=[Path("/project/.github/copilot-instructions.md")])
         assert len(result.not_found) == 1
         assert result.success is True
 
@@ -206,8 +202,6 @@ class TestUninstallResult:
 
     def test_uninstall_result_with_errors(self) -> None:
         """UninstallResult tracks errors and reports failure."""
-        result = UninstallResult(
-            errors=[(Path("/project/.github/test.md"), "Permission denied")]
-        )
+        result = UninstallResult(errors=[(Path("/project/.github/test.md"), "Permission denied")])
         assert len(result.errors) == 1
         assert result.success is False

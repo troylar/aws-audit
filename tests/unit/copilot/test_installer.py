@@ -107,9 +107,9 @@ class TestGetTemplateFiles:
         templates = get_template_files()
         assert isinstance(templates, dict)
         assert "copilot-instructions.md" in templates
-        assert "copilot-prompts/generate-terraform.md" in templates
-        assert "copilot-prompts/generate-cdk-typescript.md" in templates
-        assert "copilot-prompts/generate-cdk-python.md" in templates
+        assert "prompts/generate-terraform.prompt.md" in templates
+        assert "prompts/generate-cdk-typescript.prompt.md" in templates
+        assert "prompts/generate-cdk-python.prompt.md" in templates
 
     def test_get_template_files_content(self) -> None:
         """get_template_files returns non-empty content."""
@@ -132,9 +132,9 @@ class TestInstallFiles:
         # Verify files exist
         github_dir = tmp_path / ".github"
         assert (github_dir / "copilot-instructions.md").exists()
-        assert (github_dir / "copilot-prompts" / "generate-terraform.md").exists()
-        assert (github_dir / "copilot-prompts" / "generate-cdk-typescript.md").exists()
-        assert (github_dir / "copilot-prompts" / "generate-cdk-python.md").exists()
+        assert (github_dir / "prompts" / "generate-terraform.prompt.md").exists()
+        assert (github_dir / "prompts" / "generate-cdk-typescript.prompt.md").exists()
+        assert (github_dir / "prompts" / "generate-cdk-python.prompt.md").exists()
 
     def test_install_creates_github_dir(self, tmp_path: Path) -> None:
         """install_files creates .github directory if not exists."""
@@ -144,11 +144,11 @@ class TestInstallFiles:
         assert (tmp_path / ".github").is_dir()
 
     def test_install_creates_prompts_dir(self, tmp_path: Path) -> None:
-        """install_files creates copilot-prompts directory."""
+        """install_files creates prompts directory."""
         result = install_files(tmp_path)
 
         assert result.success is True
-        assert (tmp_path / ".github" / "copilot-prompts").is_dir()
+        assert (tmp_path / ".github" / "prompts").is_dir()
 
     def test_install_backups_existing_files(self, tmp_path: Path) -> None:
         """install_files backs up existing files before overwriting."""
@@ -210,7 +210,7 @@ class TestUninstallFiles:
         # Verify files are gone
         github_dir = tmp_path / ".github"
         assert not (github_dir / "copilot-instructions.md").exists()
-        assert not (github_dir / "copilot-prompts" / "generate-terraform.md").exists()
+        assert not (github_dir / "prompts" / "generate-terraform.prompt.md").exists()
 
     def test_uninstall_preserves_custom_file(self, tmp_path: Path) -> None:
         """uninstall_files preserves copilot-custom.md."""
@@ -227,12 +227,12 @@ class TestUninstallFiles:
         assert custom_file.exists()
 
     def test_uninstall_removes_empty_prompts_dir(self, tmp_path: Path) -> None:
-        """uninstall_files removes empty copilot-prompts directory."""
+        """uninstall_files removes empty prompts directory."""
         install_files(tmp_path)
         result = uninstall_files(tmp_path)
 
         assert result.success is True
-        prompts_dir = tmp_path / ".github" / "copilot-prompts"
+        prompts_dir = tmp_path / ".github" / "prompts"
         assert not prompts_dir.exists()
 
     def test_uninstall_nothing_to_remove(self, tmp_path: Path) -> None:
@@ -261,9 +261,9 @@ class TestListInstalledFiles:
         assert len(files) == 4
         filenames = [f.filename for f in files]
         assert "copilot-instructions.md" in filenames
-        assert "generate-terraform.md" in filenames
-        assert "generate-cdk-typescript.md" in filenames
-        assert "generate-cdk-python.md" in filenames
+        assert "generate-terraform.prompt.md" in filenames
+        assert "generate-cdk-typescript.prompt.md" in filenames
+        assert "generate-cdk-python.prompt.md" in filenames
 
     def test_list_includes_custom_file(self, tmp_path: Path) -> None:
         """list_installed_files includes custom file if present."""
@@ -288,9 +288,7 @@ class TestListInstalledFiles:
         install_files(tmp_path)
         files = list_installed_files(tmp_path)
 
-        instructions = next(
-            f for f in files if f.filename == "copilot-instructions.md"
-        )
+        instructions = next(f for f in files if f.filename == "copilot-instructions.md")
         assert instructions.model == "gpt-4.1"
         assert instructions.last_updated is not None
 
