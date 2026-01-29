@@ -113,15 +113,12 @@ terraform validate
 terraform plan
 ```
 
+## Important: Generate ALL Resource Types
+
+**Generate Terraform for EVERY resource in the inventory**, regardless of service type. Do not skip any resources. The inventory may contain any AWS service - generate appropriate Terraform resources for all of them.
+
+Map the `type` field (e.g., `AWS::EC2::Instance`, `AWS::Lambda::Function`, `AWS::RDS::DBInstance`) to the corresponding Terraform resource type (e.g., `aws_instance`, `aws_lambda_function`, `aws_db_instance`).
+
 ## Large Inventories (50+ resources)
 
-Process by resource type in order:
-
-1. **Foundation**: VPC, subnets, route tables, internet gateways
-2. **Security**: Security groups, NACLs, IAM roles
-3. **Compute**: EC2, Lambda, ECS
-4. **Data**: RDS, DynamoDB, ElastiCache
-5. **Storage**: S3, EFS, EBS volumes
-6. **Network**: Load balancers, API Gateway, Route53
-
-Generate each category, validate, then continue. Request: "Generate VPC resources from this inventory" or "Continue with security groups."
+Only batch if the user explicitly requests it. Otherwise, generate all resources in a single pass.

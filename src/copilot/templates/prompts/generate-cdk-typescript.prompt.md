@@ -133,14 +133,14 @@ cdk synth
 cdk diff
 ```
 
+## Important: Generate ALL Resource Types
+
+**Generate CDK constructs for EVERY resource in the inventory**, regardless of service type. Do not skip any resources. The inventory may contain any AWS service - generate appropriate CDK constructs for all of them.
+
+Map the `type` field (e.g., `AWS::EC2::Instance`, `AWS::Lambda::Function`, `AWS::RDS::DBInstance`) to the corresponding CDK L2 construct (e.g., `ec2.Instance`, `lambda.Function`, `rds.DatabaseInstance`). Use L1 constructs only when no L2 exists.
+
+Organize resources into logical stacks by service category (network, compute, data, etc.).
+
 ## Large Inventories (50+ resources)
 
-Process by stack in order:
-
-1. **Network**: VPC, subnets, route tables
-2. **Security**: Security groups, IAM roles
-3. **Compute**: EC2, Lambda, ECS
-4. **Data**: RDS, DynamoDB, ElastiCache
-5. **Storage**: S3, EFS
-
-Request: "Generate NetworkStack from this inventory" or "Continue with ComputeStack."
+Only batch if the user explicitly requests it. Otherwise, generate all resources in a single pass.
