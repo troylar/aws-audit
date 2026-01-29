@@ -5372,6 +5372,7 @@ def copilot_install(
     - prompts/generate-terraform.prompt.md: Terraform generation prompt
     - prompts/generate-cdk-typescript.prompt.md: CDK TypeScript prompt
     - prompts/generate-cdk-python.prompt.md: CDK Python prompt
+    - instructions/terraform.instructions.md: Terraform best practices (applyTo: *.tf)
 
     Existing files are backed up with .bak.{timestamp} suffix.
     Custom org instructions in copilot-custom.md are never touched.

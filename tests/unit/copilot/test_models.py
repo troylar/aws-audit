@@ -21,11 +21,12 @@ class TestFileType:
         """FileType enum has expected values."""
         assert FileType.INSTRUCTIONS.value == "instructions"
         assert FileType.PROMPT.value == "prompt"
+        assert FileType.INSTRUCTION.value == "instruction"
         assert FileType.CUSTOM.value == "custom"
 
     def test_file_type_members(self) -> None:
-        """FileType enum has exactly 3 members."""
-        assert len(FileType) == 3
+        """FileType enum has exactly 4 members."""
+        assert len(FileType) == 4
 
 
 class TestInstalledFile:

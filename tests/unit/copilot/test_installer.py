@@ -127,7 +127,7 @@ class TestInstallFiles:
         result = install_files(tmp_path)
 
         assert result.success is True
-        assert len(result.installed) == 4
+        assert len(result.installed) == 5
 
         # Verify files exist
         github_dir = tmp_path / ".github"
@@ -135,6 +135,7 @@ class TestInstallFiles:
         assert (github_dir / "prompts" / "generate-terraform.prompt.md").exists()
         assert (github_dir / "prompts" / "generate-cdk-typescript.prompt.md").exists()
         assert (github_dir / "prompts" / "generate-cdk-python.prompt.md").exists()
+        assert (github_dir / "instructions" / "terraform.instructions.md").exists()
 
     def test_install_creates_github_dir(self, tmp_path: Path) -> None:
         """install_files creates .github directory if not exists."""
@@ -205,12 +206,13 @@ class TestUninstallFiles:
         result = uninstall_files(tmp_path)
 
         assert result.success is True
-        assert len(result.removed) == 4
+        assert len(result.removed) == 5
 
         # Verify files are gone
         github_dir = tmp_path / ".github"
         assert not (github_dir / "copilot-instructions.md").exists()
         assert not (github_dir / "prompts" / "generate-terraform.prompt.md").exists()
+        assert not (github_dir / "instructions" / "terraform.instructions.md").exists()
 
     def test_uninstall_preserves_custom_file(self, tmp_path: Path) -> None:
         """uninstall_files preserves copilot-custom.md."""
@@ -258,12 +260,13 @@ class TestListInstalledFiles:
         install_files(tmp_path)
         files = list_installed_files(tmp_path)
 
-        assert len(files) == 4
+        assert len(files) == 5
         filenames = [f.filename for f in files]
         assert "copilot-instructions.md" in filenames
         assert "generate-terraform.prompt.md" in filenames
         assert "generate-cdk-typescript.prompt.md" in filenames
         assert "generate-cdk-python.prompt.md" in filenames
+        assert "terraform.instructions.md" in filenames
 
     def test_list_includes_custom_file(self, tmp_path: Path) -> None:
         """list_installed_files includes custom file if present."""
@@ -273,7 +276,7 @@ class TestListInstalledFiles:
 
         files = list_installed_files(tmp_path)
 
-        assert len(files) == 5
+        assert len(files) == 6
         custom = next(f for f in files if f.filename == "copilot-custom.md")
         assert custom.is_custom is True
         assert custom.file_type == FileType.CUSTOM
