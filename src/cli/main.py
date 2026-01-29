@@ -5345,6 +5345,222 @@ def lambda_fetch(
         console.print(f"  [red]✗ {error_count} failed[/red]")
 
 
+# =============================================================================
+# Copilot Commands
+# =============================================================================
+
+copilot_app = typer.Typer(help="GitHub Copilot instructions and prompt management")
+app.add_typer(copilot_app, name="copilot")
+
+
+@copilot_app.command("install")
+def copilot_install(
+    path: Optional[str] = typer.Option(
+        None,
+        "--path",
+        "-p",
+        help="Target project directory (defaults to current directory)",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Output results as JSON"
+    ),
+):
+    """Install GitHub Copilot instructions and prompts.
+
+    Installs the following files to .github/:
+    - copilot-instructions.md: Base instructions with AWS schema context
+    - copilot-prompts/generate-terraform.md: Terraform generation prompt
+    - copilot-prompts/generate-cdk-typescript.md: CDK TypeScript prompt
+    - copilot-prompts/generate-cdk-python.md: CDK Python prompt
+
+    Existing files are backed up with .bak.{timestamp} suffix.
+    Custom org instructions in copilot-custom.md are never touched.
+
+    Example:
+        awsinv copilot install
+        awsinv copilot install --path /path/to/project
+        awsinv copilot install --json
+    """
+    import json
+    from pathlib import Path
+
+    from ..copilot.installer import install_files
+
+    target_path = Path(path) if path else Path.cwd()
+
+    result = install_files(target_path)
+
+    if json_output:
+        output = {
+            "success": result.success,
+            "installed": [str(p) for p in result.installed],
+            "backed_up": [[str(orig), str(backup)] for orig, backup in result.backed_up],
+            "skipped": [str(p) for p in result.skipped],
+            "errors": [[str(p), msg] for p, msg in result.errors],
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        if result.success:
+            console.print(f"[green]✓ Installed {len(result.installed)} files to {target_path}/.github/[/green]")
+
+            if result.installed:
+                console.print("\n[bold]Installed:[/bold]")
+                for f in result.installed:
+                    console.print(f"  • {f.name}")
+
+            if result.backed_up:
+                console.print("\n[bold]Backed up:[/bold]")
+                for orig, backup in result.backed_up:
+                    console.print(f"  • {orig.name} → {backup.name}")
+
+            if result.skipped:
+                console.print("\n[bold]Skipped (custom files preserved):[/bold]")
+                for f in result.skipped:
+                    console.print(f"  • {f.name}")
+        else:
+            console.print("[red]✗ Installation failed[/red]")
+            for path_obj, error in result.errors:
+                console.print(f"  Error: {error}")
+            raise typer.Exit(code=1)
+
+
+@copilot_app.command("uninstall")
+def copilot_uninstall(
+    path: Optional[str] = typer.Option(
+        None,
+        "--path",
+        "-p",
+        help="Target project directory (defaults to current directory)",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Output results as JSON"
+    ),
+):
+    """Remove installed GitHub Copilot files.
+
+    Removes installed template files but preserves:
+    - copilot-custom.md (custom org instructions)
+    - Backup files (.bak.*)
+
+    Example:
+        awsinv copilot uninstall
+        awsinv copilot uninstall --path /path/to/project
+    """
+    import json
+    from pathlib import Path
+
+    from ..copilot.installer import uninstall_files
+
+    target_path = Path(path) if path else Path.cwd()
+
+    result = uninstall_files(target_path)
+
+    if json_output:
+        output = {
+            "success": result.success,
+            "removed": [str(p) for p in result.removed],
+            "not_found": [str(p) for p in result.not_found],
+            "preserved": [str(p) for p in result.preserved],
+            "errors": [[str(p), msg] for p, msg in result.errors],
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        if result.success:
+            if result.removed:
+                console.print(f"[green]✓ Removed {len(result.removed)} files[/green]")
+                console.print("\n[bold]Removed:[/bold]")
+                for f in result.removed:
+                    console.print(f"  • {f.name}")
+            else:
+                console.print("[yellow]No installed files found to remove[/yellow]")
+
+            if result.preserved:
+                console.print("\n[bold]Preserved (custom files):[/bold]")
+                for f in result.preserved:
+                    console.print(f"  • {f.name}")
+        else:
+            console.print("[red]✗ Uninstall failed[/red]")
+            for path_obj, error in result.errors:
+                console.print(f"  Error: {error}")
+            raise typer.Exit(code=1)
+
+
+@copilot_app.command("list")
+def copilot_list(
+    path: Optional[str] = typer.Option(
+        None,
+        "--path",
+        "-p",
+        help="Target project directory (defaults to current directory)",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Output results as JSON"
+    ),
+):
+    """List installed GitHub Copilot files.
+
+    Shows installed files with version information from frontmatter:
+    - Filename and type (instructions, prompt, custom)
+    - Model version (e.g., gpt-4.1)
+    - Last updated date
+
+    Example:
+        awsinv copilot list
+        awsinv copilot list --path /path/to/project
+        awsinv copilot list --json
+    """
+    import json
+    from pathlib import Path
+
+    from ..copilot.installer import list_installed_files
+
+    target_path = Path(path) if path else Path.cwd()
+
+    files = list_installed_files(target_path)
+
+    if json_output:
+        output = {
+            "files": [
+                {
+                    "filename": f.filename,
+                    "path": str(f.path),
+                    "type": f.file_type.value,
+                    "model": f.model,
+                    "last_updated": str(f.last_updated) if f.last_updated else None,
+                    "is_custom": f.is_custom,
+                }
+                for f in files
+            ]
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        if not files:
+            console.print("[yellow]No Copilot files installed[/yellow]")
+            console.print(f"\nRun [bold]awsinv copilot install[/bold] to install files to {target_path}/.github/")
+        else:
+            console.print(f"[bold]Installed Copilot files ({len(files)}):[/bold]\n")
+
+            table = Table(show_header=True, header_style="bold")
+            table.add_column("File")
+            table.add_column("Type")
+            table.add_column("Model")
+            table.add_column("Last Updated")
+
+            for f in files:
+                file_type = "[cyan]custom[/cyan]" if f.is_custom else f.file_type.value
+                model = f.model or "-"
+                updated = str(f.last_updated) if f.last_updated else "-"
+
+                table.add_row(
+                    f.filename,
+                    file_type,
+                    model,
+                    updated,
+                )
+
+            console.print(table)
+
+
 def cli_main():
     """Entry point for console script."""
     app()
