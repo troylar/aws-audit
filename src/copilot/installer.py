@@ -12,9 +12,9 @@ from .version import get_installed_file_info
 # Template file names to install
 TEMPLATE_FILES = [
     "copilot-instructions.md",
-    "copilot-prompts/generate-terraform.md",
-    "copilot-prompts/generate-cdk-typescript.md",
-    "copilot-prompts/generate-cdk-python.md",
+    "prompts/generate-terraform.prompt.md",
+    "prompts/generate-cdk-typescript.prompt.md",
+    "prompts/generate-cdk-python.prompt.md",
 ]
 
 # Dangerous paths that should never be installation targets
@@ -84,7 +84,7 @@ def get_template_files() -> Dict[str, str]:
     # Load each template file
     for template_name in TEMPLATE_FILES:
         if "/" in template_name:
-            # Nested path (e.g., copilot-prompts/generate-terraform.md)
+            # Nested path (e.g., prompts/generate-terraform.md)
             parts = template_name.split("/")
             resource = templates_pkg.joinpath(*parts)
         else:
@@ -285,8 +285,8 @@ def install_files(target_path: Path) -> InstallResult:
     github_dir = target_path / ".github"
     github_dir.mkdir(exist_ok=True)
 
-    # Create copilot-prompts directory if needed
-    prompts_dir = github_dir / "copilot-prompts"
+    # Create prompts directory if needed
+    prompts_dir = github_dir / "prompts"
     prompts_dir.mkdir(exist_ok=True)
 
     # Check for custom file (never overwrite)
@@ -357,8 +357,8 @@ def uninstall_files(target_path: Path) -> UninstallResult:
     if custom_file.exists():
         result.preserved.append(custom_file)
 
-    # Remove empty copilot-prompts directory
-    prompts_dir = github_dir / "copilot-prompts"
+    # Remove empty prompts directory
+    prompts_dir = github_dir / "prompts"
     if prompts_dir.exists() and not any(prompts_dir.iterdir()):
         try:
             prompts_dir.rmdir()
@@ -398,7 +398,7 @@ def list_installed_files(target_path: Path) -> List[InstalledFile]:
         files.append(get_installed_file_info(custom_file))
 
     # Check for prompt files
-    prompts_dir = github_dir / "copilot-prompts"
+    prompts_dir = github_dir / "prompts"
     if prompts_dir.exists():
         for prompt_file in prompts_dir.glob("*.md"):
             files.append(get_installed_file_info(prompt_file))

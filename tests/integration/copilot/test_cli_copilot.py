@@ -25,9 +25,9 @@ class TestCopilotInstallCommand:
         # Verify files created
         github_dir = tmp_path / ".github"
         assert (github_dir / "copilot-instructions.md").exists()
-        assert (github_dir / "copilot-prompts" / "generate-terraform.md").exists()
-        assert (github_dir / "copilot-prompts" / "generate-cdk-typescript.md").exists()
-        assert (github_dir / "copilot-prompts" / "generate-cdk-python.md").exists()
+        assert (github_dir / "prompts" / "generate-terraform.prompt.md").exists()
+        assert (github_dir / "prompts" / "generate-cdk-typescript.prompt.md").exists()
+        assert (github_dir / "prompts" / "generate-cdk-python.prompt.md").exists()
 
     def test_install_defaults_to_current_dir(self) -> None:
         """awsinv copilot install uses current directory by default."""
@@ -102,7 +102,7 @@ class TestCopilotUninstallCommand:
         # Verify files removed
         github_dir = tmp_path / ".github"
         assert not (github_dir / "copilot-instructions.md").exists()
-        assert not (github_dir / "copilot-prompts" / "generate-terraform.md").exists()
+        assert not (github_dir / "prompts" / "generate-terraform.prompt.md").exists()
 
     def test_uninstall_preserves_custom_file(self, tmp_path: Path) -> None:
         """awsinv copilot uninstall preserves custom file."""
@@ -153,7 +153,7 @@ class TestCopilotListCommand:
 
         assert result.exit_code == 0
         assert "copilot-instructions.md" in result.stdout
-        assert "generate-terraform.md" in result.stdout
+        assert "generate-terraform.prompt.md" in result.stdout
 
     def test_list_empty_directory(self, tmp_path: Path) -> None:
         """awsinv copilot list handles empty directory."""

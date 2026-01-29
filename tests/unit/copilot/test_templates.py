@@ -49,35 +49,35 @@ class TestTokenLimits:
         )
 
     def test_generate_terraform_under_2000_tokens(self) -> None:
-        """generate-terraform.md should be under 2000 tokens (T034)."""
-        content = get_template_content("copilot-prompts/generate-terraform.md")
+        """generate-terraform.prompt.md should be under 2000 tokens (T034)."""
+        content = get_template_content("prompts/generate-terraform.prompt.md")
         token_estimate = estimate_token_count(content)
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-terraform.md has ~{token_estimate} tokens, "
+            f"generate-terraform.prompt.md has ~{token_estimate} tokens, "
             f"should be under 2000"
         )
 
     def test_generate_cdk_typescript_under_2000_tokens(self) -> None:
-        """generate-cdk-typescript.md should be under 2000 tokens (T053)."""
-        content = get_template_content("copilot-prompts/generate-cdk-typescript.md")
+        """generate-cdk-typescript.prompt.md should be under 2000 tokens (T053)."""
+        content = get_template_content("prompts/generate-cdk-typescript.prompt.md")
         token_estimate = estimate_token_count(content)
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-cdk-typescript.md has ~{token_estimate} tokens, "
+            f"generate-cdk-typescript.prompt.md has ~{token_estimate} tokens, "
             f"should be under 2000"
         )
 
     def test_generate_cdk_python_under_2000_tokens(self) -> None:
-        """generate-cdk-python.md should be under 2000 tokens (T054)."""
-        content = get_template_content("copilot-prompts/generate-cdk-python.md")
+        """generate-cdk-python.prompt.md should be under 2000 tokens (T054)."""
+        content = get_template_content("prompts/generate-cdk-python.prompt.md")
         token_estimate = estimate_token_count(content)
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-cdk-python.md has ~{token_estimate} tokens, "
+            f"generate-cdk-python.prompt.md has ~{token_estimate} tokens, "
             f"should be under 2000"
         )
 
@@ -98,10 +98,10 @@ class TestFrontmatterValidation:
         assert frontmatter.get("last-updated") is not None
 
     def test_generate_terraform_has_valid_frontmatter(self) -> None:
-        """generate-terraform.md has valid frontmatter."""
+        """generate-terraform.prompt.md has valid frontmatter."""
         from src.copilot.version import parse_frontmatter
 
-        content = get_template_content("copilot-prompts/generate-terraform.md")
+        content = get_template_content("prompts/generate-terraform.prompt.md")
         frontmatter = parse_frontmatter(content)
 
         assert frontmatter.get("model") == "gpt-4.1"
@@ -109,10 +109,10 @@ class TestFrontmatterValidation:
         assert frontmatter.get("last-updated") is not None
 
     def test_generate_cdk_typescript_has_valid_frontmatter(self) -> None:
-        """generate-cdk-typescript.md has valid frontmatter."""
+        """generate-cdk-typescript.prompt.md has valid frontmatter."""
         from src.copilot.version import parse_frontmatter
 
-        content = get_template_content("copilot-prompts/generate-cdk-typescript.md")
+        content = get_template_content("prompts/generate-cdk-typescript.prompt.md")
         frontmatter = parse_frontmatter(content)
 
         assert frontmatter.get("model") == "gpt-4.1"
@@ -120,10 +120,10 @@ class TestFrontmatterValidation:
         assert frontmatter.get("last-updated") is not None
 
     def test_generate_cdk_python_has_valid_frontmatter(self) -> None:
-        """generate-cdk-python.md has valid frontmatter."""
+        """generate-cdk-python.prompt.md has valid frontmatter."""
         from src.copilot.version import parse_frontmatter
 
-        content = get_template_content("copilot-prompts/generate-cdk-python.md")
+        content = get_template_content("prompts/generate-cdk-python.prompt.md")
         frontmatter = parse_frontmatter(content)
 
         assert frontmatter.get("model") == "gpt-4.1"
@@ -136,9 +136,9 @@ class TestFrontmatterValidation:
 
         templates = [
             "copilot-instructions.md",
-            "copilot-prompts/generate-terraform.md",
-            "copilot-prompts/generate-cdk-typescript.md",
-            "copilot-prompts/generate-cdk-python.md",
+            "prompts/generate-terraform.prompt.md",
+            "prompts/generate-cdk-typescript.prompt.md",
+            "prompts/generate-cdk-python.prompt.md",
         ]
 
         models = []
@@ -181,40 +181,40 @@ class TestTemplateContent:
         assert "copilot-custom.md" in content
 
     def test_terraform_prompt_has_output_structure(self) -> None:
-        """generate-terraform.md has output structure guidance."""
-        content = get_template_content("copilot-prompts/generate-terraform.md")
+        """generate-terraform.prompt.md has output structure guidance."""
+        content = get_template_content("prompts/generate-terraform.prompt.md")
 
         assert "Output Structure" in content or "output" in content.lower()
         # Should mention common Terraform files
         assert "variables.tf" in content or "tf" in content.lower()
 
     def test_terraform_prompt_has_validation_guidance(self) -> None:
-        """generate-terraform.md has validation guidance."""
-        content = get_template_content("copilot-prompts/generate-terraform.md")
+        """generate-terraform.prompt.md has validation guidance."""
+        content = get_template_content("prompts/generate-terraform.prompt.md")
 
         assert "terraform validate" in content or "validate" in content.lower()
         assert "terraform fmt" in content or "fmt" in content.lower()
 
     def test_terraform_prompt_has_batching_guidance(self) -> None:
-        """generate-terraform.md has large inventory guidance."""
-        content = get_template_content("copilot-prompts/generate-terraform.md")
+        """generate-terraform.prompt.md has large inventory guidance."""
+        content = get_template_content("prompts/generate-terraform.prompt.md")
 
         assert "50" in content or "large" in content.lower() or "batch" in content.lower()
 
     def test_cdk_typescript_has_l2_construct_guidance(self) -> None:
-        """generate-cdk-typescript.md mentions L2 constructs."""
-        content = get_template_content("copilot-prompts/generate-cdk-typescript.md")
+        """generate-cdk-typescript.prompt.md mentions L2 constructs."""
+        content = get_template_content("prompts/generate-cdk-typescript.prompt.md")
 
         assert "L2" in content or "construct" in content.lower()
 
     def test_cdk_typescript_has_stack_organization(self) -> None:
-        """generate-cdk-typescript.md has stack organization guidance."""
-        content = get_template_content("copilot-prompts/generate-cdk-typescript.md")
+        """generate-cdk-typescript.prompt.md has stack organization guidance."""
+        content = get_template_content("prompts/generate-cdk-typescript.prompt.md")
 
         assert "Stack" in content
 
     def test_cdk_python_has_type_hints_guidance(self) -> None:
-        """generate-cdk-python.md mentions type hints."""
-        content = get_template_content("copilot-prompts/generate-cdk-python.md")
+        """generate-cdk-python.prompt.md mentions type hints."""
+        content = get_template_content("prompts/generate-cdk-python.prompt.md")
 
         assert "type hint" in content.lower() or "typing" in content.lower() or ": str" in content

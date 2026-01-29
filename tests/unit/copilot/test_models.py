@@ -48,8 +48,8 @@ class TestInstalledFile:
     def test_installed_file_with_optional_fields(self) -> None:
         """InstalledFile can be created with optional fields."""
         file = InstalledFile(
-            path=Path("/project/.github/copilot-prompts/generate-terraform.md"),
-            filename="generate-terraform.md",
+            path=Path("/project/.github/prompts/generate-terraform.prompt.md"),
+            filename="generate-terraform.prompt.md",
             file_type=FileType.PROMPT,
             model="gpt-4.1",
             last_updated=date(2026, 1, 29),
@@ -121,7 +121,7 @@ class TestInstallResult:
         result = InstallResult(
             installed=[
                 Path("/project/.github/copilot-instructions.md"),
-                Path("/project/.github/copilot-prompts/generate-terraform.md"),
+                Path("/project/.github/prompts/generate-terraform.prompt.md"),
             ]
         )
         assert len(result.installed) == 2
@@ -184,7 +184,7 @@ class TestUninstallResult:
         result = UninstallResult(
             removed=[
                 Path("/project/.github/copilot-instructions.md"),
-                Path("/project/.github/copilot-prompts/generate-terraform.md"),
+                Path("/project/.github/prompts/generate-terraform.prompt.md"),
             ]
         )
         assert len(result.removed) == 2

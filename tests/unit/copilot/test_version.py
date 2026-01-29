@@ -149,13 +149,13 @@ last-updated: 2026-01-29
 """
         mock_path = MagicMock(spec=Path)
         mock_path.exists.return_value = True
-        mock_path.name = "generate-terraform.md"
+        mock_path.name = "generate-terraform.prompt.md"
         mock_path.read_text.return_value = content
-        mock_path.__str__ = lambda self: "/project/.github/copilot-prompts/generate-terraform.md"
+        mock_path.__str__ = lambda self: "/project/.github/prompts/generate-terraform.prompt.md"
 
         info = get_installed_file_info(mock_path)
 
-        assert info.filename == "generate-terraform.md"
+        assert info.filename == "generate-terraform.prompt.md"
         assert info.file_type == FileType.PROMPT
         assert info.model == "gpt-4.1"
         assert info.is_custom is False
@@ -210,14 +210,14 @@ last-updated: 2026-01-29
 """
         mock_path = MagicMock(spec=Path)
         mock_path.exists.return_value = True
-        mock_path.name = "generate-cdk-typescript.md"
+        mock_path.name = "generate-cdk-typescript.prompt.md"
         mock_path.read_text.return_value = content
-        mock_path.__str__ = lambda self: "/project/.github/copilot-prompts/generate-cdk-typescript.md"
+        mock_path.__str__ = lambda self: "/project/.github/prompts/generate-cdk-typescript.prompt.md"
 
         info = get_installed_file_info(mock_path)
 
         assert info.file_type == FileType.PROMPT
-        assert info.filename == "generate-cdk-typescript.md"
+        assert info.filename == "generate-cdk-typescript.prompt.md"
 
     def test_get_file_info_cdk_python_prompt(self) -> None:
         """get_installed_file_info identifies CDK Python prompt."""
@@ -230,11 +230,11 @@ last-updated: 2026-01-29
 """
         mock_path = MagicMock(spec=Path)
         mock_path.exists.return_value = True
-        mock_path.name = "generate-cdk-python.md"
+        mock_path.name = "generate-cdk-python.prompt.md"
         mock_path.read_text.return_value = content
-        mock_path.__str__ = lambda self: "/project/.github/copilot-prompts/generate-cdk-python.md"
+        mock_path.__str__ = lambda self: "/project/.github/prompts/generate-cdk-python.prompt.md"
 
         info = get_installed_file_info(mock_path)
 
         assert info.file_type == FileType.PROMPT
-        assert info.filename == "generate-cdk-python.md"
+        assert info.filename == "generate-cdk-python.prompt.md"
