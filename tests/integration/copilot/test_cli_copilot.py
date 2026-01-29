@@ -47,9 +47,7 @@ class TestCopilotInstallCommand:
 
     def test_install_invalid_path(self) -> None:
         """awsinv copilot install fails for invalid path."""
-        result = runner.invoke(
-            app, ["copilot", "install", "--path", "/nonexistent/path/12345"]
-        )
+        result = runner.invoke(app, ["copilot", "install", "--path", "/nonexistent/path/12345"])
 
         assert result.exit_code != 0
         assert "does not exist" in result.stdout or "Error" in result.stdout
@@ -73,9 +71,7 @@ class TestCopilotInstallCommand:
 
     def test_install_json_output(self, tmp_path: Path) -> None:
         """awsinv copilot install --json produces JSON output."""
-        result = runner.invoke(
-            app, ["copilot", "install", "--path", str(tmp_path), "--json"]
-        )
+        result = runner.invoke(app, ["copilot", "install", "--path", str(tmp_path), "--json"])
 
         assert result.exit_code == 0
         import json
@@ -129,9 +125,7 @@ class TestCopilotUninstallCommand:
         # First install
         runner.invoke(app, ["copilot", "install", "--path", str(tmp_path)])
 
-        result = runner.invoke(
-            app, ["copilot", "uninstall", "--path", str(tmp_path), "--json"]
-        )
+        result = runner.invoke(app, ["copilot", "uninstall", "--path", str(tmp_path), "--json"])
 
         assert result.exit_code == 0
         import json
@@ -188,9 +182,7 @@ class TestCopilotListCommand:
         """awsinv copilot list --json produces JSON output."""
         runner.invoke(app, ["copilot", "install", "--path", str(tmp_path)])
 
-        result = runner.invoke(
-            app, ["copilot", "list", "--path", str(tmp_path), "--json"]
-        )
+        result = runner.invoke(app, ["copilot", "list", "--path", str(tmp_path), "--json"])
 
         assert result.exit_code == 0
         import json

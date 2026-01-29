@@ -288,9 +288,7 @@ class TestListInstalledFiles:
         install_files(tmp_path)
         files = list_installed_files(tmp_path)
 
-        instructions = next(
-            f for f in files if f.filename == "copilot-instructions.md"
-        )
+        instructions = next(f for f in files if f.filename == "copilot-instructions.md")
         assert instructions.model == "gpt-4.1"
         assert instructions.last_updated is not None
 

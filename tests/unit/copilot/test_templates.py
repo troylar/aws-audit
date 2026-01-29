@@ -43,10 +43,7 @@ class TestTokenLimits:
         token_estimate = estimate_token_count(content)
 
         # Base instructions should be under 4000 tokens
-        assert token_estimate < 4000, (
-            f"copilot-instructions.md has ~{token_estimate} tokens, "
-            f"should be under 4000"
-        )
+        assert token_estimate < 4000, f"copilot-instructions.md has ~{token_estimate} tokens, " f"should be under 4000"
 
     def test_generate_terraform_under_2000_tokens(self) -> None:
         """generate-terraform.prompt.md should be under 2000 tokens (T034)."""
@@ -55,8 +52,7 @@ class TestTokenLimits:
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-terraform.prompt.md has ~{token_estimate} tokens, "
-            f"should be under 2000"
+            f"generate-terraform.prompt.md has ~{token_estimate} tokens, " f"should be under 2000"
         )
 
     def test_generate_cdk_typescript_under_2000_tokens(self) -> None:
@@ -66,8 +62,7 @@ class TestTokenLimits:
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-cdk-typescript.prompt.md has ~{token_estimate} tokens, "
-            f"should be under 2000"
+            f"generate-cdk-typescript.prompt.md has ~{token_estimate} tokens, " f"should be under 2000"
         )
 
     def test_generate_cdk_python_under_2000_tokens(self) -> None:
@@ -77,8 +72,7 @@ class TestTokenLimits:
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-cdk-python.prompt.md has ~{token_estimate} tokens, "
-            f"should be under 2000"
+            f"generate-cdk-python.prompt.md has ~{token_estimate} tokens, " f"should be under 2000"
         )
 
 
@@ -169,10 +163,7 @@ class TestTemplateContent:
 
         assert "Security" in content or "security" in content
         # Should mention encryption, IAM, or secrets
-        assert any(
-            term in content.lower()
-            for term in ["encryption", "iam", "secrets", "kms"]
-        )
+        assert any(term in content.lower() for term in ["encryption", "iam", "secrets", "kms"])
 
     def test_copilot_instructions_has_custom_reference(self) -> None:
         """copilot-instructions.md references custom instructions file."""

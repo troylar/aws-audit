@@ -150,9 +150,7 @@ class TestInstallResult:
 
     def test_install_result_with_errors(self) -> None:
         """InstallResult tracks errors and reports failure."""
-        result = InstallResult(
-            errors=[(Path("/project/.github/test.md"), "Permission denied")]
-        )
+        result = InstallResult(errors=[(Path("/project/.github/test.md"), "Permission denied")])
         assert len(result.errors) == 1
         assert result.success is False
 
@@ -192,9 +190,7 @@ class TestUninstallResult:
 
     def test_uninstall_result_with_not_found(self) -> None:
         """UninstallResult tracks files that weren't found."""
-        result = UninstallResult(
-            not_found=[Path("/project/.github/copilot-instructions.md")]
-        )
+        result = UninstallResult(not_found=[Path("/project/.github/copilot-instructions.md")])
         assert len(result.not_found) == 1
         assert result.success is True
 
@@ -206,8 +202,6 @@ class TestUninstallResult:
 
     def test_uninstall_result_with_errors(self) -> None:
         """UninstallResult tracks errors and reports failure."""
-        result = UninstallResult(
-            errors=[(Path("/project/.github/test.md"), "Permission denied")]
-        )
+        result = UninstallResult(errors=[(Path("/project/.github/test.md"), "Permission denied")])
         assert len(result.errors) == 1
         assert result.success is False
