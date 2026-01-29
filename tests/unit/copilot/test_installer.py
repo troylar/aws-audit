@@ -127,7 +127,7 @@ class TestInstallFiles:
         result = install_files(tmp_path)
 
         assert result.success is True
-        assert len(result.installed) == 5
+        assert len(result.installed) == 7
 
         # Verify files exist
         github_dir = tmp_path / ".github"
@@ -206,7 +206,7 @@ class TestUninstallFiles:
         result = uninstall_files(tmp_path)
 
         assert result.success is True
-        assert len(result.removed) == 5
+        assert len(result.removed) == 7
 
         # Verify files are gone
         github_dir = tmp_path / ".github"
@@ -260,7 +260,7 @@ class TestListInstalledFiles:
         install_files(tmp_path)
         files = list_installed_files(tmp_path)
 
-        assert len(files) == 5
+        assert len(files) == 7
         filenames = [f.filename for f in files]
         assert "copilot-instructions.md" in filenames
         assert "generate-terraform.prompt.md" in filenames
@@ -276,7 +276,7 @@ class TestListInstalledFiles:
 
         files = list_installed_files(tmp_path)
 
-        assert len(files) == 6
+        assert len(files) == 8
         custom = next(f for f in files if f.filename == "copilot-custom.md")
         assert custom.is_custom is True
         assert custom.file_type == FileType.CUSTOM

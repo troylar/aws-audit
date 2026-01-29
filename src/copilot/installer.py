@@ -15,6 +15,8 @@ TEMPLATE_FILES = [
     "prompts/generate-terraform.prompt.md",
     "prompts/generate-cdk-typescript.prompt.md",
     "prompts/generate-cdk-python.prompt.md",
+    "prompts/plan-iac.prompt.md",
+    "prompts/generate-terraform-layer.prompt.md",
     "instructions/terraform.instructions.md",
 ]
 

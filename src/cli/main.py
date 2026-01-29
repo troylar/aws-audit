@@ -5369,10 +5369,14 @@ def copilot_install(
 
     Installs the following files to .github/:
     - copilot-instructions.md: Base instructions with AWS schema context
-    - prompts/generate-terraform.prompt.md: Terraform generation prompt
+    - prompts/generate-terraform.prompt.md: Single-pass Terraform generation
     - prompts/generate-cdk-typescript.prompt.md: CDK TypeScript prompt
     - prompts/generate-cdk-python.prompt.md: CDK Python prompt
+    - prompts/plan-iac.prompt.md: Analyze inventory and create IaC checklist
+    - prompts/generate-terraform-layer.prompt.md: Layer-by-layer Terraform generation
     - instructions/terraform.instructions.md: Terraform best practices (applyTo: *.tf)
+
+    For large inventories (3000+ lines), use plan-iac first, then generate-terraform-layer.
 
     Existing files are backed up with .bak.{timestamp} suffix.
     Custom org instructions in copilot-custom.md are never touched.
