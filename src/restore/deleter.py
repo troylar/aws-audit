@@ -132,7 +132,7 @@ class ResourceDeleter:
         resource_id: str,
         region: str,
         arn: str,
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, Optional[str], bool]:
         """Delete an AWS resource.
 
         Args:
@@ -142,20 +142,23 @@ class ResourceDeleter:
             arn: Resource ARN
 
         Returns:
-            Tuple of (success: bool, error_message: Optional[str])
+            Tuple of (success: bool, error_message: Optional[str], was_skipped: bool)
+            - success: True if resource is gone (deleted or already didn't exist)
+            - error_message: Error details if failed
+            - was_skipped: True if resource was already deleted/not found
         """
         # Check if we support this resource type
         if resource_type not in self.DELETION_METHODS:
             error_msg = f"Unsupported resource type: {resource_type}"
             logger.warning(error_msg)
-            return (False, error_msg)
+            return (False, error_msg, False)
 
         service, method, id_field = self.DELETION_METHODS[resource_type]
 
         # Try deletion with retries
         for attempt in range(self.max_retries):
             try:
-                success, error = self._attempt_deletion(
+                success, error, was_skipped = self._attempt_deletion(
                     service=service,
                     method=method,
                     id_field=id_field,
@@ -166,8 +169,11 @@ class ResourceDeleter:
                 )
 
                 if success:
-                    logger.info(f"Successfully deleted {resource_type}: {resource_id}")
-                    return (True, None)
+                    if was_skipped:
+                        logger.info(f"Resource {resource_type}: {resource_id} already deleted")
+                    else:
+                        logger.info(f"Successfully deleted {resource_type}: {resource_id}")
+                    return (True, None, was_skipped)
                 elif "DependencyViolation" in (error or ""):
                     # Dependency violations should be retried
                     if attempt < self.max_retries - 1:
@@ -180,7 +186,7 @@ class ResourceDeleter:
                         continue
                 else:
                     # Non-retryable error
-                    return (False, error)
+                    return (False, error, False)
 
             except Exception as e:
                 error_msg = f"Unexpected error deleting {resource_type} {resource_id}: {str(e)}"
@@ -188,12 +194,12 @@ class ResourceDeleter:
                 if attempt < self.max_retries - 1:
                     time.sleep(2**attempt)
                     continue
-                return (False, error_msg)
+                return (False, error_msg, False)
 
         # All retries exhausted
         error_msg = f"Failed to delete {resource_type} {resource_id} after {self.max_retries} attempts"
         logger.error(error_msg)
-        return (False, error_msg)
+        return (False, error_msg, False)
 
     def _attempt_deletion(
         self,
@@ -204,7 +210,7 @@ class ResourceDeleter:
         resource_type: str,
         region: str,
         arn: str,
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, Optional[str], bool]:
         """Attempt a single deletion operation.
 
         Args:
@@ -217,7 +223,7 @@ class ResourceDeleter:
             arn: Resource ARN
 
         Returns:
-            Tuple of (success: bool, error_message: Optional[str])
+            Tuple of (success: bool, error_message: Optional[str], was_skipped: bool)
         """
         try:
             # Run prerequisite cleanup if needed (e.g., empty S3 bucket, detach IAM policies)
@@ -228,7 +234,7 @@ class ResourceDeleter:
                 arn=arn,
             )
             if not prep_success:
-                return (False, prep_error)
+                return (False, prep_error, False)
 
             # Create boto3 client for the service
             client = create_boto_client(
@@ -249,7 +255,7 @@ class ResourceDeleter:
             deletion_method = getattr(client, method)
             deletion_method(**params)
 
-            return (True, None)
+            return (True, None, False)  # Actually deleted
 
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
@@ -271,32 +277,32 @@ class ResourceDeleter:
             ]:
                 # Resource already deleted
                 logger.info(f"Resource {resource_id} already deleted")
-                return (True, None)
+                return (True, None, True)  # Skipped - already gone
             elif error_code == "InvalidDBInstanceState":
                 # RDS instance already being deleted
                 if "already being deleted" in error_message.lower():
                     logger.info(f"RDS instance {resource_id} already being deleted")
-                    return (True, None)
-                return (False, f"{error_code}: {error_message}")
+                    return (True, None, True)  # Skipped - already being deleted
+                return (False, f"{error_code}: {error_message}", False)
             elif error_code == "InvalidRequestException":
                 # Handle Secrets Manager secrets owned by RDS
                 if "owned by" in error_message.lower():
                     logger.info(f"Secret {resource_id} is managed by another service, skipping")
-                    return (True, None)
-                return (False, f"{error_code}: {error_message}")
+                    return (True, None, True)  # Skipped - managed by another service
+                return (False, f"{error_code}: {error_message}", False)
             elif error_code == "DependencyViolation":
                 # Dependencies still exist
                 logger.debug(f"Dependency violation for {resource_id}: {error_message}")
-                return (False, f"DependencyViolation: {error_message}")
+                return (False, f"DependencyViolation: {error_message}", False)
             else:
                 # Other client errors
                 logger.error(f"Failed to delete {resource_id}: {error_code} - {error_message}")
-                return (False, f"{error_code}: {error_message}")
+                return (False, f"{error_code}: {error_message}", False)
 
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"
             logger.error(f"Failed to delete {resource_id}: {error_msg}")
-            return (False, error_msg)
+            return (False, error_msg, False)
 
     def _build_deletion_params(
         self,

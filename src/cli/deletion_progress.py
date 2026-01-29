@@ -22,6 +22,7 @@ class ResourceStatus(Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     SUCCEEDED = "succeeded"
+    SKIPPED = "skipped"  # Already deleted / not found
     FAILED = "failed"
 
 
@@ -78,6 +79,7 @@ class DeletionProgressDisplay:
         ResourceStatus.PENDING: "○",
         ResourceStatus.IN_PROGRESS: "⋯",
         ResourceStatus.SUCCEEDED: "✓",
+        ResourceStatus.SKIPPED: "⏭",
         ResourceStatus.FAILED: "✗",
     }
 
@@ -85,6 +87,7 @@ class DeletionProgressDisplay:
         ResourceStatus.PENDING: "dim",
         ResourceStatus.IN_PROGRESS: "yellow",
         ResourceStatus.SUCCEEDED: "green",
+        ResourceStatus.SKIPPED: "cyan",
         ResourceStatus.FAILED: "red",
     }
 
@@ -100,6 +103,7 @@ class DeletionProgressDisplay:
         self.resource_map: Dict[str, TrackedResource] = {}  # ARN -> TrackedResource
         self.total = len(resources)
         self.succeeded = 0
+        self.skipped = 0
         self.failed = 0
         self.current: Optional[TrackedResource] = None
         self.live: Optional[Live] = None
@@ -166,13 +170,16 @@ class DeletionProgressDisplay:
             tier_name = self.TIER_NAMES.get(tier, f"Tier {tier}")
 
             # Count completed in this tier
-            tier_done = sum(1 for r in tier_resources if r.status in (ResourceStatus.SUCCEEDED, ResourceStatus.FAILED))
+            tier_done = sum(1 for r in tier_resources if r.status in (ResourceStatus.SUCCEEDED, ResourceStatus.SKIPPED, ResourceStatus.FAILED))
             tier_failed = sum(1 for r in tier_resources if r.status == ResourceStatus.FAILED)
+            tier_skipped = sum(1 for r in tier_resources if r.status == ResourceStatus.SKIPPED)
 
             # Tier header
             tier_header = Text()
             tier_header.append(f"Tier {tier}: {tier_name}", style="bold")
             tier_header.append(f" ({tier_done}/{len(tier_resources)})", style="dim")
+            if tier_skipped > 0:
+                tier_header.append(f" - {tier_skipped} skipped", style="cyan")
             if tier_failed > 0:
                 tier_header.append(f" - {tier_failed} failed", style="red")
             lines.append(tier_header)
@@ -191,6 +198,8 @@ class DeletionProgressDisplay:
 
                 if tracked.status == ResourceStatus.IN_PROGRESS:
                     resource_line.append("  ← deleting", style="yellow italic")
+                elif tracked.status == ResourceStatus.SKIPPED:
+                    resource_line.append("  (already gone)", style="cyan italic")
                 elif tracked.status == ResourceStatus.FAILED and tracked.error:
                     resource_line.append(f" - {tracked.error[:50]}", style="red dim")
 
@@ -202,7 +211,9 @@ class DeletionProgressDisplay:
         legend = Text()
         legend.append("Legend: ", style="dim")
         legend.append("✓", style="green")
-        legend.append(" Done  ", style="dim")
+        legend.append(" Deleted  ", style="dim")
+        legend.append("⏭", style="cyan")
+        legend.append(" Skipped  ", style="dim")
         legend.append("⋯", style="yellow")
         legend.append(" In Progress  ", style="dim")
         legend.append("○", style="dim")
@@ -352,6 +363,19 @@ class DeletionProgressDisplay:
             self.current = None
             self._refresh()
 
+    def mark_skipped(self, resource: Any) -> None:
+        """Mark resource as skipped (already deleted / not found).
+
+        Args:
+            resource: Resource object that was already deleted
+        """
+        tracked = self.resource_map.get(resource.arn)
+        if tracked:
+            tracked.status = ResourceStatus.SKIPPED
+            self.skipped += 1
+            self.current = None
+            self._refresh()
+
     def mark_failed(self, resource: Any, error: str) -> None:
         """Mark resource as failed to delete.
 
@@ -386,20 +410,25 @@ class DeletionProgressDisplay:
         self.console.print()
 
         # Calculate totals first for the header
-        total_success = 0
+        total_deleted = 0
+        total_skipped = 0
         total_failed = 0
         for tier_resources in self.resources_by_tier.values():
-            total_success += sum(1 for r in tier_resources if r.status == ResourceStatus.SUCCEEDED)
+            total_deleted += sum(1 for r in tier_resources if r.status == ResourceStatus.SUCCEEDED)
+            total_skipped += sum(1 for r in tier_resources if r.status == ResourceStatus.SKIPPED)
             total_failed += sum(1 for r in tier_resources if r.status == ResourceStatus.FAILED)
 
         # Determine overall status emoji
-        if total_failed == 0 and total_success > 0:
+        if total_failed == 0 and (total_deleted > 0 or total_skipped > 0):
             status_emoji = "✨"
-            status_text = "All resources deleted successfully!"
+            if total_skipped > 0:
+                status_text = f"Complete! {total_deleted} deleted, {total_skipped} already gone"
+            else:
+                status_text = "All resources deleted successfully!"
             status_style = "bold green"
-        elif total_failed > 0 and total_success > 0:
+        elif total_failed > 0 and (total_deleted > 0 or total_skipped > 0):
             status_emoji = "⚠️"
-            status_text = f"{total_success} succeeded, {total_failed} failed"
+            status_text = f"{total_deleted} deleted, {total_skipped} skipped, {total_failed} failed"
             status_style = "bold yellow"
         elif total_failed > 0:
             status_emoji = "❌"
@@ -426,33 +455,30 @@ class DeletionProgressDisplay:
         )
         table.add_column("", width=3, justify="center")  # Emoji column
         table.add_column("Tier", style="cyan", width=4, justify="center")
-        table.add_column("Layer", width=26)
-        table.add_column("✅ Success", style="green", justify="right", width=10)
-        table.add_column("❌ Failed", style="red", justify="right", width=10)
-        table.add_column("📊 Total", justify="right", width=10)
+        table.add_column("Layer", width=22)
+        table.add_column("✅ Deleted", style="green", justify="right", width=9)
+        table.add_column("⏭️ Skipped", style="cyan", justify="right", width=9)
+        table.add_column("❌ Failed", style="red", justify="right", width=9)
+        table.add_column("📊 Total", justify="right", width=8)
 
         for tier in sorted(self.resources_by_tier.keys()):
             tier_resources = self.resources_by_tier[tier]
             tier_name = self.TIER_NAMES.get(tier, f"Tier {tier}")
             tier_emoji = self.TIER_EMOJIS.get(tier, "📦")
 
-            success_count = sum(1 for r in tier_resources if r.status == ResourceStatus.SUCCEEDED)
+            deleted_count = sum(1 for r in tier_resources if r.status == ResourceStatus.SUCCEEDED)
+            skipped_count = sum(1 for r in tier_resources if r.status == ResourceStatus.SKIPPED)
             failed_count = sum(1 for r in tier_resources if r.status == ResourceStatus.FAILED)
             tier_total = len(tier_resources)
 
             # Only show tiers that have resources
             if tier_total > 0:
-                # Add checkmark or X based on tier completion
-                if failed_count == 0:
-                    success_display = f"[green]{success_count}[/green]"
-                else:
-                    success_display = str(success_count)
-
                 table.add_row(
                     tier_emoji,
                     str(tier),
                     tier_name,
-                    success_display,
+                    f"[green]{deleted_count}[/green]" if deleted_count > 0 else "[dim]-[/dim]",
+                    f"[cyan]{skipped_count}[/cyan]" if skipped_count > 0 else "[dim]-[/dim]",
                     f"[red]{failed_count}[/red]" if failed_count > 0 else "[dim]-[/dim]",
                     str(tier_total),
                 )
@@ -463,7 +489,8 @@ class DeletionProgressDisplay:
             "🎯",
             "",
             "[bold]TOTAL[/bold]",
-            f"[bold green]{total_success}[/bold green]",
+            f"[bold green]{total_deleted}[/bold green]",
+            f"[bold cyan]{total_skipped}[/bold cyan]" if total_skipped > 0 else "[dim]-[/dim]",
             f"[bold red]{total_failed}[/bold red]" if total_failed > 0 else "[dim]-[/dim]",
             f"[bold]{self.total}[/bold]",
         )

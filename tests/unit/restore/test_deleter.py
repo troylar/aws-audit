@@ -38,7 +38,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::Instance",
             resource_id="i-123456",
             region="us-east-1",
@@ -62,7 +62,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::Lambda::Function",
             resource_id="my-function",
             region="us-west-2",
@@ -81,7 +81,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::RDS::DBInstance",
             resource_id="my-database",
             region="us-east-1",
@@ -110,7 +110,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::Instance",
             resource_id="i-123456",
             region="us-east-1",
@@ -141,7 +141,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter(max_retries=3)
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::Instance",
             resource_id="i-123456",
             region="us-east-1",
@@ -170,7 +170,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter(max_retries=3)
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::Instance",
             resource_id="i-123456",
             region="us-east-1",
@@ -195,7 +195,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::Instance",
             resource_id="i-123456",
             region="us-east-1",
@@ -209,7 +209,7 @@ class TestResourceDeleter:
     def test_delete_unsupported_resource_type(self) -> None:
         """Test deletion of unsupported resource type."""
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::UnsupportedService::Resource",
             resource_id="resource-123",
             region="us-east-1",
@@ -227,7 +227,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter(aws_profile="production")
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::Instance",
             resource_id="i-123456",
             region="us-east-1",
@@ -258,7 +258,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::S3::Bucket",
             resource_id="my-bucket",
             region="us-east-1",
@@ -277,7 +277,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::DynamoDB::Table",
             resource_id="my-table",
             region="us-east-1",
@@ -300,7 +300,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::IAM::Role",
             resource_id="MyRole",
             region="us-east-1",
@@ -319,7 +319,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::KMS::Key",
             resource_id="key-123",
             region="us-east-1",
@@ -341,7 +341,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::SecretsManager::Secret",
             resource_id="my-secret",
             region="us-east-1",
@@ -364,7 +364,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter(max_retries=2)
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::Instance",
             resource_id="i-exception",
             region="us-east-1",
@@ -386,7 +386,7 @@ class TestResourceDeleter:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::Lambda::Function",
             resource_id="my-function",
             region="us-west-2",
@@ -410,7 +410,7 @@ class TestResourceDeleter:
 
         deleter = ResourceDeleter()
         policy_arn = "arn:aws:iam::123456789012:policy/MyCustomPolicy"
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::IAM::Policy",
             resource_id="MyCustomPolicy",
             region="us-east-1",
@@ -432,10 +432,10 @@ class TestResourceDeleter:
             side_effect=[
                 RuntimeError("Attempt failed"),
                 RuntimeError("Attempt failed again"),
-                (True, None),  # Success on third attempt
+                (True, None, False),  # Success on third attempt (success, error, was_skipped)
             ],
         ):
-            success, error = deleter.delete_resource(
+            success, error, was_skipped = deleter.delete_resource(
                 resource_type="AWS::EC2::Instance",
                 resource_id="i-retry",
                 region="us-east-1",
@@ -452,7 +452,7 @@ class TestResourceDeleter:
 
         # Mock _attempt_deletion to always raise exception
         with patch.object(deleter, "_attempt_deletion", side_effect=RuntimeError("Always fails")):
-            success, error = deleter.delete_resource(
+            success, error, was_skipped = deleter.delete_resource(
                 resource_type="AWS::EC2::Instance",
                 resource_id="i-always-fail",
                 region="us-east-1",
@@ -769,7 +769,7 @@ class TestSSMParameterDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::SSM::Parameter",
             resource_id="/my/parameter",
             region="us-east-1",
@@ -793,7 +793,7 @@ class TestStepFunctionsDeletion:
 
         deleter = ResourceDeleter()
         state_machine_arn = "arn:aws:states:us-east-1:123456789012:stateMachine:MyStateMachine"
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::StepFunctions::StateMachine",
             resource_id="MyStateMachine",
             region="us-east-1",
@@ -817,7 +817,7 @@ class TestCodeBuildDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::CodeBuild::Project",
             resource_id="my-build-project",
             region="us-east-1",
@@ -845,7 +845,7 @@ class TestEventBridgeRuleDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::Events::Rule",
             resource_id="my-rule",
             region="us-east-1",
@@ -874,7 +874,7 @@ class TestEventBridgeRuleDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::Events::Rule",
             resource_id="empty-rule",
             region="us-east-1",
@@ -936,7 +936,7 @@ class TestVPCEndpointDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::EC2::VPCEndpoint",
             resource_id="vpce-123456",
             region="us-east-1",
@@ -959,7 +959,7 @@ class TestCodePipelineDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::CodePipeline::Pipeline",
             resource_id="my-pipeline",
             region="us-east-1",
@@ -982,7 +982,7 @@ class TestCloudFormationDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::CloudFormation::Stack",
             resource_id="my-stack",
             region="us-east-1",
@@ -1018,7 +1018,7 @@ class TestRoute53Deletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::Route53::HostedZone",
             resource_id="Z123456789",
             region="us-east-1",
@@ -1060,7 +1060,7 @@ class TestBackupDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::Backup::BackupPlan",
             resource_id="plan-123",
             region="us-east-1",
@@ -1086,7 +1086,7 @@ class TestBackupDeletion:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::Backup::BackupVault",
             resource_id="my-vault",
             region="us-east-1",
@@ -1205,7 +1205,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::S3::Bucket",
             resource_id="locked-bucket",
             region="us-east-1",
@@ -1234,7 +1234,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::IAM::User",
             resource_id="test-user",
             region="us-east-1",
@@ -1258,7 +1258,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::WAFv2::WebACL",
             resource_id="webacl-123",
             region="us-east-1",
@@ -1280,7 +1280,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::WAFv2::RuleGroup",
             resource_id="rulegroup-123",
             region="us-east-1",
@@ -1321,7 +1321,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_create_client.return_value = mock_client
 
         deleter = ResourceDeleter()
-        success, error = deleter.delete_resource(
+        success, error, was_skipped = deleter.delete_resource(
             resource_type="AWS::S3::Bucket",
             resource_id="non-versioned-bucket",
             region="us-east-1",

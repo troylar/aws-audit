@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] - 2026-01-29
+
+### Added
+- **Skipped Status for Already-Deleted Resources**: Distinguish between actually deleted vs already gone
+  - ⏭️ Skipped status for resources that were already deleted before purge
+  - New column in summary table: ✅ Deleted | ⏭️ Skipped | ❌ Failed
+  - Real-time display shows "(already gone)" for skipped resources
+  - Clear visibility into what was actually deleted vs what was already missing
+
 ## [0.24.4] - 2026-01-22
 
 ### Changed

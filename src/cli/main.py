@@ -3409,13 +3409,14 @@ def cleanup_purge(
 
         progress_display = DeletionProgressDisplay(to_delete, console)
 
+        skipped = 0
         try:
             progress_display.start()
 
             for resource in to_delete:
                 progress_display.mark_in_progress(resource)
 
-                success, error = deleter.delete_resource(
+                success, error, was_skipped = deleter.delete_resource(
                     resource_type=resource.resource_type,
                     resource_id=resource.name,
                     region=resource.region,
@@ -3423,9 +3424,14 @@ def cleanup_purge(
                 )
 
                 if success:
-                    progress_display.mark_succeeded(resource)
-                    succeeded += 1
-                    logger.info(f"Deleted {resource.resource_type}: {resource.name}")
+                    if was_skipped:
+                        progress_display.mark_skipped(resource)
+                        skipped += 1
+                        logger.info(f"Skipped (already gone) {resource.resource_type}: {resource.name}")
+                    else:
+                        progress_display.mark_succeeded(resource)
+                        succeeded += 1
+                        logger.info(f"Deleted {resource.resource_type}: {resource.name}")
                 else:
                     progress_display.mark_failed(resource, error)
                     failed += 1
@@ -3439,12 +3445,13 @@ def cleanup_purge(
         progress_display.print_final_summary()
 
         # Show overall summary panel
-        status_color = "green" if failed == 0 else "yellow" if succeeded > 0 else "red"
+        status_color = "green" if failed == 0 else "yellow" if (succeeded > 0 or skipped > 0) else "red"
 
         excluded_line = f"\n• Excluded by pattern: {len(excluded)}" if excluded else ""
+        skipped_line = f"\n• Skipped (already gone): [cyan]{skipped}[/cyan]" if skipped > 0 else ""
         summary_text = f"""
 [bold]Results:[/bold]
-• Succeeded: [green]{succeeded}[/green]
+• Deleted: [green]{succeeded}[/green]{skipped_line}
 • Failed: [red]{failed}[/red]
 • Protected by rules: {len(protected)}{excluded_line}
 • Total scanned: {len(all_resources)}
