@@ -75,8 +75,7 @@ class TestELBCollectorCollect:
                 "LoadBalancers": [
                     {
                         "LoadBalancerArn": (
-                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:"
-                            "loadbalancer/app/my-alb/12345"
+                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:" "loadbalancer/app/my-alb/12345"
                         ),
                         "LoadBalancerName": "my-alb",
                         "Type": "application",
@@ -127,8 +126,7 @@ class TestELBCollectorCollect:
                 "LoadBalancers": [
                     {
                         "LoadBalancerArn": (
-                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:"
-                            "loadbalancer/net/my-nlb/12345"
+                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:" "loadbalancer/net/my-nlb/12345"
                         ),
                         "LoadBalancerName": "my-nlb",
                         "Type": "network",
@@ -173,8 +171,7 @@ class TestELBCollectorCollect:
                 "LoadBalancers": [
                     {
                         "LoadBalancerArn": (
-                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:"
-                            "loadbalancer/gwy/my-gwlb/12345"
+                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:" "loadbalancer/gwy/my-gwlb/12345"
                         ),
                         "LoadBalancerName": "my-gwlb",
                         "Type": "gateway",

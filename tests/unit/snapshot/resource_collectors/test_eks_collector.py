@@ -333,8 +333,7 @@ class TestEKSCollector:
                 "fargateProfile": {
                     "fargateProfileName": fargateProfileName,
                     "fargateProfileArn": (
-                        f"arn:aws:eks:us-east-1:123456789012:fargateprofile/"
-                        f"{clusterName}/{fargateProfileName}/abc"
+                        f"arn:aws:eks:us-east-1:123456789012:fargateprofile/" f"{clusterName}/{fargateProfileName}/abc"
                     ),
                     "createdAt": datetime.now(timezone.utc),
                     "tags": {},
