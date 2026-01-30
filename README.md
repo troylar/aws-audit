@@ -167,7 +167,7 @@ Before diving in, here's the terminology:
 - Layer-based chunking (network → compute → etc.)
 - Automatic ID → reference mapping
 - `terraform validate` integration
-- OpenAI-compatible API support
+- AWS Bedrock (Claude Sonnet 4)
 
 </td>
 </tr>
@@ -257,9 +257,8 @@ You can configure most CLI options via environment variables, which is useful fo
 | `AWSINV_REGION` | Comma-separated regions (e.g., `us-east-1,us-west-2`) | `--regions` |
 | `AWSINV_PROFILE` | AWS CLI profile to use | `--profile` |
 | `AWSINV_STORAGE_PATH` | Custom path for SQLite DB and logs | `--storage-path` |
-| `AWSINV_AI_ENDPOINT` | AI API endpoint for IaC generation | `--endpoint` |
-| `AWSINV_AI_API_KEY` | AI API key for IaC generation | `--api-key` |
-| `AWSINV_AI_MODEL` | AI model name (default: gpt-4) | `--model` |
+| `AWSINV_BEDROCK_MODEL_ID` | Bedrock model ID for IaC generation | `--model-id` |
+| `AWSINV_BEDROCK_REGION` | AWS region for Bedrock API | `--region` |
 
 Example:
 ```bash
@@ -763,27 +762,22 @@ Large packages are stored to `~/.snapshots/lambda-code/<snapshot>/` and automati
 
 ### IaC Generation (Terraform)
 
-Generate Terraform code from your inventory snapshots using AI:
+Generate Terraform code from your inventory snapshots using AWS Bedrock:
 
 ```bash
-# Set up AI credentials (OpenAI example)
-export AWSINV_AI_ENDPOINT="https://api.openai.com/v1"
-export AWSINV_AI_API_KEY="sk-..."
-export AWSINV_AI_MODEL="gpt-4"
-
-# Generate Terraform from a snapshot
+# Generate Terraform from a snapshot (uses AWS credentials)
 awsinv generate terraform my-snapshot
 
 # Specify output directory
 awsinv generate terraform my-snapshot --output ./infrastructure
 
+# Use different model or region
+awsinv generate terraform my-snapshot \
+  --model-id anthropic.claude-sonnet-4-20250514-v1:0 \
+  --region us-west-2
+
 # Dry run (show what would be generated)
 awsinv generate terraform my-snapshot --dry-run
-
-# Use different model/endpoint
-awsinv generate terraform my-snapshot \
-  --endpoint "http://localhost:11434/v1" \
-  --model "llama3"
 ```
 
 **How It Works:**
@@ -862,12 +856,9 @@ flowchart TD
 └── ...
 ```
 
-**Supported AI Providers:**
-- OpenAI (GPT-4, GPT-4 Turbo)
-- Azure OpenAI
-- Ollama (local models)
-- LM Studio
-- Any OpenAI-compatible API
+**Requirements:**
+- AWS credentials with Bedrock access (uses your configured AWS profile)
+- Default model: `anthropic.claude-sonnet-4-20250514-v1:0` (Claude Sonnet 4)
 
 > **Note:** IaC generation requires the `langgraph` optional dependency: `pip install aws-inventory-manager[generate]`
 
@@ -1208,9 +1199,8 @@ awsinv query stats --group-by region
 # ─────────────────────────────────────────────────────────────
 awsinv generate terraform <snapshot>  # Generate Terraform from snapshot
     [--output <dir>]                  # Output directory (default: ./terraform)
-    [--endpoint <url>]                # AI API endpoint
-    [--api-key <key>]                 # AI API key
-    [--model <name>]                  # AI model (default: gpt-4)
+    [--model-id <id>]                 # Bedrock model ID
+    [--region <region>]               # AWS region for Bedrock
     [--dry-run]                       # Show what would be generated
     [--verbose]                       # Show detailed progress
 
@@ -1315,7 +1305,7 @@ awsinv cost --snapshot team-data
 │  • Security Scanner (CIS Benchmark checks)                   │
 │  • Cost Analyzer (AWS Cost Explorer)                         │
 │  • Dependency Resolver (deletion ordering)                   │
-│  • IaC Generator (LangGraph + OpenAI-compatible APIs)        │
+│  • IaC Generator (LangGraph + AWS Bedrock)                   │
 │                                                               │
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
