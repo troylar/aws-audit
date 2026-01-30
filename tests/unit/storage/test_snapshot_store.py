@@ -266,9 +266,27 @@ class TestSnapshotStore:
     def test_service_counts_calculated(self, store: SnapshotStore) -> None:
         """Test that service counts are calculated correctly."""
         resources = [
-            Resource(arn="arn:aws:s3:::bucket1", resource_type="s3:bucket", name="bucket1", region="us-east-1", config_hash="a" * 64),
-            Resource(arn="arn:aws:s3:::bucket2", resource_type="s3:bucket", name="bucket2", region="us-east-1", config_hash="b" * 64),
-            Resource(arn="arn:aws:ec2:us-east-1:123:instance/i-1", resource_type="ec2:instance", name="i-1", region="us-east-1", config_hash="c" * 64),
+            Resource(
+                arn="arn:aws:s3:::bucket1",
+                resource_type="s3:bucket",
+                name="bucket1",
+                region="us-east-1",
+                config_hash="a" * 64,
+            ),
+            Resource(
+                arn="arn:aws:s3:::bucket2",
+                resource_type="s3:bucket",
+                name="bucket2",
+                region="us-east-1",
+                config_hash="b" * 64,
+            ),
+            Resource(
+                arn="arn:aws:ec2:us-east-1:123:instance/i-1",
+                resource_type="ec2:instance",
+                name="i-1",
+                region="us-east-1",
+                config_hash="c" * 64,
+            ),
         ]
 
         snapshot = Snapshot(

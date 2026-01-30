@@ -88,9 +88,7 @@ class TestLambdaCode:
             },
         )
 
-    def test_from_resource_inline_code(
-        self, sample_inline_lambda_resource: TrackedResource
-    ) -> None:
+    def test_from_resource_inline_code(self, sample_inline_lambda_resource: TrackedResource) -> None:
         """Test from_resource creates correct LambdaCode for inline code."""
         lambda_code = LambdaCode.from_resource(sample_inline_lambda_resource)
 
@@ -103,9 +101,7 @@ class TestLambdaCode:
         assert lambda_code.code_sha256 == "abc123sha256hash"
         assert lambda_code.code_size_bytes == 1024
 
-    def test_from_resource_s3_code(
-        self, sample_s3_lambda_resource: TrackedResource
-    ) -> None:
+    def test_from_resource_s3_code(self, sample_s3_lambda_resource: TrackedResource) -> None:
         """Test from_resource creates correct LambdaCode for S3 code."""
         lambda_code = LambdaCode.from_resource(sample_s3_lambda_resource)
 
@@ -119,9 +115,7 @@ class TestLambdaCode:
         assert lambda_code.s3_key == "lambda/s3-function.zip"
         assert lambda_code.s3_version == "v1.2.3"
 
-    def test_from_resource_image_code(
-        self, sample_image_lambda_resource: TrackedResource
-    ) -> None:
+    def test_from_resource_image_code(self, sample_image_lambda_resource: TrackedResource) -> None:
         """Test from_resource creates correct LambdaCode for container image."""
         lambda_code = LambdaCode.from_resource(sample_image_lambda_resource)
 
@@ -130,9 +124,7 @@ class TestLambdaCode:
         assert lambda_code.code_stored is False
         assert lambda_code.image_uri == "123456789012.dkr.ecr.us-east-1.amazonaws.com/my-repo:latest"
 
-    def test_from_resource_unknown_storage_type(
-        self, sample_minimal_lambda_resource: TrackedResource
-    ) -> None:
+    def test_from_resource_unknown_storage_type(self, sample_minimal_lambda_resource: TrackedResource) -> None:
         """Test from_resource handles unknown storage type."""
         lambda_code = LambdaCode.from_resource(sample_minimal_lambda_resource)
 
@@ -174,9 +166,7 @@ class TestLambdaCode:
         assert lambda_code.handler == ""
         assert lambda_code.storage_type == "unknown"
 
-    def test_extract_to_writes_zip_file(
-        self, sample_inline_lambda_resource: TrackedResource, tmp_path: Path
-    ) -> None:
+    def test_extract_to_writes_zip_file(self, sample_inline_lambda_resource: TrackedResource, tmp_path: Path) -> None:
         """Test extract_to writes base64 data to zip file."""
         lambda_code = LambdaCode.from_resource(sample_inline_lambda_resource)
 
@@ -192,9 +182,7 @@ class TestLambdaCode:
         expected = base64.b64decode(lambda_code.code_base64)
         assert content == expected
 
-    def test_extract_to_creates_directory(
-        self, sample_inline_lambda_resource: TrackedResource, tmp_path: Path
-    ) -> None:
+    def test_extract_to_creates_directory(self, sample_inline_lambda_resource: TrackedResource, tmp_path: Path) -> None:
         """Test extract_to creates output directory if needed."""
         lambda_code = LambdaCode.from_resource(sample_inline_lambda_resource)
         output_dir = tmp_path / "nested" / "lambda" / "code"
@@ -215,9 +203,7 @@ class TestLambdaCode:
 
         assert result is None
 
-    def test_extract_to_returns_none_when_no_base64(
-        self, tmp_path: Path
-    ) -> None:
+    def test_extract_to_returns_none_when_no_base64(self, tmp_path: Path) -> None:
         """Test extract_to returns None when code_base64 is None."""
         lambda_code = LambdaCode(
             function_name="test-function",
@@ -232,9 +218,7 @@ class TestLambdaCode:
 
         assert result is None
 
-    def test_extract_to_sanitizes_filename(
-        self, tmp_path: Path
-    ) -> None:
+    def test_extract_to_sanitizes_filename(self, tmp_path: Path) -> None:
         """Test extract_to sanitizes function name for filename."""
         zip_content = b"PK\x03\x04fake-content"
         lambda_code = LambdaCode(
@@ -265,9 +249,7 @@ class TestLambdaCode:
 
         assert lambda_code.code_file_path == result
 
-    def test_extract_to_handles_invalid_base64(
-        self, tmp_path: Path
-    ) -> None:
+    def test_extract_to_handles_invalid_base64(self, tmp_path: Path) -> None:
         """Test extract_to handles invalid base64 data gracefully."""
         lambda_code = LambdaCode(
             function_name="test-function",

@@ -260,9 +260,7 @@ class CloudTrailQuery:
 
             # Extract resource information
             resource_type = EVENT_TO_RESOURCE_TYPE[event_name]
-            resource_name, resource_arn_extracted = self._extract_resource_info(
-                cloud_trail_event, event_name
-            )
+            resource_name, resource_arn_extracted = self._extract_resource_info(cloud_trail_event, event_name)
 
             # Get account ID
             account_id = cloud_trail_event.get("recipientAccountId", "")
@@ -286,9 +284,7 @@ class CloudTrailQuery:
             logger.debug(f"Error parsing CloudTrail event: {e}")
             return None
 
-    def _extract_resource_info(
-        self, event: dict, event_name: str
-    ) -> tuple[Optional[str], Optional[str]]:
+    def _extract_resource_info(self, event: dict, event_name: str) -> tuple[Optional[str], Optional[str]]:
         """Extract resource name and ARN from CloudTrail event.
 
         Returns:
@@ -446,8 +442,7 @@ class CloudTrailQuery:
         # Filter event types if resource_types specified
         if resource_types:
             filtered_event_names = [
-                event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items()
-                if res_type in resource_types
+                event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items() if res_type in resource_types
             ]
             # If no matches found, fall back to querying all event types
             if not filtered_event_names:
@@ -497,9 +492,7 @@ class CloudTrailQuery:
         try:
             paginator = client.get_paginator("lookup_events")
             for page in paginator.paginate(
-                LookupAttributes=[
-                    {"AttributeKey": "EventName", "AttributeValue": event_name}
-                ],
+                LookupAttributes=[{"AttributeKey": "EventName", "AttributeValue": event_name}],
                 StartTime=start_time,
                 EndTime=end_time,
                 MaxResults=50,
@@ -603,9 +596,7 @@ class CloudTrailQuery:
 
             # Extract resource information
             resource_type = EVENT_TO_RESOURCE_TYPE[event_name]
-            resource_name, resource_arn_extracted = self._extract_resource_info(
-                cloud_trail_event, event_name
-            )
+            resource_name, resource_arn_extracted = self._extract_resource_info(cloud_trail_event, event_name)
 
             # Get account ID
             account_id = cloud_trail_event.get("recipientAccountId", "")

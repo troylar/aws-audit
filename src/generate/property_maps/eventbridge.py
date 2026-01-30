@@ -39,6 +39,7 @@ def _transform_event_pattern(event_pattern: Optional[Dict[str, Any]]) -> Optiona
         return None
 
     import json
+
     try:
         return json.dumps(event_pattern)
     except (TypeError, ValueError):

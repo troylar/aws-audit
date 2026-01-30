@@ -118,9 +118,7 @@ def validate_terraform(state: GenerationState) -> Dict[str, Any]:
                         validation_errors.append(error_msg)
             except json.JSONDecodeError:
                 # Fallback to stderr if JSON parsing fails
-                validation_errors.append(
-                    f"terraform validate failed: {validate_result.stderr.strip()}"
-                )
+                validation_errors.append(f"terraform validate failed: {validate_result.stderr.strip()}")
 
             logger.warning(f"terraform validate found {len(validation_errors)} errors")
         else:

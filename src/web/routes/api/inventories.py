@@ -38,7 +38,9 @@ async def list_inventories():
                 "snapshot_count": len(inv.snapshots) if inv.snapshots else 0,
                 "include_tags": inv.include_tags or {},
                 "exclude_tags": inv.exclude_tags or {},
-                "created_at": inv.created_at.isoformat() if hasattr(inv.created_at, 'isoformat') else str(inv.created_at),
+                "created_at": (
+                    inv.created_at.isoformat() if hasattr(inv.created_at, "isoformat") else str(inv.created_at)
+                ),
             }
             for inv in inventories
         ],
@@ -72,7 +74,11 @@ async def get_inventory(name: str, account_id: Optional[str] = None):
             "exclude_tags": inventory.exclude_tags or {},
             "snapshots": inventory.snapshots or [],
             "active_snapshot": inventory.active_snapshot,
-            "created_at": inventory.created_at.isoformat() if hasattr(inventory.created_at, 'isoformat') else str(inventory.created_at),
+            "created_at": (
+                inventory.created_at.isoformat()
+                if hasattr(inventory.created_at, "isoformat")
+                else str(inventory.created_at)
+            ),
         }
     except HTTPException:
         raise

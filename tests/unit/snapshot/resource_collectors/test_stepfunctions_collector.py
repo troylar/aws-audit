@@ -49,12 +49,16 @@ class TestStepFunctionsCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        mock_paginator.paginate.return_value = [{
-            "stateMachines": [{
-                "stateMachineArn": "arn:aws:states:us-east-1:123456789012:stateMachine:my-workflow",
-                "name": "my-workflow",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "stateMachines": [
+                    {
+                        "stateMachineArn": "arn:aws:states:us-east-1:123456789012:stateMachine:my-workflow",
+                        "name": "my-workflow",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_state_machine.return_value = {
             "stateMachineArn": "arn:aws:states:us-east-1:123456789012:stateMachine:my-workflow",
@@ -63,9 +67,7 @@ class TestStepFunctionsCollectorCollect:
             "creationDate": created_at,
             "definition": '{"States": {}}',  # This should be excluded from raw_config
         }
-        mock_client.list_tags_for_resource.return_value = {
-            "tags": [{"key": "Environment", "value": "test"}]
-        }
+        mock_client.list_tags_for_resource.return_value = {"tags": [{"key": "Environment", "value": "test"}]}
         mock_create_client.return_value = mock_client
 
         collector = StepFunctionsCollector(session=mock_session, region="us-east-1")
@@ -85,12 +87,14 @@ class TestStepFunctionsCollectorCollect:
         """Test collecting multiple state machines."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "stateMachines": [
-                {"stateMachineArn": "arn:1", "name": "workflow-1"},
-                {"stateMachineArn": "arn:2", "name": "workflow-2"},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "stateMachines": [
+                    {"stateMachineArn": "arn:1", "name": "workflow-1"},
+                    {"stateMachineArn": "arn:2", "name": "workflow-2"},
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_state_machine.return_value = {
             "status": "ACTIVE",
@@ -110,12 +114,20 @@ class TestStepFunctionsCollectorCollect:
         """Test collecting continues when describe_state_machine fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "stateMachines": [
-                {"stateMachineArn": "arn:aws:states:us-east-1:123456789012:stateMachine:good-workflow", "name": "good-workflow"},
-                {"stateMachineArn": "arn:aws:states:us-east-1:123456789012:stateMachine:bad-workflow", "name": "bad-workflow"},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "stateMachines": [
+                    {
+                        "stateMachineArn": "arn:aws:states:us-east-1:123456789012:stateMachine:good-workflow",
+                        "name": "good-workflow",
+                    },
+                    {
+                        "stateMachineArn": "arn:aws:states:us-east-1:123456789012:stateMachine:bad-workflow",
+                        "name": "bad-workflow",
+                    },
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
         def describe_side_effect(**kwargs):
@@ -139,12 +151,16 @@ class TestStepFunctionsCollectorCollect:
         """Test collecting continues when list_tags_for_resource fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "stateMachines": [{
-                "stateMachineArn": "arn:1",
-                "name": "my-workflow",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "stateMachines": [
+                    {
+                        "stateMachineArn": "arn:1",
+                        "name": "my-workflow",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_state_machine.return_value = {"status": "ACTIVE"}
         mock_client.list_tags_for_resource.side_effect = Exception("Access denied")
@@ -196,12 +212,16 @@ class TestStepFunctionsCollectorCollect:
         """Test that config hash is generated."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "stateMachines": [{
-                "stateMachineArn": "arn:1",
-                "name": "my-workflow",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "stateMachines": [
+                    {
+                        "stateMachineArn": "arn:1",
+                        "name": "my-workflow",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_state_machine.return_value = {"status": "ACTIVE"}
         mock_client.list_tags_for_resource.return_value = {"tags": []}

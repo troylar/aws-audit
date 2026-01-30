@@ -222,9 +222,7 @@ class TestGenerationState:
     def test_state_field_types(self) -> None:
         """Test that state fields accept correct types."""
         state: GenerationState = {
-            "inventory": [
-                {"arn": "arn:aws:ec2:us-east-1:123:instance/i-123", "type": "ec2:instance"}
-            ],
+            "inventory": [{"arn": "arn:aws:ec2:us-east-1:123:instance/i-123", "type": "ec2:instance"}],
             "resource_map": {"vpc-abc": "aws_vpc.main"},
             "layers": {
                 "network": [{"name": "vpc"}],

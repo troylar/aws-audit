@@ -121,9 +121,7 @@ def process_cache_nodes(raw_nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     return terraform_nodes
 
 
-def process_log_delivery_configurations(
-    raw_configs: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+def process_log_delivery_configurations(raw_configs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Transform AWS log delivery configurations to Terraform format.
 
     AWS format:
@@ -197,13 +195,15 @@ def process_node_groups(raw_node_groups: List[Dict[str, Any]]) -> List[Dict[str,
         if "NodeGroupMembers" in group:
             members = []
             for member in group["NodeGroupMembers"]:
-                members.append({
-                    "cache_node_id": member.get("CacheNodeId"),
-                    "read_endpoint": member.get("ReadEndpoint", {}).get("Address"),
-                    "read_endpoint_port": member.get("ReadEndpoint", {}).get("Port"),
-                    "write_endpoint": member.get("WriteEndpoint", {}).get("Address"),
-                    "write_endpoint_port": member.get("WriteEndpoint", {}).get("Port"),
-                })
+                members.append(
+                    {
+                        "cache_node_id": member.get("CacheNodeId"),
+                        "read_endpoint": member.get("ReadEndpoint", {}).get("Address"),
+                        "read_endpoint_port": member.get("ReadEndpoint", {}).get("Port"),
+                        "write_endpoint": member.get("WriteEndpoint", {}).get("Address"),
+                        "write_endpoint_port": member.get("WriteEndpoint", {}).get("Port"),
+                    }
+                )
             tf_group["node_group_members"] = members
 
         terraform_groups.append(tf_group)
@@ -340,20 +340,23 @@ def get_elasticache_replication_group_computed_properties(raw_config: Dict[str, 
 # Register this property map for ElastiCache resources
 from . import register_property_map
 
-register_property_map("elasticache", {
-    "cluster": {
-        "configurable": ELASTICACHE_CLUSTER_CONFIGURABLE,
-        "computed": ELASTICACHE_CLUSTER_COMPUTED,
-        "get_properties": get_elasticache_cluster_properties,
-        "get_computed": get_elasticache_cluster_computed_properties,
+register_property_map(
+    "elasticache",
+    {
+        "cluster": {
+            "configurable": ELASTICACHE_CLUSTER_CONFIGURABLE,
+            "computed": ELASTICACHE_CLUSTER_COMPUTED,
+            "get_properties": get_elasticache_cluster_properties,
+            "get_computed": get_elasticache_cluster_computed_properties,
+        },
+        "replication_group": {
+            "configurable": ELASTICACHE_REPLICATION_GROUP_CONFIGURABLE,
+            "computed": ELASTICACHE_REPLICATION_GROUP_COMPUTED,
+            "get_properties": get_elasticache_replication_group_properties,
+            "get_computed": get_elasticache_replication_group_computed_properties,
+        },
     },
-    "replication_group": {
-        "configurable": ELASTICACHE_REPLICATION_GROUP_CONFIGURABLE,
-        "computed": ELASTICACHE_REPLICATION_GROUP_COMPUTED,
-        "get_properties": get_elasticache_replication_group_properties,
-        "get_computed": get_elasticache_replication_group_computed_properties,
-    },
-})
+)
 
 __all__ = [
     "ELASTICACHE_CLUSTER_CONFIGURABLE",

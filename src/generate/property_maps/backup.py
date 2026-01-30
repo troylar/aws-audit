@@ -164,9 +164,7 @@ def get_backup_plan_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
                 tf_lifecycle = {}
 
                 if "MoveToColdStorageAfterDays" in lifecycle:
-                    tf_lifecycle["move_to_cold_storage_after_days"] = lifecycle[
-                        "MoveToColdStorageAfterDays"
-                    ]
+                    tf_lifecycle["move_to_cold_storage_after_days"] = lifecycle["MoveToColdStorageAfterDays"]
 
                 if "DeleteAfterDays" in lifecycle:
                     tf_lifecycle["delete_after_days"] = lifecycle["DeleteAfterDays"]

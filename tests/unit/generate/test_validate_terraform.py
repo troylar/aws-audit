@@ -48,9 +48,7 @@ class TestValidateTerraform:
 
     @patch("src.generate.nodes.validate_terraform.shutil.which")
     @patch("os.path.isdir")
-    def test_error_when_output_dir_not_exists(
-        self, mock_isdir: MagicMock, mock_which: MagicMock
-    ) -> None:
+    def test_error_when_output_dir_not_exists(self, mock_isdir: MagicMock, mock_which: MagicMock) -> None:
         """Test error when output directory doesn't exist."""
         mock_which.return_value = "/usr/bin/terraform"
         mock_isdir.return_value = False
@@ -286,9 +284,7 @@ class TestRunTerraformFmt:
     def test_fmt_failure(self, mock_which: MagicMock, mock_run: MagicMock) -> None:
         """Test terraform fmt failure."""
         mock_which.return_value = "/usr/bin/terraform"
-        mock_run.return_value = MagicMock(
-            returncode=1, stderr="Error: Invalid HCL", stdout=""
-        )
+        mock_run.return_value = MagicMock(returncode=1, stderr="Error: Invalid HCL", stdout="")
 
         success, error = run_terraform_fmt("/tmp/terraform")
 

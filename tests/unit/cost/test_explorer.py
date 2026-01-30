@@ -47,9 +47,7 @@ class TestCostExplorerClientGetCostAndUsage:
         mock_client = MagicMock()
         mock_boto3.client.return_value = mock_client
         mock_client.get_cost_and_usage.return_value = {
-            "ResultsByTime": [
-                {"TimePeriod": {"Start": "2025-01-01", "End": "2025-02-01"}}
-            ]
+            "ResultsByTime": [{"TimePeriod": {"Start": "2025-01-01", "End": "2025-02-01"}}]
         }
 
         client = CostExplorerClient()
@@ -117,8 +115,7 @@ class TestCostExplorerClientGetCostAndUsage:
         mock_client = MagicMock()
         mock_boto3.client.return_value = mock_client
         mock_client.get_cost_and_usage.side_effect = ClientError(
-            {"Error": {"Code": "AccessDeniedException", "Message": "Access denied"}},
-            "GetCostAndUsage"
+            {"Error": {"Code": "AccessDeniedException", "Message": "Access denied"}}, "GetCostAndUsage"
         )
 
         client = CostExplorerClient()
@@ -136,8 +133,7 @@ class TestCostExplorerClientGetCostAndUsage:
         mock_client = MagicMock()
         mock_boto3.client.return_value = mock_client
         mock_client.get_cost_and_usage.side_effect = ClientError(
-            {"Error": {"Code": "DataUnavailableException", "Message": "Data not available"}},
-            "GetCostAndUsage"
+            {"Error": {"Code": "DataUnavailableException", "Message": "Data not available"}}, "GetCostAndUsage"
         )
 
         client = CostExplorerClient()
@@ -155,8 +151,7 @@ class TestCostExplorerClientGetCostAndUsage:
         mock_client = MagicMock()
         mock_boto3.client.return_value = mock_client
         mock_client.get_cost_and_usage.side_effect = ClientError(
-            {"Error": {"Code": "UnknownError", "Message": "Something went wrong"}},
-            "GetCostAndUsage"
+            {"Error": {"Code": "UnknownError", "Message": "Something went wrong"}}, "GetCostAndUsage"
         )
 
         client = CostExplorerClient()
@@ -232,7 +227,7 @@ class TestCostExplorerClientGetCostsByService:
                     "Groups": [
                         {"Keys": ["Amazon EC2"], "Metrics": {"UnblendedCost": {"Amount": "100.50"}}},
                         {"Keys": ["Amazon S3"], "Metrics": {"UnblendedCost": {"Amount": "25.75"}}},
-                    ]
+                    ],
                 }
             ]
         }
@@ -262,7 +257,7 @@ class TestCostExplorerClientGetCostsByService:
                     "Groups": [
                         {"Keys": ["Amazon EC2"], "Metrics": {"UnblendedCost": {"Amount": "75.00"}}},
                     ]
-                }
+                },
             ]
         }
 
@@ -300,11 +295,7 @@ class TestCostExplorerClientGetTotalCost:
         mock_client = MagicMock()
         mock_boto3.client.return_value = mock_client
         mock_client.get_cost_and_usage.return_value = {
-            "ResultsByTime": [
-                {
-                    "Total": {"UnblendedCost": {"Amount": "250.00"}}
-                }
-            ]
+            "ResultsByTime": [{"Total": {"UnblendedCost": {"Amount": "250.00"}}}]
         }
 
         client = CostExplorerClient()

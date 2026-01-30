@@ -196,9 +196,7 @@ class LambdaCollector(BaseResourceCollector):
                 elif self.code_storage and self.snapshot_name:
                     # Store externally to file
                     try:
-                        file_path, _ = self.code_storage.store_code(
-                            self.snapshot_name, function_name, code_bytes
-                        )
+                        file_path, _ = self.code_storage.store_code(self.snapshot_name, function_name, code_bytes)
                         code_data["code_stored"] = True
                         code_data["storage_type"] = "external"
                         code_data["code_file_path"] = file_path
@@ -249,10 +247,7 @@ class LambdaCollector(BaseResourceCollector):
 
                         # Get full layer version details including code location
                         try:
-                            layer_details = client.get_layer_version(
-                                LayerName=layer_name,
-                                VersionNumber=version_number
-                            )
+                            layer_details = client.get_layer_version(LayerName=layer_name, VersionNumber=version_number)
                             code_info = layer_details.get("Content", {})
                         except Exception as e:
                             self.logger.debug(f"Could not get layer version details for {layer_name}: {e}")

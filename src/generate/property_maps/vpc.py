@@ -110,18 +110,21 @@ def get_subnet_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # Register this property map for EC2 VPC and Subnet resources
-register_property_map("ec2:vpc", {
-    "vpc": {
-        "configurable": VPC_CONFIGURABLE,
-        "computed": VPC_COMPUTED,
-        "get_properties": get_vpc_properties,
+register_property_map(
+    "ec2:vpc",
+    {
+        "vpc": {
+            "configurable": VPC_CONFIGURABLE,
+            "computed": VPC_COMPUTED,
+            "get_properties": get_vpc_properties,
+        },
+        "subnet": {
+            "configurable": SUBNET_CONFIGURABLE,
+            "computed": SUBNET_COMPUTED,
+            "get_properties": get_subnet_properties,
+        },
     },
-    "subnet": {
-        "configurable": SUBNET_CONFIGURABLE,
-        "computed": SUBNET_COMPUTED,
-        "get_properties": get_subnet_properties,
-    },
-})
+)
 
 __all__ = [
     "VPC_CONFIGURABLE",

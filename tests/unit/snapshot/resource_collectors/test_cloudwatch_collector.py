@@ -68,15 +68,19 @@ class TestCloudWatchCollectorCollect:
 
         updated_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
         mock_cw_paginator = MagicMock()
-        mock_cw_paginator.paginate.return_value = [{
-            "MetricAlarms": [{
-                "AlarmName": "high-cpu-alarm",
-                "AlarmArn": "arn:aws:cloudwatch:us-east-1:123456789012:alarm:high-cpu-alarm",
-                "AlarmConfigurationUpdatedTimestamp": updated_at,
-                "MetricName": "CPUUtilization",
-            }],
-            "CompositeAlarms": [],
-        }]
+        mock_cw_paginator.paginate.return_value = [
+            {
+                "MetricAlarms": [
+                    {
+                        "AlarmName": "high-cpu-alarm",
+                        "AlarmArn": "arn:aws:cloudwatch:us-east-1:123456789012:alarm:high-cpu-alarm",
+                        "AlarmConfigurationUpdatedTimestamp": updated_at,
+                        "MetricName": "CPUUtilization",
+                    }
+                ],
+                "CompositeAlarms": [],
+            }
+        ]
         mock_cw_client.get_paginator.return_value = mock_cw_paginator
 
         mock_logs_paginator = MagicMock()
@@ -113,12 +117,16 @@ class TestCloudWatchCollectorCollect:
         mock_cw_client.get_paginator.return_value = mock_cw_paginator
 
         mock_logs_paginator = MagicMock()
-        mock_logs_paginator.paginate.return_value = [{
-            "logGroups": [{
-                "logGroupName": "/aws/lambda/my-function",
-                "arn": "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/my-function",
-            }]
-        }]
+        mock_logs_paginator.paginate.return_value = [
+            {
+                "logGroups": [
+                    {
+                        "logGroupName": "/aws/lambda/my-function",
+                        "arn": "arn:aws:logs:us-east-1:123456789012:log-group:/aws/lambda/my-function",
+                    }
+                ]
+            }
+        ]
         mock_logs_client.get_paginator.return_value = mock_logs_paginator
         mock_logs_client.list_tags_log_group.return_value = {"tags": {"Environment": "test"}}
 
@@ -147,22 +155,30 @@ class TestCloudWatchCollectorCollect:
         mock_logs_client = MagicMock()
 
         mock_cw_paginator = MagicMock()
-        mock_cw_paginator.paginate.return_value = [{
-            "MetricAlarms": [{
-                "AlarmName": "my-alarm",
-                "AlarmArn": "arn:aws:cloudwatch:us-east-1:123456789012:alarm:my-alarm",
-            }],
-            "CompositeAlarms": [],
-        }]
+        mock_cw_paginator.paginate.return_value = [
+            {
+                "MetricAlarms": [
+                    {
+                        "AlarmName": "my-alarm",
+                        "AlarmArn": "arn:aws:cloudwatch:us-east-1:123456789012:alarm:my-alarm",
+                    }
+                ],
+                "CompositeAlarms": [],
+            }
+        ]
         mock_cw_client.get_paginator.return_value = mock_cw_paginator
 
         mock_logs_paginator = MagicMock()
-        mock_logs_paginator.paginate.return_value = [{
-            "logGroups": [{
-                "logGroupName": "/my/log/group",
-                "arn": "arn:aws:logs:us-east-1:123456789012:log-group:/my/log/group",
-            }]
-        }]
+        mock_logs_paginator.paginate.return_value = [
+            {
+                "logGroups": [
+                    {
+                        "logGroupName": "/my/log/group",
+                        "arn": "arn:aws:logs:us-east-1:123456789012:log-group:/my/log/group",
+                    }
+                ]
+            }
+        ]
         mock_logs_client.get_paginator.return_value = mock_logs_paginator
         mock_logs_client.list_tags_log_group.return_value = {"tags": {}}
 
@@ -255,12 +271,16 @@ class TestCloudWatchCollectorCollect:
         mock_cw_client.get_paginator.return_value = mock_cw_paginator
 
         mock_logs_paginator = MagicMock()
-        mock_logs_paginator.paginate.return_value = [{
-            "logGroups": [{
-                "logGroupName": "/my/log/group",
-                "arn": "arn:aws:logs:us-east-1:123456789012:log-group:/my/log/group",
-            }]
-        }]
+        mock_logs_paginator.paginate.return_value = [
+            {
+                "logGroups": [
+                    {
+                        "logGroupName": "/my/log/group",
+                        "arn": "arn:aws:logs:us-east-1:123456789012:log-group:/my/log/group",
+                    }
+                ]
+            }
+        ]
         mock_logs_client.get_paginator.return_value = mock_logs_paginator
         mock_logs_client.list_tags_log_group.side_effect = Exception("Access denied")
 
@@ -292,12 +312,16 @@ class TestCloudWatchCollectorCollect:
         mock_cw_client.get_paginator.return_value = mock_cw_paginator
 
         mock_logs_paginator = MagicMock()
-        mock_logs_paginator.paginate.return_value = [{
-            "logGroups": [{
-                "logGroupName": "/my/log/group",
-                # No ARN field
-            }]
-        }]
+        mock_logs_paginator.paginate.return_value = [
+            {
+                "logGroups": [
+                    {
+                        "logGroupName": "/my/log/group",
+                        # No ARN field
+                    }
+                ]
+            }
+        ]
         mock_logs_client.get_paginator.return_value = mock_logs_paginator
         mock_logs_client.list_tags_log_group.return_value = {"tags": {}}
 
@@ -325,13 +349,17 @@ class TestCloudWatchCollectorCollect:
         mock_logs_client = MagicMock()
 
         mock_cw_paginator = MagicMock()
-        mock_cw_paginator.paginate.return_value = [{
-            "MetricAlarms": [{
-                "AlarmName": "my-alarm",
-                "AlarmArn": "arn:aws:cloudwatch:us-east-1:123456789012:alarm:my-alarm",
-            }],
-            "CompositeAlarms": [],
-        }]
+        mock_cw_paginator.paginate.return_value = [
+            {
+                "MetricAlarms": [
+                    {
+                        "AlarmName": "my-alarm",
+                        "AlarmArn": "arn:aws:cloudwatch:us-east-1:123456789012:alarm:my-alarm",
+                    }
+                ],
+                "CompositeAlarms": [],
+            }
+        ]
         mock_cw_client.get_paginator.return_value = mock_cw_paginator
 
         mock_logs_paginator = MagicMock()

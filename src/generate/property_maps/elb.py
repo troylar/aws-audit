@@ -308,41 +308,62 @@ def _register_maps() -> None:
     try:
         from . import register_property_map
 
-        register_property_map("elb:alb", {
-            "configurable": ALB_NLB_CONFIGURABLE,
-            "computed": ALB_NLB_COMPUTED,
-            "get_properties": get_alb_nlb_properties,
-        })
-        register_property_map("elb:nlb", {
-            "configurable": ALB_NLB_CONFIGURABLE,
-            "computed": ALB_NLB_COMPUTED,
-            "get_properties": get_alb_nlb_properties,
-        })
-        register_property_map("elb:target_group", {
-            "configurable": TARGET_GROUP_CONFIGURABLE,
-            "computed": TARGET_GROUP_COMPUTED,
-            "get_properties": get_target_group_properties,
-        })
-        register_property_map("elb:listener", {
-            "configurable": LISTENER_CONFIGURABLE,
-            "computed": LISTENER_COMPUTED,
-            "get_properties": get_listener_properties,
-        })
-        register_property_map("aws:lb", {
-            "configurable": ALB_NLB_CONFIGURABLE,
-            "computed": ALB_NLB_COMPUTED,
-            "get_properties": get_alb_nlb_properties,
-        })
-        register_property_map("aws:lb_target_group", {
-            "configurable": TARGET_GROUP_CONFIGURABLE,
-            "computed": TARGET_GROUP_COMPUTED,
-            "get_properties": get_target_group_properties,
-        })
-        register_property_map("aws:lb_listener", {
-            "configurable": LISTENER_CONFIGURABLE,
-            "computed": LISTENER_COMPUTED,
-            "get_properties": get_listener_properties,
-        })
+        register_property_map(
+            "elb:alb",
+            {
+                "configurable": ALB_NLB_CONFIGURABLE,
+                "computed": ALB_NLB_COMPUTED,
+                "get_properties": get_alb_nlb_properties,
+            },
+        )
+        register_property_map(
+            "elb:nlb",
+            {
+                "configurable": ALB_NLB_CONFIGURABLE,
+                "computed": ALB_NLB_COMPUTED,
+                "get_properties": get_alb_nlb_properties,
+            },
+        )
+        register_property_map(
+            "elb:target_group",
+            {
+                "configurable": TARGET_GROUP_CONFIGURABLE,
+                "computed": TARGET_GROUP_COMPUTED,
+                "get_properties": get_target_group_properties,
+            },
+        )
+        register_property_map(
+            "elb:listener",
+            {
+                "configurable": LISTENER_CONFIGURABLE,
+                "computed": LISTENER_COMPUTED,
+                "get_properties": get_listener_properties,
+            },
+        )
+        register_property_map(
+            "aws:lb",
+            {
+                "configurable": ALB_NLB_CONFIGURABLE,
+                "computed": ALB_NLB_COMPUTED,
+                "get_properties": get_alb_nlb_properties,
+            },
+        )
+        register_property_map(
+            "aws:lb_target_group",
+            {
+                "configurable": TARGET_GROUP_CONFIGURABLE,
+                "computed": TARGET_GROUP_COMPUTED,
+                "get_properties": get_target_group_properties,
+            },
+        )
+        register_property_map(
+            "aws:lb_listener",
+            {
+                "configurable": LISTENER_CONFIGURABLE,
+                "computed": LISTENER_COMPUTED,
+                "get_properties": get_listener_properties,
+            },
+        )
     except ImportError:
         # Registry not available yet, will be registered on import
         pass

@@ -54,16 +54,12 @@ class TestResourceMap:
 
         assert resource_map.id_to_ref["vpc-12345678"] == "aws_vpc.new"
 
-    def test_get_reference_returns_correct_reference(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_get_reference_returns_correct_reference(self, populated_map: ResourceMap) -> None:
         """Test that get_reference returns the correct Terraform reference."""
         ref = populated_map.get_reference("vpc-12345678")
         assert ref == "aws_vpc.main.id"
 
-    def test_get_reference_with_custom_attribute(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_get_reference_with_custom_attribute(self, populated_map: ResourceMap) -> None:
         """Test get_reference with a custom attribute."""
         ref = populated_map.get_reference("vpc-12345678", attribute="arn")
         assert ref == "aws_vpc.main.arn"
@@ -71,9 +67,7 @@ class TestResourceMap:
         ref = populated_map.get_reference("sg-99887766", attribute="name")
         assert ref == "aws_security_group.web.name"
 
-    def test_get_reference_returns_none_for_unknown_id(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_get_reference_returns_none_for_unknown_id(self, populated_map: ResourceMap) -> None:
         """Test that get_reference returns None for unknown IDs."""
         ref = populated_map.get_reference("vpc-nonexistent")
         assert ref is None
@@ -83,23 +77,19 @@ class TestResourceMap:
         ref = resource_map.get_reference("vpc-12345678")
         assert ref is None
 
-    def test_replace_ids_in_code_double_quotes(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_replace_ids_in_code_double_quotes(self, populated_map: ResourceMap) -> None:
         """Test replacing IDs in double-quoted strings."""
-        code = '''
+        code = """
 resource "aws_subnet" "example" {
   vpc_id = "vpc-12345678"
 }
-'''
+"""
         result = populated_map.replace_ids_in_code(code)
 
         assert '"vpc-12345678"' not in result
         assert "aws_vpc.main.id" in result
 
-    def test_replace_ids_in_code_single_quotes(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_replace_ids_in_code_single_quotes(self, populated_map: ResourceMap) -> None:
         """Test replacing IDs in single-quoted strings."""
         code = """
 vpc_id = 'vpc-12345678'
@@ -109,17 +99,15 @@ vpc_id = 'vpc-12345678'
         assert "'vpc-12345678'" not in result
         assert "aws_vpc.main.id" in result
 
-    def test_replace_ids_in_code_multiple_ids(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_replace_ids_in_code_multiple_ids(self, populated_map: ResourceMap) -> None:
         """Test replacing multiple IDs in the same code."""
-        code = '''
+        code = """
 resource "aws_instance" "web" {
   vpc_id            = "vpc-12345678"
   subnet_id         = "subnet-abcdef12"
   security_groups   = ["sg-99887766"]
 }
-'''
+"""
         result = populated_map.replace_ids_in_code(code)
 
         assert "aws_vpc.main.id" in result
@@ -129,47 +117,39 @@ resource "aws_instance" "web" {
         assert '"subnet-abcdef12"' not in result
         assert '"sg-99887766"' not in result
 
-    def test_replace_ids_in_code_preserves_unknown_ids(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_replace_ids_in_code_preserves_unknown_ids(self, populated_map: ResourceMap) -> None:
         """Test that unknown IDs are preserved unchanged."""
-        code = '''
+        code = """
 resource "aws_instance" "web" {
   vpc_id    = "vpc-12345678"
   ami       = "ami-unknown12345"
 }
-'''
+"""
         result = populated_map.replace_ids_in_code(code)
 
         assert "aws_vpc.main.id" in result
         assert '"ami-unknown12345"' in result
 
-    def test_replace_ids_in_code_no_matches(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_replace_ids_in_code_no_matches(self, populated_map: ResourceMap) -> None:
         """Test that code without matching IDs is returned unchanged."""
-        code = '''
+        code = """
 resource "aws_instance" "web" {
   ami = "ami-12345678"
 }
-'''
+"""
         result = populated_map.replace_ids_in_code(code)
         assert result == code
 
-    def test_replace_ids_in_code_empty_string(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_replace_ids_in_code_empty_string(self, populated_map: ResourceMap) -> None:
         """Test replacing in empty string."""
         result = populated_map.replace_ids_in_code("")
         assert result == ""
 
-    def test_replace_ids_handles_arn_patterns(
-        self, populated_map: ResourceMap
-    ) -> None:
+    def test_replace_ids_handles_arn_patterns(self, populated_map: ResourceMap) -> None:
         """Test replacing ARN patterns."""
-        code = '''
+        code = """
 role_arn = "arn:aws:iam::123456789012:role/MyRole"
-'''
+"""
         result = populated_map.replace_ids_in_code(code)
 
         assert "aws_iam_role.my_role.id" in result
@@ -200,9 +180,7 @@ class TestTrackedResource:
         """Create a TrackedResource from sample data."""
         return TrackedResource.from_inventory(sample_resource_dict)
 
-    def test_from_inventory_creates_instance(
-        self, sample_resource_dict: dict
-    ) -> None:
+    def test_from_inventory_creates_instance(self, sample_resource_dict: dict) -> None:
         """Test that from_inventory creates a proper TrackedResource."""
         resource = TrackedResource.from_inventory(sample_resource_dict)
 
@@ -265,16 +243,12 @@ class TestTrackedResource:
         assert resource.is_generated is False
         assert resource.error is None
 
-    def test_get_terraform_name_simple(
-        self, tracked_resource: TrackedResource
-    ) -> None:
+    def test_get_terraform_name_simple(self, tracked_resource: TrackedResource) -> None:
         """Test get_terraform_name with simple name."""
         tf_name = tracked_resource.get_terraform_name()
         assert tf_name == "my_web_server"
 
-    def test_get_terraform_name_caches_result(
-        self, tracked_resource: TrackedResource
-    ) -> None:
+    def test_get_terraform_name_caches_result(self, tracked_resource: TrackedResource) -> None:
         """Test that get_terraform_name caches the result."""
         tf_name1 = tracked_resource.get_terraform_name()
         tf_name2 = tracked_resource.get_terraform_name()

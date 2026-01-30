@@ -60,13 +60,17 @@ class TestEventBridgeCollectorCollect:
 
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
         mock_bus_paginator = MagicMock()
-        mock_bus_paginator.paginate.return_value = [{
-            "EventBuses": [{
-                "Name": "my-custom-bus",
-                "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/my-custom-bus",
-                "CreationTime": created_at,
-            }]
-        }]
+        mock_bus_paginator.paginate.return_value = [
+            {
+                "EventBuses": [
+                    {
+                        "Name": "my-custom-bus",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/my-custom-bus",
+                        "CreationTime": created_at,
+                    }
+                ]
+            }
+        ]
 
         mock_rules_paginator = MagicMock()
         mock_rules_paginator.paginate.return_value = [{"Rules": []}]
@@ -78,9 +82,7 @@ class TestEventBridgeCollectorCollect:
                 return mock_rules_paginator
 
         mock_client.get_paginator.side_effect = get_paginator_side_effect
-        mock_client.list_tags_for_resource.return_value = {
-            "Tags": [{"Key": "Environment", "Value": "test"}]
-        }
+        mock_client.list_tags_for_resource.return_value = {"Tags": [{"Key": "Environment", "Value": "test"}]}
         mock_create_client.return_value = mock_client
 
         collector = EventBridgeCollector(session=mock_session, region="us-east-1")
@@ -101,12 +103,16 @@ class TestEventBridgeCollectorCollect:
         mock_bus_paginator.paginate.return_value = [{"EventBuses": []}]
 
         mock_rules_paginator = MagicMock()
-        mock_rules_paginator.paginate.return_value = [{
-            "Rules": [{
-                "Name": "my-rule",
-                "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
-            }]
-        }]
+        mock_rules_paginator.paginate.return_value = [
+            {
+                "Rules": [
+                    {
+                        "Name": "my-rule",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "list_event_buses":
@@ -135,20 +141,28 @@ class TestEventBridgeCollectorCollect:
         mock_client = MagicMock()
 
         mock_bus_paginator = MagicMock()
-        mock_bus_paginator.paginate.return_value = [{
-            "EventBuses": [{
-                "Name": "my-bus",
-                "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/my-bus",
-            }]
-        }]
+        mock_bus_paginator.paginate.return_value = [
+            {
+                "EventBuses": [
+                    {
+                        "Name": "my-bus",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/my-bus",
+                    }
+                ]
+            }
+        ]
 
         mock_rules_paginator = MagicMock()
-        mock_rules_paginator.paginate.return_value = [{
-            "Rules": [{
-                "Name": "my-rule",
-                "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
-            }]
-        }]
+        mock_rules_paginator.paginate.return_value = [
+            {
+                "Rules": [
+                    {
+                        "Name": "my-rule",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "list_event_buses":
@@ -175,12 +189,16 @@ class TestEventBridgeCollectorCollect:
         mock_client = MagicMock()
 
         mock_bus_paginator = MagicMock()
-        mock_bus_paginator.paginate.return_value = [{
-            "EventBuses": [{
-                "Name": "my-bus",
-                "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/my-bus",
-            }]
-        }]
+        mock_bus_paginator.paginate.return_value = [
+            {
+                "EventBuses": [
+                    {
+                        "Name": "my-bus",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/my-bus",
+                    }
+                ]
+            }
+        ]
 
         mock_rules_paginator = MagicMock()
         mock_rules_paginator.paginate.return_value = [{"Rules": []}]
@@ -236,12 +254,16 @@ class TestEventBridgeCollectorCollect:
         mock_bus_paginator.paginate.return_value = [{"EventBuses": []}]
 
         mock_rules_paginator = MagicMock()
-        mock_rules_paginator.paginate.return_value = [{
-            "Rules": [{
-                "Name": "my-rule",
-                "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
-            }]
-        }]
+        mock_rules_paginator.paginate.return_value = [
+            {
+                "Rules": [
+                    {
+                        "Name": "my-rule",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "list_event_buses":
@@ -269,12 +291,16 @@ class TestEventBridgeCollectorCollect:
         mock_bus_paginator.paginate.return_value = [{"EventBuses": []}]
 
         mock_rules_paginator = MagicMock()
-        mock_rules_paginator.paginate.return_value = [{
-            "Rules": [{
-                "Name": "my-rule",
-                "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
-            }]
-        }]
+        mock_rules_paginator.paginate.return_value = [
+            {
+                "Rules": [
+                    {
+                        "Name": "my-rule",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:rule/my-rule",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "list_event_buses":
@@ -299,12 +325,16 @@ class TestEventBridgeCollectorCollect:
         mock_client = MagicMock()
 
         mock_bus_paginator = MagicMock()
-        mock_bus_paginator.paginate.return_value = [{
-            "EventBuses": [{
-                "Name": "custom-bus",
-                "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/custom-bus",
-            }]
-        }]
+        mock_bus_paginator.paginate.return_value = [
+            {
+                "EventBuses": [
+                    {
+                        "Name": "custom-bus",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/custom-bus",
+                    }
+                ]
+            }
+        ]
 
         call_count = [0]
         mock_rules_paginator = MagicMock()
@@ -314,12 +344,16 @@ class TestEventBridgeCollectorCollect:
             if kwargs.get("EventBusName") == "default":
                 return [{"Rules": []}]
             elif kwargs.get("EventBusName") == "custom-bus":
-                return [{
-                    "Rules": [{
-                        "Name": "custom-rule",
-                        "Arn": "arn:aws:events:us-east-1:123456789012:rule/custom-bus/custom-rule",
-                    }]
-                }]
+                return [
+                    {
+                        "Rules": [
+                            {
+                                "Name": "custom-rule",
+                                "Arn": "arn:aws:events:us-east-1:123456789012:rule/custom-bus/custom-rule",
+                            }
+                        ]
+                    }
+                ]
             return [{"Rules": []}]
 
         mock_rules_paginator.paginate = paginate_rules
@@ -352,12 +386,16 @@ class TestEventBridgeCollectorCollect:
         mock_bus_paginator.paginate.return_value = [{"EventBuses": []}]
 
         mock_rules_paginator = MagicMock()
-        mock_rules_paginator.paginate.return_value = [{
-            "Rules": [{
-                "Name": "tagged-rule",
-                "Arn": "arn:aws:events:us-east-1:123456789012:rule/tagged-rule",
-            }]
-        }]
+        mock_rules_paginator.paginate.return_value = [
+            {
+                "Rules": [
+                    {
+                        "Name": "tagged-rule",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:rule/tagged-rule",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "list_event_buses":
@@ -388,12 +426,16 @@ class TestEventBridgeCollectorCollect:
         mock_client = MagicMock()
 
         mock_bus_paginator = MagicMock()
-        mock_bus_paginator.paginate.return_value = [{
-            "EventBuses": [{
-                "Name": "error-bus",
-                "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/error-bus",
-            }]
-        }]
+        mock_bus_paginator.paginate.return_value = [
+            {
+                "EventBuses": [
+                    {
+                        "Name": "error-bus",
+                        "Arn": "arn:aws:events:us-east-1:123456789012:event-bus/error-bus",
+                    }
+                ]
+            }
+        ]
 
         def paginate_rules(**kwargs):
             if kwargs.get("EventBusName") == "error-bus":

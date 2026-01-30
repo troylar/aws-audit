@@ -191,39 +191,57 @@ def get_ecs_task_definition_properties(raw_config: Dict[str, Any]) -> Dict[str, 
 
 
 # Register ECS property maps with the registry
-register_property_map("ecs:cluster", {
-    "configurable": ECS_CLUSTER_CONFIGURABLE,
-    "computed": ECS_CLUSTER_COMPUTED,
-    "get_properties": get_ecs_cluster_properties,
-})
+register_property_map(
+    "ecs:cluster",
+    {
+        "configurable": ECS_CLUSTER_CONFIGURABLE,
+        "computed": ECS_CLUSTER_COMPUTED,
+        "get_properties": get_ecs_cluster_properties,
+    },
+)
 
-register_property_map("ecs:service", {
-    "configurable": ECS_SERVICE_CONFIGURABLE,
-    "computed": ECS_SERVICE_COMPUTED,
-    "get_properties": get_ecs_service_properties,
-})
+register_property_map(
+    "ecs:service",
+    {
+        "configurable": ECS_SERVICE_CONFIGURABLE,
+        "computed": ECS_SERVICE_COMPUTED,
+        "get_properties": get_ecs_service_properties,
+    },
+)
 
-register_property_map("ecs:task_definition", {
-    "configurable": ECS_TASK_DEFINITION_CONFIGURABLE,
-    "computed": ECS_TASK_DEFINITION_COMPUTED,
-    "get_properties": get_ecs_task_definition_properties,
-})
+register_property_map(
+    "ecs:task_definition",
+    {
+        "configurable": ECS_TASK_DEFINITION_CONFIGURABLE,
+        "computed": ECS_TASK_DEFINITION_COMPUTED,
+        "get_properties": get_ecs_task_definition_properties,
+    },
+)
 
 # Also register with AWS CloudFormation resource type names
-register_property_map("AWS::ECS::Cluster", {
-    "configurable": ECS_CLUSTER_CONFIGURABLE,
-    "computed": ECS_CLUSTER_COMPUTED,
-})
+register_property_map(
+    "AWS::ECS::Cluster",
+    {
+        "configurable": ECS_CLUSTER_CONFIGURABLE,
+        "computed": ECS_CLUSTER_COMPUTED,
+    },
+)
 
-register_property_map("AWS::ECS::Service", {
-    "configurable": ECS_SERVICE_CONFIGURABLE,
-    "computed": ECS_SERVICE_COMPUTED,
-})
+register_property_map(
+    "AWS::ECS::Service",
+    {
+        "configurable": ECS_SERVICE_CONFIGURABLE,
+        "computed": ECS_SERVICE_COMPUTED,
+    },
+)
 
-register_property_map("AWS::ECS::TaskDefinition", {
-    "configurable": ECS_TASK_DEFINITION_CONFIGURABLE,
-    "computed": ECS_TASK_DEFINITION_COMPUTED,
-})
+register_property_map(
+    "AWS::ECS::TaskDefinition",
+    {
+        "configurable": ECS_TASK_DEFINITION_CONFIGURABLE,
+        "computed": ECS_TASK_DEFINITION_COMPUTED,
+    },
+)
 
 __all__ = [
     "ECS_CLUSTER_CONFIGURABLE",

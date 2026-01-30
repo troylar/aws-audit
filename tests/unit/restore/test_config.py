@@ -91,11 +91,7 @@ class TestBuildProtectionRules:
 
     def test_config_excluded_types(self):
         """Test building rules from excluded_types."""
-        config = {
-            "protection": {
-                "excluded_types": ["AWS::RDS::DBInstance", "AWS::RDS::DBCluster"]
-            }
-        }
+        config = {"protection": {"excluded_types": ["AWS::RDS::DBInstance", "AWS::RDS::DBCluster"]}}
 
         rules = build_protection_rules(config, None)
 
@@ -124,11 +120,7 @@ class TestBuildProtectionRules:
 
     def test_cli_rules_have_higher_priority(self):
         """Test that CLI rules have higher priority than config rules."""
-        config = {
-            "protection": {
-                "global": [{"property": "tag:config-tag", "value": "value"}]
-            }
-        }
+        config = {"protection": {"global": [{"property": "tag:config-tag", "value": "value"}]}}
 
         rules = build_protection_rules(config, ["cli-tag=value"])
 
@@ -151,11 +143,7 @@ class TestBuildProtectionRules:
 
     def test_simple_string_global_rule(self):
         """Test global rule as simple string format."""
-        config = {
-            "protection": {
-                "global": ["project=baseline"]
-            }
-        }
+        config = {"protection": {"global": ["project=baseline"]}}
 
         rules = build_protection_rules(config, None)
 

@@ -80,7 +80,7 @@ def format_layer_prompt(
         for layer_file in previous_layers:
             context_text += f"- {layer_file}\n"
 
-    prompt = f'''Generate Terraform configuration for the **{layer.name}** layer.
+    prompt = f"""Generate Terraform configuration for the **{layer.name}** layer.
 
 ## Resources to Generate ({len(layer.resources)} resources)
 
@@ -90,7 +90,7 @@ def format_layer_prompt(
 {context_text}
 
 Generate complete, valid Terraform HCL for all resources above.
-'''
+"""
 
     return prompt
 
@@ -129,6 +129,7 @@ def format_resource_for_prompt(resource: TrackedResource) -> str:
     lines.append("```json")
 
     import json
+
     lines.append(json.dumps(props, indent=2, default=str))
 
     lines.append("```")
@@ -145,15 +146,37 @@ def _filter_properties(
     Removes computed properties and applies property map transformations.
     """
     computed_props = {
-        "CreateTime", "CreationDate", "LastModified", "LastUpdated",
-        "State", "Status", "Arn", "OwnerId", "RequesterId",
-        "Attachments", "Association", "NetworkInterfaces",
-        "BlockDeviceMappings", "StateReason", "StateTransitionReason",
-        "Platform", "Architecture", "RootDeviceType", "VirtualizationType",
-        "Monitoring", "Placement", "LaunchTime", "UsageOperation",
-        "UsageOperationUpdateTime", "CapacityReservationSpecification",
-        "HibernationOptions", "MetadataOptions", "EnclaveOptions",
-        "BootMode", "CurrentInstanceBootMode", "PrivateDnsNameOptions",
+        "CreateTime",
+        "CreationDate",
+        "LastModified",
+        "LastUpdated",
+        "State",
+        "Status",
+        "Arn",
+        "OwnerId",
+        "RequesterId",
+        "Attachments",
+        "Association",
+        "NetworkInterfaces",
+        "BlockDeviceMappings",
+        "StateReason",
+        "StateTransitionReason",
+        "Platform",
+        "Architecture",
+        "RootDeviceType",
+        "VirtualizationType",
+        "Monitoring",
+        "Placement",
+        "LaunchTime",
+        "UsageOperation",
+        "UsageOperationUpdateTime",
+        "CapacityReservationSpecification",
+        "HibernationOptions",
+        "MetadataOptions",
+        "EnclaveOptions",
+        "BootMode",
+        "CurrentInstanceBootMode",
+        "PrivateDnsNameOptions",
     }
 
     filtered = {}
@@ -198,7 +221,7 @@ def format_retry_prompt(
     """
     errors_text = "\n".join(f"- {err}" for err in validation_errors)
 
-    prompt = f'''The Terraform code you generated has validation errors. Please fix them.
+    prompt = f"""The Terraform code you generated has validation errors. Please fix them.
 
 ## Validation Errors
 
@@ -215,7 +238,7 @@ def format_retry_prompt(
 {_format_resource_map_text(resource_map)}
 
 Generate the corrected Terraform code. Return ONLY valid HCL, no markdown or explanations.
-'''
+"""
 
     return prompt
 

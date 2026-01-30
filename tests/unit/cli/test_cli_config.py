@@ -45,11 +45,13 @@ class TestConfigLoad:
     def test_load_from_specified_file(self, tmp_path, monkeypatch):
         """Test loading from explicitly specified config file."""
         config_file = tmp_path / "custom-config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 snapshot_dir: custom-snapshots
 aws_profile: my-profile
 parallel_workers: 5
-""")
+"""
+        )
         # Clear env vars
         monkeypatch.delenv("AWS_BASELINE_SNAPSHOT_DIR", raising=False)
         monkeypatch.delenv("AWS_PROFILE", raising=False)
@@ -64,12 +66,14 @@ parallel_workers: 5
         """Test loading from .aws-baseline.yaml in current directory."""
         monkeypatch.chdir(tmp_path)
         config_file = tmp_path / ".aws-baseline.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 snapshot_dir: local-snapshots
 regions:
   - us-east-1
   - us-west-2
-""")
+"""
+        )
         # Clear env vars
         monkeypatch.delenv("AWS_BASELINE_SNAPSHOT_DIR", raising=False)
         monkeypatch.delenv("AWS_REGION", raising=False)
@@ -85,10 +89,12 @@ regions:
         fake_home = tmp_path / "home"
         fake_home.mkdir()
         config_file = fake_home / ".aws-baseline.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 snapshot_dir: home-snapshots
 auto_compress_mb: 20
-""")
+"""
+        )
 
         # Set HOME and change to a dir without config
         empty_dir = tmp_path / "empty"
@@ -107,10 +113,12 @@ auto_compress_mb: 20
     def test_env_overrides_file(self, tmp_path, monkeypatch):
         """Test that environment variables override file settings."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 snapshot_dir: file-snapshots
 log_level: DEBUG
-""")
+"""
+        )
         monkeypatch.setenv("AWS_BASELINE_SNAPSHOT_DIR", "env-snapshots")
         monkeypatch.setenv("AWS_BASELINE_LOG_LEVEL", "WARNING")
 
@@ -126,11 +134,13 @@ class TestConfigLoadFromFile:
     def test_load_resource_types_as_list(self, tmp_path, monkeypatch):
         """Test loading resource_types as simple list."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 resource_types:
   - AWS::EC2::Instance
   - AWS::S3::Bucket
-""")
+"""
+        )
         monkeypatch.delenv("AWS_BASELINE_SNAPSHOT_DIR", raising=False)
 
         config = Config.load(config_file=str(config_file))
@@ -140,12 +150,14 @@ resource_types:
     def test_load_resource_types_as_dict(self, tmp_path, monkeypatch):
         """Test loading resource_types as dict with include key."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 resource_types:
   include:
     - AWS::Lambda::Function
     - AWS::RDS::DBInstance
-""")
+"""
+        )
         monkeypatch.delenv("AWS_BASELINE_SNAPSHOT_DIR", raising=False)
 
         config = Config.load(config_file=str(config_file))
@@ -177,7 +189,8 @@ resource_types:
     def test_load_all_fields(self, tmp_path, monkeypatch):
         """Test loading all configuration fields."""
         config_file = tmp_path / "config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 snapshot_dir: all-fields-snapshots
 regions:
   - eu-west-1
@@ -185,7 +198,8 @@ regions:
 aws_profile: production
 parallel_workers: 20
 auto_compress_mb: 50
-""")
+"""
+        )
         monkeypatch.delenv("AWS_BASELINE_SNAPSHOT_DIR", raising=False)
         monkeypatch.delenv("AWS_PROFILE", raising=False)
         monkeypatch.delenv("AWS_REGION", raising=False)

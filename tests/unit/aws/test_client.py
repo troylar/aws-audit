@@ -157,24 +157,18 @@ class TestGetEnabledRegions:
         result = get_enabled_regions()
 
         assert result == ["us-east-1", "us-west-2", "eu-west-1"]
-        mock_create_client.assert_called_once_with(
-            "ec2", region_name="us-east-1", profile_name=None
-        )
+        mock_create_client.assert_called_once_with("ec2", region_name="us-east-1", profile_name=None)
 
     @patch("src.aws.client.create_boto_client")
     def test_get_enabled_regions_with_profile(self, mock_create_client):
         """Test enabled regions retrieval with profile."""
         mock_client = MagicMock()
-        mock_client.describe_regions.return_value = {
-            "Regions": [{"RegionName": "us-east-1"}]
-        }
+        mock_client.describe_regions.return_value = {"Regions": [{"RegionName": "us-east-1"}]}
         mock_create_client.return_value = mock_client
 
         result = get_enabled_regions(profile_name="my-profile")
 
-        mock_create_client.assert_called_once_with(
-            "ec2", region_name="us-east-1", profile_name="my-profile"
-        )
+        mock_create_client.assert_called_once_with("ec2", region_name="us-east-1", profile_name="my-profile")
         assert result == ["us-east-1"]
 
     @patch("src.aws.client.create_boto_client")
@@ -308,9 +302,7 @@ class TestTestClientConnection:
         mock_service_model.service_name = "ec2"
         mock_client._service_model = mock_service_model
         error_response = {"Error": {"Code": "UnauthorizedOperation", "Message": "Test"}}
-        mock_client.describe_regions.side_effect = ClientError(
-            error_response, "DescribeRegions"
-        )
+        mock_client.describe_regions.side_effect = ClientError(error_response, "DescribeRegions")
 
         result = check_client_connection(mock_client)
 

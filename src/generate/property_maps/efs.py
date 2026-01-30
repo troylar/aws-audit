@@ -139,14 +139,17 @@ def get_efs_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 # Register this property map for EFS resources
 from . import register_property_map
 
-register_property_map("efs", {
-    "file_system": {
-        "configurable": EFS_FILESYSTEM_CONFIGURABLE,
-        "computed": EFS_FILESYSTEM_COMPUTED,
-        "get_properties": get_efs_filesystem_properties,
-        "get_computed": get_efs_computed_properties,
+register_property_map(
+    "efs",
+    {
+        "file_system": {
+            "configurable": EFS_FILESYSTEM_CONFIGURABLE,
+            "computed": EFS_FILESYSTEM_COMPUTED,
+            "get_properties": get_efs_filesystem_properties,
+            "get_computed": get_efs_computed_properties,
+        },
     },
-})
+)
 
 __all__ = [
     "EFS_FILESYSTEM_CONFIGURABLE",

@@ -22,7 +22,6 @@ RESOURCE_TYPE_DELETION_ORDER = {
     "AWS::Events::Rule": 1,
     "AWS::ApiGateway::RestApi": 1,
     "AWS::Lambda::Function": 1,
-
     # Tier 2: Compute layer (depend on networking)
     "AWS::EC2::Instance": 2,
     "AWS::ECS::Cluster": 2,
@@ -32,32 +31,25 @@ RESOURCE_TYPE_DELETION_ORDER = {
     "AWS::ElastiCache::CacheCluster": 2,
     "AWS::EFS::FileSystem": 2,
     "AWS::CloudFormation::Stack": 2,
-
     # Tier 3: Load balancers (depend on networking, target compute)
     "AWS::ElasticLoadBalancing::LoadBalancer": 3,
     "AWS::ElasticLoadBalancingV2::LoadBalancer": 3,
     "AWS::ElasticLoadBalancingV2::TargetGroup": 3,
-
     # Tier 4: Networking accessories (depend on VPC)
     "AWS::EC2::NatGateway": 4,
     "AWS::EC2::NetworkInterface": 4,
     "AWS::EC2::VPCEndpoint": 4,
     "AWS::EC2::EIP": 4,
-
     # Tier 5: Security groups (depend on VPC, used by compute)
     "AWS::EC2::SecurityGroup": 5,
-
     # Tier 6: Subnets and route tables (depend on VPC)
     "AWS::EC2::Subnet": 6,
     "AWS::EC2::RouteTable": 6,
     "AWS::EC2::NetworkAcl": 6,
-
     # Tier 7: Internet/NAT gateways attachment (depend on VPC)
     "AWS::EC2::InternetGateway": 7,
-
     # Tier 8: VPCs (root networking infrastructure)
     "AWS::EC2::VPC": 8,
-
     # Tier 9: Standalone resources (no VPC dependencies)
     "AWS::S3::Bucket": 9,
     "AWS::DynamoDB::Table": 9,
@@ -78,7 +70,6 @@ RESOURCE_TYPE_DELETION_ORDER = {
     "AWS::Glue::Job": 9,
     "AWS::Glue::Database": 9,
     "AWS::Glue::Crawler": 9,
-
     # Tier 10: IAM (delete last - may be needed by other resources)
     "AWS::IAM::Role": 10,
     "AWS::IAM::User": 10,
@@ -119,8 +110,8 @@ def sort_resources_for_deletion(resources: List[Any]) -> List[Any]:
         key=lambda r: (
             get_deletion_tier(r.resource_type),
             r.resource_type,
-            getattr(r, 'name', '') or getattr(r, 'arn', ''),
-        )
+            getattr(r, "name", "") or getattr(r, "arn", ""),
+        ),
     )
 
 

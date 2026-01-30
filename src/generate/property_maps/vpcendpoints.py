@@ -242,16 +242,22 @@ def _register_maps() -> None:
     try:
         from . import register_property_map
 
-        register_property_map("ec2:vpc_endpoint", {
-            "configurable": VPC_ENDPOINT_CONFIGURABLE,
-            "computed": VPC_ENDPOINT_COMPUTED,
-            "get_properties": get_vpc_endpoint_properties,
-        })
-        register_property_map("aws:vpc_endpoint", {
-            "configurable": VPC_ENDPOINT_CONFIGURABLE,
-            "computed": VPC_ENDPOINT_COMPUTED,
-            "get_properties": get_vpc_endpoint_properties,
-        })
+        register_property_map(
+            "ec2:vpc_endpoint",
+            {
+                "configurable": VPC_ENDPOINT_CONFIGURABLE,
+                "computed": VPC_ENDPOINT_COMPUTED,
+                "get_properties": get_vpc_endpoint_properties,
+            },
+        )
+        register_property_map(
+            "aws:vpc_endpoint",
+            {
+                "configurable": VPC_ENDPOINT_CONFIGURABLE,
+                "computed": VPC_ENDPOINT_COMPUTED,
+                "get_properties": get_vpc_endpoint_properties,
+            },
+        )
     except ImportError:
         # Registry not available yet, will be registered on import
         pass

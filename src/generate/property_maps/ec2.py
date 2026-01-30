@@ -123,13 +123,16 @@ def get_ec2_instance_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # Register this property map for EC2 resources
-register_property_map("ec2", {
-    "instance": {
-        "configurable": EC2_INSTANCE_CONFIGURABLE,
-        "computed": EC2_INSTANCE_COMPUTED,
-        "get_properties": get_ec2_instance_properties,
+register_property_map(
+    "ec2",
+    {
+        "instance": {
+            "configurable": EC2_INSTANCE_CONFIGURABLE,
+            "computed": EC2_INSTANCE_COMPUTED,
+            "get_properties": get_ec2_instance_properties,
+        },
     },
-})
+)
 
 __all__ = [
     "EC2_INSTANCE_CONFIGURABLE",

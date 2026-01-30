@@ -48,14 +48,10 @@ def _transform_stage_action(action: Dict[str, Any]) -> Dict[str, Any]:
         result["configuration"] = action["Configuration"]
 
     if "InputArtifacts" in action:
-        result["input_artifacts"] = [
-            {"name": artifact.get("Name")} for artifact in action["InputArtifacts"]
-        ]
+        result["input_artifacts"] = [{"name": artifact.get("Name")} for artifact in action["InputArtifacts"]]
 
     if "OutputArtifacts" in action:
-        result["output_artifacts"] = [
-            {"name": artifact.get("Name")} for artifact in action["OutputArtifacts"]
-        ]
+        result["output_artifacts"] = [{"name": artifact.get("Name")} for artifact in action["OutputArtifacts"]]
 
     if "RoleArn" in action:
         result["role_arn"] = action["RoleArn"]

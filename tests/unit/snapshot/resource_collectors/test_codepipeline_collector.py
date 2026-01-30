@@ -63,9 +63,7 @@ class TestCodePipelineCollectorCollect:
                 "created": created_at,
             },
         }
-        mock_client.list_tags_for_resource.return_value = {
-            "tags": [{"key": "Environment", "value": "test"}]
-        }
+        mock_client.list_tags_for_resource.return_value = {"tags": [{"key": "Environment", "value": "test"}]}
         mock_create_client.return_value = mock_client
 
         collector = CodePipelineCollector(session=mock_session, region="us-east-1")
@@ -86,12 +84,14 @@ class TestCodePipelineCollectorCollect:
         """Test collecting multiple pipelines."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "pipelines": [
-                {"name": "pipeline-1"},
-                {"name": "pipeline-2"},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "pipelines": [
+                    {"name": "pipeline-1"},
+                    {"name": "pipeline-2"},
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.get_pipeline.return_value = {
@@ -148,12 +148,14 @@ class TestCodePipelineCollectorCollect:
         """Test collecting continues when get_pipeline fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "pipelines": [
-                {"name": "good-pipeline"},
-                {"name": "bad-pipeline"},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "pipelines": [
+                    {"name": "good-pipeline"},
+                    {"name": "bad-pipeline"},
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
         def get_pipeline_side_effect(name):

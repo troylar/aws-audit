@@ -418,9 +418,7 @@ def inventory_list(
 
 @inventory_app.command("show")
 def inventory_show(
-    name: str = typer.Argument(
-        ..., help="Inventory name to display", envvar="AWSINV_INVENTORY_ID"
-    ),
+    name: str = typer.Argument(..., help="Inventory name to display", envvar="AWSINV_INVENTORY_ID"),
     profile: Optional[str] = typer.Option(
         None, "--profile", "-p", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
     ),
@@ -698,7 +696,10 @@ app.add_typer(config_app, name="config")
 @config_app.command("check")
 def config_check(
     regions: Optional[str] = typer.Option(
-        None, "--regions", help="Comma-separated list of regions (default: us-east-1)", envvar=["AWSINV_REGION", "AWS_REGION"]
+        None,
+        "--regions",
+        help="Comma-separated list of regions (default: us-east-1)",
+        envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
     profile: Optional[str] = typer.Option(
         None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
@@ -790,7 +791,9 @@ def config_check(
         console.print("[yellow]Config not enabled in any checked regions[/yellow]")
         console.print("[dim]Snapshots will use direct API calls (slower).[/dim]")
         console.print()
-        console.print("[dim]To enable AWS Config: https://docs.aws.amazon.com/config/latest/developerguide/gs-console.html[/dim]")
+        console.print(
+            "[dim]To enable AWS Config: https://docs.aws.amazon.com/config/latest/developerguide/gs-console.html[/dim]"
+        )
 
 
 @snapshot_app.command("create")
@@ -799,7 +802,10 @@ def snapshot_create(
         None, help="Snapshot name (auto-generated if not provided)", envvar="AWSINV_SNAPSHOT_ID"
     ),
     regions: Optional[str] = typer.Option(
-        None, "--regions", help="Comma-separated list of regions (default: us-east-1)", envvar=["AWSINV_REGION", "AWS_REGION"]
+        None,
+        "--regions",
+        help="Comma-separated list of regions (default: us-east-1)",
+        envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
     profile: Optional[str] = typer.Option(
         None, "--profile", help="AWS profile name to use", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
@@ -826,10 +832,14 @@ def snapshot_create(
         None, "--exclude-tags", help="Exclude resources with ANY of these tags (Key=Value,Key2=Value2)"
     ),
     created_by_role: Optional[str] = typer.Option(
-        None, "--created-by-role", help="Tag resources created by this IAM role with _created_by_role (queries CloudTrail, 90-day limit)"
+        None,
+        "--created-by-role",
+        help="Tag resources created by this IAM role with _created_by_role (queries CloudTrail, 90-day limit)",
     ),
     track_creators: bool = typer.Option(
-        False, "--track-creators", help="Query CloudTrail to tag ALL resources with their creator (_created_by, _created_by_type)"
+        False,
+        "--track-creators",
+        help="Query CloudTrail to tag ALL resources with their creator (_created_by, _created_by_type)",
     ),
     use_config: bool = typer.Option(
         False, "--config", help="Use AWS Config for collection when available (default: disabled, use direct API)"
@@ -837,14 +847,12 @@ def snapshot_create(
     config_aggregator: Optional[str] = typer.Option(
         None, "--config-aggregator", help="AWS Config Aggregator name for multi-account collection"
     ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show detailed collection method breakdown"
-    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed collection method breakdown"),
     lambda_code_max_size: Optional[int] = typer.Option(
         None,
         "--lambda-code-max-size",
         help="Max Lambda code size (MB) to store inline. Larger packages stored to files. "
-             "Default: 10. Use 0 for external-only, -1 for unlimited inline.",
+        "Default: 10. Use 0 for external-only, -1 for unlimited inline.",
     ),
 ):
     """Create a new snapshot of AWS resources.
@@ -1038,7 +1046,9 @@ def snapshot_create(
         # T015: Pass inventory_name to create_snapshot
         # Show Config status
         if use_config:
-            console.print("🔧 AWS Config collection: [bold green]enabled[/bold green] (fallback to direct API if unavailable)")
+            console.print(
+                "🔧 AWS Config collection: [bold green]enabled[/bold green] (fallback to direct API if unavailable)"
+            )
             if config_aggregator:
                 console.print(f"   Using aggregator: {config_aggregator}")
         else:
@@ -1060,7 +1070,9 @@ def snapshot_create(
             elif lambda_code_max_size == 0:
                 console.print("📦 Lambda code storage: [bold cyan]external files only[/bold cyan]")
             else:
-                console.print(f"📦 Lambda code storage: inline up to [bold]{lambda_code_max_size}MB[/bold], larger to files")
+                console.print(
+                    f"📦 Lambda code storage: inline up to [bold]{lambda_code_max_size}MB[/bold], larger to files"
+                )
 
         snapshot = create_snapshot(
             name=name,
@@ -1467,9 +1479,7 @@ def snapshot_enrich_creators(
     profile: Optional[str] = typer.Option(
         None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
     ),
-    days_back: int = typer.Option(
-        90, "--days", "-d", help="Days to look back in CloudTrail (max 90)"
-    ),
+    days_back: int = typer.Option(90, "--days", "-d", help="Days to look back in CloudTrail (max 90)"),
 ):
     """Enrich an existing snapshot with creator information from CloudTrail.
 
@@ -1529,8 +1539,7 @@ def snapshot_enrich_creators(
 
         # Filter event types to only those that create resources in the snapshot
         relevant_event_types = [
-            event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items()
-            if res_type in snapshot_resource_types
+            event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items() if res_type in snapshot_resource_types
         ]
 
         # If no matching event types, fall back to all (don't filter)
@@ -1538,7 +1547,9 @@ def snapshot_enrich_creators(
             console.print(f"   Filtering to {len(relevant_event_types)} event types (matching snapshot resources)")
             event_count = len(relevant_event_types)
         else:
-            console.print(f"   [yellow]No matching event types for snapshot resources, querying all {len(EVENT_TO_RESOURCE_TYPE)} event types[/yellow]")
+            console.print(
+                f"   [yellow]No matching event types for snapshot resources, querying all {len(EVENT_TO_RESOURCE_TYPE)} event types[/yellow]"
+            )
             snapshot_resource_types = None  # Don't filter
             event_count = len(EVENT_TO_RESOURCE_TYPE)
 
@@ -1597,6 +1608,7 @@ def snapshot_enrich_creators(
         # Save updated snapshot by deleting old and re-saving
         # Need to use snapshot store directly since save_snapshot creates new
         from ..storage import SnapshotStore
+
         snapshot_store = SnapshotStore(storage.db)
 
         # Delete old snapshot and save updated one
@@ -2028,29 +2040,35 @@ def snapshot_creators(
                     writer = csv.writer(f)
                     if detailed:
                         # Detailed CSV with one row per resource
-                        writer.writerow(["creator", "creator_type", "resource_arn", "resource_type", "name", "region", "created_at"])
+                        writer.writerow(
+                            ["creator", "creator_type", "resource_arn", "resource_type", "name", "region", "created_at"]
+                        )
                         for creator_info in creators_summary:
                             for resource in creator_info["resources"]:
-                                writer.writerow([
-                                    creator_info["creator"],
-                                    creator_info["creator_type"],
-                                    resource["arn"],
-                                    resource["resource_type"],
-                                    resource["name"],
-                                    resource["region"],
-                                    resource.get("created_at", ""),
-                                ])
+                                writer.writerow(
+                                    [
+                                        creator_info["creator"],
+                                        creator_info["creator_type"],
+                                        resource["arn"],
+                                        resource["resource_type"],
+                                        resource["name"],
+                                        resource["region"],
+                                        resource.get("created_at", ""),
+                                    ]
+                                )
                     else:
                         # Summary CSV with one row per creator
                         writer.writerow(["creator", "creator_type", "resource_count", "resource_types"])
                         for creator_info in creators_summary:
                             types_str = ", ".join(f"{k}:{v}" for k, v in creator_info["resource_types"].items())
-                            writer.writerow([
-                                creator_info["creator"],
-                                creator_info["creator_type"],
-                                creator_info["resource_count"],
-                                types_str,
-                            ])
+                            writer.writerow(
+                                [
+                                    creator_info["creator"],
+                                    creator_info["creator_type"],
+                                    creator_info["resource_count"],
+                                    types_str,
+                                ]
+                            )
                 console.print(f"✓ Exported creators to CSV: {export_path}", style="bold green")
 
             else:
@@ -2643,7 +2661,9 @@ cleanup_app = typer.Typer(help="Delete resources - returns environment to baseli
 
 @cleanup_app.command("preview")
 def cleanup_preview(
-    baseline_snapshot: str = typer.Argument(..., help="Baseline snapshot - resources created after this will be deleted"),
+    baseline_snapshot: str = typer.Argument(
+        ..., help="Baseline snapshot - resources created after this will be deleted"
+    ),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(
@@ -2653,9 +2673,7 @@ def cleanup_preview(
     protect_tags: Optional[List[str]] = typer.Option(
         None, "--protect-tag", help="Protect resources with tag (format: key=value, can repeat)"
     ),
-    config_file: Optional[str] = typer.Option(
-        None, "--config", help="Path to protection rules config file"
-    ),
+    config_file: Optional[str] = typer.Option(None, "--config", help="Path to protection rules config file"),
     output_format: str = typer.Option("table", "--format", help="Output format: table, json, yaml"),
 ):
     """Preview resources that would be DELETED to return to a baseline snapshot.
@@ -2774,7 +2792,9 @@ def cleanup_preview(
 
 @cleanup_app.command("execute")
 def cleanup_execute(
-    baseline_snapshot: str = typer.Argument(..., help="Baseline snapshot - resources created after this will be deleted"),
+    baseline_snapshot: str = typer.Argument(
+        ..., help="Baseline snapshot - resources created after this will be deleted"
+    ),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
     profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
@@ -2782,9 +2802,7 @@ def cleanup_execute(
     protect_tags: Optional[List[str]] = typer.Option(
         None, "--protect-tag", help="Protect resources with tag (format: key=value, can repeat)"
     ),
-    config_file: Optional[str] = typer.Option(
-        None, "--config", help="Path to protection rules config file"
-    ),
+    config_file: Optional[str] = typer.Option(None, "--config", help="Path to protection rules config file"),
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
 ):
@@ -2914,7 +2932,9 @@ def cleanup_execute(
             console.print("[bold red]Failed Deletions:[/bold red]\n")
             for record in failed_records:
                 # Extract just the resource type name (e.g., "Instance" from "AWS::EC2::Instance")
-                type_short = record.resource_type.split("::")[-1] if "::" in record.resource_type else record.resource_type
+                type_short = (
+                    record.resource_type.split("::")[-1] if "::" in record.resource_type else record.resource_type
+                )
                 console.print(f"  [red]✗[/red] [bold]{type_short}[/bold]: {record.resource_id}")
                 console.print(f"    [dim]Region:[/dim] {record.region}")
                 console.print(f"    [dim]ARN:[/dim] {record.resource_arn}")
@@ -2971,6 +2991,7 @@ def _matches_wildcard_pattern(value: str, pattern: str) -> bool:
         True if value matches pattern
     """
     import fnmatch
+
     return fnmatch.fnmatch(value.lower(), pattern.lower())
 
 
@@ -3008,7 +3029,9 @@ def _resource_matches_exclusion(
                 value_pattern = "*"
 
             for tag_key, tag_value in resource_tags.items():
-                if _matches_wildcard_pattern(tag_key, key_pattern) and _matches_wildcard_pattern(tag_value, value_pattern):
+                if _matches_wildcard_pattern(tag_key, key_pattern) and _matches_wildcard_pattern(
+                    tag_value, value_pattern
+                ):
                     return True, f"tag '{tag_key}={tag_value}' matches exclusion pattern '{tag_pattern}'"
 
     return False, ""
@@ -3029,20 +3052,25 @@ def cleanup_purge(
     exclude_tags: Optional[List[str]] = typer.Option(
         None, "--exclude-tag", help="Exclude resources by tag (format: key=value, supports wildcards, can repeat)"
     ),
-    config_file: Optional[str] = typer.Option(
-        None, "--config", help="Path to protection rules config file"
-    ),
+    config_file: Optional[str] = typer.Option(None, "--config", help="Path to protection rules config file"),
     from_snapshot: Optional[str] = typer.Option(
-        None, "--from-snapshot", "-s", help="Use resources from an enriched snapshot (required for --created-by filters)"
+        None,
+        "--from-snapshot",
+        "-s",
+        help="Use resources from an enriched snapshot (required for --created-by filters)",
     ),
     created_by: Optional[str] = typer.Option(
         None, "--created-by", help="Only delete resources created by this user/role (substring match on creator ARN)"
     ),
     created_after: Optional[str] = typer.Option(
-        None, "--created-after", help="Only delete resources created after this date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+        None,
+        "--created-after",
+        help="Only delete resources created after this date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)",
     ),
     created_before: Optional[str] = typer.Option(
-        None, "--created-before", help="Only delete resources created before this date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+        None,
+        "--created-before",
+        help="Only delete resources created before this date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)",
     ),
     preview: bool = typer.Option(False, "--preview", help="Preview mode - show what would be deleted without deleting"),
     confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
@@ -3131,10 +3159,14 @@ def cleanup_purge(
     try:
         # Validate creator/date filters require --from-snapshot
         if (created_by or created_after or created_before) and not from_snapshot:
-            console.print("\n[red]ERROR: --created-by, --created-after, and --created-before require --from-snapshot[/red]")
+            console.print(
+                "\n[red]ERROR: --created-by, --created-after, and --created-before require --from-snapshot[/red]"
+            )
             console.print("[yellow]First enrich a snapshot with creator info:[/yellow]")
             console.print("[dim]  awsinv snapshot enrich-creators <snapshot-name>[/dim]")
-            console.print("[dim]Then use: awsinv cleanup purge --from-snapshot <snapshot-name> --created-by <name>[/dim]\n")
+            console.print(
+                "[dim]Then use: awsinv cleanup purge --from-snapshot <snapshot-name> --created-by <name>[/dim]\n"
+            )
             raise typer.Exit(code=1)
 
         # Parse date filters
@@ -3203,10 +3235,7 @@ def cleanup_purge(
             console.print(f"[dim]Loaded {len(all_resources)} resources from snapshot[/dim]")
 
             # Check if snapshot has creator info
-            has_creator_info = any(
-                r.tags and "_created_by" in r.tags
-                for r in all_resources[:100]  # Sample first 100
-            )
+            has_creator_info = any(r.tags and "_created_by" in r.tags for r in all_resources[:100])  # Sample first 100
             if (created_by or created_after or created_before) and not has_creator_info:
                 console.print("\n[yellow]WARNING: Snapshot may not have creator information[/yellow]")
                 console.print("[dim]Run 'awsinv snapshot enrich-creators <snapshot>' first[/dim]\n")
@@ -3366,10 +3395,16 @@ def cleanup_purge(
                 for tier in sorted(resources_by_tier.keys()):
                     tier_resources = resources_by_tier[tier]
                     tier_name = tier_names.get(tier, f"Tier {tier}")
-                    console.print(f"\n  [bold magenta]Tier {tier}: {tier_name}[/bold magenta] ({len(tier_resources)} resources)")
+                    console.print(
+                        f"\n  [bold magenta]Tier {tier}: {tier_name}[/bold magenta] ({len(tier_resources)} resources)"
+                    )
 
                     for resource in tier_resources:
-                        type_short = resource.resource_type.split("::")[-1] if "::" in resource.resource_type else resource.resource_type
+                        type_short = (
+                            resource.resource_type.split("::")[-1]
+                            if "::" in resource.resource_type
+                            else resource.resource_type
+                        )
                         console.print(f"    [red]✗[/red] {type_short}: {resource.name} ({resource.region})")
 
             if excluded:
@@ -3528,26 +3563,26 @@ def query_sql(
             if not rows:
                 console.print(f"[red]Error: Snapshot '{snapshot}' not found[/red]")
                 raise typer.Exit(code=1)
-            
+
             snapshot_id = rows[0]["id"]
-            
+
             # Inject WHERE clause logic
             # 1. Check for existing WHERE
-            match_where = re.search(r'(?i)\bwhere\b', query)
+            match_where = re.search(r"(?i)\bwhere\b", query)
             if match_where:
                 # Insert AND after WHERE
                 start, end = match_where.span()
                 query = query[:end] + f" snapshot_id = {snapshot_id} AND" + query[end:]
             else:
                 # 2. Check for clauses that must come AFTER WHERE (GROUP BY, HAVING, ORDER BY, LIMIT)
-                match_clause = re.search(r'(?i)\b(group\s+by|having|order\s+by|limit)\b', query)
+                match_clause = re.search(r"(?i)\b(group\s+by|having|order\s+by|limit)\b", query)
                 if match_clause:
                     start, end = match_clause.span()
                     query = query[:start] + f" WHERE snapshot_id = {snapshot_id} " + query[start:]
                 else:
                     # 3. Simple append
                     query = query.rstrip(";") + f" WHERE snapshot_id = {snapshot_id}"
-            
+
             logger.debug(f"Modified query with snapshot filter: {query}")
 
         # Add LIMIT if not present
@@ -3967,7 +4002,9 @@ def group_create(
                 type_filter=type_filter,
                 region_filter=region_filter,
             )
-            console.print(f"[green]✓ Created group '{name}' with {count} resources from snapshot '{from_snapshot}'[/green]")
+            console.print(
+                f"[green]✓ Created group '{name}' with {count} resources from snapshot '{from_snapshot}'[/green]"
+            )
         else:
             # Create empty group
             from ..models.group import ResourceGroup
@@ -4079,7 +4116,9 @@ def group_show(
 
         # Show members
         if group.members:
-            console.print(f"\n[bold]Members[/bold] (showing first {min(limit, len(group.members))} of {len(group.members)}):")
+            console.print(
+                f"\n[bold]Members[/bold] (showing first {min(limit, len(group.members))} of {len(group.members)}):"
+            )
             table = Table(show_header=True, header_style="bold cyan")
             table.add_column("Resource Name", style="cyan")
             table.add_column("Type")
@@ -4089,7 +4128,11 @@ def group_show(
                 table.add_row(
                     member.resource_name,
                     member.resource_type,
-                    member.original_arn[:60] + "..." if member.original_arn and len(member.original_arn) > 60 else (member.original_arn or "-"),
+                    (
+                        member.original_arn[:60] + "..."
+                        if member.original_arn and len(member.original_arn) > 60
+                        else (member.original_arn or "-")
+                    ),
                 )
 
             console.print(table)
@@ -4232,7 +4275,9 @@ def group_compare(
 @group_app.command("add")
 def group_add(
     name: str = typer.Argument(..., help="Group name"),
-    resource: str = typer.Option(..., "--resource", "-r", help="Resource to add as 'name:type' (e.g., 'my-bucket:s3:bucket')"),
+    resource: str = typer.Option(
+        ..., "--resource", "-r", help="Resource to add as 'name:type' (e.g., 'my-bucket:s3:bucket')"
+    ),
 ):
     """Add a resource to a group manually.
 
@@ -4635,6 +4680,7 @@ def _get_lambda_code_bytes(code_info: Dict[str, Any]) -> Optional[bytes]:
             return None
         try:
             from pathlib import Path
+
             path = Path(file_path)
             if path.exists():
                 with open(path, "rb") as f:
@@ -4671,6 +4717,7 @@ def _get_lambda_code_size(code_info: Dict[str, Any]) -> int:
         if file_path:
             try:
                 from pathlib import Path
+
                 path = Path(file_path)
                 if path.exists():
                     return path.stat().st_size
@@ -4881,8 +4928,9 @@ def lambda_show(
         snapshot = storage.load_snapshot(active_name)
 
     # Find the function
-    fn = next((r for r in snapshot.resources
-               if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None)
+    fn = next(
+        (r for r in snapshot.resources if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None
+    )
 
     if not fn:
         console.print(f"[red]Lambda function '{function_name}' not found.[/red]")
@@ -4949,11 +4997,23 @@ def lambda_show(
         # Detect language from extension
         ext = target_file.rsplit(".", 1)[-1] if "." in target_file else ""
         lang_map = {
-            "py": "python", "js": "javascript", "ts": "typescript",
-            "mjs": "javascript", "rb": "ruby", "java": "java",
-            "go": "go", "rs": "rust", "json": "json", "yaml": "yaml",
-            "yml": "yaml", "xml": "xml", "html": "html", "css": "css",
-            "sh": "bash", "bash": "bash", "md": "markdown",
+            "py": "python",
+            "js": "javascript",
+            "ts": "typescript",
+            "mjs": "javascript",
+            "rb": "ruby",
+            "java": "java",
+            "go": "go",
+            "rs": "rust",
+            "json": "json",
+            "yaml": "yaml",
+            "yml": "yaml",
+            "xml": "xml",
+            "html": "html",
+            "css": "css",
+            "sh": "bash",
+            "bash": "bash",
+            "md": "markdown",
         }
         lang = lang_map.get(ext, "text")
 
@@ -4997,10 +5057,12 @@ def lambda_diff(
         raise typer.Exit(code=1)
 
     # Find the function in both snapshots
-    fn1 = next((r for r in snap1.resources
-                if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None)
-    fn2 = next((r for r in snap2.resources
-                if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None)
+    fn1 = next(
+        (r for r in snap1.resources if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None
+    )
+    fn2 = next(
+        (r for r in snap2.resources if r.resource_type == "AWS::Lambda::Function" and r.name == function_name), None
+    )
 
     if not fn1:
         console.print(f"[red]Function '{function_name}' not found in {snapshot1}[/red]")
@@ -5158,6 +5220,7 @@ def lambda_fetch(
     # Suppress SSL warnings if verification is disabled
     if no_ssl_verify:
         import urllib3
+
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         console.print("[yellow]⚠ SSL certificate verification disabled[/yellow]")
 
@@ -5185,10 +5248,7 @@ def lambda_fetch(
 
     # Filter to functions without code (unless --force)
     if not force:
-        lambdas = [
-            fn for fn in lambdas
-            if not (fn.raw_config or {}).get("_code", {}).get("code_stored", False)
-        ]
+        lambdas = [fn for fn in lambdas if not (fn.raw_config or {}).get("_code", {}).get("code_stored", False)]
 
     if not lambdas:
         console.print("[green]All Lambda functions already have code stored.[/green]")
@@ -5318,11 +5378,11 @@ def lambda_fetch(
 
                 # Update in database
                 new_hash = compute_config_hash(raw_config)
-                snapshot_store.update_resource_config(
-                    snapshot_name, fn.arn, raw_config, new_hash
-                )
+                snapshot_store.update_resource_config(snapshot_name, fn.arn, raw_config, new_hash)
 
-                size_str = f"{code_size / (1024 * 1024):.1f}MB" if code_size >= 1024 * 1024 else f"{code_size / 1024:.1f}KB"
+                size_str = (
+                    f"{code_size / (1024 * 1024):.1f}MB" if code_size >= 1024 * 1024 else f"{code_size / 1024:.1f}KB"
+                )
                 console.print(f"[green]✓[/green] {fn.name}: {size_str} ({storage_type})")
                 success_count += 1
 
@@ -5361,9 +5421,7 @@ def copilot_install(
         "-p",
         help="Target project directory (defaults to current directory)",
     ),
-    json_output: bool = typer.Option(
-        False, "--json", help="Output results as JSON"
-    ),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
 ):
     """Install GitHub Copilot instructions and prompts.
 
@@ -5437,9 +5495,7 @@ def copilot_uninstall(
         "-p",
         help="Target project directory (defaults to current directory)",
     ),
-    json_output: bool = typer.Option(
-        False, "--json", help="Output results as JSON"
-    ),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
 ):
     """Remove installed GitHub Copilot files.
 
@@ -5498,9 +5554,7 @@ def copilot_list(
         "-p",
         help="Target project directory (defaults to current directory)",
     ),
-    json_output: bool = typer.Option(
-        False, "--json", help="Output results as JSON"
-    ),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
 ):
     """List installed GitHub Copilot files.
 
@@ -5576,8 +5630,12 @@ def generate(
     format: str = typer.Argument(..., help="Output format: terraform, cdk-typescript, cdk-python"),
     snapshot_name: str = typer.Argument(..., help="Name of snapshot to generate from"),
     output: str = typer.Option("./terraform", "--output", "-o", help="Output directory"),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model name (default: from AWSINV_AI_MODEL or gpt-4)"),
-    endpoint: Optional[str] = typer.Option(None, "--endpoint", "-e", help="AI API endpoint (default: from AWSINV_AI_ENDPOINT)"),
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="AI model name (default: from AWSINV_AI_MODEL or gpt-4)"
+    ),
+    endpoint: Optional[str] = typer.Option(
+        None, "--endpoint", "-e", help="AI API endpoint (default: from AWSINV_AI_ENDPOINT)"
+    ),
     api_key: Optional[str] = typer.Option(None, "--api-key", "-k", help="AI API key (default: from AWSINV_AI_API_KEY)"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
@@ -5609,6 +5667,7 @@ def generate(
 
     # Check for API key
     import os
+
     effective_key = api_key or os.environ.get("AWSINV_AI_API_KEY")
     if not effective_key:
         console.print("[red]Error:[/red] No API key provided.")

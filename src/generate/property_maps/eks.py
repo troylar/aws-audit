@@ -151,28 +151,40 @@ def get_eks_node_group_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # Register EKS property maps with the registry
-register_property_map("eks:cluster", {
-    "configurable": EKS_CLUSTER_CONFIGURABLE,
-    "computed": EKS_CLUSTER_COMPUTED,
-    "get_properties": get_eks_cluster_properties,
-})
+register_property_map(
+    "eks:cluster",
+    {
+        "configurable": EKS_CLUSTER_CONFIGURABLE,
+        "computed": EKS_CLUSTER_COMPUTED,
+        "get_properties": get_eks_cluster_properties,
+    },
+)
 
-register_property_map("eks:node_group", {
-    "configurable": EKS_NODE_GROUP_CONFIGURABLE,
-    "computed": EKS_NODE_GROUP_COMPUTED,
-    "get_properties": get_eks_node_group_properties,
-})
+register_property_map(
+    "eks:node_group",
+    {
+        "configurable": EKS_NODE_GROUP_CONFIGURABLE,
+        "computed": EKS_NODE_GROUP_COMPUTED,
+        "get_properties": get_eks_node_group_properties,
+    },
+)
 
 # Also register with AWS CloudFormation resource type names
-register_property_map("AWS::EKS::Cluster", {
-    "configurable": EKS_CLUSTER_CONFIGURABLE,
-    "computed": EKS_CLUSTER_COMPUTED,
-})
+register_property_map(
+    "AWS::EKS::Cluster",
+    {
+        "configurable": EKS_CLUSTER_CONFIGURABLE,
+        "computed": EKS_CLUSTER_COMPUTED,
+    },
+)
 
-register_property_map("AWS::EKS::NodeGroup", {
-    "configurable": EKS_NODE_GROUP_CONFIGURABLE,
-    "computed": EKS_NODE_GROUP_COMPUTED,
-})
+register_property_map(
+    "AWS::EKS::NodeGroup",
+    {
+        "configurable": EKS_NODE_GROUP_CONFIGURABLE,
+        "computed": EKS_NODE_GROUP_COMPUTED,
+    },
+)
 
 __all__ = [
     "EKS_CLUSTER_CONFIGURABLE",

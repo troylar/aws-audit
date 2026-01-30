@@ -61,10 +61,12 @@ def process_attribute_definitions(raw_attrs: List[Dict[str, str]]) -> List[Dict[
 
     terraform_attrs = []
     for attr in raw_attrs:
-        terraform_attrs.append({
-            "name": attr.get("AttributeName"),
-            "type": attr.get("AttributeType"),
-        })
+        terraform_attrs.append(
+            {
+                "name": attr.get("AttributeName"),
+                "type": attr.get("AttributeType"),
+            }
+        )
 
     return terraform_attrs
 
@@ -345,14 +347,17 @@ def get_dynamodb_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, An
 # Register this property map for DynamoDB resources
 from . import register_property_map
 
-register_property_map("dynamodb", {
-    "table": {
-        "configurable": DYNAMODB_TABLE_CONFIGURABLE,
-        "computed": DYNAMODB_TABLE_COMPUTED,
-        "get_properties": get_dynamodb_table_properties,
-        "get_computed": get_dynamodb_computed_properties,
+register_property_map(
+    "dynamodb",
+    {
+        "table": {
+            "configurable": DYNAMODB_TABLE_CONFIGURABLE,
+            "computed": DYNAMODB_TABLE_COMPUTED,
+            "get_properties": get_dynamodb_table_properties,
+            "get_computed": get_dynamodb_computed_properties,
+        },
     },
-})
+)
 
 __all__ = [
     "DYNAMODB_TABLE_CONFIGURABLE",

@@ -314,26 +314,38 @@ def _register_maps() -> None:
     try:
         from . import register_property_map
 
-        register_property_map("rds:instance", {
-            "configurable": RDS_INSTANCE_CONFIGURABLE,
-            "computed": RDS_INSTANCE_COMPUTED,
-            "sensitive": SENSITIVE_FIELDS,
-        })
-        register_property_map("rds:cluster", {
-            "configurable": RDS_CLUSTER_CONFIGURABLE,
-            "computed": RDS_CLUSTER_COMPUTED,
-            "sensitive": SENSITIVE_FIELDS,
-        })
-        register_property_map("AWS::RDS::DBInstance", {
-            "configurable": RDS_INSTANCE_CONFIGURABLE,
-            "computed": RDS_INSTANCE_COMPUTED,
-            "sensitive": SENSITIVE_FIELDS,
-        })
-        register_property_map("AWS::RDS::DBCluster", {
-            "configurable": RDS_CLUSTER_CONFIGURABLE,
-            "computed": RDS_CLUSTER_COMPUTED,
-            "sensitive": SENSITIVE_FIELDS,
-        })
+        register_property_map(
+            "rds:instance",
+            {
+                "configurable": RDS_INSTANCE_CONFIGURABLE,
+                "computed": RDS_INSTANCE_COMPUTED,
+                "sensitive": SENSITIVE_FIELDS,
+            },
+        )
+        register_property_map(
+            "rds:cluster",
+            {
+                "configurable": RDS_CLUSTER_CONFIGURABLE,
+                "computed": RDS_CLUSTER_COMPUTED,
+                "sensitive": SENSITIVE_FIELDS,
+            },
+        )
+        register_property_map(
+            "AWS::RDS::DBInstance",
+            {
+                "configurable": RDS_INSTANCE_CONFIGURABLE,
+                "computed": RDS_INSTANCE_COMPUTED,
+                "sensitive": SENSITIVE_FIELDS,
+            },
+        )
+        register_property_map(
+            "AWS::RDS::DBCluster",
+            {
+                "configurable": RDS_CLUSTER_CONFIGURABLE,
+                "computed": RDS_CLUSTER_COMPUTED,
+                "sensitive": SENSITIVE_FIELDS,
+            },
+        )
     except ImportError:
         # Registry not available yet, will be registered on import
         pass

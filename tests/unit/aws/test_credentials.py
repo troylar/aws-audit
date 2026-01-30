@@ -80,9 +80,7 @@ class TestValidateCredentials:
     @patch("src.aws.credentials.boto3.client")
     def test_validate_credentials_partial_credentials(self, mock_boto_client):
         """Test error handling for partial credentials."""
-        mock_boto_client.side_effect = PartialCredentialsError(
-            provider="env", cred_var="AWS_SECRET_ACCESS_KEY"
-        )
+        mock_boto_client.side_effect = PartialCredentialsError(provider="env", cred_var="AWS_SECRET_ACCESS_KEY")
 
         with pytest.raises(CredentialValidationError) as exc_info:
             validate_credentials()
@@ -94,9 +92,7 @@ class TestValidateCredentials:
         """Test error handling for invalid access key."""
         mock_sts = MagicMock()
         error_response = {"Error": {"Code": "InvalidClientTokenId", "Message": "Invalid"}}
-        mock_sts.get_caller_identity.side_effect = ClientError(
-            error_response, "GetCallerIdentity"
-        )
+        mock_sts.get_caller_identity.side_effect = ClientError(error_response, "GetCallerIdentity")
         mock_boto_client.return_value = mock_sts
 
         with pytest.raises(CredentialValidationError) as exc_info:
@@ -110,9 +106,7 @@ class TestValidateCredentials:
         """Test error handling for signature mismatch."""
         mock_sts = MagicMock()
         error_response = {"Error": {"Code": "SignatureDoesNotMatch", "Message": "Signature"}}
-        mock_sts.get_caller_identity.side_effect = ClientError(
-            error_response, "GetCallerIdentity"
-        )
+        mock_sts.get_caller_identity.side_effect = ClientError(error_response, "GetCallerIdentity")
         mock_boto_client.return_value = mock_sts
 
         with pytest.raises(CredentialValidationError) as exc_info:
@@ -126,9 +120,7 @@ class TestValidateCredentials:
         """Test error handling for expired credentials."""
         mock_sts = MagicMock()
         error_response = {"Error": {"Code": "ExpiredToken", "Message": "Token expired"}}
-        mock_sts.get_caller_identity.side_effect = ClientError(
-            error_response, "GetCallerIdentity"
-        )
+        mock_sts.get_caller_identity.side_effect = ClientError(error_response, "GetCallerIdentity")
         mock_boto_client.return_value = mock_sts
 
         with pytest.raises(CredentialValidationError) as exc_info:
@@ -141,9 +133,7 @@ class TestValidateCredentials:
         """Test error handling for unknown client error."""
         mock_sts = MagicMock()
         error_response = {"Error": {"Code": "UnknownError", "Message": "Unknown"}}
-        mock_sts.get_caller_identity.side_effect = ClientError(
-            error_response, "GetCallerIdentity"
-        )
+        mock_sts.get_caller_identity.side_effect = ClientError(error_response, "GetCallerIdentity")
         mock_boto_client.return_value = mock_sts
 
         with pytest.raises(CredentialValidationError) as exc_info:
@@ -176,9 +166,7 @@ class TestCheckRequiredPermissions:
         }
 
         mock_iam = MagicMock()
-        mock_iam.simulate_principal_policy.return_value = {
-            "EvaluationResults": [{"EvalDecision": "allowed"}]
-        }
+        mock_iam.simulate_principal_policy.return_value = {"EvaluationResults": [{"EvalDecision": "allowed"}]}
         mock_boto_client.return_value = mock_iam
 
         result = check_required_permissions(required_actions=["ec2:DescribeInstances"])
@@ -196,9 +184,7 @@ class TestCheckRequiredPermissions:
         }
 
         mock_iam = MagicMock()
-        mock_iam.simulate_principal_policy.return_value = {
-            "EvaluationResults": [{"EvalDecision": "implicitDeny"}]
-        }
+        mock_iam.simulate_principal_policy.return_value = {"EvaluationResults": [{"EvalDecision": "implicitDeny"}]}
         mock_boto_client.return_value = mock_iam
 
         result = check_required_permissions(required_actions=["ec2:DeleteVpc"])
@@ -217,15 +203,11 @@ class TestCheckRequiredPermissions:
 
         mock_session = MagicMock()
         mock_iam = MagicMock()
-        mock_iam.simulate_principal_policy.return_value = {
-            "EvaluationResults": [{"EvalDecision": "allowed"}]
-        }
+        mock_iam.simulate_principal_policy.return_value = {"EvaluationResults": [{"EvalDecision": "allowed"}]}
         mock_session.client.return_value = mock_iam
         mock_session_class.return_value = mock_session
 
-        result = check_required_permissions(
-            profile_name="my-profile", required_actions=["ec2:DescribeInstances"]
-        )
+        result = check_required_permissions(profile_name="my-profile", required_actions=["ec2:DescribeInstances"])
 
         mock_session_class.assert_called_with(profile_name="my-profile")
         assert result["ec2:DescribeInstances"] is True
@@ -241,9 +223,7 @@ class TestCheckRequiredPermissions:
         }
 
         mock_iam = MagicMock()
-        mock_iam.simulate_principal_policy.return_value = {
-            "EvaluationResults": [{"EvalDecision": "allowed"}]
-        }
+        mock_iam.simulate_principal_policy.return_value = {"EvaluationResults": [{"EvalDecision": "allowed"}]}
         mock_boto_client.return_value = mock_iam
 
         result = check_required_permissions()
@@ -264,9 +244,7 @@ class TestCheckRequiredPermissions:
 
         mock_iam = MagicMock()
         error_response = {"Error": {"Code": "AccessDenied", "Message": "Not allowed"}}
-        mock_iam.simulate_principal_policy.side_effect = ClientError(
-            error_response, "SimulatePrincipalPolicy"
-        )
+        mock_iam.simulate_principal_policy.side_effect = ClientError(error_response, "SimulatePrincipalPolicy")
         mock_boto_client.return_value = mock_iam
 
         result = check_required_permissions(required_actions=["ec2:DescribeInstances"])

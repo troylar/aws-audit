@@ -15,42 +15,30 @@ LAMBDA_CONFIGURABLE = {
     "MemorySize": "memory_size",
     "Timeout": "timeout",
     "EphemeralStorage": "ephemeral_storage",  # dict with Size key
-
     # VPC configuration
     "VpcConfig": "vpc_config",  # Special nested handling required
-
     # Environment variables
     "Environment": "environment",  # Special nested handling required
-
     # Layers and code
     "Layers": "layers",
     "CodeSha256": "source_code_hash",
-
     # Dead letter queue
     "DeadLetterConfig": "dead_letter_config",
-
     # Tracing
     "TracingConfig": "tracing_config",
-
     # Architectures
     "Architectures": "architectures",
-
     # Image config (for container images)
     "ImageConfig": "image_config",
-
     # Reserved concurrent executions
     "ReservedConcurrentExecutions": "reserved_concurrent_executions",
-
     # Signing config
     "SigningProfileVersionArn": "signing_profile_version_arn",
     "CodeSigningConfigArn": "code_signing_config_arn",
-
     # KMS encryption
     "KMSKeyArn": "kms_key_arn",
-
     # Snap start
     "SnapStart": "snap_start",
-
     # Logging
     "LoggingConfig": "logging_config",
 }

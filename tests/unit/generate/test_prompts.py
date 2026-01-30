@@ -311,45 +311,33 @@ class TestResourceToPromptFormatter:
             },
         )
 
-    def test_format_includes_resource_type(
-        self, terraform_prompts: Any, sample_ec2_resource: TrackedResource
-    ) -> None:
+    def test_format_includes_resource_type(self, terraform_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
         """Test formatted output includes resource type."""
         result = terraform_prompts.format_resource_for_prompt(sample_ec2_resource)
         assert "ec2:instance" in result
 
-    def test_format_includes_resource_name(
-        self, terraform_prompts: Any, sample_ec2_resource: TrackedResource
-    ) -> None:
+    def test_format_includes_resource_name(self, terraform_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
         """Test formatted output includes resource name."""
         result = terraform_prompts.format_resource_for_prompt(sample_ec2_resource)
         assert "web-server-1" in result or "web_server_1" in result
 
-    def test_format_includes_terraform_name(
-        self, terraform_prompts: Any, sample_ec2_resource: TrackedResource
-    ) -> None:
+    def test_format_includes_terraform_name(self, terraform_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
         """Test formatted output includes Terraform name."""
         result = terraform_prompts.format_resource_for_prompt(sample_ec2_resource)
         assert "Terraform name" in result
         assert "web_server_1" in result
 
-    def test_format_includes_region(
-        self, terraform_prompts: Any, sample_ec2_resource: TrackedResource
-    ) -> None:
+    def test_format_includes_region(self, terraform_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
         """Test formatted output includes region."""
         result = terraform_prompts.format_resource_for_prompt(sample_ec2_resource)
         assert "us-east-1" in result
 
-    def test_format_includes_arn(
-        self, terraform_prompts: Any, sample_ec2_resource: TrackedResource
-    ) -> None:
+    def test_format_includes_arn(self, terraform_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
         """Test formatted output includes ARN."""
         result = terraform_prompts.format_resource_for_prompt(sample_ec2_resource)
         assert "arn:aws:ec2:us-east-1:123456789012:instance/i-12345678" in result
 
-    def test_format_includes_tags(
-        self, terraform_prompts: Any, sample_ec2_resource: TrackedResource
-    ) -> None:
+    def test_format_includes_tags(self, terraform_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
         """Test formatted output includes tags."""
         result = terraform_prompts.format_resource_for_prompt(sample_ec2_resource)
         assert "Tags:" in result
@@ -371,9 +359,7 @@ class TestResourceToPromptFormatter:
         assert "t3.medium" in result
         assert "subnet-abc12345" in result
 
-    def test_format_outputs_json(
-        self, terraform_prompts: Any, sample_ec2_resource: TrackedResource
-    ) -> None:
+    def test_format_outputs_json(self, terraform_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
         """Test formatted output includes JSON representation of properties."""
         result = terraform_prompts.format_resource_for_prompt(sample_ec2_resource)
         assert "```json" in result
@@ -545,9 +531,7 @@ class TestRetryPrompt:
     ) -> None:
         """Test retry prompt includes validation errors."""
         errors = ["Error: Invalid resource reference", "Error: Missing required argument"]
-        prompt = terraform_prompts.format_retry_prompt(
-            "resource {} {}", errors, sample_layer, sample_resource_map
-        )
+        prompt = terraform_prompts.format_retry_prompt("resource {} {}", errors, sample_layer, sample_resource_map)
         assert "Validation Errors" in prompt
         assert "Invalid resource reference" in prompt
         assert "Missing required argument" in prompt
@@ -557,9 +541,7 @@ class TestRetryPrompt:
     ) -> None:
         """Test retry prompt includes original code."""
         original_code = 'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}'
-        prompt = terraform_prompts.format_retry_prompt(
-            original_code, ["Error"], sample_layer, sample_resource_map
-        )
+        prompt = terraform_prompts.format_retry_prompt(original_code, ["Error"], sample_layer, sample_resource_map)
         assert "Original Code" in prompt
         assert original_code in prompt
 
@@ -567,9 +549,7 @@ class TestRetryPrompt:
         self, terraform_prompts: Any, sample_layer: Layer, sample_resource_map: ResourceMap
     ) -> None:
         """Test retry prompt includes resource references."""
-        prompt = terraform_prompts.format_retry_prompt(
-            "code", ["error"], sample_layer, sample_resource_map
-        )
+        prompt = terraform_prompts.format_retry_prompt("code", ["error"], sample_layer, sample_resource_map)
         assert "Available Resource References" in prompt
         assert "vpc-123" in prompt
         assert "aws_vpc.main" in prompt
@@ -578,18 +558,14 @@ class TestRetryPrompt:
         self, terraform_prompts: Any, sample_layer: Layer, sample_resource_map: ResourceMap
     ) -> None:
         """Test retry prompt instructs to generate corrected code."""
-        prompt = terraform_prompts.format_retry_prompt(
-            "code", ["error"], sample_layer, sample_resource_map
-        )
+        prompt = terraform_prompts.format_retry_prompt("code", ["error"], sample_layer, sample_resource_map)
         assert "corrected" in prompt.lower() or "fix" in prompt.lower()
 
     def test_retry_prompt_specifies_hcl_output(
         self, terraform_prompts: Any, sample_layer: Layer, sample_resource_map: ResourceMap
     ) -> None:
         """Test retry prompt specifies HCL output."""
-        prompt = terraform_prompts.format_retry_prompt(
-            "code", ["error"], sample_layer, sample_resource_map
-        )
+        prompt = terraform_prompts.format_retry_prompt("code", ["error"], sample_layer, sample_resource_map)
         assert "HCL" in prompt
 
 

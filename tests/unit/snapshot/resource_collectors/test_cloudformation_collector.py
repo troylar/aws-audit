@@ -49,14 +49,18 @@ class TestCloudFormationCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        mock_paginator.paginate.return_value = [{
-            "Stacks": [{
-                "StackName": "test-stack",
-                "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
-                "CreationTime": created_at,
-                "Tags": [{"Key": "Environment", "Value": "test"}],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Stacks": [
+                    {
+                        "StackName": "test-stack",
+                        "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
+                        "CreationTime": created_at,
+                        "Tags": [{"Key": "Environment", "Value": "test"}],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -76,20 +80,22 @@ class TestCloudFormationCollectorCollect:
         """Test collecting multiple stacks."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Stacks": [
-                {
-                    "StackName": "stack-1",
-                    "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/stack-1/111",
-                    "Tags": [],
-                },
-                {
-                    "StackName": "stack-2",
-                    "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/stack-2/222",
-                    "Tags": [],
-                },
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Stacks": [
+                    {
+                        "StackName": "stack-1",
+                        "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/stack-1/111",
+                        "Tags": [],
+                    },
+                    {
+                        "StackName": "stack-2",
+                        "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/stack-2/222",
+                        "Tags": [],
+                    },
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -137,13 +143,17 @@ class TestCloudFormationCollectorCollect:
         """Test collecting stack without creation time."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Stacks": [{
-                "StackName": "test-stack",
-                "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Stacks": [
+                    {
+                        "StackName": "test-stack",
+                        "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -158,17 +168,21 @@ class TestCloudFormationCollectorCollect:
         """Test collecting stack with multiple tags."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Stacks": [{
-                "StackName": "test-stack",
-                "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
-                "Tags": [
-                    {"Key": "Environment", "Value": "prod"},
-                    {"Key": "Team", "Value": "platform"},
-                    {"Key": "CostCenter", "Value": "12345"},
-                ],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Stacks": [
+                    {
+                        "StackName": "test-stack",
+                        "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
+                        "Tags": [
+                            {"Key": "Environment", "Value": "prod"},
+                            {"Key": "Team", "Value": "platform"},
+                            {"Key": "CostCenter", "Value": "12345"},
+                        ],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -208,13 +222,17 @@ class TestCloudFormationCollectorCollect:
         """Test that config hash is generated from stack config."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Stacks": [{
-                "StackName": "test-stack",
-                "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Stacks": [
+                    {
+                        "StackName": "test-stack",
+                        "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/12345678",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 

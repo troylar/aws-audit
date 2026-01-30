@@ -17,13 +17,15 @@ try:
     from .agent import compile_terraform_agent, create_terraform_graph
     from .terraform_generator import GenerationResult, TerraformGenerator, generate_terraform
 
-    __all__.extend([
-        "GenerationResult",
-        "TerraformGenerator",
-        "create_terraform_graph",
-        "compile_terraform_agent",
-        "generate_terraform",
-    ])
+    __all__.extend(
+        [
+            "GenerationResult",
+            "TerraformGenerator",
+            "create_terraform_graph",
+            "compile_terraform_agent",
+            "generate_terraform",
+        ]
+    )
 except ImportError:
     # langgraph not installed - agent functionality unavailable
     pass

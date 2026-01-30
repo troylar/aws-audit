@@ -28,10 +28,12 @@ def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:
     errors: List[Dict[str, Any]] = []
 
     if not output_dir:
-        errors.append({
-            "resource": "extract_lambda_code",
-            "error": "No output_dir specified in state",
-        })
+        errors.append(
+            {
+                "resource": "extract_lambda_code",
+                "error": "No output_dir specified in state",
+            }
+        )
         return {
             "lambda_code_paths": lambda_code_paths,
             "errors": errors,
@@ -55,11 +57,13 @@ def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:
             if zip_path:
                 lambda_code_paths[lambda_code.function_name] = zip_path
         except Exception as e:
-            errors.append({
-                "resource": resource.name,
-                "resource_type": resource_type,
-                "error": f"Failed to extract Lambda code: {e}",
-            })
+            errors.append(
+                {
+                    "resource": resource.name,
+                    "resource_type": resource_type,
+                    "error": f"Failed to extract Lambda code: {e}",
+                }
+            )
 
     return {
         "lambda_code_paths": lambda_code_paths,

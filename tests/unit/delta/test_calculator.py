@@ -221,9 +221,7 @@ class TestDeltaCalculatorMatchesFilters:
         current = make_snapshot()
         calculator = DeltaCalculator(reference, current)
 
-        result = calculator._matches_filters(
-            resource, ["AWS::EC2::Instance", "AWS::S3::Bucket"], None
-        )
+        result = calculator._matches_filters(resource, ["AWS::EC2::Instance", "AWS::S3::Bucket"], None)
 
         assert result is True
 
@@ -234,9 +232,7 @@ class TestDeltaCalculatorMatchesFilters:
         current = make_snapshot()
         calculator = DeltaCalculator(reference, current)
 
-        result = calculator._matches_filters(
-            resource, ["AWS::EC2::Instance", "AWS::S3::Bucket"], None
-        )
+        result = calculator._matches_filters(resource, ["AWS::EC2::Instance", "AWS::S3::Bucket"], None)
 
         assert result is False
 
@@ -269,9 +265,7 @@ class TestDeltaCalculatorMatchesFilters:
         current = make_snapshot()
         calculator = DeltaCalculator(reference, current)
 
-        result = calculator._matches_filters(
-            resource, ["AWS::EC2::Instance"], ["us-east-1"]
-        )
+        result = calculator._matches_filters(resource, ["AWS::EC2::Instance"], ["us-east-1"])
 
         assert result is True
 
@@ -282,9 +276,7 @@ class TestDeltaCalculatorMatchesFilters:
         current = make_snapshot()
         calculator = DeltaCalculator(reference, current)
 
-        result = calculator._matches_filters(
-            resource, ["AWS::EC2::Instance"], ["us-east-1"]
-        )
+        result = calculator._matches_filters(resource, ["AWS::EC2::Instance"], ["us-east-1"])
 
         assert result is False
 
@@ -295,9 +287,7 @@ class TestDeltaCalculatorMatchesFilters:
         current = make_snapshot()
         calculator = DeltaCalculator(reference, current)
 
-        result = calculator._matches_filters(
-            resource, ["AWS::EC2::Instance"], ["us-east-1"]
-        )
+        result = calculator._matches_filters(resource, ["AWS::EC2::Instance"], ["us-east-1"])
 
         assert result is False
 

@@ -127,9 +127,9 @@ async def get_operation(operation_id: str):
     return {
         "operation_id": operation.operation_id,
         "baseline_snapshot": operation.baseline_snapshot,
-        "timestamp": operation.timestamp.isoformat()
-        if hasattr(operation.timestamp, "isoformat")
-        else str(operation.timestamp),
+        "timestamp": (
+            operation.timestamp.isoformat() if hasattr(operation.timestamp, "isoformat") else str(operation.timestamp)
+        ),
         "account_id": operation.account_id,
         "mode": operation.mode.value if hasattr(operation.mode, "value") else str(operation.mode),
         "status": operation.status.value if hasattr(operation.status, "value") else str(operation.status),

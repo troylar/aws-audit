@@ -241,24 +241,32 @@ class TestLambdaCollector:
 
         # Setup function paginator
         mock_func_paginator = MagicMock()
-        mock_func_paginator.paginate.return_value = [{
-            "Functions": [{
-                "FunctionName": "my-function",
-                "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
-            }]
-        }]
+        mock_func_paginator.paginate.return_value = [
+            {
+                "Functions": [
+                    {
+                        "FunctionName": "my-function",
+                        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+                    }
+                ]
+            }
+        ]
 
         # Setup layer paginator
         mock_layer_paginator = MagicMock()
-        mock_layer_paginator.paginate.return_value = [{
-            "Layers": [{
-                "LayerName": "my-layer",
-                "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
-                "LatestMatchingVersion": {
-                    "LayerVersionArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1",
-                },
-            }]
-        }]
+        mock_layer_paginator.paginate.return_value = [
+            {
+                "Layers": [
+                    {
+                        "LayerName": "my-layer",
+                        "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
+                        "LatestMatchingVersion": {
+                            "LayerVersionArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1",
+                        },
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(operation):
             if operation == "list_functions":
@@ -294,12 +302,16 @@ class TestLambdaCollector:
         """Test collecting continues when get_function fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Functions": [{
-                "FunctionName": "my-function",
-                "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Functions": [
+                    {
+                        "FunctionName": "my-function",
+                        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.get_function.side_effect = Exception("Access denied")
         mock_create_client.return_value = mock_client
@@ -328,13 +340,17 @@ class TestLambdaCollector:
         """Test collecting layer when LatestMatchingVersion is missing."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Layers": [{
-                "LayerName": "my-layer",
-                "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
-                # No LatestMatchingVersion
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Layers": [
+                    {
+                        "LayerName": "my-layer",
+                        "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
+                        # No LatestMatchingVersion
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -349,12 +365,16 @@ class TestLambdaCollector:
         """Test that config hash is generated."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Functions": [{
-                "FunctionName": "my-function",
-                "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Functions": [
+                    {
+                        "FunctionName": "my-function",
+                        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.get_function.return_value = {"Configuration": {}, "Tags": {}, "Code": {}}
         mock_create_client.return_value = mock_client
@@ -537,19 +557,25 @@ class TestLambdaCodeCollection:
     @patch.object(LambdaCollector, "_create_client")
     @patch.object(LambdaCollector, "_get_account_id")
     @patch("requests.get")
-    def test_collect_functions_includes_code(self, mock_requests_get, mock_get_account_id, mock_create_client, collector):
+    def test_collect_functions_includes_code(
+        self, mock_requests_get, mock_get_account_id, mock_create_client, collector
+    ):
         """Test that collect_functions includes code data in raw_config."""
         mock_get_account_id.return_value = "123456789012"
         mock_client = MagicMock()
         mock_create_client.return_value = mock_client
 
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Functions": [{
-                "FunctionName": "my-function",
-                "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Functions": [
+                    {
+                        "FunctionName": "my-function",
+                        "FunctionArn": "arn:aws:lambda:us-east-1:123456789012:function:my-function",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.get_function.return_value = {
             "Configuration": {
@@ -590,16 +616,20 @@ class TestLambdaCodeCollection:
         mock_create_client.return_value = mock_client
 
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Layers": [{
-                "LayerName": "my-layer",
-                "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
-                "LatestMatchingVersion": {
-                    "LayerVersionArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1",
-                    "Version": 1,
-                },
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Layers": [
+                    {
+                        "LayerName": "my-layer",
+                        "LayerArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer",
+                        "LatestMatchingVersion": {
+                            "LayerVersionArn": "arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1",
+                            "Version": 1,
+                        },
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.get_layer_version.return_value = {
             "Content": {

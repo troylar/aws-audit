@@ -53,15 +53,19 @@ class TestVPCEndpointsCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        mock_paginator.paginate.return_value = [{
-            "VpcEndpoints": [{
-                "VpcEndpointId": "vpce-12345678",
-                "ServiceName": "com.amazonaws.us-east-1.s3",
-                "VpcEndpointType": "Interface",
-                "CreationTimestamp": created_at,
-                "Tags": [{"Key": "Environment", "Value": "test"}],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "VpcEndpoints": [
+                    {
+                        "VpcEndpointId": "vpce-12345678",
+                        "ServiceName": "com.amazonaws.us-east-1.s3",
+                        "VpcEndpointType": "Interface",
+                        "CreationTimestamp": created_at,
+                        "Tags": [{"Key": "Environment", "Value": "test"}],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -81,14 +85,18 @@ class TestVPCEndpointsCollectorCollect:
         """Test collecting a single Gateway VPC endpoint."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "VpcEndpoints": [{
-                "VpcEndpointId": "vpce-87654321",
-                "ServiceName": "com.amazonaws.us-east-1.dynamodb",
-                "VpcEndpointType": "Gateway",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "VpcEndpoints": [
+                    {
+                        "VpcEndpointId": "vpce-87654321",
+                        "ServiceName": "com.amazonaws.us-east-1.dynamodb",
+                        "VpcEndpointType": "Gateway",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -104,14 +112,18 @@ class TestVPCEndpointsCollectorCollect:
         """Test collecting an endpoint with unknown type."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "VpcEndpoints": [{
-                "VpcEndpointId": "vpce-11111111",
-                "ServiceName": "com.amazonaws.service.new",
-                "VpcEndpointType": "NewType",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "VpcEndpoints": [
+                    {
+                        "VpcEndpointId": "vpce-11111111",
+                        "ServiceName": "com.amazonaws.service.new",
+                        "VpcEndpointType": "NewType",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -126,12 +138,24 @@ class TestVPCEndpointsCollectorCollect:
         """Test collecting multiple VPC endpoints."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "VpcEndpoints": [
-                {"VpcEndpointId": "vpce-1", "ServiceName": "com.amazonaws.s3", "VpcEndpointType": "Gateway", "Tags": []},
-                {"VpcEndpointId": "vpce-2", "ServiceName": "com.amazonaws.dynamodb", "VpcEndpointType": "Gateway", "Tags": []},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "VpcEndpoints": [
+                    {
+                        "VpcEndpointId": "vpce-1",
+                        "ServiceName": "com.amazonaws.s3",
+                        "VpcEndpointType": "Gateway",
+                        "Tags": [],
+                    },
+                    {
+                        "VpcEndpointId": "vpce-2",
+                        "ServiceName": "com.amazonaws.dynamodb",
+                        "VpcEndpointType": "Gateway",
+                        "Tags": [],
+                    },
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -161,8 +185,16 @@ class TestVPCEndpointsCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         mock_paginator.paginate.return_value = [
-            {"VpcEndpoints": [{"VpcEndpointId": "vpce-1", "ServiceName": "svc1", "VpcEndpointType": "Gateway", "Tags": []}]},
-            {"VpcEndpoints": [{"VpcEndpointId": "vpce-2", "ServiceName": "svc2", "VpcEndpointType": "Interface", "Tags": []}]},
+            {
+                "VpcEndpoints": [
+                    {"VpcEndpointId": "vpce-1", "ServiceName": "svc1", "VpcEndpointType": "Gateway", "Tags": []}
+                ]
+            },
+            {
+                "VpcEndpoints": [
+                    {"VpcEndpointId": "vpce-2", "ServiceName": "svc2", "VpcEndpointType": "Interface", "Tags": []}
+                ]
+            },
         ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
@@ -177,14 +209,18 @@ class TestVPCEndpointsCollectorCollect:
         """Test that config hash is generated."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "VpcEndpoints": [{
-                "VpcEndpointId": "vpce-123",
-                "ServiceName": "com.amazonaws.s3",
-                "VpcEndpointType": "Gateway",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "VpcEndpoints": [
+                    {
+                        "VpcEndpointId": "vpce-123",
+                        "ServiceName": "com.amazonaws.s3",
+                        "VpcEndpointType": "Gateway",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 
@@ -200,14 +236,18 @@ class TestVPCEndpointsCollectorCollect:
         """Test collecting endpoint with missing service name."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "VpcEndpoints": [{
-                "VpcEndpointId": "vpce-123",
-                # Missing ServiceName
-                "VpcEndpointType": "Gateway",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "VpcEndpoints": [
+                    {
+                        "VpcEndpointId": "vpce-123",
+                        # Missing ServiceName
+                        "VpcEndpointType": "Gateway",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_create_client.return_value = mock_client
 

@@ -228,9 +228,7 @@ class TestInventoryStore:
         loaded = store.load("test-inventory", "123456789012")
         assert loaded.active_snapshot == "active-snap"
 
-    def test_add_snapshot_to_inventory(
-        self, store: InventoryStore, snapshot_store: SnapshotStore
-    ) -> None:
+    def test_add_snapshot_to_inventory(self, store: InventoryStore, snapshot_store: SnapshotStore) -> None:
         """Test adding a snapshot to an inventory."""
         # Create inventory
         inv = Inventory(name="test", account_id="123456789012")
@@ -278,9 +276,7 @@ class TestInventoryStore:
         loaded = store.load("test", "123456789012")
         assert loaded.active_snapshot == "active-snap"
 
-    def test_remove_snapshot_from_inventory(
-        self, store: InventoryStore, snapshot_store: SnapshotStore
-    ) -> None:
+    def test_remove_snapshot_from_inventory(self, store: InventoryStore, snapshot_store: SnapshotStore) -> None:
         """Test removing a snapshot from an inventory."""
         # Create snapshot first
         snap = Snapshot(

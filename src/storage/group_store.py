@@ -187,9 +187,7 @@ class GroupStore:
         Returns:
             List of group metadata dictionaries
         """
-        rows = self.db.fetchall(
-            "SELECT * FROM resource_groups ORDER BY is_favorite DESC, name"
-        )
+        rows = self.db.fetchall("SELECT * FROM resource_groups ORDER BY is_favorite DESC, name")
         results = []
         for row in rows:
             created_at = row["created_at"]
@@ -199,16 +197,18 @@ class GroupStore:
                 created_at = created_at.isoformat()
             if hasattr(last_updated, "isoformat"):
                 last_updated = last_updated.isoformat()
-            results.append({
-                "id": row["id"],
-                "name": row["name"],
-                "description": row["description"] or "",
-                "source_snapshot": row["source_snapshot"],
-                "resource_count": row["resource_count"],
-                "is_favorite": bool(row["is_favorite"]),
-                "created_at": created_at,
-                "last_updated": last_updated,
-            })
+            results.append(
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "description": row["description"] or "",
+                    "source_snapshot": row["source_snapshot"],
+                    "resource_count": row["resource_count"],
+                    "is_favorite": bool(row["is_favorite"]),
+                    "created_at": created_at,
+                    "last_updated": last_updated,
+                }
+            )
         return results
 
     def delete(self, name: str) -> bool:
@@ -308,7 +308,13 @@ class GroupStore:
                         (group_id, resource_name, resource_type, original_arn, match_strategy)
                         VALUES (?, ?, ?, ?, ?)
                         """,
-                        (group_id, member.resource_name, member.resource_type, member.original_arn, member.match_strategy),
+                        (
+                            group_id,
+                            member.resource_name,
+                            member.resource_type,
+                            member.original_arn,
+                            member.match_strategy,
+                        ),
                     )
                     added += 1
                 except Exception:
@@ -598,10 +604,7 @@ class GroupStore:
 
         # Build result lists
         matched = [snapshot_resources[k] for k in matched_keys]
-        missing = [
-            {"name": k[0], "resource_type": k[1]}
-            for k in missing_keys
-        ]
+        missing = [{"name": k[0], "resource_type": k[1]} for k in missing_keys]
         extra = [snapshot_resources[k] for k in extra_keys]
 
         return {

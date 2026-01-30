@@ -42,7 +42,7 @@ async def chart_resources_by_type(
         "datasets": [
             {
                 "data": data,
-                "backgroundColor": CHART_COLORS[:len(data)],
+                "backgroundColor": CHART_COLORS[: len(data)],
             }
         ],
     }
@@ -88,7 +88,7 @@ async def chart_resources_by_service(
         "datasets": [
             {
                 "data": data,
-                "backgroundColor": CHART_COLORS[:len(data)],
+                "backgroundColor": CHART_COLORS[: len(data)],
             }
         ],
     }

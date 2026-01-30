@@ -110,14 +110,18 @@ class TestAuditStore:
 
         assert loaded is None
 
-    def test_save_record(self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord) -> None:
+    def test_save_record(
+        self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord
+    ) -> None:
         """Test saving a deletion record."""
         store.save_operation(sample_operation)
         record_id = store.save_record(sample_record)
 
         assert record_id is not None
 
-    def test_load_records(self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord) -> None:
+    def test_load_records(
+        self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord
+    ) -> None:
         """Test loading records for an operation."""
         store.save_operation(sample_operation)
         store.save_record(sample_record)
@@ -128,7 +132,9 @@ class TestAuditStore:
         assert records[0].resource_arn == "arn:aws:s3:::test-bucket"
         assert records[0].status == DeletionStatus.SUCCEEDED
 
-    def test_load_records_with_tags(self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord) -> None:
+    def test_load_records_with_tags(
+        self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord
+    ) -> None:
         """Test that record tags are loaded correctly."""
         store.save_operation(sample_operation)
         store.save_record(sample_record)
@@ -264,7 +270,9 @@ class TestAuditStore:
 
         assert len(operations) == 5
 
-    def test_delete_operation(self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord) -> None:
+    def test_delete_operation(
+        self, store: AuditStore, sample_operation: DeletionOperation, sample_record: DeletionRecord
+    ) -> None:
         """Test deleting an operation."""
         store.save_operation(sample_operation)
         store.save_record(sample_record)

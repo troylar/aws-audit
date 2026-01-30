@@ -28,6 +28,7 @@ try:
     from src.generate.nodes.categorize_layers import categorize_layers
     from src.generate.nodes.extract_lambda import extract_lambda_code
     from src.generate.nodes.generate_layer import generate_layer
+
     IMPORTS_AVAILABLE = True
 except ImportError as e:
     IMPORTS_AVAILABLE = False
@@ -49,8 +50,7 @@ except ImportError as e:
 
 
 pytestmark = pytest.mark.skipif(
-    not IMPORTS_AVAILABLE,
-    reason=f"Required imports not available: {IMPORT_ERROR if not IMPORTS_AVAILABLE else ''}"
+    not IMPORTS_AVAILABLE, reason=f"Required imports not available: {IMPORT_ERROR if not IMPORTS_AVAILABLE else ''}"
 )
 
 
@@ -260,9 +260,7 @@ class TestBuildResourceMapNode:
             ],
         }
 
-    def test_builds_id_to_reference_mapping(
-        self, state_with_inventory: Dict[str, Any]
-    ) -> None:
+    def test_builds_id_to_reference_mapping(self, state_with_inventory: Dict[str, Any]) -> None:
         """Test building AWS ID to Terraform reference mapping."""
         result = build_resource_map(state_with_inventory)
 
@@ -272,9 +270,7 @@ class TestBuildResourceMapNode:
         assert isinstance(resource_map, ResourceMap)
         assert "vpc-12345678" in resource_map.id_to_ref
 
-    def test_handles_multiple_resource_types(
-        self, state_with_inventory: Dict[str, Any]
-    ) -> None:
+    def test_handles_multiple_resource_types(self, state_with_inventory: Dict[str, Any]) -> None:
         """Test handling multiple resource types (vpc, subnet, instance)."""
         result = build_resource_map(state_with_inventory)
 
@@ -282,18 +278,18 @@ class TestBuildResourceMapNode:
 
         assert len(resource_map.id_to_ref) >= 3
 
-    def test_terraform_name_sanitization(
-        self, state_with_inventory: Dict[str, Any]
-    ) -> None:
+    def test_terraform_name_sanitization(self, state_with_inventory: Dict[str, Any]) -> None:
         """Test that TrackedResource.get_terraform_name() sanitization is applied."""
-        state_with_inventory["inventory"].append({
-            "arn": "arn:aws:s3:::my-special.bucket-name",
-            "type": "s3:bucket",
-            "name": "my-special.bucket-name",
-            "region": "us-east-1",
-            "tags": {},
-            "raw_config": {"BucketName": "my-special.bucket-name"},
-        })
+        state_with_inventory["inventory"].append(
+            {
+                "arn": "arn:aws:s3:::my-special.bucket-name",
+                "type": "s3:bucket",
+                "name": "my-special.bucket-name",
+                "region": "us-east-1",
+                "tags": {},
+                "raw_config": {"BucketName": "my-special.bucket-name"},
+            }
+        )
 
         result = build_resource_map(state_with_inventory)
 
@@ -324,9 +320,7 @@ class TestBuildResourceMapNode:
         resource_map = result["resource_map"]
         assert len(resource_map.id_to_ref) == 0
 
-    def test_maps_arns_to_references(
-        self, state_with_inventory: Dict[str, Any]
-    ) -> None:
+    def test_maps_arns_to_references(self, state_with_inventory: Dict[str, Any]) -> None:
         """Test that full ARNs are also mapped to Terraform references."""
         result = build_resource_map(state_with_inventory)
 
@@ -335,9 +329,7 @@ class TestBuildResourceMapNode:
         arn = "arn:aws:ec2:us-east-1:123456789012:vpc/vpc-12345678"
         assert arn in resource_map.id_to_ref
 
-    def test_resource_map_bidirectional(
-        self, state_with_inventory: Dict[str, Any]
-    ) -> None:
+    def test_resource_map_bidirectional(self, state_with_inventory: Dict[str, Any]) -> None:
         """Test that ResourceMap has bidirectional mappings."""
         result = build_resource_map(state_with_inventory)
 
@@ -358,19 +350,72 @@ class TestCategorizeLayersNode:
     def state_with_tracked_resources(self) -> Dict[str, Any]:
         """Create state with TrackedResource objects."""
         resources = [
-            TrackedResource(arn="arn:aws:ec2:us-east-1:123:vpc/vpc-1", resource_type="ec2:vpc", name="vpc-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:ec2:us-east-1:123:subnet/subnet-1", resource_type="ec2:subnet", name="subnet-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:ec2:us-east-1:123:security-group/sg-1", resource_type="ec2:security-group", name="sg-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:iam::123:role/role-1", resource_type="iam:role", name="role-1", region="global"),
-            TrackedResource(arn="arn:aws:rds:us-east-1:123:db:db-1", resource_type="rds:db-instance", name="db-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:s3:::bucket-1", resource_type="s3:bucket", name="bucket-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:ec2:us-east-1:123:instance/i-1", resource_type="ec2:instance", name="instance-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:lambda:us-east-1:123:function:func-1", resource_type="lambda:function", name="func-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:elasticloadbalancing:us-east-1:123:loadbalancer/app/lb-1/123", resource_type="elbv2:loadbalancer", name="lb-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:apigateway:us-east-1::/apis/api-1", resource_type="apigatewayv2:api", name="api-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:sqs:us-east-1:123:queue-1", resource_type="sqs:queue", name="queue-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:logs:us-east-1:123:log-group:/aws/lambda/func-1", resource_type="logs:log-group", name="/aws/lambda/func-1", region="us-east-1"),
-            TrackedResource(arn="arn:aws:route53:::hostedzone/Z123", resource_type="route53:hosted-zone", name="example.com", region="global"),
+            TrackedResource(
+                arn="arn:aws:ec2:us-east-1:123:vpc/vpc-1", resource_type="ec2:vpc", name="vpc-1", region="us-east-1"
+            ),
+            TrackedResource(
+                arn="arn:aws:ec2:us-east-1:123:subnet/subnet-1",
+                resource_type="ec2:subnet",
+                name="subnet-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:ec2:us-east-1:123:security-group/sg-1",
+                resource_type="ec2:security-group",
+                name="sg-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:iam::123:role/role-1", resource_type="iam:role", name="role-1", region="global"
+            ),
+            TrackedResource(
+                arn="arn:aws:rds:us-east-1:123:db:db-1",
+                resource_type="rds:db-instance",
+                name="db-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:s3:::bucket-1", resource_type="s3:bucket", name="bucket-1", region="us-east-1"
+            ),
+            TrackedResource(
+                arn="arn:aws:ec2:us-east-1:123:instance/i-1",
+                resource_type="ec2:instance",
+                name="instance-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:lambda:us-east-1:123:function:func-1",
+                resource_type="lambda:function",
+                name="func-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:elasticloadbalancing:us-east-1:123:loadbalancer/app/lb-1/123",
+                resource_type="elbv2:loadbalancer",
+                name="lb-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:apigateway:us-east-1::/apis/api-1",
+                resource_type="apigatewayv2:api",
+                name="api-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:sqs:us-east-1:123:queue-1", resource_type="sqs:queue", name="queue-1", region="us-east-1"
+            ),
+            TrackedResource(
+                arn="arn:aws:logs:us-east-1:123:log-group:/aws/lambda/func-1",
+                resource_type="logs:log-group",
+                name="/aws/lambda/func-1",
+                region="us-east-1",
+            ),
+            TrackedResource(
+                arn="arn:aws:route53:::hostedzone/Z123",
+                resource_type="route53:hosted-zone",
+                name="example.com",
+                region="global",
+            ),
         ]
         return {
             "snapshot_name": "test-snapshot",
@@ -380,9 +425,7 @@ class TestCategorizeLayersNode:
             "resource_map": ResourceMap(),
         }
 
-    def test_groups_resources_by_layer(
-        self, state_with_tracked_resources: Dict[str, Any]
-    ) -> None:
+    def test_groups_resources_by_layer(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test that resources are grouped by their dependency layer."""
         result = categorize_layers(state_with_tracked_resources)
 
@@ -392,9 +435,7 @@ class TestCategorizeLayersNode:
         assert isinstance(layers, list)
         assert len(layers) > 0
 
-    def test_returns_layer_objects(
-        self, state_with_tracked_resources: Dict[str, Any]
-    ) -> None:
+    def test_returns_layer_objects(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test that categorize_layers returns Layer objects."""
         result = categorize_layers(state_with_tracked_resources)
 
@@ -406,9 +447,7 @@ class TestCategorizeLayersNode:
             assert hasattr(layer, "resources")
             assert hasattr(layer, "status")
 
-    def test_layer_ordering(
-        self, state_with_tracked_resources: Dict[str, Any]
-    ) -> None:
+    def test_layer_ordering(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test that layers are ordered correctly."""
         result = categorize_layers(state_with_tracked_resources)
 
@@ -417,9 +456,7 @@ class TestCategorizeLayersNode:
         orders = [layer.order for layer in layers]
         assert orders == sorted(orders), "Layers should be in ascending order"
 
-    def test_network_layer_contains_vpc(
-        self, state_with_tracked_resources: Dict[str, Any]
-    ) -> None:
+    def test_network_layer_contains_vpc(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test VPC resources are in NETWORK layer."""
         result = categorize_layers(state_with_tracked_resources)
 
@@ -436,9 +473,7 @@ class TestCategorizeLayersNode:
         vpc_resources = [r for r in network_layer.resources if r.resource_type == "ec2:vpc"]
         assert len(vpc_resources) >= 1
 
-    def test_compute_layer_contains_lambda(
-        self, state_with_tracked_resources: Dict[str, Any]
-    ) -> None:
+    def test_compute_layer_contains_lambda(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test Lambda functions are in COMPUTE layer."""
         result = categorize_layers(state_with_tracked_resources)
 
@@ -455,9 +490,7 @@ class TestCategorizeLayersNode:
         lambda_resources = [r for r in compute_layer.resources if r.resource_type == "lambda:function"]
         assert len(lambda_resources) >= 1
 
-    def test_all_resources_categorized(
-        self, state_with_tracked_resources: Dict[str, Any]
-    ) -> None:
+    def test_all_resources_categorized(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test that all resources are placed into layers."""
         result = categorize_layers(state_with_tracked_resources)
 
@@ -466,9 +499,7 @@ class TestCategorizeLayersNode:
         total_resources = sum(len(layer.resources) for layer in layers)
         assert total_resources == len(state_with_tracked_resources["resources"])
 
-    def test_layers_have_pending_status(
-        self, state_with_tracked_resources: Dict[str, Any]
-    ) -> None:
+    def test_layers_have_pending_status(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test that all layers start with PENDING status."""
         result = categorize_layers(state_with_tracked_resources)
 
@@ -480,7 +511,12 @@ class TestCategorizeLayersNode:
     def test_handles_unknown_resource_types(self) -> None:
         """Test handling of resource types not in RESOURCE_TYPE_TO_LAYER."""
         resources = [
-            TrackedResource(arn="arn:aws:unknown:us-east-1:123:thing/thing-1", resource_type="unknown:thing", name="thing-1", region="us-east-1"),
+            TrackedResource(
+                arn="arn:aws:unknown:us-east-1:123:thing/thing-1",
+                resource_type="unknown:thing",
+                name="thing-1",
+                region="us-east-1",
+            ),
         ]
         state: Dict[str, Any] = {
             "snapshot_name": "test",
@@ -622,9 +658,7 @@ class TestExtractLambdaCodeNode:
 
         assert "no-code-func" not in lambda_paths
 
-    def test_creates_lambda_subdirectory(
-        self, state_with_lambda_resources: Dict[str, Any], tmp_path: Path
-    ) -> None:
+    def test_creates_lambda_subdirectory(self, state_with_lambda_resources: Dict[str, Any], tmp_path: Path) -> None:
         """Test that Lambda code is extracted to lambda subdirectory."""
         state_with_lambda_resources["output_dir"] = str(tmp_path)
 
@@ -636,17 +670,29 @@ class TestExtractLambdaCodeNode:
             zip_path = Path(lambda_paths["inline-func"])
             assert "lambda" in str(zip_path.parent)
 
-    def test_skips_non_lambda_resources(
-        self, tmp_path: Path
-    ) -> None:
+    def test_skips_non_lambda_resources(self, tmp_path: Path) -> None:
         """Test that non-Lambda resources are skipped."""
         state: Dict[str, Any] = {
             "snapshot_name": "test",
             "output_dir": str(tmp_path),
             "output_format": "terraform",
             "inventory": [
-                {"arn": "arn:aws:ec2:us-east-1:123:vpc/vpc-1", "type": "ec2:vpc", "name": "vpc-1", "region": "us-east-1", "tags": {}, "raw_config": {}},
-                {"arn": "arn:aws:s3:::bucket-1", "type": "s3:bucket", "name": "bucket-1", "region": "us-east-1", "tags": {}, "raw_config": {}},
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123:vpc/vpc-1",
+                    "type": "ec2:vpc",
+                    "name": "vpc-1",
+                    "region": "us-east-1",
+                    "tags": {},
+                    "raw_config": {},
+                },
+                {
+                    "arn": "arn:aws:s3:::bucket-1",
+                    "type": "s3:bucket",
+                    "name": "bucket-1",
+                    "region": "us-east-1",
+                    "tags": {},
+                    "raw_config": {},
+                },
             ],
             "layers": {},
             "resource_map": {},
@@ -657,9 +703,7 @@ class TestExtractLambdaCodeNode:
         lambda_paths = result.get("lambda_code_paths", {})
         assert len(lambda_paths) == 0
 
-    def test_returns_errors_list(
-        self, tmp_path: Path
-    ) -> None:
+    def test_returns_errors_list(self, tmp_path: Path) -> None:
         """Test that extract_lambda_code returns an errors list."""
         state: Dict[str, Any] = {
             "snapshot_name": "test",
@@ -705,13 +749,41 @@ class TestGenerateLayerNode:
             "output_dir": "/tmp/terraform-output",
             "output_format": "terraform",
             "inventory": [
-                {"arn": "arn:aws:ec2:us-east-1:123:vpc/vpc-1", "type": "ec2:vpc", "name": "main-vpc", "region": "us-east-1", "tags": {"Environment": "prod"}, "raw_config": {"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"}},
-                {"arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-1", "type": "ec2:subnet", "name": "public-1", "region": "us-east-1", "tags": {}, "raw_config": {"SubnetId": "subnet-1", "VpcId": "vpc-1", "CidrBlock": "10.0.1.0/24"}},
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123:vpc/vpc-1",
+                    "type": "ec2:vpc",
+                    "name": "main-vpc",
+                    "region": "us-east-1",
+                    "tags": {"Environment": "prod"},
+                    "raw_config": {"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"},
+                },
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-1",
+                    "type": "ec2:subnet",
+                    "name": "public-1",
+                    "region": "us-east-1",
+                    "tags": {},
+                    "raw_config": {"SubnetId": "subnet-1", "VpcId": "vpc-1", "CidrBlock": "10.0.1.0/24"},
+                },
             ],
             "layers": {
                 "NETWORK": [
-                    {"arn": "arn:aws:ec2:us-east-1:123:vpc/vpc-1", "type": "ec2:vpc", "name": "main-vpc", "region": "us-east-1", "tags": {"Environment": "prod"}, "raw_config": {"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"}},
-                    {"arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-1", "type": "ec2:subnet", "name": "public-1", "region": "us-east-1", "tags": {}, "raw_config": {"SubnetId": "subnet-1", "VpcId": "vpc-1", "CidrBlock": "10.0.1.0/24"}},
+                    {
+                        "arn": "arn:aws:ec2:us-east-1:123:vpc/vpc-1",
+                        "type": "ec2:vpc",
+                        "name": "main-vpc",
+                        "region": "us-east-1",
+                        "tags": {"Environment": "prod"},
+                        "raw_config": {"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"},
+                    },
+                    {
+                        "arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-1",
+                        "type": "ec2:subnet",
+                        "name": "public-1",
+                        "region": "us-east-1",
+                        "tags": {},
+                        "raw_config": {"SubnetId": "subnet-1", "VpcId": "vpc-1", "CidrBlock": "10.0.1.0/24"},
+                    },
                 ],
             },
             "layer_order": ["NETWORK"],
@@ -725,7 +797,7 @@ class TestGenerateLayerNode:
     @pytest.fixture
     def mock_ai_response(self) -> str:
         """Create mock AI response with Terraform code."""
-        return '''```hcl
+        return """```hcl
 resource "aws_vpc" "main_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -746,11 +818,9 @@ resource "aws_subnet" "public_1" {
     Name = "public-1"
   }
 }
-```'''
+```"""
 
-    def test_calls_openai_client(
-        self, state_with_current_layer: Dict[str, Any], tmp_path: Path
-    ) -> None:
+    def test_calls_openai_client(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
         """Test that generate_layer calls OpenAI client."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
@@ -783,21 +853,19 @@ resource "aws_subnet" "public_1" {
                     assert not code.startswith("```")
                     assert not code.endswith("```")
 
-    def test_resource_reference_substitution(
-        self, state_with_current_layer: Dict[str, Any], tmp_path: Path
-    ) -> None:
+    def test_resource_reference_substitution(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
         """Test that hardcoded IDs are replaced with Terraform references."""
         resource_map = ResourceMap()
         resource_map.add("vpc-1", "aws_vpc.main_vpc", "ec2:vpc")
         state_with_current_layer["resource_map"] = resource_map
         state_with_current_layer["output_dir"] = str(tmp_path)
 
-        ai_response_with_hardcoded_ids = '''```hcl
+        ai_response_with_hardcoded_ids = """```hcl
 resource "aws_subnet" "public_1" {
   vpc_id     = "vpc-1"
   cidr_block = "10.0.1.0/24"
 }
-```'''
+```"""
 
         mock_client = MagicMock()
         mock_response = MagicMock()
@@ -812,9 +880,7 @@ resource "aws_subnet" "public_1" {
                     if '"vpc-1"' not in code:
                         assert "aws_vpc.main_vpc.id" in code
 
-    def test_handles_ai_error(
-        self, state_with_current_layer: Dict[str, Any], tmp_path: Path
-    ) -> None:
+    def test_handles_ai_error(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
         """Test handling of AI API errors."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
@@ -881,9 +947,7 @@ resource "aws_subnet" "public_1" {
                 for filepath in result["generated_files"]:
                     assert Path(filepath).exists()
 
-    def test_handles_empty_layer(
-        self, state_with_current_layer: Dict[str, Any], tmp_path: Path
-    ) -> None:
+    def test_handles_empty_layer(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
         """Test handling layer with no resources."""
         state_with_current_layer["layers"]["NETWORK"] = []
         state_with_current_layer["output_dir"] = str(tmp_path)
@@ -894,9 +958,7 @@ resource "aws_subnet" "public_1" {
         assert result["current_layer_index"] == 1
         assert result["current_layer_status"] == LayerStatus.COMPLETED.value
 
-    def test_handles_no_more_layers(
-        self, state_with_current_layer: Dict[str, Any], tmp_path: Path
-    ) -> None:
+    def test_handles_no_more_layers(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
         """Test handling when all layers have been processed."""
         state_with_current_layer["current_layer_index"] = 1
         state_with_current_layer["output_dir"] = str(tmp_path)
@@ -976,7 +1038,12 @@ class TestNodeReturnTypes:
 
     def test_build_resource_map_returns_dict(self) -> None:
         """Test build_resource_map returns a dict for state update."""
-        state: Dict[str, Any] = {"snapshot_name": "test", "output_dir": "/tmp", "output_format": "terraform", "inventory": []}
+        state: Dict[str, Any] = {
+            "snapshot_name": "test",
+            "output_dir": "/tmp",
+            "output_format": "terraform",
+            "inventory": [],
+        }
         result = build_resource_map(state)
 
         assert isinstance(result, dict)

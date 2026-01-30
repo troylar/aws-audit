@@ -8,6 +8,7 @@ from typing import Optional
 @dataclass
 class MockResource:
     """Mock resource for testing."""
+
     resource_type: str
     name: str
     arn: str = ""

@@ -125,7 +125,7 @@ def sample_snapshot(sample_resources: List[Resource]) -> Snapshot:
 def mock_ai_responses() -> Dict[str, str]:
     """Mock AI responses for each layer."""
     return {
-        "Network Foundation": '''
+        "Network Foundation": """
 resource "aws_vpc" "main_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -147,8 +147,8 @@ resource "aws_subnet" "public_subnet_1" {
     Name = "public-subnet-1"
   }
 }
-''',
-        "Security Groups": '''
+""",
+        "Security Groups": """
 resource "aws_security_group" "web_sg" {
   name        = "web-sg"
   description = "Web server security group"
@@ -158,8 +158,8 @@ resource "aws_security_group" "web_sg" {
     Name = "web-sg"
   }
 }
-''',
-        "Compute": '''
+""",
+        "Compute": """
 resource "aws_instance" "web_server" {
   ami           = "ami-12345678"
   instance_type = "t3.micro"
@@ -170,7 +170,7 @@ resource "aws_instance" "web_server" {
     Name = "web-server"
   }
 }
-''',
+""",
     }
 
 
@@ -316,12 +316,12 @@ class TestTerraformGenerationWorkflow:
         resource_map.add("vpc-abc123", "aws_vpc.main", "vpc:vpc")
         resource_map.add("subnet-def456", "aws_subnet.public", "vpc:subnet")
 
-        code = '''
+        code = """
 resource "aws_instance" "web" {
   subnet_id = "subnet-def456"
   vpc_security_group_ids = ["sg-123"]
 }
-'''
+"""
         result = resource_map.replace_ids_in_code(code)
         assert "aws_subnet.public.id" in result
         assert '"subnet-def456"' not in result
@@ -527,11 +527,13 @@ class TestEndToEndWorkflow:
         def mock_completion(*args: Any, **kwargs: Any) -> MagicMock:
             response = MagicMock()
             response.choices = [MagicMock()]
-            response.choices[0].message.content = '''
+            response.choices[
+                0
+            ].message.content = """
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
 }
-'''
+"""
             return response
 
         mock_client.chat.completions.create = mock_completion

@@ -58,9 +58,7 @@ class TestSNSCollectorCollect:
                 "DisplayName": "Test Topic",
             }
         }
-        mock_client.list_tags_for_resource.return_value = {
-            "Tags": [{"Key": "Environment", "Value": "test"}]
-        }
+        mock_client.list_tags_for_resource.return_value = {"Tags": [{"Key": "Environment", "Value": "test"}]}
         mock_create_client.return_value = mock_client
 
         collector = SNSCollector(session=mock_session, region="us-east-1")
@@ -79,10 +77,12 @@ class TestSNSCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         mock_paginator.paginate.return_value = [
-            {"Topics": [
-                {"TopicArn": "arn:aws:sns:us-east-1:123456789012:topic-1"},
-                {"TopicArn": "arn:aws:sns:us-east-1:123456789012:topic-2"},
-            ]}
+            {
+                "Topics": [
+                    {"TopicArn": "arn:aws:sns:us-east-1:123456789012:topic-1"},
+                    {"TopicArn": "arn:aws:sns:us-east-1:123456789012:topic-2"},
+                ]
+            }
         ]
         mock_client.get_paginator.return_value = mock_paginator
 
@@ -106,10 +106,12 @@ class TestSNSCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         mock_paginator.paginate.return_value = [
-            {"Topics": [
-                {"TopicArn": "arn:aws:sns:us-east-1:123456789012:good-topic"},
-                {"TopicArn": "arn:aws:sns:us-east-1:123456789012:bad-topic"},
-            ]}
+            {
+                "Topics": [
+                    {"TopicArn": "arn:aws:sns:us-east-1:123456789012:good-topic"},
+                    {"TopicArn": "arn:aws:sns:us-east-1:123456789012:bad-topic"},
+                ]
+            }
         ]
         mock_client.get_paginator.return_value = mock_paginator
 

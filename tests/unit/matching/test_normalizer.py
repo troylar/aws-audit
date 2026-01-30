@@ -190,7 +190,9 @@ class TestNormalizeResources:
         results = normalizer.normalize_resources(resources, use_ai=False)
 
         # Should use basic normalize as fallback
-        assert results["arn:aws:lambda:us-east-1:123456789012:function:MyStack-Func-ABC123DEF"] == "mystack-func-abc123def"
+        assert (
+            results["arn:aws:lambda:us-east-1:123456789012:function:MyStack-Func-ABC123DEF"] == "mystack-func-abc123def"
+        )
 
 
 class TestParseAiResponse:

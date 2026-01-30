@@ -154,21 +154,25 @@ class TestDeltaReporterFormatTags:
 
     def test_multiple_tags(self, reporter):
         """Test formatting multiple tags."""
-        result = reporter._format_tags({
-            "Name": "test",
-            "Environment": "dev",
-            "Project": "myproj",
-        })
+        result = reporter._format_tags(
+            {
+                "Name": "test",
+                "Environment": "dev",
+                "Project": "myproj",
+            }
+        )
         assert "Name=test" in result
         assert "Environment=dev" in result
 
     def test_important_tags_prioritized(self, reporter):
         """Test that important tags are shown first."""
-        result = reporter._format_tags({
-            "random": "value",
-            "Name": "important",
-            "other": "stuff",
-        })
+        result = reporter._format_tags(
+            {
+                "random": "value",
+                "Name": "important",
+                "other": "stuff",
+            }
+        )
         assert "Name=important" in result
 
     def test_max_three_tags(self, reporter):

@@ -57,14 +57,18 @@ class TestBackupCollectorCollect:
         mock_client = MagicMock()
         mock_plans_paginator = MagicMock()
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        mock_plans_paginator.paginate.return_value = [{
-            "BackupPlansList": [{
-                "BackupPlanId": "plan-123",
-                "BackupPlanName": "my-backup-plan",
-                "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
-                "CreationDate": created_at,
-            }]
-        }]
+        mock_plans_paginator.paginate.return_value = [
+            {
+                "BackupPlansList": [
+                    {
+                        "BackupPlanId": "plan-123",
+                        "BackupPlanName": "my-backup-plan",
+                        "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
+                        "CreationDate": created_at,
+                    }
+                ]
+            }
+        ]
         mock_vaults_paginator = MagicMock()
         mock_vaults_paginator.paginate.return_value = [{"BackupVaultList": []}]
 
@@ -102,13 +106,17 @@ class TestBackupCollectorCollect:
         mock_plans_paginator.paginate.return_value = [{"BackupPlansList": []}]
         mock_vaults_paginator = MagicMock()
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        mock_vaults_paginator.paginate.return_value = [{
-            "BackupVaultList": [{
-                "BackupVaultName": "my-vault",
-                "BackupVaultArn": "arn:aws:backup:us-east-1:123456789012:backup-vault:my-vault",
-                "CreationDate": created_at,
-            }]
-        }]
+        mock_vaults_paginator.paginate.return_value = [
+            {
+                "BackupVaultList": [
+                    {
+                        "BackupVaultName": "my-vault",
+                        "BackupVaultArn": "arn:aws:backup:us-east-1:123456789012:backup-vault:my-vault",
+                        "CreationDate": created_at,
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "list_backup_plans":
@@ -134,20 +142,28 @@ class TestBackupCollectorCollect:
         """Test collecting both backup plans and vaults."""
         mock_client = MagicMock()
         mock_plans_paginator = MagicMock()
-        mock_plans_paginator.paginate.return_value = [{
-            "BackupPlansList": [{
-                "BackupPlanId": "plan-123",
-                "BackupPlanName": "my-plan",
-                "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
-            }]
-        }]
+        mock_plans_paginator.paginate.return_value = [
+            {
+                "BackupPlansList": [
+                    {
+                        "BackupPlanId": "plan-123",
+                        "BackupPlanName": "my-plan",
+                        "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
+                    }
+                ]
+            }
+        ]
         mock_vaults_paginator = MagicMock()
-        mock_vaults_paginator.paginate.return_value = [{
-            "BackupVaultList": [{
-                "BackupVaultName": "my-vault",
-                "BackupVaultArn": "arn:aws:backup:us-east-1:123456789012:backup-vault:my-vault",
-            }]
-        }]
+        mock_vaults_paginator.paginate.return_value = [
+            {
+                "BackupVaultList": [
+                    {
+                        "BackupVaultName": "my-vault",
+                        "BackupVaultArn": "arn:aws:backup:us-east-1:123456789012:backup-vault:my-vault",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "list_backup_plans":
@@ -173,13 +189,17 @@ class TestBackupCollectorCollect:
         """Test collecting continues when get_backup_plan fails."""
         mock_client = MagicMock()
         mock_plans_paginator = MagicMock()
-        mock_plans_paginator.paginate.return_value = [{
-            "BackupPlansList": [{
-                "BackupPlanId": "plan-123",
-                "BackupPlanName": "my-plan",
-                "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
-            }]
-        }]
+        mock_plans_paginator.paginate.return_value = [
+            {
+                "BackupPlansList": [
+                    {
+                        "BackupPlanId": "plan-123",
+                        "BackupPlanName": "my-plan",
+                        "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
+                    }
+                ]
+            }
+        ]
         mock_vaults_paginator = MagicMock()
         mock_vaults_paginator.paginate.return_value = [{"BackupVaultList": []}]
 
@@ -204,13 +224,17 @@ class TestBackupCollectorCollect:
         """Test collecting continues when list_tags fails."""
         mock_client = MagicMock()
         mock_plans_paginator = MagicMock()
-        mock_plans_paginator.paginate.return_value = [{
-            "BackupPlansList": [{
-                "BackupPlanId": "plan-123",
-                "BackupPlanName": "my-plan",
-                "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
-            }]
-        }]
+        mock_plans_paginator.paginate.return_value = [
+            {
+                "BackupPlansList": [
+                    {
+                        "BackupPlanId": "plan-123",
+                        "BackupPlanName": "my-plan",
+                        "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
+                    }
+                ]
+            }
+        ]
         mock_vaults_paginator = MagicMock()
         mock_vaults_paginator.paginate.return_value = [{"BackupVaultList": []}]
 
@@ -285,13 +309,17 @@ class TestBackupCollectorCollect:
         """Test that config hash is generated."""
         mock_client = MagicMock()
         mock_plans_paginator = MagicMock()
-        mock_plans_paginator.paginate.return_value = [{
-            "BackupPlansList": [{
-                "BackupPlanId": "plan-123",
-                "BackupPlanName": "my-plan",
-                "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
-            }]
-        }]
+        mock_plans_paginator.paginate.return_value = [
+            {
+                "BackupPlansList": [
+                    {
+                        "BackupPlanId": "plan-123",
+                        "BackupPlanName": "my-plan",
+                        "BackupPlanArn": "arn:aws:backup:us-east-1:123456789012:backup-plan:plan-123",
+                    }
+                ]
+            }
+        ]
         mock_vaults_paginator = MagicMock()
         mock_vaults_paginator.paginate.return_value = [{"BackupVaultList": []}]
 

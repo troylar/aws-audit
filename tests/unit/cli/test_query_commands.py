@@ -33,9 +33,7 @@ class TestQuerySqlCommand:
     def test_basic_query(self, mock_store_cls, mock_db_cls, cli_runner):
         """Test basic SQL query execution."""
         mock_store = MagicMock()
-        mock_store.query_raw.return_value = [
-            {"resource_type": "AWS::EC2::Instance", "count": 5}
-        ]
+        mock_store.query_raw.return_value = [{"resource_type": "AWS::EC2::Instance", "count": 5}]
         mock_store_cls.return_value = mock_store
 
         result = cli_runner.invoke(
@@ -89,9 +87,7 @@ class TestQuerySqlCommand:
     def test_query_json_format(self, mock_store_cls, mock_db_cls, cli_runner):
         """Test query with JSON output format."""
         mock_store = MagicMock()
-        mock_store.query_raw.return_value = [
-            {"name": "test-resource", "region": "us-east-1"}
-        ]
+        mock_store.query_raw.return_value = [{"name": "test-resource", "region": "us-east-1"}]
         mock_store_cls.return_value = mock_store
 
         result = cli_runner.invoke(
@@ -105,7 +101,8 @@ class TestQuerySqlCommand:
         assert "us-east-1" in result.stdout
         # Verify it's valid JSON by finding the JSON array in output
         import re
-        json_match = re.search(r'\[.*\]', result.stdout, re.DOTALL)
+
+        json_match = re.search(r"\[.*\]", result.stdout, re.DOTALL)
         assert json_match is not None
         parsed = json.loads(json_match.group())
         assert parsed[0]["name"] == "test-resource"
@@ -115,9 +112,7 @@ class TestQuerySqlCommand:
     def test_query_csv_format(self, mock_store_cls, mock_db_cls, cli_runner):
         """Test query with CSV output format."""
         mock_store = MagicMock()
-        mock_store.query_raw.return_value = [
-            {"name": "test-resource", "region": "us-east-1"}
-        ]
+        mock_store.query_raw.return_value = [{"name": "test-resource", "region": "us-east-1"}]
         mock_store_cls.return_value = mock_store
 
         result = cli_runner.invoke(
@@ -186,7 +181,13 @@ class TestQuerySqlSnapshotFilter:
 
         result = cli_runner.invoke(
             app,
-            ["query", "sql", "SELECT * FROM resources WHERE resource_type = 'AWS::EC2::Instance'", "--snapshot", "my-snapshot"],
+            [
+                "query",
+                "sql",
+                "SELECT * FROM resources WHERE resource_type = 'AWS::EC2::Instance'",
+                "--snapshot",
+                "my-snapshot",
+            ],
         )
 
         assert result.exit_code == 0
@@ -208,7 +209,13 @@ class TestQuerySqlSnapshotFilter:
 
         result = cli_runner.invoke(
             app,
-            ["query", "sql", "SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type", "--snapshot", "my-snapshot"],
+            [
+                "query",
+                "sql",
+                "SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type",
+                "--snapshot",
+                "my-snapshot",
+            ],
         )
 
         assert result.exit_code == 0
@@ -287,6 +294,7 @@ class TestQuerySqlEnvVar:
     def test_cli_flag_overrides_env_var(self, mock_store_cls, mock_db_cls, cli_runner):
         """Test that --snapshot flag overrides AWSINV_SNAPSHOT_ID env var."""
         mock_db = MagicMock()
+
         # Return different IDs based on snapshot name
         def mock_fetchall(query, params):
             if params[0] == "cli-snapshot":
@@ -414,7 +422,13 @@ class TestQuerySqlEdgeCases:
 
         result = cli_runner.invoke(
             app,
-            ["query", "sql", "SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type HAVING count > 1", "--snapshot", "my-snapshot"],
+            [
+                "query",
+                "sql",
+                "SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type HAVING count > 1",
+                "--snapshot",
+                "my-snapshot",
+            ],
         )
 
         assert result.exit_code == 0

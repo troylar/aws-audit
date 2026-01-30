@@ -286,18 +286,14 @@ def get_record_set_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     for aws_key, tf_key in RECORD_SET_CONFIGURABLE.items():
         if aws_key in raw_config and aws_key not in RECORD_SET_COMPUTED:
             value = raw_config[aws_key]
-            if (
-                value is not None
-                and tf_key
-                not in [
-                    "alias",
-                    "weighted_routing_policy",
-                    "latency_routing_policy",
-                    "geolocation_routing_policy",
-                    "failover_routing_policy",
-                    "geoproximity_routing_policy",
-                ]
-            ):
+            if value is not None and tf_key not in [
+                "alias",
+                "weighted_routing_policy",
+                "latency_routing_policy",
+                "geolocation_routing_policy",
+                "failover_routing_policy",
+                "geoproximity_routing_policy",
+            ]:
                 terraform_config[tf_key] = value
 
     # Extract alias as a nested block
@@ -327,9 +323,7 @@ def get_record_set_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Extract multivalue answer routing
     if "MultiValueAnswer" in raw_config:
-        terraform_config["multivalue_answer_routing_policy"] = {
-            "enabled": raw_config["MultiValueAnswer"]
-        }
+        terraform_config["multivalue_answer_routing_policy"] = {"enabled": raw_config["MultiValueAnswer"]}
 
     # Extract failover routing policy
     if "FailoverRoutingPolicy" in raw_config:
@@ -348,26 +342,38 @@ def _register_maps() -> None:
     try:
         from . import register_property_map
 
-        register_property_map("route53:hosted_zone", {
-            "configurable": HOSTED_ZONE_CONFIGURABLE,
-            "computed": HOSTED_ZONE_COMPUTED,
-            "get_properties": get_hosted_zone_properties,
-        })
-        register_property_map("route53:record_set", {
-            "configurable": RECORD_SET_CONFIGURABLE,
-            "computed": RECORD_SET_COMPUTED,
-            "get_properties": get_record_set_properties,
-        })
-        register_property_map("aws:route53_zone", {
-            "configurable": HOSTED_ZONE_CONFIGURABLE,
-            "computed": HOSTED_ZONE_COMPUTED,
-            "get_properties": get_hosted_zone_properties,
-        })
-        register_property_map("aws:route53_record", {
-            "configurable": RECORD_SET_CONFIGURABLE,
-            "computed": RECORD_SET_COMPUTED,
-            "get_properties": get_record_set_properties,
-        })
+        register_property_map(
+            "route53:hosted_zone",
+            {
+                "configurable": HOSTED_ZONE_CONFIGURABLE,
+                "computed": HOSTED_ZONE_COMPUTED,
+                "get_properties": get_hosted_zone_properties,
+            },
+        )
+        register_property_map(
+            "route53:record_set",
+            {
+                "configurable": RECORD_SET_CONFIGURABLE,
+                "computed": RECORD_SET_COMPUTED,
+                "get_properties": get_record_set_properties,
+            },
+        )
+        register_property_map(
+            "aws:route53_zone",
+            {
+                "configurable": HOSTED_ZONE_CONFIGURABLE,
+                "computed": HOSTED_ZONE_COMPUTED,
+                "get_properties": get_hosted_zone_properties,
+            },
+        )
+        register_property_map(
+            "aws:route53_record",
+            {
+                "configurable": RECORD_SET_CONFIGURABLE,
+                "computed": RECORD_SET_COMPUTED,
+                "get_properties": get_record_set_properties,
+            },
+        )
     except ImportError:
         # Registry not available yet, will be registered on import
         pass

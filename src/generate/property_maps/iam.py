@@ -92,6 +92,7 @@ def get_iam_role_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
                 if aws_key == "AssumeRolePolicyDocument":
                     if isinstance(value, dict):
                         import json
+
                         value = json.dumps(value)
                 # Handle PermissionsBoundary - extract ARN if present
                 elif aws_key == "PermissionsBoundary":
@@ -126,6 +127,7 @@ def get_iam_policy_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
                 if aws_key == "PolicyDocument":
                     if isinstance(value, dict):
                         import json
+
                         value = json.dumps(value)
 
                 if value is not None:
@@ -175,36 +177,54 @@ def _register_maps() -> None:
     try:
         from . import register_property_map
 
-        register_property_map("iam:role", {
-            "configurable": IAM_ROLE_CONFIGURABLE,
-            "computed": IAM_ROLE_COMPUTED,
-            "get_properties": get_iam_role_properties,
-        })
-        register_property_map("iam:policy", {
-            "configurable": IAM_POLICY_CONFIGURABLE,
-            "computed": IAM_POLICY_COMPUTED,
-            "get_properties": get_iam_policy_properties,
-        })
-        register_property_map("iam:instance_profile", {
-            "configurable": IAM_INSTANCE_PROFILE_CONFIGURABLE,
-            "computed": IAM_INSTANCE_PROFILE_COMPUTED,
-            "get_properties": get_iam_instance_profile_properties,
-        })
-        register_property_map("AWS::IAM::Role", {
-            "configurable": IAM_ROLE_CONFIGURABLE,
-            "computed": IAM_ROLE_COMPUTED,
-            "get_properties": get_iam_role_properties,
-        })
-        register_property_map("AWS::IAM::Policy", {
-            "configurable": IAM_POLICY_CONFIGURABLE,
-            "computed": IAM_POLICY_COMPUTED,
-            "get_properties": get_iam_policy_properties,
-        })
-        register_property_map("AWS::IAM::InstanceProfile", {
-            "configurable": IAM_INSTANCE_PROFILE_CONFIGURABLE,
-            "computed": IAM_INSTANCE_PROFILE_COMPUTED,
-            "get_properties": get_iam_instance_profile_properties,
-        })
+        register_property_map(
+            "iam:role",
+            {
+                "configurable": IAM_ROLE_CONFIGURABLE,
+                "computed": IAM_ROLE_COMPUTED,
+                "get_properties": get_iam_role_properties,
+            },
+        )
+        register_property_map(
+            "iam:policy",
+            {
+                "configurable": IAM_POLICY_CONFIGURABLE,
+                "computed": IAM_POLICY_COMPUTED,
+                "get_properties": get_iam_policy_properties,
+            },
+        )
+        register_property_map(
+            "iam:instance_profile",
+            {
+                "configurable": IAM_INSTANCE_PROFILE_CONFIGURABLE,
+                "computed": IAM_INSTANCE_PROFILE_COMPUTED,
+                "get_properties": get_iam_instance_profile_properties,
+            },
+        )
+        register_property_map(
+            "AWS::IAM::Role",
+            {
+                "configurable": IAM_ROLE_CONFIGURABLE,
+                "computed": IAM_ROLE_COMPUTED,
+                "get_properties": get_iam_role_properties,
+            },
+        )
+        register_property_map(
+            "AWS::IAM::Policy",
+            {
+                "configurable": IAM_POLICY_CONFIGURABLE,
+                "computed": IAM_POLICY_COMPUTED,
+                "get_properties": get_iam_policy_properties,
+            },
+        )
+        register_property_map(
+            "AWS::IAM::InstanceProfile",
+            {
+                "configurable": IAM_INSTANCE_PROFILE_CONFIGURABLE,
+                "computed": IAM_INSTANCE_PROFILE_COMPUTED,
+                "get_properties": get_iam_instance_profile_properties,
+            },
+        )
     except ImportError:
         # Registry not available yet, will be registered on import
         pass

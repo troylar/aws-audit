@@ -53,12 +53,14 @@ class TestCodeBuildCollectorCollect:
 
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
         mock_client.batch_get_projects.return_value = {
-            "projects": [{
-                "name": "my-project",
-                "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
-                "created": created_at,
-                "tags": [{"key": "Environment", "value": "test"}],
-            }]
+            "projects": [
+                {
+                    "name": "my-project",
+                    "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
+                    "created": created_at,
+                    "tags": [{"key": "Environment", "value": "test"}],
+                }
+            ]
         }
         mock_create_client.return_value = mock_client
 
@@ -133,9 +135,7 @@ class TestCodeBuildCollectorCollect:
         mock_client.get_paginator.return_value = mock_paginator
 
         def batch_get_side_effect(names):
-            return {
-                "projects": [{"name": name, "arn": f"arn:{name}", "tags": []} for name in names]
-            }
+            return {"projects": [{"name": name, "arn": f"arn:{name}", "tags": []} for name in names]}
 
         mock_client.batch_get_projects.side_effect = batch_get_side_effect
         mock_create_client.return_value = mock_client
@@ -187,11 +187,13 @@ class TestCodeBuildCollectorCollect:
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.batch_get_projects.return_value = {
-            "projects": [{
-                "name": "my-project",
-                "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
-                "tags": [],
-            }]
+            "projects": [
+                {
+                    "name": "my-project",
+                    "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
+                    "tags": [],
+                }
+            ]
         }
         mock_create_client.return_value = mock_client
 
@@ -211,11 +213,13 @@ class TestCodeBuildCollectorCollect:
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.batch_get_projects.return_value = {
-            "projects": [{
-                "name": "my-project",
-                "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
-                # No tags key
-            }]
+            "projects": [
+                {
+                    "name": "my-project",
+                    "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
+                    # No tags key
+                }
+            ]
         }
         mock_create_client.return_value = mock_client
 
@@ -234,12 +238,14 @@ class TestCodeBuildCollectorCollect:
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.batch_get_projects.return_value = {
-            "projects": [{
-                "name": "my-project",
-                "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
-                "tags": [],
-                # No created key
-            }]
+            "projects": [
+                {
+                    "name": "my-project",
+                    "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
+                    "tags": [],
+                    # No created key
+                }
+            ]
         }
         mock_create_client.return_value = mock_client
 
@@ -258,15 +264,17 @@ class TestCodeBuildCollectorCollect:
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.batch_get_projects.return_value = {
-            "projects": [{
-                "name": "my-project",
-                "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
-                "tags": [
-                    {"key": "Environment", "value": "production"},
-                    {"key": "Team", "value": "platform"},
-                    {"key": "CostCenter", "value": "12345"},
-                ],
-            }]
+            "projects": [
+                {
+                    "name": "my-project",
+                    "arn": "arn:aws:codebuild:us-east-1:123456789012:project/my-project",
+                    "tags": [
+                        {"key": "Environment", "value": "production"},
+                        {"key": "Team", "value": "platform"},
+                        {"key": "CostCenter", "value": "12345"},
+                    ],
+                }
+            ]
         }
         mock_create_client.return_value = mock_client
 

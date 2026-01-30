@@ -313,17 +313,13 @@ def process_storage_descriptor(
             tf_skewed["skewed_column_values"] = skewed_info["SkewedColumnValues"]
 
         if "SkewedColumnValueLocationMaps" in skewed_info:
-            tf_skewed["skewed_column_value_location_maps"] = skewed_info[
-                "SkewedColumnValueLocationMaps"
-            ]
+            tf_skewed["skewed_column_value_location_maps"] = skewed_info["SkewedColumnValueLocationMaps"]
 
         if tf_skewed:
             tf_descriptor["skewed_info"] = tf_skewed
 
     if "StoredAsSubDirectories" in storage_descriptor:
-        tf_descriptor["stored_as_sub_directories"] = storage_descriptor[
-            "StoredAsSubDirectories"
-        ]
+        tf_descriptor["stored_as_sub_directories"] = storage_descriptor["StoredAsSubDirectories"]
 
     return tf_descriptor
 
