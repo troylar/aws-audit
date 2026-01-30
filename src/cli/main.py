@@ -5645,8 +5645,11 @@ def copilot_list(
 @app.command()
 def generate(
     format: str = typer.Argument(..., help="Output format: terraform, cdk-typescript, cdk-python"),
-    snapshot_name: str = typer.Argument(..., help="Name of snapshot to generate from"),
+    snapshot_name: Optional[str] = typer.Argument(None, help="Name of snapshot to generate from"),
     output: str = typer.Option("./terraform", "--output", "-o", help="Output directory"),
+    from_file: Optional[str] = typer.Option(
+        None, "--from-file", "-f", help="Path to JSON/YAML export file (alternative to snapshot)"
+    ),
     model_id: Optional[str] = typer.Option(
         None, "--model-id", "-m", help="Bedrock model ID (default: from AWSINV_BEDROCK_MODEL_ID)"
     ),
@@ -5656,13 +5659,15 @@ def generate(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
 ) -> None:
-    """Generate IaC (Terraform/CDK) from an inventory snapshot.
+    """Generate IaC (Terraform/CDK) from an inventory snapshot or export file.
 
     Uses AWS Bedrock for AI-powered code generation.
 
     Examples:
         awsinv generate terraform my-snapshot
         awsinv generate terraform my-snapshot --output ./infra
+        awsinv generate terraform --from-file inventory.json
+        awsinv generate terraform --from-file export.yaml --output ./infra
         awsinv generate terraform my-snapshot --model-id anthropic.claude-sonnet-4-20250514-v1:0 --verbose
     """
     if format not in ["terraform", "cdk-typescript", "cdk-python"]:
@@ -5671,6 +5676,11 @@ def generate(
 
     if format != "terraform":
         console.print(f"[yellow]Note:[/yellow] {format} support coming soon. Only terraform is currently supported.")
+        raise typer.Exit(1)
+
+    # Validate input - need either snapshot_name or from_file
+    if not snapshot_name and not from_file:
+        console.print("[red]Error:[/red] Either provide a snapshot name or use --from-file")
         raise typer.Exit(1)
 
     # Import here to avoid loading langgraph unless needed
@@ -5682,7 +5692,11 @@ def generate(
         console.print(f"Details: {e}")
         raise typer.Exit(1)
 
-    console.print(f"\n[bold]Generating Terraform from snapshot:[/bold] {snapshot_name}")
+    # Display source information
+    if from_file:
+        console.print(f"\n[bold]Generating Terraform from file:[/bold] {from_file}")
+    else:
+        console.print(f"\n[bold]Generating Terraform from snapshot:[/bold] {snapshot_name}")
     console.print(f"[dim]Output directory: {output}[/dim]\n")
 
     if dry_run:
@@ -5697,6 +5711,7 @@ def generate(
             output_dir=output,
             model_id=model_id,
             region=region,
+            input_file=from_file,
         )
 
     # Display results

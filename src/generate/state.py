@@ -12,6 +12,7 @@ class GenerationState(TypedDict, total=False):
     """State container for the IaC generation workflow."""
 
     snapshot_name: str
+    input_file: str  # Path to JSON/YAML export file (alternative to snapshot)
     output_dir: str
     output_format: str  # terraform, cdk-typescript, cdk-python
     inventory: List[Dict[str, Any]]

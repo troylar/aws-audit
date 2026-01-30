@@ -213,6 +213,117 @@ class TestParseInventoryNode:
             for resource in result["resources"]:
                 assert isinstance(resource, TrackedResource)
 
+    def test_loads_from_json_file(self, tmp_path: Path) -> None:
+        """Test that parse_inventory can load from a JSON export file."""
+        import json
+
+        # Create a sample JSON export file
+        resources_data = {
+            "resources": [
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123456789012:vpc/vpc-12345678",
+                    "resource_type": "ec2:vpc",
+                    "name": "main-vpc",
+                    "region": "us-east-1",
+                    "tags": {"Environment": "production"},
+                    "raw_config": {"VpcId": "vpc-12345678", "CidrBlock": "10.0.0.0/16"},
+                }
+            ]
+        }
+        json_file = tmp_path / "export.json"
+        json_file.write_text(json.dumps(resources_data))
+
+        state: Dict[str, Any] = {
+            "input_file": str(json_file),
+            "output_dir": "/tmp/terraform-output",
+            "output_format": "terraform",
+        }
+
+        result = parse_inventory(state)
+
+        assert "errors" in result
+        assert result["errors"] == []
+        assert len(result["resources"]) == 1
+        assert result["resources"][0].name == "main-vpc"
+
+    def test_loads_from_yaml_file(self, tmp_path: Path) -> None:
+        """Test that parse_inventory can load from a YAML export file."""
+        import yaml
+
+        # Create a sample YAML export file
+        resources_data = {
+            "resources": [
+                {
+                    "arn": "arn:aws:s3:::my-bucket",
+                    "resource_type": "s3:bucket",
+                    "name": "my-bucket",
+                    "region": "us-east-1",
+                    "tags": {},
+                    "raw_config": {"BucketName": "my-bucket"},
+                }
+            ]
+        }
+        yaml_file = tmp_path / "export.yaml"
+        yaml_file.write_text(yaml.dump(resources_data))
+
+        state: Dict[str, Any] = {
+            "input_file": str(yaml_file),
+            "output_dir": "/tmp/terraform-output",
+            "output_format": "terraform",
+        }
+
+        result = parse_inventory(state)
+
+        assert result["errors"] == []
+        assert len(result["resources"]) == 1
+        assert result["resources"][0].name == "my-bucket"
+
+    def test_file_not_found_error(self) -> None:
+        """Test that parse_inventory handles missing input file."""
+        state: Dict[str, Any] = {
+            "input_file": "/nonexistent/path/export.json",
+            "output_dir": "/tmp/terraform-output",
+            "output_format": "terraform",
+        }
+
+        result = parse_inventory(state)
+
+        assert len(result["errors"]) > 0
+        assert "not found" in result["errors"][0].lower()
+
+    def test_input_file_takes_precedence_over_snapshot(self, tmp_path: Path) -> None:
+        """Test that input_file is used when both snapshot_name and input_file are provided."""
+        import json
+
+        resources_data = {
+            "resources": [
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123456789012:vpc/vpc-from-file",
+                    "resource_type": "ec2:vpc",
+                    "name": "vpc-from-file",
+                    "region": "us-east-1",
+                    "tags": {},
+                    "raw_config": {},
+                }
+            ]
+        }
+        json_file = tmp_path / "export.json"
+        json_file.write_text(json.dumps(resources_data))
+
+        state: Dict[str, Any] = {
+            "snapshot_name": "should-not-be-used",
+            "input_file": str(json_file),
+            "output_dir": "/tmp/terraform-output",
+            "output_format": "terraform",
+        }
+
+        # This should use the file, not the snapshot
+        result = parse_inventory(state)
+
+        assert result["errors"] == []
+        assert len(result["resources"]) == 1
+        assert result["resources"][0].name == "vpc-from-file"
+
 
 class TestBuildResourceMapNode:
     """Tests for build_resource_map node (T029).

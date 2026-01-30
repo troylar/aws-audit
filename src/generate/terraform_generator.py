@@ -90,19 +90,31 @@ class TerraformGenerator:
 
         self.agent = compile_terraform_agent()
 
-    def run(self, snapshot_name: str) -> GenerationResult:
-        """Generate Terraform from a snapshot.
+    def run(
+        self,
+        snapshot_name: Optional[str] = None,
+        input_file: Optional[str] = None,
+    ) -> GenerationResult:
+        """Generate Terraform from a snapshot or export file.
 
         Args:
             snapshot_name: Name of the snapshot to generate from
+            input_file: Path to JSON/YAML export file (alternative to snapshot)
 
         Returns:
             GenerationResult with generated files and any errors
+
+        Raises:
+            ValueError: If neither snapshot_name nor input_file is provided
         """
+        if not snapshot_name and not input_file:
+            raise ValueError("Either snapshot_name or input_file must be provided")
+
         os.makedirs(self.output_dir, exist_ok=True)
 
         initial_state: GenerationState = {
-            "snapshot_name": snapshot_name,
+            "snapshot_name": snapshot_name or "",
+            "input_file": input_file or "",
             "output_dir": self.output_dir,
             "output_format": "terraform",
             "inventory": [],
@@ -237,18 +249,20 @@ variable "project" {{
 
 
 def generate_terraform(
-    snapshot_name: str,
+    snapshot_name: Optional[str] = None,
     output_dir: str = "./terraform",
     model_id: Optional[str] = None,
     region: Optional[str] = None,
+    input_file: Optional[str] = None,
 ) -> GenerationResult:
-    """Generate Terraform from a snapshot.
+    """Generate Terraform from a snapshot or export file.
 
     Args:
-        snapshot_name: Name of the snapshot
+        snapshot_name: Name of the snapshot (use this OR input_file)
         output_dir: Output directory for Terraform files
         model_id: Bedrock model ID
         region: AWS region for Bedrock
+        input_file: Path to JSON/YAML export file (use this OR snapshot_name)
 
     Returns:
         GenerationResult
@@ -258,4 +272,4 @@ def generate_terraform(
         model_id=model_id,
         region=region,
     )
-    return generator.run(snapshot_name)
+    return generator.run(snapshot_name=snapshot_name, input_file=input_file)
