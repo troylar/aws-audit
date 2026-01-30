@@ -768,6 +768,10 @@ Generate Terraform code from your inventory snapshots using AWS Bedrock:
 # Generate Terraform from a snapshot (uses AWS credentials)
 awsinv generate terraform my-snapshot
 
+# Generate from a JSON/YAML export file
+awsinv generate terraform --from-file inventory.json
+awsinv generate terraform --from-file export.yaml --output ./infra
+
 # Specify output directory
 awsinv generate terraform my-snapshot --output ./infrastructure
 
@@ -1197,7 +1201,8 @@ awsinv query stats --group-by region
 # ─────────────────────────────────────────────────────────────
 # IAC GENERATION
 # ─────────────────────────────────────────────────────────────
-awsinv generate terraform <snapshot>  # Generate Terraform from snapshot
+awsinv generate terraform [snapshot]  # Generate Terraform from snapshot
+    [--from-file <path>]              # JSON/YAML export file (alternative to snapshot)
     [--output <dir>]                  # Output directory (default: ./terraform)
     [--model-id <id>]                 # Bedrock model ID
     [--region <region>]               # AWS region for Bedrock
