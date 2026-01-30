@@ -325,7 +325,7 @@ resource "aws_instance" "web" {
         assert "aws_subnet.public.id" in result
         assert '"subnet-def456"' not in result
 
-    @patch("src.generate.nodes.generate_layer.OpenAI")
+    @patch("openai.OpenAI")
     def test_generate_layer_node_with_mocked_ai(
         self,
         mock_openai_class: MagicMock,
@@ -502,7 +502,7 @@ class TestLayerCategorization:
 class TestEndToEndWorkflow:
     """End-to-end workflow tests with full mocking."""
 
-    @patch("src.generate.nodes.generate_layer.OpenAI")
+    @patch("openai.OpenAI")
     @patch("src.generate.nodes.parse_inventory.SnapshotStorage")
     def test_full_workflow_with_mocks(
         self,

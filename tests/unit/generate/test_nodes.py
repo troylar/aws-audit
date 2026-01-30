@@ -826,7 +826,7 @@ resource "aws_subnet" "public_1" {
         mock_response.choices = [MagicMock(message=MagicMock(content="```hcl\n# test\n```"))]
         mock_client.chat.completions.create.return_value = mock_response
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             generate_layer(state_with_current_layer)
 
             mock_client.chat.completions.create.assert_called_once()
@@ -842,7 +842,7 @@ resource "aws_subnet" "public_1" {
         mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
         mock_client.chat.completions.create.return_value = mock_response
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "generated_code" in result:
@@ -869,7 +869,7 @@ resource "aws_subnet" "public_1" {
         mock_response.choices = [MagicMock(message=MagicMock(content=ai_response_with_hardcoded_ids))]
         mock_client.chat.completions.create.return_value = mock_response
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "generated_code" in result:
@@ -884,7 +884,7 @@ resource "aws_subnet" "public_1" {
         mock_client = MagicMock()
         mock_client.chat.completions.create.side_effect = Exception("AI API Error")
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             assert "errors" in result or "current_layer_status" in result
@@ -902,7 +902,7 @@ resource "aws_subnet" "public_1" {
         mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
         mock_client.chat.completions.create.return_value = mock_response
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "current_layer_status" in result:
@@ -919,7 +919,7 @@ resource "aws_subnet" "public_1" {
         mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
         mock_client.chat.completions.create.return_value = mock_response
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "current_layer_index" in result:
@@ -936,7 +936,7 @@ resource "aws_subnet" "public_1" {
         mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
         mock_client.chat.completions.create.return_value = mock_response
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "generated_files" in result:
@@ -1097,7 +1097,7 @@ class TestNodeReturnTypes:
             "max_attempts": 3,
         }
 
-        with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
+        with patch("openai.OpenAI", return_value=mock_client):
             result = generate_layer(state)
 
             assert isinstance(result, dict)

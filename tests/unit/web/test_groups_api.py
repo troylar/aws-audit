@@ -5,6 +5,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# Skip entire module if web dependencies not installed
+pytest.importorskip("fastapi", reason="Requires 'web' optional dependencies")
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

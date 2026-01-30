@@ -5,8 +5,6 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List
 
-from openai import OpenAI
-
 from ...models.generation import Layer, ResourceMap
 from ..layers import LayerStatus
 from ..prompts.terraform import (
@@ -61,6 +59,9 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     )
 
     try:
+        # Lazy import to avoid requiring openai when module is imported
+        from openai import OpenAI
+
         client = OpenAI(
             api_key=config.ai_api_key,
             base_url=config.ai_endpoint,

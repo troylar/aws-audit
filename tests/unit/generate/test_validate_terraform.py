@@ -7,6 +7,11 @@ import subprocess
 from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+# Skip entire module if generate dependencies not installed
+pytest.importorskip("openai", reason="Requires 'generate' optional dependencies")
+
 from src.generate.nodes.validate_terraform import (
     is_terraform_available,
     run_terraform_fmt,
