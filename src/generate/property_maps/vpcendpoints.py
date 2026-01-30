@@ -4,7 +4,7 @@ Maps AWS VPC Endpoints API response properties to Terraform resource properties
 for VPC endpoints.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 # VPC Endpoint configurable properties
 # Maps AWS API field names to Terraform aws_vpc_endpoint argument names
@@ -36,7 +36,7 @@ VPC_ENDPOINT_COMPUTED: set = {
 }
 
 
-def _parse_policy_document(policy_doc: Any) -> Optional[Dict[str, Any] | str]:
+def _parse_policy_document(policy_doc: Any) -> Optional[Union[Dict[str, Any], str]]:
     """Parse policy document from AWS API response.
 
     AWS returns the policy as either a string (JSON) or already parsed dict.

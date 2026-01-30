@@ -5,7 +5,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 from ..aws.client import create_boto_client
 
@@ -448,7 +448,7 @@ class CloudTrailQuery:
         self,
         days_back: int = 90,
         regions: Optional[List[str]] = None,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
         resource_types: Optional[Set[str]] = None,
     ) -> List[ResourceCreationEvent]:
         """Get all resource creation events from CloudTrail.
@@ -543,7 +543,7 @@ class CloudTrailQuery:
         self,
         days_back: int,
         region: str,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
         event_names_filter: Optional[List[str]] = None,
     ) -> List[ResourceCreationEvent]:
         """Query CloudTrail for all creation events using parallel queries by event name."""
@@ -662,7 +662,7 @@ class CloudTrailQuery:
         self,
         days_back: int = 90,
         regions: Optional[List[str]] = None,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
         resource_types: Optional[Set[str]] = None,
     ) -> Dict[str, Dict[str, str]]:
         """Build a mapping of resources to their creators.

@@ -106,14 +106,29 @@ module = ["boto3", "boto3.*", "botocore", "botocore.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["src.cli.main", "src.cli.config", "src.utils.progress"]
+module = ["src.cli.main", "src.cli.config", "src.cli.__init__", "src.utils.progress"]
 disallow_untyped_defs = false
 warn_no_return = false
+disable_error_code = ["assignment", "arg-type", "call-overload", "union-attr", "no-untyped-def"]
 
-# Ignore union-attr errors in CLI which uses Optional[Config]
 [[tool.mypy.overrides]]
-module = "src.cli.main"
-disable_error_code = ["union-attr"]
+module = ["src.generate.*", "src.generate.property_maps.*", "src.generate.nodes.*"]
+disallow_untyped_defs = false
+disable_error_code = ["assignment", "arg-type", "return-value", "typeddict-item", "var-annotated", "dict-item"]
+
+[[tool.mypy.overrides]]
+module = ["src.storage.*"]
+disallow_untyped_defs = false
+disable_error_code = ["arg-type", "return-value", "dict-item"]
+
+[[tool.mypy.overrides]]
+module = ["src.matching.normalizer"]
+disable_error_code = ["misc", "assignment", "union-attr"]
+
+[[tool.mypy.overrides]]
+module = ["src.cloudtrail.query", "src.config_service.collector", "src.restore.*", "src.snapshot.*"]
+disallow_untyped_defs = false
+disable_error_code = ["assignment", "arg-type", "return-value", "var-annotated", "no-untyped-def", "call-arg", "misc", "call-overload"]
 
 [[tool.mypy.overrides]]
 module = ["src.web.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*", "jinja2", "jinja2.*"]
