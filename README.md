@@ -788,9 +788,64 @@ awsinv generate terraform my-snapshot \
 
 **How It Works:**
 
-1. **Layer-Based Generation**: Resources are grouped into layers (Network → Security → IAM → Data → Compute → etc.) and generated in dependency order
-2. **ID-to-Reference Mapping**: Hardcoded AWS IDs are automatically replaced with Terraform references (e.g., `vpc-123abc` → `aws_vpc.main.id`)
-3. **Validation**: Generated code is validated with `terraform init` and `terraform validate`
+```mermaid
+flowchart TD
+    subgraph Input
+        START([🚀 START<br/>snapshot_name])
+    end
+
+    subgraph Preparation ["📋 Preparation Phase"]
+        PARSE[/"📦 parse_inventory<br/>Load snapshot & resources"/]
+        MAP[/"🗺️ build_resource_map<br/>vpc-123 → aws_vpc.main"/]
+        CAT[/"📊 categorize_layers<br/>Group by layer order"/]
+        LAMBDA[/"λ extract_lambda<br/>Save code to files"/]
+    end
+
+    subgraph Generation ["🧠 Generation Loop"]
+        GEN[/"🤖 generate_layer<br/>Call AI → Write .tf"/]
+        CHECK{{"❓ More layers?"}}
+    end
+
+    subgraph Validation ["✅ Validation Phase"]
+        VALIDATE[/"✅ validate_terraform<br/>terraform init & validate"/]
+    end
+
+    subgraph Output
+        DONE([🏁 END<br/>GenerationResult])
+    end
+
+    START --> PARSE
+    PARSE --> MAP
+    MAP --> CAT
+    CAT --> LAMBDA
+    LAMBDA --> GEN
+    GEN --> CHECK
+    CHECK -->|"Yes"| GEN
+    CHECK -->|"No"| VALIDATE
+    VALIDATE --> DONE
+
+    style START fill:#22c55e,stroke:#16a34a,color:#fff
+    style DONE fill:#22c55e,stroke:#16a34a,color:#fff
+    style GEN fill:#3b82f6,stroke:#2563eb,color:#fff
+    style CHECK fill:#f59e0b,stroke:#d97706,color:#fff
+    style VALIDATE fill:#8b5cf6,stroke:#7c3aed,color:#fff
+```
+
+**Layer Order** (generated in dependency sequence):
+
+| Order | Layer | Resources |
+|-------|-------|-----------|
+| 1 | 🌐 Network | VPCs, Subnets, Route Tables, Gateways |
+| 2 | 🛡️ Security | Security Groups, NACLs, WAF, KMS |
+| 3 | 🔑 IAM | Roles, Policies, Instance Profiles |
+| 4 | 💾 Data | RDS, DynamoDB, ElastiCache |
+| 5 | 📁 Storage | S3, EFS |
+| 6 | 💻 Compute | EC2, Lambda, ECS, EKS |
+| 7 | ⚖️ LoadBalancing | ALB, NLB, Target Groups |
+| 8 | 📱 Application | API Gateway, AppRunner |
+| 9 | 📨 Messaging | SQS, SNS, EventBridge |
+| 10 | 📊 Monitoring | CloudWatch, CloudTrail |
+| 11 | 🌍 DNS | Route53, CloudFront |
 
 **Output Structure:**
 ```
