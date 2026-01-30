@@ -1,11 +1,15 @@
 """Unit tests for ResourceNormalizer."""
 
+import importlib.util
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.matching.config import NormalizerConfig
 from src.matching.normalizer import ResourceNormalizer
+
+# Check if openai is available
+OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
 
 
 @pytest.fixture
@@ -246,6 +250,7 @@ class TestParseAiResponse:
         assert result["arn:aws:lambda:us-east-1:123456789012:function:test"] == "testfunc"
 
 
+@pytest.mark.skipif(not OPENAI_AVAILABLE, reason="Requires openai to be installed")
 class TestAiNormalization:
     """Test AI normalization with mocked OpenAI client."""
 
