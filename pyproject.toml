@@ -52,7 +52,6 @@ web = [
 ]
 generate = [
     "langgraph>=0.2.0",
-    "openai>=1.0.0",
 ]
 
 [project.scripts]
@@ -98,7 +97,7 @@ disallow_untyped_defs = true
 no_implicit_optional = true
 
 [[tool.mypy.overrides]]
-module = ["boto3", "boto3.*", "botocore", "botocore.*", "openai", "openai.*", "pydantic", "pydantic.*", "langgraph", "langgraph.*", "requests", "requests.*", "urllib3", "urllib3.*"]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "pydantic", "pydantic.*", "langgraph", "langgraph.*", "requests", "requests.*", "urllib3", "urllib3.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

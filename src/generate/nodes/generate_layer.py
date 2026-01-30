@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List
 
+import boto3
+
 from ...models.generation import Layer, ResourceMap
 from ..layers import LayerStatus
 from ..prompts.terraform import (
@@ -17,8 +19,7 @@ from ..state import GenerationConfig, GenerationState
 def generate_layer(state: GenerationState) -> Dict[str, Any]:
     """Generate Terraform for the current layer using AI.
 
-    Calls the configured AI endpoint to generate Terraform HCL
-    for resources in the current layer.
+    Calls AWS Bedrock to generate Terraform HCL for resources in the current layer.
 
     Args:
         state: Current state with layers, resource_map, and config
@@ -59,13 +60,7 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     )
 
     try:
-        # Lazy import to avoid requiring openai when module is imported
-        from openai import OpenAI
-
-        client = OpenAI(
-            api_key=config.ai_api_key,
-            base_url=config.ai_endpoint,
-        )
+        client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
 
         system_prompt = get_terraform_system_prompt()
         user_prompt = format_layer_prompt(
@@ -74,17 +69,22 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
             previous_layers=generated_files,
         )
 
-        response = client.chat.completions.create(
-            model=config.ai_model,
+        response = client.converse(
+            modelId=config.bedrock_model_id,
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {
+                    "role": "user",
+                    "content": [{"text": user_prompt}],
+                }
             ],
-            temperature=config.temperature,
-            max_tokens=8000,
+            system=[{"text": system_prompt}],
+            inferenceConfig={
+                "temperature": config.temperature,
+                "maxTokens": config.max_tokens,
+            },
         )
 
-        terraform_code = response.choices[0].message.content or ""
+        terraform_code = response["output"]["message"]["content"][0]["text"] or ""
 
         terraform_code = _clean_terraform_code(terraform_code)
 

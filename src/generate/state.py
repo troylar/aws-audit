@@ -36,10 +36,10 @@ class GenerationState(TypedDict, total=False):
 class GenerationConfig:
     """Configuration for the IaC generation process."""
 
-    ai_endpoint: str = "https://api.openai.com/v1"
-    ai_api_key: str = ""
-    ai_model: str = "gpt-4"
+    bedrock_model_id: str = "anthropic.claude-sonnet-4-20250514-v1:0"
+    bedrock_region: str = "us-east-1"
     temperature: float = 0.2
+    max_tokens: int = 8000
     max_retries: int = 3
     validate_each_layer: bool = True
     terraform_init: bool = True
@@ -56,12 +56,11 @@ class GenerationConfig:
         """Create a GenerationConfig from environment variables.
 
         Reads:
-            AWSINV_AI_ENDPOINT: AI API endpoint URL
-            AWSINV_AI_API_KEY: AI API key
-            AWSINV_AI_MODEL: AI model name
+            AWSINV_BEDROCK_MODEL_ID: Bedrock model ID (default: anthropic.claude-sonnet-4-20250514-v1:0)
+            AWSINV_BEDROCK_REGION: AWS region for Bedrock (default: us-east-1)
+            AWS_DEFAULT_REGION: Fallback for Bedrock region
         """
         return cls(
-            ai_endpoint=os.environ.get("AWSINV_AI_ENDPOINT", "https://api.openai.com/v1"),
-            ai_api_key=os.environ.get("AWSINV_AI_API_KEY", ""),
-            ai_model=os.environ.get("AWSINV_AI_MODEL", "gpt-4"),
+            bedrock_model_id=os.environ.get("AWSINV_BEDROCK_MODEL_ID", "anthropic.claude-sonnet-4-20250514-v1:0"),
+            bedrock_region=os.environ.get("AWSINV_BEDROCK_REGION", os.environ.get("AWS_DEFAULT_REGION", "us-east-1")),
         )
