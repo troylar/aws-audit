@@ -4,6 +4,8 @@ Maps AWS DynamoDB API response properties to Terraform resource properties
 for DynamoDB tables.
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 # DynamoDB Table configurable properties

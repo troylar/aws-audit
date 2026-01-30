@@ -4,6 +4,8 @@ Maps AWS RDS API response properties to Terraform resource properties
 for both DB instances and Aurora clusters.
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List
 
 # RDS DB Instance configurable properties
