@@ -391,24 +391,21 @@ class TestGenerationConfig:
         with patch.dict(os.environ, {}, clear=True):
             config = GenerationConfig.from_env()
 
-            assert config.ai_endpoint == "https://api.openai.com/v1"
-            assert config.ai_api_key == ""
-            assert config.ai_model == "gpt-4"
+            assert config.bedrock_model_id == "anthropic.claude-sonnet-4-20250514-v1:0"
+            assert config.bedrock_region == "us-east-1"
 
     def test_config_from_env_custom_values(self) -> None:
         """Test GenerationConfig.from_env with custom values."""
         env_vars = {
-            "AWSINV_AI_ENDPOINT": "https://custom.api.com/v1",
-            "AWSINV_AI_API_KEY": "custom-key",
-            "AWSINV_AI_MODEL": "gpt-3.5-turbo",
+            "AWSINV_BEDROCK_MODEL_ID": "anthropic.claude-3-haiku-20240307-v1:0",
+            "AWSINV_BEDROCK_REGION": "us-west-2",
         }
 
         with patch.dict(os.environ, env_vars, clear=False):
             config = GenerationConfig.from_env()
 
-            assert config.ai_endpoint == "https://custom.api.com/v1"
-            assert config.ai_api_key == "custom-key"
-            assert config.ai_model == "gpt-3.5-turbo"
+            assert config.bedrock_model_id == "anthropic.claude-3-haiku-20240307-v1:0"
+            assert config.bedrock_region == "us-west-2"
 
 
 class TestTrackedResource:
