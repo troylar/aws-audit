@@ -29,8 +29,6 @@ EVENT_TO_RESOURCE_TYPE: Dict[str, str] = {
     # RDS
     "CreateDBInstance": "AWS::RDS::DBInstance",
     "CreateDBCluster": "AWS::RDS::DBCluster",
-    # DynamoDB
-    "CreateTable": "AWS::DynamoDB::Table",
     # IAM
     "CreateRole": "AWS::IAM::Role",
     "CreateUser": "AWS::IAM::User",
@@ -62,11 +60,9 @@ EVENT_TO_RESOURCE_TYPE: Dict[str, str] = {
     # Route53
     "CreateHostedZone": "AWS::Route53::HostedZone",
     # ECS
-    "CreateCluster": "AWS::ECS::Cluster",
     "CreateService": "AWS::ECS::Service",
     "RegisterTaskDefinition": "AWS::ECS::TaskDefinition",
     # EKS
-    "CreateCluster": "AWS::EKS::Cluster",
     "CreateNodegroup": "AWS::EKS::Nodegroup",
     # Step Functions
     "CreateStateMachine": "AWS::StepFunctions::StateMachine",
@@ -81,7 +77,6 @@ EVENT_TO_RESOURCE_TYPE: Dict[str, str] = {
     "CreateBackupVault": "AWS::Backup::BackupVault",
     # Glue
     "CreateDatabase": "AWS::Glue::Database",
-    "CreateTable": "AWS::Glue::Table",
     "CreateCrawler": "AWS::Glue::Crawler",
     "CreateJob": "AWS::Glue::Job",
     "CreateConnection": "AWS::Glue::Connection",
@@ -91,6 +86,39 @@ EVENT_TO_RESOURCE_TYPE: Dict[str, str] = {
     "CreateCacheCluster": "AWS::ElastiCache::CacheCluster",
     "CreateReplicationGroup": "AWS::ElastiCache::ReplicationGroup",
 }
+
+# Events that map to different resource types based on event source
+# Key: event_name, Value: dict mapping eventSource to resource type
+MULTI_SERVICE_EVENTS: Dict[str, Dict[str, str]] = {
+    "CreateCluster": {
+        "ecs.amazonaws.com": "AWS::ECS::Cluster",
+        "eks.amazonaws.com": "AWS::EKS::Cluster",
+    },
+    "CreateTable": {
+        "dynamodb.amazonaws.com": "AWS::DynamoDB::Table",
+        "glue.amazonaws.com": "AWS::Glue::Table",
+    },
+}
+
+
+def get_resource_type_for_event(event_name: str, event_source: Optional[str] = None) -> Optional[str]:
+    """Get resource type for a CloudTrail event.
+
+    Args:
+        event_name: The CloudTrail event name
+        event_source: The event source (e.g., 'ecs.amazonaws.com')
+
+    Returns:
+        The AWS resource type or None if not a tracked creation event
+    """
+    # Check multi-service events first
+    if event_name in MULTI_SERVICE_EVENTS:
+        if event_source and event_source in MULTI_SERVICE_EVENTS[event_name]:
+            return MULTI_SERVICE_EVENTS[event_name][event_source]
+        # Fall back to first mapping if no event source provided
+        return next(iter(MULTI_SERVICE_EVENTS[event_name].values()))
+
+    return EVENT_TO_RESOURCE_TYPE.get(event_name)
 
 
 @dataclass
@@ -221,9 +249,11 @@ class CloudTrailQuery:
             cloud_trail_event = json.loads(event.get("CloudTrailEvent", "{}"))
 
             event_name = cloud_trail_event.get("eventName", "")
+            event_source = cloud_trail_event.get("eventSource", "")
 
             # Check if this is a creation event we care about
-            if event_name not in EVENT_TO_RESOURCE_TYPE:
+            resource_type = get_resource_type_for_event(event_name, event_source)
+            if not resource_type:
                 return None
 
             # Check if the identity matches our role
@@ -259,7 +289,6 @@ class CloudTrailQuery:
                 return None
 
             # Extract resource information
-            resource_type = EVENT_TO_RESOURCE_TYPE[event_name]
             resource_name, resource_arn_extracted = self._extract_resource_info(cloud_trail_event, event_name)
 
             # Get account ID
@@ -444,6 +473,11 @@ class CloudTrailQuery:
             filtered_event_names = [
                 event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items() if res_type in resource_types
             ]
+            # Also check multi-service events
+            for event_name, source_mapping in MULTI_SERVICE_EVENTS.items():
+                for res_type in source_mapping.values():
+                    if res_type in resource_types and event_name not in filtered_event_names:
+                        filtered_event_names.append(event_name)
             # If no matches found, fall back to querying all event types
             if not filtered_event_names:
                 logger.warning(f"No matching event types found for resource types: {resource_types}")
@@ -524,7 +558,10 @@ class CloudTrailQuery:
         end_time = datetime.now(timezone.utc)
 
         # Use filtered event names if provided, otherwise query all
-        event_names = event_names_filter if event_names_filter else list(EVENT_TO_RESOURCE_TYPE.keys())
+        if event_names_filter:
+            event_names = event_names_filter
+        else:
+            event_names = list(EVENT_TO_RESOURCE_TYPE.keys()) + list(MULTI_SERVICE_EVENTS.keys())
 
         # Use ThreadPoolExecutor for parallel queries - increase workers for faster I/O
         with ThreadPoolExecutor(max_workers=20) as executor:
@@ -570,9 +607,11 @@ class CloudTrailQuery:
             cloud_trail_event = json.loads(event.get("CloudTrailEvent", "{}"))
 
             event_name = cloud_trail_event.get("eventName", "")
+            event_source = cloud_trail_event.get("eventSource", "")
 
             # Check if this is a creation event we care about
-            if event_name not in EVENT_TO_RESOURCE_TYPE:
+            resource_type = get_resource_type_for_event(event_name, event_source)
+            if not resource_type:
                 return None
 
             # Extract creator identity
@@ -595,7 +634,6 @@ class CloudTrailQuery:
                 created_by_arn = f"service:{invoking_service}"
 
             # Extract resource information
-            resource_type = EVENT_TO_RESOURCE_TYPE[event_name]
             resource_name, resource_arn_extracted = self._extract_resource_info(cloud_trail_event, event_name)
 
             # Get account ID

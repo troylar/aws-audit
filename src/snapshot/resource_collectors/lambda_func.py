@@ -2,9 +2,10 @@
 
 import base64
 import hashlib
-import requests
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+import requests
 
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash

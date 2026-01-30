@@ -2,8 +2,6 @@
 
 from datetime import datetime, timezone
 
-import pytest
-
 from src.models.resource import Resource
 from src.snapshot.filter import ResourceFilter
 

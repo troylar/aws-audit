@@ -4,7 +4,7 @@ Maps AWS Glue API response properties to Terraform resource properties
 for Glue Databases and Glue Tables.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # Glue Database configurable properties
 # Maps AWS API field names to Terraform aws_glue_catalog_database argument names

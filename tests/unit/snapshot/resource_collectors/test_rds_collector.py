@@ -150,7 +150,7 @@ class TestRDSCollector:
 
         with patch.object(collector, "_create_client", return_value=mock_client):
             with patch.object(collector, "_get_account_id", return_value="123456789012"):
-                resources = collector.collect()
+                collector.collect()
 
         # Should call get_paginator for db_instances and db_clusters
         assert mock_client.get_paginator.call_count == 2

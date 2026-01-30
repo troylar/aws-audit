@@ -1,16 +1,13 @@
 """Tests for rate limiter."""
 
 import time
-from unittest.mock import patch
-
-import pytest
 
 from src.aws.rate_limiter import (
+    SERVICE_RATE_LIMITS,
     RateLimiter,
     ServiceRateLimiter,
     get_global_rate_limiter,
     rate_limited_call,
-    SERVICE_RATE_LIMITS,
 )
 
 

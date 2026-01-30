@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.utils.unsupported_resources import (
     SUPPORTED_RESOURCE_TYPE_PREFIXES,
     UnsupportedResource,

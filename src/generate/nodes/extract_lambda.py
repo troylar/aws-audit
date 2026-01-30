@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import Any, Dict, List
 
-from ..state import GenerationState
 from ...models.generation import LambdaCode, TrackedResource
+from ..state import GenerationState
 
 
 def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:

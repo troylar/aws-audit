@@ -89,7 +89,10 @@ target-version = "py38"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
-ignore = []
+ignore = [
+    "E402",  # Module level import not at top of file (needed for property_maps registration)
+    "N803",  # Argument name should be lowercase (AWS SDK parameters must match API names)
+]
 
 [tool.mypy]
 python_version = "3.9"

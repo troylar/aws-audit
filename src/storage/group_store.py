@@ -698,7 +698,8 @@ class GroupStore:
                     AND (
                         (gm.match_strategy = 'logical_id' AND r.canonical_name = gm.resource_name)
                         OR (gm.match_strategy = 'normalized' AND r.normalized_name = gm.resource_name)
-                        OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name' AND COALESCE(r.name, r.arn) = gm.resource_name)
+                        OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name'
+                            AND COALESCE(r.name, r.arn) = gm.resource_name)
                     )
                 )
             ORDER BY r.resource_type, r.name
@@ -752,7 +753,8 @@ class GroupStore:
                 ON (
                     (gm.match_strategy = 'logical_id' AND r.canonical_name = gm.resource_name)
                     OR (gm.match_strategy = 'normalized' AND r.normalized_name = gm.resource_name)
-                    OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name' AND COALESCE(r.name, r.arn) = gm.resource_name)
+                    OR (COALESCE(gm.match_strategy, 'physical_name') = 'physical_name'
+                        AND COALESCE(r.name, r.arn) = gm.resource_name)
                 )
                 AND r.resource_type = gm.resource_type
                 AND gm.group_id = ?

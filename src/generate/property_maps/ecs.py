@@ -4,7 +4,7 @@ Maps AWS ECS API response properties to Terraform resource properties
 for ECS Clusters, Services, and Task Definitions.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from . import register_property_map
 
@@ -112,7 +112,6 @@ ECS_TASK_DEFINITION_COMPUTED: Dict[str, str] = {
     "NetworkMode": "network_mode",
     "RequiresCompatibilities": "requires_compatibilities",
     "Volumes": "volumes",
-    "Status": "status",
     "ExecutionRoleArn": "execution_role_arn",
     "TaskRoleArn": "task_role_arn",
     "RequiresAttributes": "requires_attributes",

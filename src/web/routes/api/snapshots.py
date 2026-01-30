@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -89,9 +88,10 @@ def _create_snapshot_sync(
     job_id: str, name: str, regions: List[str], inventory: Optional[str], set_active: bool, use_config: bool
 ):
     """Synchronous snapshot creation function to run in background."""
-    import boto3
-    import sys
     import os
+    import sys
+
+    import boto3
 
     # Add project root to path for imports in thread
     project_root = os.path.dirname(
@@ -101,9 +101,9 @@ def _create_snapshot_sync(
         sys.path.insert(0, project_root)
 
     from src.config import config
-    from src.snapshot.storage import SnapshotStorage
-    from src.snapshot.inventory_storage import InventoryStorage
     from src.snapshot.collector import SnapshotCollector
+    from src.snapshot.inventory_storage import InventoryStorage
+    from src.snapshot.storage import SnapshotStorage
 
     try:
         _snapshot_jobs[job_id]["status"] = "running"
@@ -169,7 +169,6 @@ def _create_snapshot_sync(
 @router.post("")
 async def create_snapshot(request: CreateSnapshotRequest, background_tasks: BackgroundTasks):
     """Create a new snapshot (runs in background)."""
-    from datetime import datetime
 
     # Generate snapshot name if not provided
     name = request.name

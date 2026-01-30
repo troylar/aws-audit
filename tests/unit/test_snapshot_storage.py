@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-import yaml
 
 from src.models.resource import Resource
 from src.models.snapshot import Snapshot

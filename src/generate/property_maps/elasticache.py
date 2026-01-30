@@ -4,7 +4,7 @@ Maps AWS ElastiCache API response properties to Terraform resource properties
 for both cache clusters and replication groups (Redis).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # ElastiCache Cluster configurable properties
 # Maps AWS API field names to Terraform aws_elasticache_cluster argument names

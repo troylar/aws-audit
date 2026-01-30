@@ -1,8 +1,6 @@
 """Unit tests for resource deletion ordering."""
 
-import pytest
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -41,7 +39,7 @@ class TestDeletionOrdering:
 
     def test_get_deletion_tier_unknown_type(self):
         """Test that unknown resource types return default tier."""
-        from src.restore.dependency import get_deletion_tier, DEFAULT_DELETION_TIER
+        from src.restore.dependency import DEFAULT_DELETION_TIER, get_deletion_tier
 
         assert get_deletion_tier("AWS::Unknown::Resource") == DEFAULT_DELETION_TIER
 

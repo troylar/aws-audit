@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.generate.layers import LayerOrder, LayerStatus, RESOURCE_TYPE_TO_LAYER
+from src.generate.layers import RESOURCE_TYPE_TO_LAYER, LayerOrder, LayerStatus
 
 
 class TestLayerStatus:

@@ -4,7 +4,7 @@ Maps AWS EFS API response properties to Terraform resource properties
 for EFS file systems.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # EFS File System configurable properties
 # Maps AWS API field names to Terraform aws_efs_file_system argument names

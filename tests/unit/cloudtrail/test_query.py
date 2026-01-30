@@ -6,12 +6,12 @@ import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.cloudtrail.query import (
     EVENT_TO_RESOURCE_TYPE,
+    MULTI_SERVICE_EVENTS,
     CloudTrailQuery,
     ResourceCreationEvent,
+    get_resource_type_for_event,
 )
 
 
@@ -24,13 +24,42 @@ class TestEventMapping:
         assert "CreateBucket" in EVENT_TO_RESOURCE_TYPE
         assert "CreateFunction" in EVENT_TO_RESOURCE_TYPE
         assert "CreateRole" in EVENT_TO_RESOURCE_TYPE
-        assert "CreateTable" in EVENT_TO_RESOURCE_TYPE
+        # CreateTable is in MULTI_SERVICE_EVENTS (maps to both DynamoDB and Glue)
+        assert "CreateTable" in MULTI_SERVICE_EVENTS
 
     def test_event_maps_to_correct_type(self):
         """Test events map to correct resource types."""
         assert EVENT_TO_RESOURCE_TYPE["RunInstances"] == "AWS::EC2::Instance"
         assert EVENT_TO_RESOURCE_TYPE["CreateBucket"] == "AWS::S3::Bucket"
         assert EVENT_TO_RESOURCE_TYPE["CreateRole"] == "AWS::IAM::Role"
+
+    def test_multi_service_events_mapped(self):
+        """Test events that map to different services based on event source."""
+        # CreateCluster maps to ECS or EKS
+        assert "CreateCluster" in MULTI_SERVICE_EVENTS
+        assert "ecs.amazonaws.com" in MULTI_SERVICE_EVENTS["CreateCluster"]
+        assert "eks.amazonaws.com" in MULTI_SERVICE_EVENTS["CreateCluster"]
+
+        # CreateTable maps to DynamoDB or Glue
+        assert "CreateTable" in MULTI_SERVICE_EVENTS
+        assert "dynamodb.amazonaws.com" in MULTI_SERVICE_EVENTS["CreateTable"]
+        assert "glue.amazonaws.com" in MULTI_SERVICE_EVENTS["CreateTable"]
+
+    def test_get_resource_type_for_event(self):
+        """Test the helper function for event type lookup."""
+        # Standard event
+        assert get_resource_type_for_event("RunInstances") == "AWS::EC2::Instance"
+
+        # Multi-service event with event source
+        assert get_resource_type_for_event("CreateCluster", "ecs.amazonaws.com") == "AWS::ECS::Cluster"
+        assert get_resource_type_for_event("CreateCluster", "eks.amazonaws.com") == "AWS::EKS::Cluster"
+
+        # Multi-service event without event source (falls back to first mapping)
+        result = get_resource_type_for_event("CreateCluster")
+        assert result in ["AWS::ECS::Cluster", "AWS::EKS::Cluster"]
+
+        # Unknown event
+        assert get_resource_type_for_event("UnknownEvent") is None
 
 
 class TestCloudTrailQuery:

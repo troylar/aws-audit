@@ -1,7 +1,6 @@
 """Tests for CLI lambda commands."""
 
 import base64
-import json
 import os
 import tempfile
 import zipfile

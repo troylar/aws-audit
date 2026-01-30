@@ -3,15 +3,15 @@
 import base64
 import hashlib
 from datetime import datetime
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests
 
 from src.snapshot.resource_collectors.lambda_func import (
+    DEFAULT_MAX_INLINE_CODE_SIZE,
     LambdaCollector,
     _parse_lambda_timestamp,
-    DEFAULT_MAX_INLINE_CODE_SIZE,
 )
 
 

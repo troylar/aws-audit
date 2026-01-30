@@ -1,12 +1,11 @@
 """Categorize layers node for LangGraph workflow."""
 
-from typing import Any, Dict, List
 from collections import defaultdict
+from typing import Any, Dict, List
 
-from ..state import GenerationState
-from ..layers import LayerOrder, RESOURCE_TYPE_TO_LAYER, LayerStatus
 from ...models.generation import Layer, TrackedResource
-
+from ..layers import RESOURCE_TYPE_TO_LAYER, LayerOrder, LayerStatus
+from ..state import GenerationState
 
 LAYER_NAMES = {
     LayerOrder.NETWORK: "Network Foundation",

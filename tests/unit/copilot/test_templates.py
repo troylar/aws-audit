@@ -1,9 +1,5 @@
 """Unit tests for copilot template validation (T033-T035, T053-T054)."""
 
-from pathlib import Path
-
-import pytest
-
 
 def estimate_token_count(text: str) -> int:
     """Estimate token count for GPT models.

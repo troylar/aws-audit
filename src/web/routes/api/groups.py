@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, field_validator
 
-from ...dependencies import get_database, get_group_store
+from ...dependencies import get_group_store
 
 router = APIRouter(prefix="/groups")
 

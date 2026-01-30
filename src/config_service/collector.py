@@ -6,7 +6,7 @@ Collects resources using AWS Config APIs instead of direct service API calls.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:

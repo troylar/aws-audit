@@ -210,7 +210,7 @@ class TestECSCollector:
         mock_paginator.paginate.return_value = [{"clusterArns": [], "taskDefinitionArns": []}]
 
         with patch.object(collector, "_create_client", return_value=mock_client):
-            resources = collector.collect()
+            collector.collect()
 
         # Should have called get_paginator multiple times
         assert mock_client.get_paginator.call_count >= 2

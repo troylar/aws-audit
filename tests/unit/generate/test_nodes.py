@@ -10,24 +10,21 @@ available, tests will be skipped with an appropriate message.
 from __future__ import annotations
 
 import base64
-import sys
-from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 try:
-    from src.generate.layers import LayerOrder, LayerStatus, RESOURCE_TYPE_TO_LAYER
-    from src.generate.state import GenerationConfig, GenerationState
-    from src.models.generation import LambdaCode, Layer, ResourceMap, TrackedResource
-    from src.generate.nodes.parse_inventory import parse_inventory
+    from src.generate.layers import RESOURCE_TYPE_TO_LAYER, LayerOrder, LayerStatus
     from src.generate.nodes.build_resource_map import build_resource_map
     from src.generate.nodes.categorize_layers import categorize_layers
     from src.generate.nodes.extract_lambda import extract_lambda_code
     from src.generate.nodes.generate_layer import generate_layer
+    from src.generate.nodes.parse_inventory import parse_inventory
+    from src.generate.state import GenerationConfig, GenerationState
+    from src.models.generation import LambdaCode, Layer, ResourceMap, TrackedResource
 
     IMPORTS_AVAILABLE = True
 except ImportError as e:
@@ -135,7 +132,7 @@ class TestParseInventoryNode:
             mock_storage = mock_storage_class.return_value
             mock_storage.load_snapshot.return_value = mock_snapshot
 
-            result = parse_inventory(initial_state)
+            parse_inventory(initial_state)
 
             mock_storage.load_snapshot.assert_called_once_with("test-snapshot")
 
@@ -830,7 +827,7 @@ resource "aws_subnet" "public_1" {
         mock_client.chat.completions.create.return_value = mock_response
 
         with patch("src.generate.nodes.generate_layer.OpenAI", return_value=mock_client):
-            result = generate_layer(state_with_current_layer)
+            generate_layer(state_with_current_layer)
 
             mock_client.chat.completions.create.assert_called_once()
 

@@ -1,6 +1,6 @@
 """AWS Systems Manager (SSM) Parameter to Terraform property mappings."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 # SSM Parameter configurable properties
 # Maps AWS API field names to Terraform aws_ssm_parameter argument names

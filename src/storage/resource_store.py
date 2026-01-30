@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from .database import Database, json_deserialize
+from .database import Database
 
 logger = logging.getLogger(__name__)
 

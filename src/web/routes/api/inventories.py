@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ...dependencies import get_inventory_store, get_storage_path
+from ...dependencies import get_inventory_store
 
 router = APIRouter(prefix="/inventories")
 

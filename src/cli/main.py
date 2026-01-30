@@ -716,10 +716,10 @@ def config_check(
         awsinv config check --regions us-east-1,us-west-2
         awsinv config check --verbose
     """
-    from ..config_service.detector import detect_config_availability
-    from ..config_service.resource_type_mapping import CONFIG_SUPPORTED_TYPES, COLLECTOR_TO_CONFIG_TYPES
-
     import boto3
+
+    from ..config_service.detector import detect_config_availability
+    from ..config_service.resource_type_mapping import COLLECTOR_TO_CONFIG_TYPES, CONFIG_SUPPORTED_TYPES
 
     region_list = (regions or "us-east-1").split(",")
 
@@ -1129,20 +1129,21 @@ def snapshot_create(
 
             console.print(f"   Found {len(created_resources)} resource types in CloudTrail")
             console.print(f"   Tagged {matched_count}/{len(snapshot.resources)} resources as created by this role")
-            console.print(f"   [dim](Resources older than 90 days won't appear in CloudTrail)[/dim]")
+            console.print("   [dim](Resources older than 90 days won't appear in CloudTrail)[/dim]")
 
         # Track creators for ALL resources if --track-creators specified
         if track_creators:
+            from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+
             from ..cloudtrail import CloudTrailQuery
-            from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-            from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE
+            from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE, MULTI_SERVICE_EVENTS
 
             console.print("\n🔍 Tracking resource creators from CloudTrail...")
 
             ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
 
             # Count total event types to query
-            event_types = list(EVENT_TO_RESOURCE_TYPE.keys())
+            event_types = list(EVENT_TO_RESOURCE_TYPE.keys()) + list(MULTI_SERVICE_EVENTS.keys())
             total_queries = len(event_types) * len(region_list)
             completed_queries = 0
             total_events_found = 0
@@ -1191,7 +1192,7 @@ def snapshot_create(
 
             console.print(f"   Found {len(creators)} creation events in CloudTrail")
             console.print(f"   Tagged {matched_count}/{len(snapshot.resources)} resources with creator info")
-            console.print(f"   [dim](Resources older than 90 days won't appear in CloudTrail)[/dim]")
+            console.print("   [dim](Resources older than 90 days won't appear in CloudTrail)[/dim]")
 
         # T018: Check for zero resources after filtering
         if snapshot.resource_count == 0:
@@ -1528,8 +1529,9 @@ def snapshot_enrich_creators(
         console.print(f"   Regions: {', '.join(region_list)}\n")
 
         # Query CloudTrail for creators with progress
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-        from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE
+        from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+
+        from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE, MULTI_SERVICE_EVENTS
 
         console.print("🔍 Querying CloudTrail for resource creators...")
         console.print(f"   Looking back {days_back} days...")
@@ -1541,17 +1543,24 @@ def snapshot_enrich_creators(
         relevant_event_types = [
             event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items() if res_type in snapshot_resource_types
         ]
+        # Also include multi-service events if any of their resource types match
+        for event_name, source_mapping in MULTI_SERVICE_EVENTS.items():
+            for res_type in source_mapping.values():
+                if res_type in snapshot_resource_types and event_name not in relevant_event_types:
+                    relevant_event_types.append(event_name)
 
         # If no matching event types, fall back to all (don't filter)
+        all_event_count = len(EVENT_TO_RESOURCE_TYPE) + len(MULTI_SERVICE_EVENTS)
         if relevant_event_types:
             console.print(f"   Filtering to {len(relevant_event_types)} event types (matching snapshot resources)")
             event_count = len(relevant_event_types)
         else:
             console.print(
-                f"   [yellow]No matching event types for snapshot resources, querying all {len(EVENT_TO_RESOURCE_TYPE)} event types[/yellow]"
+                f"   [yellow]No matching event types for snapshot resources, "
+                f"querying all {all_event_count} event types[/yellow]"
             )
             snapshot_resource_types = None  # Don't filter
-            event_count = len(EVENT_TO_RESOURCE_TYPE)
+            event_count = all_event_count
 
         ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
 
@@ -2091,7 +2100,7 @@ def snapshot_creators(
 
         # Summary stats
         total_tracked = sum(c["resource_count"] for c in creators_summary)
-        console.print(f"[bold]Summary:[/bold]")
+        console.print("[bold]Summary:[/bold]")
         console.print(f"  • Unique creators: {len(creators_summary)}")
         console.print(f"  • Resources with creator info: {total_tracked:,}")
         if resources_without_creator > 0:
@@ -3140,21 +3149,23 @@ def cleanup_purge(
         awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --preview
 
         # Delete resources created within a date range
-        awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --created-before "2025-01-15" --preview
+        awsinv cleanup purge --from-snapshot my-snapshot \\
+            --created-after "2025-01-01" --created-before "2025-01-15" --preview
 
         # Combine creator and date filters
-        awsinv cleanup purge --from-snapshot my-snapshot --created-by "john" --created-after "2025-01-10" --preview
+        awsinv cleanup purge --from-snapshot my-snapshot \\
+            --created-by "john" --created-after "2025-01-10" --preview
     """
-    from datetime import datetime as dt
     from collections import defaultdict
+    from datetime import datetime as dt
+
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
     from ..restore.config import build_protection_rules, load_config_file
     from ..restore.deleter import ResourceDeleter
-    from ..restore.dependency import sort_resources_for_deletion, get_deletion_tier
+    from ..restore.dependency import get_deletion_tier, sort_resources_for_deletion
     from ..restore.safety import SafetyChecker
     from ..snapshot.capturer import create_snapshot
-    from ..models.resource import Resource
 
     try:
         # Validate creator/date filters require --from-snapshot
@@ -3360,7 +3371,7 @@ def cleanup_purge(
         to_delete = sort_resources_for_deletion(to_delete)
 
         # Display summary
-        console.print(f"\n[bold]Summary:[/bold]")
+        console.print("\n[bold]Summary:[/bold]")
         console.print(f"  • Total resources: {len(all_resources)}")
         console.print(f"  • Protected by rules (will keep): [green]{len(protected)}[/green]")
         if excluded:
@@ -3436,7 +3447,7 @@ def cleanup_purge(
         # Execute deletion with real-time progress display
         console.print("\n[bold red]Executing deletion...[/bold red]\n")
         deleter = ResourceDeleter(aws_profile=profile)
-        audit_storage = AuditStorage()
+        AuditStorage()
 
         succeeded = 0
         failed = 0
@@ -3539,15 +3550,16 @@ def query_sql(
 
     Examples:
         awsinv query sql "SELECT resource_type, COUNT(*) as count FROM resources GROUP BY resource_type"
-        awsinv query sql "SELECT r.arn, t.key, t.value FROM resources r JOIN resource_tags t ON r.id = t.resource_id WHERE t.key = 'Environment'"
+        awsinv query sql "SELECT r.arn FROM resources r JOIN resource_tags t ON r.id = t.resource_id"
         # Use --snapshot to automatically filter by snapshot_id
         awsinv query sql "SELECT * FROM resources" --snapshot my-snapshot
     """
-    from ..storage import Database, ResourceStore
-    import json
     import csv
-    import sys
+    import json
     import re
+    import sys
+
+    from ..storage import Database, ResourceStore
 
     setup_logging()
 
@@ -3641,8 +3653,9 @@ def query_resources(
         awsinv query resources --arn "arn:aws:s3:::my-bucket*"
         awsinv query resources --snapshot baseline-2024 --type lambda
     """
-    from ..storage import Database, ResourceStore
     import json
+
+    from ..storage import Database, ResourceStore
 
     setup_logging()
 
@@ -3718,8 +3731,9 @@ def query_history(
     Example:
         awsinv query history "arn:aws:s3:::my-bucket"
     """
-    from ..storage import Database, ResourceStore
     import json
+
+    from ..storage import Database, ResourceStore
 
     setup_logging()
 
@@ -3781,8 +3795,9 @@ def query_stats(
         awsinv query stats --group-by region
         awsinv query stats --snapshot baseline-2024 --group-by service
     """
-    from ..storage import Database, ResourceStore, SnapshotStore
     import json
+
+    from ..storage import Database, ResourceStore, SnapshotStore
 
     setup_logging()
 
@@ -3796,7 +3811,7 @@ def query_stats(
         total_snapshots = snapshot_store.get_snapshot_count()
         total_resources = snapshot_store.get_resource_count()
 
-        console.print(f"\n[bold]Database Statistics[/bold]")
+        console.print("\n[bold]Database Statistics[/bold]")
         console.print(f"Total snapshots: [cyan]{total_snapshots}[/cyan]")
         console.print(f"Total resources: [cyan]{total_resources}[/cyan]")
 
@@ -3849,8 +3864,9 @@ def query_diff(
         awsinv query diff baseline-2024 current-2024
         awsinv query diff snap1 snap2 --type s3:bucket
     """
-    from ..storage import Database, ResourceStore
     import json
+
+    from ..storage import Database, ResourceStore
 
     setup_logging()
 
@@ -3878,7 +3894,7 @@ def query_diff(
             return
 
         # Print summary
-        console.print(f"\n[bold]Comparing Snapshots[/bold]")
+        console.print("\n[bold]Comparing Snapshots[/bold]")
         console.print(f"  {snapshot1} ({summary['snapshot1_count']} resources)")
         console.print(f"  {snapshot2} ({summary['snapshot2_count']} resources)")
         console.print()
@@ -4032,8 +4048,9 @@ def group_list(
         awsinv group list
         awsinv group list --format json
     """
-    from ..storage import Database, GroupStore
     import json
+
+    from ..storage import Database, GroupStore
 
     setup_logging()
 
@@ -4203,8 +4220,9 @@ def group_compare(
         awsinv group compare baseline -s prod-account --format json
         awsinv group compare baseline -s prod-account --details
     """
-    from ..storage import Database, GroupStore
     import json
+
+    from ..storage import Database, GroupStore
 
     setup_logging()
 
@@ -4287,8 +4305,8 @@ def group_add(
         awsinv group add baseline --resource "my-bucket:s3:bucket"
         awsinv group add iam-baseline --resource "AdminRole:iam:role"
     """
-    from ..storage import Database, GroupStore
     from ..models.group import GroupMember
+    from ..storage import Database, GroupStore
 
     setup_logging()
 
@@ -4315,7 +4333,7 @@ def group_add(
         if added > 0:
             console.print(f"[green]✓ Added '{resource_name}' ({resource_type}) to group '{name}'[/green]")
         else:
-            console.print(f"[yellow]Resource already exists in group[/yellow]")
+            console.print("[yellow]Resource already exists in group[/yellow]")
 
     except typer.Exit:
         raise
@@ -4361,7 +4379,7 @@ def group_remove(
         if removed:
             console.print(f"[green]✓ Removed '{resource_name}' ({resource_type}) from group '{name}'[/green]")
         else:
-            console.print(f"[yellow]Resource not found in group[/yellow]")
+            console.print("[yellow]Resource not found in group[/yellow]")
 
     except typer.Exit:
         raise
@@ -4383,11 +4401,12 @@ def group_export(
         awsinv group export baseline --format yaml
         awsinv group export baseline --format csv --output baseline.csv
     """
-    from ..storage import Database, GroupStore
-    import json
-    import yaml
     import csv
-    import sys
+    import json
+
+    import yaml
+
+    from ..storage import Database, GroupStore
 
     setup_logging()
 
@@ -4744,7 +4763,6 @@ def lambda_list(
         awsinv lambda list my-snapshot
         awsinv lambda list --all
     """
-    import base64
 
     storage = SnapshotStorage()
 
@@ -4825,7 +4843,6 @@ def lambda_extract(
         awsinv lambda extract all --output ./code
         awsinv lambda extract my-function -s my-snapshot -o ./extracted
     """
-    import base64
     import os
     import zipfile
     from io import BytesIO
@@ -4910,7 +4927,6 @@ def lambda_show(
         awsinv lambda show my-function --file index.js
         awsinv lambda show my-function --file handler.py
     """
-    import base64
     import zipfile
     from io import BytesIO
 
@@ -5037,7 +5053,6 @@ def lambda_diff(
         awsinv lambda diff my-function snapshot-v1 snapshot-v2
         awsinv lambda diff my-function old new --file handler.py
     """
-    import base64
     import difflib
     import zipfile
     from io import BytesIO
@@ -5208,13 +5223,14 @@ def lambda_fetch(
         awsinv lambda fetch my-snapshot --no-ssl-verify
     """
     import hashlib
-    import requests
+
     import boto3
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+    import requests
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
     from ..snapshot.lambda_code_storage import LambdaCodeStorage
-    from ..storage.snapshot_store import SnapshotStore
     from ..storage.database import Database
+    from ..storage.snapshot_store import SnapshotStore
     from ..utils.hash import compute_config_hash
 
     # Suppress SSL warnings if verification is disabled
@@ -5396,7 +5412,7 @@ def lambda_fetch(
             progress.advance(task)
 
     # Summary
-    console.print(f"\n[bold]Summary:[/bold]")
+    console.print("\n[bold]Summary:[/bold]")
     if success_count:
         console.print(f"  [green]✓ {success_count} fetched[/green]")
     if skip_count:
@@ -5657,8 +5673,7 @@ def generate(
 
     # Import here to avoid loading langgraph unless needed
     try:
-        from ..generate import GenerationConfig
-        from ..generate.terraform_generator import TerraformGenerator, generate_terraform
+        from ..generate.terraform_generator import generate_terraform
     except ImportError as e:
         console.print("[red]Error:[/red] Generate dependencies not installed.")
         console.print("Install with: pip install aws-inventory-manager[generate]")

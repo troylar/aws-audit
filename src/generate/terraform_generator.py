@@ -4,10 +4,10 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from .agent import compile_terraform_agent
-from .state import GenerationConfig, GenerationState
-from .layers import LayerStatus
 from ..models.generation import Layer
+from .agent import compile_terraform_agent
+from .layers import LayerStatus
+from .state import GenerationConfig, GenerationState
 
 
 @dataclass
@@ -29,9 +29,9 @@ class GenerationResult:
     @property
     def summary(self) -> Dict[str, Any]:
         """Get generation summary."""
-        completed = sum(1 for l in self.layers if l.status == LayerStatus.COMPLETED)
-        failed = sum(1 for l in self.layers if l.status == LayerStatus.FAILED)
-        total_resources = sum(len(l.resources) for l in self.layers)
+        completed = sum(1 for layer in self.layers if layer.status == LayerStatus.COMPLETED)
+        failed = sum(1 for layer in self.layers if layer.status == LayerStatus.FAILED)
+        total_resources = sum(len(layer.resources) for layer in self.layers)
 
         return {
             "success": self.success,

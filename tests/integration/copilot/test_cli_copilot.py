@@ -3,11 +3,9 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
-
 
 runner = CliRunner()
 

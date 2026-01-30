@@ -6,7 +6,6 @@ using SQLite as the primary storage backend.
 
 import gzip
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 

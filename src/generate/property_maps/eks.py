@@ -71,7 +71,6 @@ EKS_NODE_GROUP_COMPUTED: Dict[str, str] = {
     "Resources": "resources",
     "NodeRole": "node_role_arn",
     "Labels": "labels",
-    "Resources": "resources",
     "DiskSize": "disk_size",
     "Health": "health",
     "InstanceTypes": "instance_types",

@@ -1,8 +1,6 @@
 """Tests for CLI query commands."""
 
 import json
-import os
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -453,7 +451,10 @@ class TestQuerySqlEdgeCases:
         mock_store_cls.return_value = mock_store
 
         # Complex query with JOIN
-        query = "SELECT r.name, t.key, t.value FROM resources r JOIN resource_tags t ON r.id = t.resource_id ORDER BY r.name"
+        query = (
+            "SELECT r.name, t.key, t.value FROM resources r "
+            "JOIN resource_tags t ON r.id = t.resource_id ORDER BY r.name"
+        )
 
         result = cli_runner.invoke(
             app,

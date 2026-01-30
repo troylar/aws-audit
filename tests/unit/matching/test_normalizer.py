@@ -200,7 +200,10 @@ class TestParseAiResponse:
 
     def test_valid_response(self, normalizer: ResourceNormalizer) -> None:
         """Test parsing valid AI response."""
-        content = '{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123456789012:function:test", "normalized_name": "test-function"}]}'
+        content = (
+            '{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123456789012:function:test", '
+            '"normalized_name": "test-function"}]}'
+        )
         resources = [
             {
                 "arn": "arn:aws:lambda:us-east-1:123456789012:function:test",
@@ -259,7 +262,10 @@ class TestAiNormalization:
             mock_response.choices = [
                 MagicMock(
                     message=MagicMock(
-                        content='{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123:function:test", "normalized_name": "normalized-test"}]}'
+                        content=(
+                            '{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123:function:test", '
+                            '"normalized_name": "normalized-test"}]}'
+                        )
                     )
                 )
             ]

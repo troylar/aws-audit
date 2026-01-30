@@ -1,6 +1,6 @@
 """AWS to Terraform property mapping utilities."""
 
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 # Registry of property maps by resource type prefix
 _PROPERTY_MAPS: Dict[str, Any] = {}
@@ -30,35 +30,37 @@ def get_property_map(resource_type: str) -> Optional[Any]:
 
 
 # Register property maps
-from . import apigateway
-from . import backup
-from . import cloudformation
-from . import cloudwatch
-from . import codebuild
-from . import codepipeline
-from . import dynamodb
-from . import ec2
-from . import ecs
-from . import efs
-from . import eks
-from . import elasticache
-from . import elb
-from . import eventbridge
-from . import glue
-from . import iam
-from . import kms
-from . import lambda_
-from . import rds
-from . import route53
-from . import s3
-from . import secretsmanager
-from . import sns
-from . import sqs
-from . import ssm
-from . import stepfunctions
-from . import vpc
-from . import vpcendpoints
-from . import waf
+from . import (
+    apigateway,
+    backup,
+    cloudformation,
+    cloudwatch,
+    codebuild,
+    codepipeline,
+    dynamodb,
+    ec2,
+    ecs,
+    efs,
+    eks,
+    elasticache,
+    elb,
+    eventbridge,
+    glue,
+    iam,
+    kms,
+    lambda_,
+    rds,
+    route53,
+    s3,
+    secretsmanager,
+    sns,
+    sqs,
+    ssm,
+    stepfunctions,
+    vpc,
+    vpcendpoints,
+    waf,
+)
 
 register_property_map("apigateway", apigateway)
 register_property_map("backup", backup)

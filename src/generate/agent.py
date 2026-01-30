@@ -15,7 +15,7 @@ from .state import GenerationState
 
 def should_continue_generating(state: GenerationState) -> Literal["generate_layer", "validate_terraform"]:
     """Check if there are more layers to generate."""
-    layers = state.get("layers", {})
+    state.get("layers", {})
     layer_order = state.get("layer_order", [])
     current_index = state.get("current_layer_index", 0)
 

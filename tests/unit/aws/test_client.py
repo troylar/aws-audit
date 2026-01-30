@@ -1,16 +1,16 @@
 """Tests for AWS client wrapper."""
 
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from botocore.config import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from src.aws.client import (
+    DEFAULT_RETRY_CONFIG,
+    check_client_connection,
     create_boto_client,
     get_enabled_regions,
-    check_client_connection,
-    DEFAULT_RETRY_CONFIG,
 )
 
 

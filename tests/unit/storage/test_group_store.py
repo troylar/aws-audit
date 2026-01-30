@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -55,7 +54,7 @@ class TestGroupStoreBasicCRUD:
         ]
         group = ResourceGroup(name="test-group", description="A test group", members=members)
 
-        group_id = group_store.save(group)
+        group_store.save(group)
         loaded = group_store.load("test-group")
 
         assert loaded is not None
@@ -322,6 +321,7 @@ class TestGroupStoreCreateFromSnapshot:
     def test_create_from_snapshot(self, group_store, snapshot_store):
         """Test creating a group from a snapshot."""
         from datetime import datetime
+
         from src.models import Resource, Snapshot
 
         snapshot = Snapshot(
@@ -358,6 +358,7 @@ class TestGroupStoreCreateFromSnapshot:
     def test_create_from_snapshot_with_type_filter(self, group_store, snapshot_store):
         """Test creating a group from a snapshot with type filter."""
         from datetime import datetime
+
         from src.models import Resource, Snapshot
 
         snapshot = Snapshot(

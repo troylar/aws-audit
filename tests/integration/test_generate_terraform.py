@@ -9,17 +9,16 @@ Tests are skipped if langgraph or openai are not installed.
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 try:
-    import langgraph
-    import openai
+    import langgraph  # noqa: F401
+    import openai  # noqa: F401
 
     HAS_GENERATE_DEPS = True
 except ImportError:
@@ -36,9 +35,9 @@ if not HAS_GENERATE_DEPS:
         allow_module_level=True,
     )
 
-from src.generate.layers import LayerOrder, LayerStatus, RESOURCE_TYPE_TO_LAYER
+from src.generate.layers import RESOURCE_TYPE_TO_LAYER, LayerOrder
 from src.generate.state import GenerationConfig, GenerationState
-from src.models.generation import Layer, ResourceMap, TrackedResource
+from src.models.generation import ResourceMap, TrackedResource
 from src.models.resource import Resource
 from src.models.snapshot import Snapshot
 

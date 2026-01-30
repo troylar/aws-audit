@@ -1,10 +1,7 @@
 """Unit tests for copilot installer (T013-T017)."""
 
 import os
-import tempfile
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,7 +13,7 @@ from src.copilot.installer import (
     uninstall_files,
     validate_target_path,
 )
-from src.copilot.models import FileType, InstallResult, UninstallResult
+from src.copilot.models import FileType
 
 
 class TestValidateTargetPath:

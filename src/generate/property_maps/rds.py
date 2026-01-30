@@ -4,7 +4,7 @@ Maps AWS RDS API response properties to Terraform resource properties
 for both DB instances and Aurora clusters.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # RDS DB Instance configurable properties
 # Maps AWS API field names to Terraform aws_db_instance argument names
@@ -186,7 +186,6 @@ RDS_CLUSTER_COMPUTED: Dict[str, str] = {
     "Iops": "iops",
     "PendingModifiedValues": "pending_modified_values",
     "AvailabilityZoneCount": "availability_zone_count",
-    "PreferredBackupWindow": "preferred_backup_window",
     "CACertificateIdentifier": "ca_certificate_identifier",
     "PerformanceInsightsEnabled": "performance_insights_enabled",
     "PerformanceInsightsKMSKeyId": "performance_insights_kms_key_id",

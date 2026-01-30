@@ -4,7 +4,7 @@ Maps AWS Backup API response properties to Terraform resource properties
 for Backup Plans and Backup Vaults.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 # Backup Plan configurable properties
 # Maps AWS API field names to Terraform aws_backup_plan argument names

@@ -408,7 +408,6 @@ class DeletionProgressDisplay:
 
     def print_final_summary(self) -> None:
         """Print a final summary report of all deletions organized by tier."""
-        from rich.panel import Panel
         from rich.table import Table
 
         self.console.print()

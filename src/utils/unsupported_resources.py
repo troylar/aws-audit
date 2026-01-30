@@ -229,7 +229,7 @@ def get_unsupported_resource_summary(report: UnsupportedResourceReport) -> str:
         Formatted string summary
     """
     lines = [
-        f"Unsupported Resource Detection Report",
+        "Unsupported Resource Detection Report",
         "=" * 40,
         f"Total resources scanned: {report.total_resources_scanned}",
         f"Supported resource types found: {len(report.supported_types)}",
