@@ -157,7 +157,7 @@ class ResourceFilter:
                 before_date_aware = before_date_aware.replace(tzinfo=tz.utc)
 
             if resource_date >= before_date_aware:
-                logger.debug(f"Resource {resource.name} created {resource_date} " f"is not before {before_date_aware}")
+                logger.debug(f"Resource {resource.name} created {resource_date} is not before {before_date_aware}")
                 return False
 
         # Check after_date filter (inclusive)
@@ -170,7 +170,7 @@ class ResourceFilter:
                 after_date_aware = after_date_aware.replace(tzinfo=tz.utc)
 
             if resource_date < after_date_aware:
-                logger.debug(f"Resource {resource.name} created {resource_date} " f"is before {after_date_aware}")
+                logger.debug(f"Resource {resource.name} created {resource_date} is before {after_date_aware}")
                 return False
 
         return True
@@ -196,7 +196,7 @@ class ResourceFilter:
 
             if resource.tags[key] != value:
                 logger.debug(
-                    f"Resource {resource.name} tag {key}={resource.tags[key]} " f"does not match required value {value}"
+                    f"Resource {resource.name} tag {key}={resource.tags[key]} does not match required value {value}"
                 )
                 return False
 

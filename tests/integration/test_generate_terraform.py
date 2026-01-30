@@ -526,9 +526,7 @@ class TestEndToEndWorkflow:
         def mock_completion(*args: Any, **kwargs: Any) -> MagicMock:
             response = MagicMock()
             response.choices = [MagicMock()]
-            response.choices[
-                0
-            ].message.content = """
+            response.choices[0].message.content = """
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
 }

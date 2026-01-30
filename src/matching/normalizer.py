@@ -393,7 +393,7 @@ class ResourceNormalizer:
 
             except Exception as e:
                 wait_time = 2**attempt
-                logger.warning(f"AI normalization attempt {attempt + 1} failed: {e}. " f"Retrying in {wait_time}s...")
+                logger.warning(f"AI normalization attempt {attempt + 1} failed: {e}. Retrying in {wait_time}s...")
                 if attempt < self.config.max_retries - 1:
                     time.sleep(wait_time)
 

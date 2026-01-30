@@ -46,7 +46,7 @@ class EFSFileSystem:
         valid_states = ["available", "creating", "deleting", "deleted"]
         if self.lifecycle_state not in valid_states:
             raise ValueError(
-                f"Invalid lifecycle_state: {self.lifecycle_state}. " f"Must be one of: {', '.join(valid_states)}"
+                f"Invalid lifecycle_state: {self.lifecycle_state}. Must be one of: {', '.join(valid_states)}"
             )
 
         return True

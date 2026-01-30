@@ -73,7 +73,7 @@ class CostAnalyzer:
             # If dates are the same or inverted, set end_date to start_date + 1 day
             end_date = start_date + timedelta(days=1)
 
-        logger.debug(f"Analyzing costs from {start_date.strftime('%Y-%m-%d')} " f"to {end_date.strftime('%Y-%m-%d')}")
+        logger.debug(f"Analyzing costs from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
 
         # Execute data completeness check and cost retrieval in parallel
         with ThreadPoolExecutor(max_workers=2) as executor:

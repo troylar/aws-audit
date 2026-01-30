@@ -167,9 +167,7 @@ class SnapshotStorage:
         """
         # Check if it's the active snapshot
         if snapshot_name == self.get_active_snapshot_name():
-            raise ValueError(
-                f"Cannot delete active snapshot '{snapshot_name}'. " "Set another snapshot as active first."
-            )
+            raise ValueError(f"Cannot delete active snapshot '{snapshot_name}'. Set another snapshot as active first.")
 
         # Delete from SQLite
         if self._store.delete(snapshot_name):

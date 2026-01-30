@@ -2249,7 +2249,7 @@ def delta(
             if not active_inventory.active_snapshot:
                 console.print(f"✗ No active snapshot in inventory '{inventory_name}'", style="bold red")
                 console.print(
-                    f"  Take a snapshot or set one as active: " f"aws-snapshot create --inventory {inventory_name}",
+                    f"  Take a snapshot or set one as active: aws-snapshot create --inventory {inventory_name}",
                     style="yellow",
                 )
                 raise typer.Exit(code=1)
@@ -2382,7 +2382,7 @@ def cost(
             if not active_inventory.active_snapshot:
                 console.print(f"✗ No active snapshot in inventory '{inventory_name}'", style="bold red")
                 console.print(
-                    f"  Take a snapshot or set one as active: " f"aws-snapshot create --inventory {inventory_name}",
+                    f"  Take a snapshot or set one as active: aws-snapshot create --inventory {inventory_name}",
                     style="yellow",
                 )
                 raise typer.Exit(code=1)
@@ -2954,7 +2954,9 @@ def cleanup_execute(
         status_color = (
             "green"
             if operation.status.value == "completed"
-            else "yellow" if operation.status.value == "partial" else "red"
+            else "yellow"
+            if operation.status.value == "partial"
+            else "red"
         )
 
         summary_text = f"""
@@ -4891,7 +4893,6 @@ def lambda_extract(
             continue
 
         try:
-
             if flatten:
                 extract_path = output_dir
             else:

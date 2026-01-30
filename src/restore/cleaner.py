@@ -89,7 +89,7 @@ class ResourceCleaner:
         snapshot_account = snapshot.account_id
         if snapshot_account != account_id:
             raise ValueError(
-                f"Account ID mismatch: snapshot has {snapshot_account}, " f"current credentials have {account_id}"
+                f"Account ID mismatch: snapshot has {snapshot_account}, current credentials have {account_id}"
             )
 
         # Collect current resources
@@ -190,7 +190,7 @@ class ResourceCleaner:
         snapshot_account = snapshot.account_id
         if snapshot_account != account_id:
             raise ValueError(
-                f"Account ID mismatch: snapshot has {snapshot_account}, " f"current credentials have {account_id}"
+                f"Account ID mismatch: snapshot has {snapshot_account}, current credentials have {account_id}"
             )
 
         # Collect current resources

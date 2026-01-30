@@ -156,9 +156,9 @@ def _create_snapshot_sync(
         _snapshot_jobs[job_id]["progress"] = 100
         _snapshot_jobs[job_id]["status"] = "completed"
         _snapshot_jobs[job_id]["snapshot_name"] = snapshot.name
-        _snapshot_jobs[job_id][
-            "message"
-        ] = f"Created snapshot '{snapshot.name}' with {snapshot.resource_count} resources"
+        _snapshot_jobs[job_id]["message"] = (
+            f"Created snapshot '{snapshot.name}' with {snapshot.resource_count} resources"
+        )
 
     except Exception as e:
         logger.exception(f"Snapshot creation failed: {e}")
