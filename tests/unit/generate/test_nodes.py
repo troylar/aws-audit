@@ -45,10 +45,17 @@ except ImportError as e:
     extract_lambda_code = None
     generate_layer = None
 
+# Check if openai is available for tests that mock it
+import importlib.util
+
+OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
 
 pytestmark = pytest.mark.skipif(
     not IMPORTS_AVAILABLE, reason=f"Required imports not available: {IMPORT_ERROR if not IMPORTS_AVAILABLE else ''}"
 )
+
+# Skip marker for tests that require openai
+requires_openai = pytest.mark.skipif(not OPENAI_AVAILABLE, reason="Requires 'generate' optional dependencies (openai)")
 
 
 class TestParseInventoryNode:
@@ -731,6 +738,7 @@ class TestExtractLambdaCodeNode:
         assert len(result["errors"]) > 0
 
 
+@requires_openai
 class TestGenerateLayerNode:
     """Tests for generate_layer node (T032).
 
@@ -1076,6 +1084,7 @@ class TestNodeReturnTypes:
         assert "lambda_code_paths" in result
         assert "errors" in result
 
+    @requires_openai
     def test_generate_layer_returns_dict(self, tmp_path: Path) -> None:
         """Test generate_layer returns a dict for state update."""
         mock_client = MagicMock()
