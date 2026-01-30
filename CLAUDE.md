@@ -30,9 +30,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.8+ (supports 3.8-3.13 based on project standards): Follow standard conventions
 
 ## Recent Changes
+- 001-langgraph-iac-agent: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 004-resource-cleanup: Added Python 3.8+ (supports 3.8 through 3.13 per project standards) + boto3>=1.28.0 (AWS SDK), typer>=0.9.0 (CLI), rich>=13.0.0 (terminal UI), pyyaml>=6.0 (audit logs)
 - 001-quick-wins: Added Python 3.8+ (supports 3.8 through 3.13) + boto3>=1.28.0, typer>=0.9.0, rich>=13.0.0, pyyaml>=6.0, python-dateutil>=2.8.0
-- 003-snapshot-resource-report: Added Python 3.8+ (project requires >=3.8, testing on 3.8-3.13) + Typer 0.9+, Rich 13.0+, PyYAML 6.0+, boto3 1.28+
 
 
 <!-- MANUAL ADDITIONS START -->

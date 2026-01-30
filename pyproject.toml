@@ -54,6 +54,10 @@ web = [
     "jinja2>=3.1.0",
     "python-multipart>=0.0.6",
 ]
+generate = [
+    "langgraph>=0.2.0",
+    "openai>=1.0.0",
+]
 
 [project.scripts]
 awsinv = "src.cli:cli_main"

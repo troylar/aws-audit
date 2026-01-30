@@ -10,7 +10,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Inventory Snapshots** • **Configuration Drift** • **Security Scanning** • **Cost Analysis** • **Resource Cleanup**
+**Inventory Snapshots** • **Configuration Drift** • **Security Scanning** • **Cost Analysis** • **Resource Cleanup** • **IaC Generation**
 
 [Quick Start](#quick-start) • [Features](#features) • [AWS Config](#aws-config-integration) • [Documentation](#documentation)
 
@@ -160,6 +160,15 @@ Before diving in, here's the terminology:
 
 </td>
 <td width="33%" valign="top">
+
+### IaC Generation (New!)
+- Generate Terraform from snapshots
+- AI-powered code generation
+- Layer-based chunking (network → compute → etc.)
+- Automatic ID → reference mapping
+- `terraform validate` integration
+- OpenAI-compatible API support
+
 </td>
 </tr>
 </table>
@@ -248,6 +257,9 @@ You can configure most CLI options via environment variables, which is useful fo
 | `AWSINV_REGION` | Comma-separated regions (e.g., `us-east-1,us-west-2`) | `--regions` |
 | `AWSINV_PROFILE` | AWS CLI profile to use | `--profile` |
 | `AWSINV_STORAGE_PATH` | Custom path for SQLite DB and logs | `--storage-path` |
+| `AWSINV_AI_ENDPOINT` | AI API endpoint for IaC generation | `--endpoint` |
+| `AWSINV_AI_API_KEY` | AI API key for IaC generation | `--api-key` |
+| `AWSINV_AI_MODEL` | AI model name (default: gpt-4) | `--model` |
 
 Example:
 ```bash
@@ -749,6 +761,63 @@ Large packages are stored to `~/.snapshots/lambda-code/<snapshot>/` and automati
 
 ---
 
+### IaC Generation (Terraform)
+
+Generate Terraform code from your inventory snapshots using AI:
+
+```bash
+# Set up AI credentials (OpenAI example)
+export AWSINV_AI_ENDPOINT="https://api.openai.com/v1"
+export AWSINV_AI_API_KEY="sk-..."
+export AWSINV_AI_MODEL="gpt-4"
+
+# Generate Terraform from a snapshot
+awsinv generate terraform my-snapshot
+
+# Specify output directory
+awsinv generate terraform my-snapshot --output ./infrastructure
+
+# Dry run (show what would be generated)
+awsinv generate terraform my-snapshot --dry-run
+
+# Use different model/endpoint
+awsinv generate terraform my-snapshot \
+  --endpoint "http://localhost:11434/v1" \
+  --model "llama3"
+```
+
+**How It Works:**
+
+1. **Layer-Based Generation**: Resources are grouped into layers (Network → Security → IAM → Data → Compute → etc.) and generated in dependency order
+2. **ID-to-Reference Mapping**: Hardcoded AWS IDs are automatically replaced with Terraform references (e.g., `vpc-123abc` → `aws_vpc.main.id`)
+3. **Validation**: Generated code is validated with `terraform init` and `terraform validate`
+
+**Output Structure:**
+```
+./terraform/
+├── main.tf              # Provider configuration
+├── variables.tf         # Input variables
+├── outputs.tf           # Output values
+├── layer_01_network.tf  # VPCs, subnets, gateways
+├── layer_02_security.tf # Security groups, ACLs
+├── layer_03_iam.tf      # Roles, policies
+├── layer_04_data.tf     # RDS, DynamoDB
+├── layer_05_storage.tf  # S3, EFS
+├── layer_06_compute.tf  # EC2, Lambda, ECS
+└── ...
+```
+
+**Supported AI Providers:**
+- OpenAI (GPT-4, GPT-4 Turbo)
+- Azure OpenAI
+- Ollama (local models)
+- LM Studio
+- Any OpenAI-compatible API
+
+> **Note:** IaC generation requires the `langgraph` optional dependency: `pip install aws-inventory-manager[generate]`
+
+---
+
 ### Resource Cleanup
 
 The `cleanup` command has two modes:
@@ -1080,6 +1149,17 @@ awsinv query resources --type "AWS::S3::Bucket" --tag "Environment=prod"
 awsinv query stats --group-by region
 
 # ─────────────────────────────────────────────────────────────
+# IAC GENERATION
+# ─────────────────────────────────────────────────────────────
+awsinv generate terraform <snapshot>  # Generate Terraform from snapshot
+    [--output <dir>]                  # Output directory (default: ./terraform)
+    [--endpoint <url>]                # AI API endpoint
+    [--api-key <key>]                 # AI API key
+    [--model <name>]                  # AI model (default: gpt-4)
+    [--dry-run]                       # Show what would be generated
+    [--verbose]                       # Show detailed progress
+
+# ─────────────────────────────────────────────────────────────
 # GLOBAL OPTIONS
 # ─────────────────────────────────────────────────────────────
 --profile <aws-profile>               # AWS CLI profile to use
@@ -1156,11 +1236,16 @@ awsinv cost --snapshot team-data
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
 │  CLI Commands                                                 │
-│  ┌─────────┐ ┌─────────┐ ┌──────────┐ ┌──────┐ ┌─────────┐   │
-│  │snapshot │ │ delta   │ │ security │ │ cost │ │ cleanup │   │
-│  └────┬────┘ └────┬────┘ └────┬─────┘ └──┬───┘ └────┬────┘   │
-│       │           │           │          │          │         │
-├───────┴───────────┴───────────┴──────────┴──────────┴────────┤
+│  ┌─────────┐ ┌───────┐ ┌──────────┐ ┌──────┐ ┌─────────┐     │
+│  │snapshot │ │ delta │ │ security │ │ cost │ │ cleanup │     │
+│  └────┬────┘ └───┬───┘ └────┬─────┘ └──┬───┘ └────┬────┘     │
+│       │          │          │          │          │           │
+│  ┌────┴──────────┴──────────┴──────────┴──────────┴────┐     │
+│  │                     generate                         │     │
+│  │        (AI-powered Terraform/CDK generation)        │     │
+│  └──────────────────────────────────────────────────────┘     │
+│                                                               │
+├──────────────────────────────────────────────────────────────┤
 │                                                               │
 │  Collection Layer                                             │
 │  ┌────────────────────────┐  ┌────────────────────────────┐  │
@@ -1170,11 +1255,12 @@ awsinv cost --snapshot team-data
 │                                                               │
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
-│  Analysis Engines                                             │
+│  Analysis & Generation Engines                                │
 │  • Configuration Differ (field-level change detection)       │
 │  • Security Scanner (CIS Benchmark checks)                   │
 │  • Cost Analyzer (AWS Cost Explorer)                         │
 │  • Dependency Resolver (deletion ordering)                   │
+│  • IaC Generator (LangGraph + OpenAI-compatible APIs)        │
 │                                                               │
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
@@ -1207,7 +1293,7 @@ invoke quality --fix     # Auto-fix issues
 invoke build             # Build distributable package
 ```
 
-**Test Coverage:** 1690+ tests, 79% overall coverage. Cleanup module: 98%+ coverage.
+**Test Coverage:** 2080+ tests, 61% overall coverage. Cleanup module: 98%+ coverage.
 
 ---
 

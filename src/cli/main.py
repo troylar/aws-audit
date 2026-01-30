@@ -5566,6 +5566,96 @@ def copilot_list(
             console.print(table)
 
 
+# =============================================================================
+# Generate Command (IaC Generation)
+# =============================================================================
+
+
+@app.command()
+def generate(
+    format: str = typer.Argument(..., help="Output format: terraform, cdk-typescript, cdk-python"),
+    snapshot_name: str = typer.Argument(..., help="Name of snapshot to generate from"),
+    output: str = typer.Option("./terraform", "--output", "-o", help="Output directory"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model name (default: from AWSINV_AI_MODEL or gpt-4)"),
+    endpoint: Optional[str] = typer.Option(None, "--endpoint", "-e", help="AI API endpoint (default: from AWSINV_AI_ENDPOINT)"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", "-k", help="AI API key (default: from AWSINV_AI_API_KEY)"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
+) -> None:
+    """Generate IaC (Terraform/CDK) from an inventory snapshot.
+
+    Examples:
+        awsinv generate terraform my-snapshot
+        awsinv generate terraform my-snapshot --output ./infra
+        awsinv generate terraform my-snapshot --model gpt-4o --verbose
+    """
+    if format not in ["terraform", "cdk-typescript", "cdk-python"]:
+        console.print(f"[red]Error:[/red] Unknown format '{format}'. Use: terraform, cdk-typescript, cdk-python")
+        raise typer.Exit(1)
+
+    if format != "terraform":
+        console.print(f"[yellow]Note:[/yellow] {format} support coming soon. Only terraform is currently supported.")
+        raise typer.Exit(1)
+
+    # Import here to avoid loading langgraph unless needed
+    try:
+        from ..generate import GenerationConfig
+        from ..generate.terraform_generator import TerraformGenerator, generate_terraform
+    except ImportError as e:
+        console.print("[red]Error:[/red] Generate dependencies not installed.")
+        console.print("Install with: pip install aws-inventory-manager[generate]")
+        console.print(f"Details: {e}")
+        raise typer.Exit(1)
+
+    # Check for API key
+    import os
+    effective_key = api_key or os.environ.get("AWSINV_AI_API_KEY")
+    if not effective_key:
+        console.print("[red]Error:[/red] No API key provided.")
+        console.print("Set AWSINV_AI_API_KEY environment variable or use --api-key option.")
+        raise typer.Exit(1)
+
+    console.print(f"\n[bold]Generating Terraform from snapshot:[/bold] {snapshot_name}")
+    console.print(f"[dim]Output directory: {output}[/dim]\n")
+
+    if dry_run:
+        console.print("[yellow]Dry run mode - no files will be created[/yellow]\n")
+        # TODO: Implement dry run mode
+        raise typer.Exit(0)
+
+    # Run generation
+    with console.status("[bold blue]Generating Terraform...[/bold blue]"):
+        result = generate_terraform(
+            snapshot_name=snapshot_name,
+            output_dir=output,
+            api_endpoint=endpoint,
+            api_key=api_key,
+            model=model,
+        )
+
+    # Display results
+    if result.success:
+        console.print("[bold green]Generation complete![/bold green]\n")
+
+        summary = result.summary
+        console.print(f"  Layers processed: {summary['completed_layers']}/{summary['total_layers']}")
+        console.print(f"  Resources: {summary['total_resources']}")
+        console.print(f"  Files generated: {summary['generated_files']}")
+        console.print(f"\n  Output: [cyan]{result.output_dir}[/cyan]")
+
+        if verbose and result.generated_files:
+            console.print("\n  Generated files:")
+            for f in result.generated_files:
+                console.print(f"    - {f}")
+    else:
+        console.print("[bold red]Generation failed[/bold red]\n")
+
+        for error in result.errors:
+            console.print(f"  [red]Error:[/red] {error}")
+
+        raise typer.Exit(1)
+
+
 def cli_main():
     """Entry point for console script."""
     app()
