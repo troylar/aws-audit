@@ -97,7 +97,7 @@ disallow_untyped_defs = true
 no_implicit_optional = true
 
 [[tool.mypy.overrides]]
-module = ["boto3", "boto3.*", "botocore", "botocore.*", "pydantic", "pydantic.*", "langgraph", "langgraph.*", "requests", "requests.*", "urllib3", "urllib3.*"]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "pydantic", "pydantic.*", "langgraph", "langgraph.*", "requests", "requests.*", "urllib3", "urllib3.*", "openai", "openai.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
