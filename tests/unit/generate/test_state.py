@@ -17,10 +17,10 @@ class TestGenerationConfig:
         """Test that default values are set correctly."""
         config = GenerationConfig()
 
-        assert config.ai_endpoint == "https://api.openai.com/v1"
-        assert config.ai_api_key == ""
-        assert config.ai_model == "gpt-4"
+        assert config.bedrock_model_id == "anthropic.claude-sonnet-4-20250514-v1:0"
+        assert config.bedrock_region == "us-east-1"
         assert config.temperature == 0.2
+        assert config.max_tokens == 8000
         assert config.max_retries == 3
         assert config.validate_each_layer is True
         assert config.terraform_init is True
@@ -35,10 +35,10 @@ class TestGenerationConfig:
     def test_custom_values(self) -> None:
         """Test that custom values can be provided."""
         config = GenerationConfig(
-            ai_endpoint="https://custom.api.com/v1",
-            ai_api_key="sk-test-key",
-            ai_model="gpt-4-turbo",
+            bedrock_model_id="anthropic.claude-3-haiku-20240307-v1:0",
+            bedrock_region="us-west-2",
             temperature=0.5,
+            max_tokens=4000,
             max_retries=5,
             validate_each_layer=False,
             terraform_init=False,
@@ -51,10 +51,10 @@ class TestGenerationConfig:
             parameterize_naming=False,
         )
 
-        assert config.ai_endpoint == "https://custom.api.com/v1"
-        assert config.ai_api_key == "sk-test-key"
-        assert config.ai_model == "gpt-4-turbo"
+        assert config.bedrock_model_id == "anthropic.claude-3-haiku-20240307-v1:0"
+        assert config.bedrock_region == "us-west-2"
         assert config.temperature == 0.5
+        assert config.max_tokens == 4000
         assert config.max_retries == 5
         assert config.validate_each_layer is False
         assert config.terraform_init is False
@@ -69,67 +69,71 @@ class TestGenerationConfig:
     def test_from_env_with_all_variables(self) -> None:
         """Test from_env reads all environment variables."""
         env_vars = {
-            "AWSINV_AI_ENDPOINT": "https://anthropic.api.com/v1",
-            "AWSINV_AI_API_KEY": "sk-anthropic-key-12345",
-            "AWSINV_AI_MODEL": "claude-3-opus",
+            "AWSINV_BEDROCK_MODEL_ID": "anthropic.claude-3-opus-20240229-v1:0",
+            "AWSINV_BEDROCK_REGION": "eu-west-1",
         }
 
         with patch.dict(os.environ, env_vars, clear=False):
             config = GenerationConfig.from_env()
 
-        assert config.ai_endpoint == "https://anthropic.api.com/v1"
-        assert config.ai_api_key == "sk-anthropic-key-12345"
-        assert config.ai_model == "claude-3-opus"
+        assert config.bedrock_model_id == "anthropic.claude-3-opus-20240229-v1:0"
+        assert config.bedrock_region == "eu-west-1"
 
     def test_from_env_with_partial_variables(self) -> None:
         """Test from_env uses defaults for missing variables."""
-        env_vars = {
-            "AWSINV_AI_API_KEY": "sk-partial-key",
-        }
-
-        with patch.dict(os.environ, env_vars, clear=False):
-            # Remove the other variables if they exist
-            with patch.dict(
-                os.environ,
-                {"AWSINV_AI_ENDPOINT": "", "AWSINV_AI_MODEL": ""},
-                clear=False,
-            ):
-                # Clear the variables we don't want
-                env_copy = os.environ.copy()
-                for key in ["AWSINV_AI_ENDPOINT", "AWSINV_AI_MODEL"]:
-                    env_copy.pop(key, None)
-                env_copy["AWSINV_AI_API_KEY"] = "sk-partial-key"
-
-                with patch.dict(os.environ, env_copy, clear=True):
-                    config = GenerationConfig.from_env()
-
-        assert config.ai_endpoint == "https://api.openai.com/v1"
-        assert config.ai_api_key == "sk-partial-key"
-        assert config.ai_model == "gpt-4"
-
-    def test_from_env_with_no_variables(self) -> None:
-        """Test from_env uses all defaults when no variables set."""
         clean_env = {k: v for k, v in os.environ.items() if not k.startswith("AWSINV_")}
+        clean_env["AWSINV_BEDROCK_REGION"] = "ap-southeast-1"
 
         with patch.dict(os.environ, clean_env, clear=True):
             config = GenerationConfig.from_env()
 
-        assert config.ai_endpoint == "https://api.openai.com/v1"
-        assert config.ai_api_key == ""
-        assert config.ai_model == "gpt-4"
+        assert config.bedrock_model_id == "anthropic.claude-sonnet-4-20250514-v1:0"
+        assert config.bedrock_region == "ap-southeast-1"
+
+    def test_from_env_with_no_variables(self) -> None:
+        """Test from_env uses all defaults when no variables set."""
+        clean_env = {k: v for k, v in os.environ.items() if not k.startswith("AWSINV_") and k != "AWS_DEFAULT_REGION"}
+
+        with patch.dict(os.environ, clean_env, clear=True):
+            config = GenerationConfig.from_env()
+
+        assert config.bedrock_model_id == "anthropic.claude-sonnet-4-20250514-v1:0"
+        assert config.bedrock_region == "us-east-1"
+
+    def test_from_env_uses_aws_default_region_fallback(self) -> None:
+        """Test from_env uses AWS_DEFAULT_REGION as fallback for bedrock_region."""
+        clean_env = {k: v for k, v in os.environ.items() if not k.startswith("AWSINV_")}
+        clean_env["AWS_DEFAULT_REGION"] = "eu-central-1"
+
+        with patch.dict(os.environ, clean_env, clear=True):
+            config = GenerationConfig.from_env()
+
+        assert config.bedrock_region == "eu-central-1"
+
+    def test_from_env_bedrock_region_overrides_aws_default(self) -> None:
+        """Test AWSINV_BEDROCK_REGION takes precedence over AWS_DEFAULT_REGION."""
+        env_vars = {
+            "AWS_DEFAULT_REGION": "eu-central-1",
+            "AWSINV_BEDROCK_REGION": "us-west-2",
+        }
+
+        with patch.dict(os.environ, env_vars, clear=False):
+            config = GenerationConfig.from_env()
+
+        assert config.bedrock_region == "us-west-2"
 
     def test_from_env_preserves_non_env_defaults(self) -> None:
         """Test from_env preserves defaults for non-env-configurable fields."""
         env_vars = {
-            "AWSINV_AI_ENDPOINT": "https://test.api.com",
-            "AWSINV_AI_API_KEY": "test-key",
-            "AWSINV_AI_MODEL": "test-model",
+            "AWSINV_BEDROCK_MODEL_ID": "test-model",
+            "AWSINV_BEDROCK_REGION": "us-east-2",
         }
 
         with patch.dict(os.environ, env_vars, clear=False):
             config = GenerationConfig.from_env()
 
         assert config.temperature == 0.2
+        assert config.max_tokens == 8000
         assert config.max_retries == 3
         assert config.validate_each_layer is True
         assert config.terraform_init is True
@@ -138,32 +142,13 @@ class TestGenerationConfig:
         assert config.generate_tfvars is True
         assert config.generate_outputs is True
 
-    def test_from_env_empty_string_uses_default(self) -> None:
-        """Test from_env treats empty string as missing (uses default)."""
-        env_vars = {
-            "AWSINV_AI_ENDPOINT": "",
-            "AWSINV_AI_API_KEY": "",
-            "AWSINV_AI_MODEL": "",
-        }
-
-        clean_env = {k: v for k, v in os.environ.items() if not k.startswith("AWSINV_")}
-        clean_env.update(env_vars)
-
-        with patch.dict(os.environ, clean_env, clear=True):
-            config = GenerationConfig.from_env()
-
-        assert config.ai_endpoint == ""
-        assert config.ai_api_key == ""
-        assert config.ai_model == ""
-
     def test_config_is_dataclass(self) -> None:
         """Test that GenerationConfig behaves as a dataclass."""
         config = GenerationConfig()
 
         assert hasattr(config, "__dataclass_fields__")
-        assert "ai_endpoint" in config.__dataclass_fields__
-        assert "ai_api_key" in config.__dataclass_fields__
-        assert "ai_model" in config.__dataclass_fields__
+        assert "bedrock_model_id" in config.__dataclass_fields__
+        assert "bedrock_region" in config.__dataclass_fields__
 
 
 class TestGenerationState:
@@ -269,35 +254,27 @@ class TestGenerationConfigEnvVariables:
         for key in keys_to_remove:
             del os.environ[key]
 
-    def test_from_env_endpoint_variable(self) -> None:
-        """Test AWSINV_AI_ENDPOINT environment variable."""
-        with patch.dict(os.environ, {"AWSINV_AI_ENDPOINT": "https://custom-endpoint.com"}):
+    def test_from_env_model_id_variable(self) -> None:
+        """Test AWSINV_BEDROCK_MODEL_ID environment variable."""
+        with patch.dict(os.environ, {"AWSINV_BEDROCK_MODEL_ID": "anthropic.claude-3-haiku-20240307-v1:0"}):
             config = GenerationConfig.from_env()
-            assert config.ai_endpoint == "https://custom-endpoint.com"
+            assert config.bedrock_model_id == "anthropic.claude-3-haiku-20240307-v1:0"
 
-    def test_from_env_api_key_variable(self) -> None:
-        """Test AWSINV_AI_API_KEY environment variable."""
-        with patch.dict(os.environ, {"AWSINV_AI_API_KEY": "secret-api-key-123"}):
+    def test_from_env_region_variable(self) -> None:
+        """Test AWSINV_BEDROCK_REGION environment variable."""
+        with patch.dict(os.environ, {"AWSINV_BEDROCK_REGION": "ap-northeast-1"}):
             config = GenerationConfig.from_env()
-            assert config.ai_api_key == "secret-api-key-123"
-
-    def test_from_env_model_variable(self) -> None:
-        """Test AWSINV_AI_MODEL environment variable."""
-        with patch.dict(os.environ, {"AWSINV_AI_MODEL": "claude-3-sonnet"}):
-            config = GenerationConfig.from_env()
-            assert config.ai_model == "claude-3-sonnet"
+            assert config.bedrock_region == "ap-northeast-1"
 
     def test_from_env_real_world_scenario(self) -> None:
         """Test from_env with realistic configuration."""
         env_vars = {
-            "AWSINV_AI_ENDPOINT": "https://api.anthropic.com/v1",
-            "AWSINV_AI_API_KEY": "sk-ant-api03-real-key-here",
-            "AWSINV_AI_MODEL": "claude-3-5-sonnet-20241022",
+            "AWSINV_BEDROCK_MODEL_ID": "anthropic.claude-sonnet-4-20250514-v1:0",
+            "AWSINV_BEDROCK_REGION": "us-east-1",
         }
 
         with patch.dict(os.environ, env_vars):
             config = GenerationConfig.from_env()
 
-        assert "anthropic" in config.ai_endpoint
-        assert config.ai_api_key.startswith("sk-ant")
-        assert "claude" in config.ai_model
+        assert "claude" in config.bedrock_model_id
+        assert config.bedrock_region == "us-east-1"

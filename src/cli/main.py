@@ -5647,22 +5647,23 @@ def generate(
     format: str = typer.Argument(..., help="Output format: terraform, cdk-typescript, cdk-python"),
     snapshot_name: str = typer.Argument(..., help="Name of snapshot to generate from"),
     output: str = typer.Option("./terraform", "--output", "-o", help="Output directory"),
-    model: Optional[str] = typer.Option(
-        None, "--model", "-m", help="AI model name (default: from AWSINV_AI_MODEL or gpt-4)"
+    model_id: Optional[str] = typer.Option(
+        None, "--model-id", "-m", help="Bedrock model ID (default: from AWSINV_BEDROCK_MODEL_ID)"
     ),
-    endpoint: Optional[str] = typer.Option(
-        None, "--endpoint", "-e", help="AI API endpoint (default: from AWSINV_AI_ENDPOINT)"
+    region: Optional[str] = typer.Option(
+        None, "--region", "-r", help="AWS region for Bedrock (default: from AWSINV_BEDROCK_REGION)"
     ),
-    api_key: Optional[str] = typer.Option(None, "--api-key", "-k", help="AI API key (default: from AWSINV_AI_API_KEY)"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
 ) -> None:
     """Generate IaC (Terraform/CDK) from an inventory snapshot.
 
+    Uses AWS Bedrock for AI-powered code generation.
+
     Examples:
         awsinv generate terraform my-snapshot
         awsinv generate terraform my-snapshot --output ./infra
-        awsinv generate terraform my-snapshot --model gpt-4o --verbose
+        awsinv generate terraform my-snapshot --model-id anthropic.claude-sonnet-4-20250514-v1:0 --verbose
     """
     if format not in ["terraform", "cdk-typescript", "cdk-python"]:
         console.print(f"[red]Error:[/red] Unknown format '{format}'. Use: terraform, cdk-typescript, cdk-python")
@@ -5681,15 +5682,6 @@ def generate(
         console.print(f"Details: {e}")
         raise typer.Exit(1)
 
-    # Check for API key
-    import os
-
-    effective_key = api_key or os.environ.get("AWSINV_AI_API_KEY")
-    if not effective_key:
-        console.print("[red]Error:[/red] No API key provided.")
-        console.print("Set AWSINV_AI_API_KEY environment variable or use --api-key option.")
-        raise typer.Exit(1)
-
     console.print(f"\n[bold]Generating Terraform from snapshot:[/bold] {snapshot_name}")
     console.print(f"[dim]Output directory: {output}[/dim]\n")
 
@@ -5703,9 +5695,8 @@ def generate(
         result = generate_terraform(
             snapshot_name=snapshot_name,
             output_dir=output,
-            api_endpoint=endpoint,
-            api_key=api_key,
-            model=model,
+            model_id=model_id,
+            region=region,
         )
 
     # Display results

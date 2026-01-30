@@ -49,12 +49,13 @@ class GenerationResult:
 class TerraformGenerator:
     """High-level Terraform generator from AWS inventory snapshots.
 
+    Uses AWS Bedrock for AI-powered code generation.
+
     Usage:
         generator = TerraformGenerator(
             output_dir="./terraform",
-            api_endpoint="https://api.openai.com/v1",
-            api_key="sk-...",
-            model="gpt-4",
+            model_id="anthropic.claude-sonnet-4-20250514-v1:0",
+            region="us-east-1",
         )
         result = generator.run("my-snapshot")
 
@@ -67,26 +68,23 @@ class TerraformGenerator:
     def __init__(
         self,
         output_dir: str = "./terraform",
-        api_endpoint: Optional[str] = None,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
+        model_id: Optional[str] = None,
+        region: Optional[str] = None,
     ):
         """Initialize generator.
 
         Args:
             output_dir: Directory to write Terraform files
-            api_endpoint: OpenAI-compatible API endpoint (or use AWSINV_AI_ENDPOINT env)
-            api_key: API key (or use AWSINV_AI_API_KEY env)
-            model: Model name (or use AWSINV_AI_MODEL env, default: gpt-4)
+            model_id: Bedrock model ID (or use AWSINV_BEDROCK_MODEL_ID env)
+            region: AWS region for Bedrock (or use AWSINV_BEDROCK_REGION env)
         """
         self.output_dir = output_dir
 
         base_config = GenerationConfig.from_env()
 
         self.config = GenerationConfig(
-            ai_endpoint=api_endpoint or base_config.ai_endpoint,
-            ai_api_key=api_key or base_config.ai_api_key,
-            ai_model=model or base_config.ai_model,
+            bedrock_model_id=model_id or base_config.bedrock_model_id,
+            bedrock_region=region or base_config.bedrock_region,
             max_retries=base_config.max_retries,
         )
 
@@ -241,26 +239,23 @@ variable "project" {{
 def generate_terraform(
     snapshot_name: str,
     output_dir: str = "./terraform",
-    api_endpoint: Optional[str] = None,
-    api_key: Optional[str] = None,
-    model: Optional[str] = None,
+    model_id: Optional[str] = None,
+    region: Optional[str] = None,
 ) -> GenerationResult:
     """Generate Terraform from a snapshot.
 
     Args:
         snapshot_name: Name of the snapshot
         output_dir: Output directory for Terraform files
-        api_endpoint: OpenAI-compatible API endpoint
-        api_key: API key
-        model: Model name
+        model_id: Bedrock model ID
+        region: AWS region for Bedrock
 
     Returns:
         GenerationResult
     """
     generator = TerraformGenerator(
         output_dir=output_dir,
-        api_endpoint=api_endpoint,
-        api_key=api_key,
-        model=model,
+        model_id=model_id,
+        region=region,
     )
     return generator.run(snapshot_name)

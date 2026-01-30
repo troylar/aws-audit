@@ -45,17 +45,9 @@ except ImportError as e:
     extract_lambda_code = None
     generate_layer = None
 
-# Check if openai is available for tests that mock it
-import importlib.util
-
-OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
-
 pytestmark = pytest.mark.skipif(
     not IMPORTS_AVAILABLE, reason=f"Required imports not available: {IMPORT_ERROR if not IMPORTS_AVAILABLE else ''}"
 )
-
-# Skip marker for tests that require openai
-requires_openai = pytest.mark.skipif(not OPENAI_AVAILABLE, reason="Requires 'generate' optional dependencies (openai)")
 
 
 class TestParseInventoryNode:
@@ -738,11 +730,10 @@ class TestExtractLambdaCodeNode:
         assert len(result["errors"]) > 0
 
 
-@requires_openai
 class TestGenerateLayerNode:
     """Tests for generate_layer node (T032).
 
-    The generate_layer node uses AI to generate Terraform code for
+    The generate_layer node uses AWS Bedrock to generate Terraform code for
     resources in a specific layer.
     """
 
@@ -825,19 +816,18 @@ resource "aws_subnet" "public_1" {
 }
 ```"""
 
-    def test_calls_openai_client(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
-        """Test that generate_layer calls OpenAI client."""
+    def test_calls_bedrock_client(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
+        """Test that generate_layer calls Bedrock client."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
         mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content="```hcl\n# test\n```"))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response = {"output": {"message": {"content": [{"text": "```hcl\n# test\n```"}]}}}
+        mock_client.converse.return_value = mock_response
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             generate_layer(state_with_current_layer)
 
-            mock_client.chat.completions.create.assert_called_once()
+            mock_client.converse.assert_called_once()
 
     def test_response_parsing_removes_markdown(
         self, state_with_current_layer: Dict[str, Any], mock_ai_response: str, tmp_path: Path
@@ -846,11 +836,10 @@ resource "aws_subnet" "public_1" {
         state_with_current_layer["output_dir"] = str(tmp_path)
 
         mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
+        mock_client.converse.return_value = mock_response
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "generated_code" in result:
@@ -873,11 +862,10 @@ resource "aws_subnet" "public_1" {
 ```"""
 
         mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content=ai_response_with_hardcoded_ids))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response = {"output": {"message": {"content": [{"text": ai_response_with_hardcoded_ids}]}}}
+        mock_client.converse.return_value = mock_response
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "generated_code" in result:
@@ -890,9 +878,9 @@ resource "aws_subnet" "public_1" {
         state_with_current_layer["output_dir"] = str(tmp_path)
 
         mock_client = MagicMock()
-        mock_client.chat.completions.create.side_effect = Exception("AI API Error")
+        mock_client.converse.side_effect = Exception("Bedrock API Error")
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             assert "errors" in result or "current_layer_status" in result
@@ -906,11 +894,10 @@ resource "aws_subnet" "public_1" {
         state_with_current_layer["output_dir"] = str(tmp_path)
 
         mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
+        mock_client.converse.return_value = mock_response
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "current_layer_status" in result:
@@ -923,11 +910,10 @@ resource "aws_subnet" "public_1" {
         state_with_current_layer["output_dir"] = str(tmp_path)
 
         mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
+        mock_client.converse.return_value = mock_response
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "current_layer_index" in result:
@@ -940,11 +926,10 @@ resource "aws_subnet" "public_1" {
         state_with_current_layer["output_dir"] = str(tmp_path)
 
         mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content=mock_ai_response))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
+        mock_client.converse.return_value = mock_response
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
 
             if "generated_files" in result:
@@ -1084,13 +1069,11 @@ class TestNodeReturnTypes:
         assert "lambda_code_paths" in result
         assert "errors" in result
 
-    @requires_openai
     def test_generate_layer_returns_dict(self, tmp_path: Path) -> None:
         """Test generate_layer returns a dict for state update."""
         mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content="```hcl\n# test\n```"))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response = {"output": {"message": {"content": [{"text": "```hcl\n# test\n```"}]}}}
+        mock_client.converse.return_value = mock_response
 
         state: Dict[str, Any] = {
             "snapshot_name": "test",
@@ -1106,7 +1089,7 @@ class TestNodeReturnTypes:
             "max_attempts": 3,
         }
 
-        with patch("openai.OpenAI", return_value=mock_client):
+        with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state)
 
             assert isinstance(result, dict)
