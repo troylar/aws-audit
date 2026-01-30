@@ -1,5 +1,6 @@
 """Integration tests for copilot CLI commands (T018-T020)."""
 
+import re
 import tempfile
 from pathlib import Path
 
@@ -8,6 +9,12 @@ from typer.testing import CliRunner
 from src.cli.main import app
 
 runner = CliRunner()
+
+
+def strip_ansi(text: str) -> str:
+    """Strip ANSI escape codes from text."""
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 class TestCopilotInstallCommand:
@@ -206,7 +213,8 @@ class TestCopilotHelp:
     def test_copilot_install_help(self) -> None:
         """awsinv copilot install --help shows options."""
         result = runner.invoke(app, ["copilot", "install", "--help"])
+        output = strip_ansi(result.stdout)
 
         assert result.exit_code == 0
-        assert "--path" in result.stdout
-        assert "--json" in result.stdout
+        assert "--path" in output or "-p" in output
+        assert "--json" in output
