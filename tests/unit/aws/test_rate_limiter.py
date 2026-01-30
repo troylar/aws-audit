@@ -1,16 +1,13 @@
 """Tests for rate limiter."""
 
 import time
-from unittest.mock import patch
-
-import pytest
 
 from src.aws.rate_limiter import (
+    SERVICE_RATE_LIMITS,
     RateLimiter,
     ServiceRateLimiter,
     get_global_rate_limiter,
     rate_limited_call,
-    SERVICE_RATE_LIMITS,
 )
 
 
@@ -135,6 +132,7 @@ class TestGlobalRateLimiter:
         """Test that get_global_rate_limiter creates instance."""
         # Reset global limiter
         import src.aws.rate_limiter as rl_module
+
         rl_module._global_limiter = None
 
         limiter = get_global_rate_limiter()
@@ -152,6 +150,7 @@ class TestRateLimitedCall:
 
     def test_rate_limited_call_executes_function(self):
         """Test that rate_limited_call executes the function."""
+
         def sample_func(x, y):
             return x + y
 
@@ -160,6 +159,7 @@ class TestRateLimitedCall:
 
     def test_rate_limited_call_with_kwargs(self):
         """Test rate_limited_call with keyword arguments."""
+
         def sample_func(name, value=10):
             return f"{name}:{value}"
 

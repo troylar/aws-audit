@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -85,20 +84,26 @@ class SnapshotJobStatus(BaseModel):
     created_at: str
 
 
-def _create_snapshot_sync(job_id: str, name: str, regions: List[str], inventory: Optional[str], set_active: bool, use_config: bool):
+def _create_snapshot_sync(
+    job_id: str, name: str, regions: List[str], inventory: Optional[str], set_active: bool, use_config: bool
+):
     """Synchronous snapshot creation function to run in background."""
-    import boto3
-    import sys
     import os
+    import sys
+
+    import boto3
+
     # Add project root to path for imports in thread
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    project_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    )
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
     from src.config import config
-    from src.snapshot.storage import SnapshotStorage
-    from src.snapshot.inventory_storage import InventoryStorage
     from src.snapshot.collector import SnapshotCollector
+    from src.snapshot.inventory_storage import InventoryStorage
+    from src.snapshot.storage import SnapshotStorage
 
     try:
         _snapshot_jobs[job_id]["status"] = "running"
@@ -151,7 +156,9 @@ def _create_snapshot_sync(job_id: str, name: str, regions: List[str], inventory:
         _snapshot_jobs[job_id]["progress"] = 100
         _snapshot_jobs[job_id]["status"] = "completed"
         _snapshot_jobs[job_id]["snapshot_name"] = snapshot.name
-        _snapshot_jobs[job_id]["message"] = f"Created snapshot '{snapshot.name}' with {snapshot.resource_count} resources"
+        _snapshot_jobs[job_id]["message"] = (
+            f"Created snapshot '{snapshot.name}' with {snapshot.resource_count} resources"
+        )
 
     except Exception as e:
         logger.exception(f"Snapshot creation failed: {e}")
@@ -162,7 +169,6 @@ def _create_snapshot_sync(job_id: str, name: str, regions: List[str], inventory:
 @router.post("")
 async def create_snapshot(request: CreateSnapshotRequest, background_tasks: BackgroundTasks):
     """Create a new snapshot (runs in background)."""
-    from datetime import datetime
 
     # Generate snapshot name if not provided
     name = request.name
@@ -187,6 +193,7 @@ async def create_snapshot(request: CreateSnapshotRequest, background_tasks: Back
 
     # Run in background thread (not async since boto3 is sync)
     import threading
+
     thread = threading.Thread(
         target=_create_snapshot_sync,
         args=(job_id, name, regions, request.inventory, request.set_active, request.use_config),

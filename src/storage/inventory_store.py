@@ -203,9 +203,7 @@ class InventoryStore:
         Returns:
             List of all Inventory objects
         """
-        rows = self.db.fetchall(
-            "SELECT * FROM inventories ORDER BY account_id, name"
-        )
+        rows = self.db.fetchall("SELECT * FROM inventories ORDER BY account_id, name")
         return [self._row_to_inventory(row) for row in rows]
 
     def list_by_account(self, account_id: str) -> List[Inventory]:
@@ -282,9 +280,7 @@ class InventoryStore:
         self.save(inventory)
         return True
 
-    def remove_snapshot_from_inventory(
-        self, name: str, account_id: str, snapshot_name: str
-    ) -> bool:
+    def remove_snapshot_from_inventory(self, name: str, account_id: str, snapshot_name: str) -> bool:
         """Remove a snapshot from an inventory.
 
         Args:

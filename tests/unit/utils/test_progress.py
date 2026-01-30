@@ -1,7 +1,5 @@
 """Tests for progress indicator utilities."""
 
-import pytest
-
 from src.utils.progress import create_progress, create_spinner_progress
 
 

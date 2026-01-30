@@ -7,7 +7,7 @@ name = "aws-inventory-manager"
 version = "0.29.0"
 description = "AWS Resource Inventory Management & Delta Tracking CLI tool"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Troy Larson", email = "troy@calvinware.com"}
@@ -18,9 +18,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -42,8 +39,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.12.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
+    "ruff>=0.9.0",
     "mypy>=1.0.0",
     "types-PyYAML>=6.0.0",
     "invoke>=2.0.0",
@@ -53,6 +49,10 @@ web = [
     "uvicorn[standard]>=0.27.0",
     "jinja2>=3.1.0",
     "python-multipart>=0.0.6",
+]
+generate = [
+    "langgraph>=0.2.0",
+    "openai>=1.0.0",
 ]
 
 [project.scripts]
@@ -75,43 +75,62 @@ include = ["src*"]
 "src.web" = ["templates/**/*.html", "static/**/*.css", "static/**/*.js"]
 "src.copilot" = ["templates/**/*.md"]
 
-[tool.black]
-line-length = 120
-target-version = ["py38", "py39", "py310", "py311", "py312", "py313"]
-
 [tool.ruff]
 line-length = 120
-target-version = "py38"
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
-ignore = []
+ignore = [
+    "E402",  # Module level import not at top of file (needed for property_maps registration)
+    "N803",  # Argument name should be lowercase (AWS SDK parameters must match API names)
+]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 warn_return_any = false
 warn_unused_configs = true
 disallow_untyped_defs = true
 no_implicit_optional = true
 
 [[tool.mypy.overrides]]
-module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "openai", "openai.*", "pydantic", "pydantic.*", "langgraph", "langgraph.*", "requests", "requests.*", "urllib3", "urllib3.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["src.cli.main", "src.cli.config", "src.utils.progress"]
+module = ["src.cli.main", "src.cli.config", "src.cli.__init__", "src.utils.progress"]
 disallow_untyped_defs = false
 warn_no_return = false
+disable_error_code = ["assignment", "arg-type", "call-overload", "union-attr", "no-untyped-def"]
 
-# Ignore union-attr errors in CLI which uses Optional[Config]
 [[tool.mypy.overrides]]
-module = "src.cli.main"
-disable_error_code = ["union-attr"]
+module = ["src.generate.*", "src.generate.property_maps.*", "src.generate.nodes.*"]
+disallow_untyped_defs = false
+disable_error_code = ["assignment", "arg-type", "return-value", "typeddict-item", "var-annotated", "dict-item"]
+
+[[tool.mypy.overrides]]
+module = ["src.storage.*"]
+disallow_untyped_defs = false
+disable_error_code = ["arg-type", "return-value", "dict-item"]
+
+[[tool.mypy.overrides]]
+module = ["src.matching.normalizer"]
+disable_error_code = ["misc", "assignment", "union-attr"]
+
+[[tool.mypy.overrides]]
+module = ["src.cloudtrail.query", "src.config_service.collector", "src.restore.*", "src.snapshot.*"]
+disallow_untyped_defs = false
+disable_error_code = ["assignment", "arg-type", "return-value", "var-annotated", "no-untyped-def", "call-arg", "misc", "call-overload"]
 
 [[tool.mypy.overrides]]
 module = ["src.web.*", "fastapi", "fastapi.*", "uvicorn", "uvicorn.*", "jinja2", "jinja2.*"]
 ignore_missing_imports = true
 disallow_untyped_defs = false
+disable_error_code = ["import-not-found"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

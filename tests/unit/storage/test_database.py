@@ -42,9 +42,7 @@ class TestDatabase:
         db.ensure_schema()
 
         # Verify tables exist
-        tables = db.fetchall(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        tables = db.fetchall("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         table_names = {row["name"] for row in tables}
 
         expected_tables = {

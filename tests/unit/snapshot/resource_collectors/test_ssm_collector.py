@@ -64,13 +64,17 @@ class TestSSMCollectorCollect:
 
         modified_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
         mock_params_paginator = MagicMock()
-        mock_params_paginator.paginate.return_value = [{
-            "Parameters": [{
-                "Name": "/my/parameter",
-                "Type": "String",
-                "LastModifiedDate": modified_at,
-            }]
-        }]
+        mock_params_paginator.paginate.return_value = [
+            {
+                "Parameters": [
+                    {
+                        "Name": "/my/parameter",
+                        "Type": "String",
+                        "LastModifiedDate": modified_at,
+                    }
+                ]
+            }
+        ]
 
         mock_docs_paginator = MagicMock()
         mock_docs_paginator.paginate.return_value = [{"DocumentIdentifiers": []}]
@@ -82,12 +86,8 @@ class TestSSMCollectorCollect:
                 return mock_docs_paginator
 
         mock_client.get_paginator.side_effect = get_paginator_side_effect
-        mock_client.list_tags_for_resource.return_value = {
-            "TagList": [{"Key": "Environment", "Value": "test"}]
-        }
-        mock_client.get_parameter.return_value = {
-            "Parameter": {"Value": "my-value"}
-        }
+        mock_client.list_tags_for_resource.return_value = {"TagList": [{"Key": "Environment", "Value": "test"}]}
+        mock_client.get_parameter.return_value = {"Parameter": {"Value": "my-value"}}
         mock_create_client.return_value = mock_client
 
         collector = SSMCollector(session=mock_session, region="us-east-1")
@@ -107,12 +107,16 @@ class TestSSMCollectorCollect:
         mock_client = MagicMock()
 
         mock_params_paginator = MagicMock()
-        mock_params_paginator.paginate.return_value = [{
-            "Parameters": [{
-                "Name": "/my/secret",
-                "Type": "SecureString",
-            }]
-        }]
+        mock_params_paginator.paginate.return_value = [
+            {
+                "Parameters": [
+                    {
+                        "Name": "/my/secret",
+                        "Type": "SecureString",
+                    }
+                ]
+            }
+        ]
 
         mock_docs_paginator = MagicMock()
         mock_docs_paginator.paginate.return_value = [{"DocumentIdentifiers": []}]
@@ -144,11 +148,15 @@ class TestSSMCollectorCollect:
         mock_params_paginator.paginate.return_value = [{"Parameters": []}]
 
         mock_docs_paginator = MagicMock()
-        mock_docs_paginator.paginate.return_value = [{
-            "DocumentIdentifiers": [{
-                "Name": "my-document",
-            }]
-        }]
+        mock_docs_paginator.paginate.return_value = [
+            {
+                "DocumentIdentifiers": [
+                    {
+                        "Name": "my-document",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "describe_parameters":
@@ -184,19 +192,27 @@ class TestSSMCollectorCollect:
         mock_client = MagicMock()
 
         mock_params_paginator = MagicMock()
-        mock_params_paginator.paginate.return_value = [{
-            "Parameters": [{
-                "Name": "/my/param",
-                "Type": "String",
-            }]
-        }]
+        mock_params_paginator.paginate.return_value = [
+            {
+                "Parameters": [
+                    {
+                        "Name": "/my/param",
+                        "Type": "String",
+                    }
+                ]
+            }
+        ]
 
         mock_docs_paginator = MagicMock()
-        mock_docs_paginator.paginate.return_value = [{
-            "DocumentIdentifiers": [{
-                "Name": "my-doc",
-            }]
-        }]
+        mock_docs_paginator.paginate.return_value = [
+            {
+                "DocumentIdentifiers": [
+                    {
+                        "Name": "my-doc",
+                    }
+                ]
+            }
+        ]
 
         def get_paginator_side_effect(op):
             if op == "describe_parameters":
@@ -230,12 +246,16 @@ class TestSSMCollectorCollect:
         mock_client = MagicMock()
 
         mock_params_paginator = MagicMock()
-        mock_params_paginator.paginate.return_value = [{
-            "Parameters": [{
-                "Name": "/my/param",
-                "Type": "String",
-            }]
-        }]
+        mock_params_paginator.paginate.return_value = [
+            {
+                "Parameters": [
+                    {
+                        "Name": "/my/param",
+                        "Type": "String",
+                    }
+                ]
+            }
+        ]
 
         mock_docs_paginator = MagicMock()
         mock_docs_paginator.paginate.return_value = [{"DocumentIdentifiers": []}]
@@ -263,12 +283,16 @@ class TestSSMCollectorCollect:
         mock_client = MagicMock()
 
         mock_params_paginator = MagicMock()
-        mock_params_paginator.paginate.return_value = [{
-            "Parameters": [{
-                "Name": "/my/param",
-                "Type": "String",
-            }]
-        }]
+        mock_params_paginator.paginate.return_value = [
+            {
+                "Parameters": [
+                    {
+                        "Name": "/my/param",
+                        "Type": "String",
+                    }
+                ]
+            }
+        ]
 
         mock_docs_paginator = MagicMock()
         mock_docs_paginator.paginate.return_value = [{"DocumentIdentifiers": []}]
@@ -325,9 +349,7 @@ class TestSSMCollectorCollect:
         mock_params_paginator.paginate.return_value = [{"Parameters": []}]
 
         mock_docs_paginator = MagicMock()
-        mock_docs_paginator.paginate.return_value = [{
-            "DocumentIdentifiers": [{"Name": "my-doc"}]
-        }]
+        mock_docs_paginator.paginate.return_value = [{"DocumentIdentifiers": [{"Name": "my-doc"}]}]
 
         def get_paginator_side_effect(op):
             if op == "describe_parameters":
@@ -380,9 +402,7 @@ class TestSSMCollectorCollect:
         mock_params_paginator.paginate.return_value = [{"Parameters": []}]
 
         mock_docs_paginator = MagicMock()
-        mock_docs_paginator.paginate.return_value = [{
-            "DocumentIdentifiers": [{"Name": "my-doc"}]
-        }]
+        mock_docs_paginator.paginate.return_value = [{"DocumentIdentifiers": [{"Name": "my-doc"}]}]
 
         def get_paginator_side_effect(op):
             if op == "describe_parameters":

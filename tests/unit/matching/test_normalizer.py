@@ -1,11 +1,15 @@
 """Unit tests for ResourceNormalizer."""
 
+import importlib.util
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.matching.config import NormalizerConfig
 from src.matching.normalizer import ResourceNormalizer
+
+# Check if openai is available
+OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
 
 
 @pytest.fixture
@@ -190,7 +194,9 @@ class TestNormalizeResources:
         results = normalizer.normalize_resources(resources, use_ai=False)
 
         # Should use basic normalize as fallback
-        assert results["arn:aws:lambda:us-east-1:123456789012:function:MyStack-Func-ABC123DEF"] == "mystack-func-abc123def"
+        assert (
+            results["arn:aws:lambda:us-east-1:123456789012:function:MyStack-Func-ABC123DEF"] == "mystack-func-abc123def"
+        )
 
 
 class TestParseAiResponse:
@@ -198,7 +204,10 @@ class TestParseAiResponse:
 
     def test_valid_response(self, normalizer: ResourceNormalizer) -> None:
         """Test parsing valid AI response."""
-        content = '{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123456789012:function:test", "normalized_name": "test-function"}]}'
+        content = (
+            '{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123456789012:function:test", '
+            '"normalized_name": "test-function"}]}'
+        )
         resources = [
             {
                 "arn": "arn:aws:lambda:us-east-1:123456789012:function:test",
@@ -241,6 +250,7 @@ class TestParseAiResponse:
         assert result["arn:aws:lambda:us-east-1:123456789012:function:test"] == "testfunc"
 
 
+@pytest.mark.skipif(not OPENAI_AVAILABLE, reason="Requires openai to be installed")
 class TestAiNormalization:
     """Test AI normalization with mocked OpenAI client."""
 
@@ -257,7 +267,10 @@ class TestAiNormalization:
             mock_response.choices = [
                 MagicMock(
                     message=MagicMock(
-                        content='{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123:function:test", "normalized_name": "normalized-test"}]}'
+                        content=(
+                            '{"normalizations": [{"arn": "arn:aws:lambda:us-east-1:123:function:test", '
+                            '"normalized_name": "normalized-test"}]}'
+                        )
                     )
                 )
             ]

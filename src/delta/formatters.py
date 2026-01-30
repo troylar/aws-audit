@@ -73,7 +73,7 @@ class DriftFormatter:
         self.console.print()
         self.console.print(
             Panel(
-                f"[bold]Configuration Drift Details[/bold]\n" f"Total Changes: {len(diffs)}",
+                f"[bold]Configuration Drift Details[/bold]\nTotal Changes: {len(diffs)}",
                 style="cyan",
             )
         )

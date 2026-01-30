@@ -229,7 +229,7 @@ def get_unsupported_resource_summary(report: UnsupportedResourceReport) -> str:
         Formatted string summary
     """
     lines = [
-        f"Unsupported Resource Detection Report",
+        "Unsupported Resource Detection Report",
         "=" * 40,
         f"Total resources scanned: {report.total_resources_scanned}",
         f"Supported resource types found: {len(report.supported_types)}",
@@ -242,11 +242,7 @@ def get_unsupported_resource_summary(report: UnsupportedResourceReport) -> str:
         lines.append("Unsupported Resource Types:")
         lines.append("-" * 30)
         for resource_type in sorted(report.unsupported_types):
-            count = sum(
-                1
-                for r in report.unsupported_resources
-                if r.resource_type == resource_type
-            )
+            count = sum(1 for r in report.unsupported_resources if r.resource_type == resource_type)
             lines.append(f"  {resource_type}: {count} resource(s)")
 
         lines.append("")

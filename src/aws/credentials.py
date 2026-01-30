@@ -177,9 +177,9 @@ def get_credential_summary(profile_name: Optional[str] = None) -> str:
 
         summary = f"""
 AWS Credentials Valid
-Account ID: {identity['account_id']}
-User/Role: {identity['arn'].split('/')[-1]}
-ARN: {identity['arn']}
+Account ID: {identity["account_id"]}
+User/Role: {identity["arn"].split("/")[-1]}
+ARN: {identity["arn"]}
 """
 
         if profile_name:

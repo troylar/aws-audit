@@ -6,7 +6,7 @@ Collects resources using AWS Config APIs instead of direct service API calls.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
@@ -47,9 +47,7 @@ class ConfigResourceCollector:
         """
         self.session = session
         self.region = region
-        self.profile_name = profile_name or (
-            session.profile_name if hasattr(session, "profile_name") else None
-        )
+        self.profile_name = profile_name or (session.profile_name if hasattr(session, "profile_name") else None)
         self.config_availability = config_availability
         self._client = None
         self._account_id = None
@@ -96,9 +94,7 @@ class ConfigResourceCollector:
                 logger.debug(f"No {resource_type} resources found via Config in {self.region}")
                 return resources
 
-            logger.debug(
-                f"Found {len(resource_ids)} {resource_type} resources via Config in {self.region}"
-            )
+            logger.debug(f"Found {len(resource_ids)} {resource_type} resources via Config in {self.region}")
 
             # Step 2: Batch get configurations
             config_items = self._batch_get_resource_configs(resource_type, resource_ids)
@@ -110,9 +106,7 @@ class ConfigResourceCollector:
                     if resource:
                         resources.append(resource)
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to normalize Config item for {resource_type}: {e}"
-                    )
+                    logger.warning(f"Failed to normalize Config item for {resource_type}: {e}")
 
         except Exception as e:
             logger.error(f"Error collecting {resource_type} via Config in {self.region}: {e}")
@@ -146,9 +140,7 @@ class ConfigResourceCollector:
 
         return resource_ids
 
-    def _batch_get_resource_configs(
-        self, resource_type: str, resource_ids: List[str]
-    ) -> List[Dict[str, Any]]:
+    def _batch_get_resource_configs(self, resource_type: str, resource_ids: List[str]) -> List[Dict[str, Any]]:
         """Batch get resource configurations.
 
         Args:
@@ -164,14 +156,10 @@ class ConfigResourceCollector:
         for i in range(0, len(resource_ids), MAX_BATCH_SIZE):
             batch_ids = resource_ids[i : i + MAX_BATCH_SIZE]
 
-            resource_keys = [
-                {"resourceType": resource_type, "resourceId": rid} for rid in batch_ids
-            ]
+            resource_keys = [{"resourceType": resource_type, "resourceId": rid} for rid in batch_ids]
 
             try:
-                response = self.client.batch_get_resource_config(
-                    resourceKeys=resource_keys
-                )
+                response = self.client.batch_get_resource_config(resourceKeys=resource_keys)
 
                 # Get base configuration items
                 base_items = response.get("baseConfigurationItems", [])
@@ -180,14 +168,10 @@ class ConfigResourceCollector:
                 # Log any unprocessed keys
                 unprocessed = response.get("unprocessedResourceKeys", [])
                 if unprocessed:
-                    logger.warning(
-                        f"Config could not process {len(unprocessed)} {resource_type} resources"
-                    )
+                    logger.warning(f"Config could not process {len(unprocessed)} {resource_type} resources")
 
             except Exception as e:
-                logger.error(
-                    f"Error batch getting {resource_type} configs in {self.region}: {e}"
-                )
+                logger.error(f"Error batch getting {resource_type} configs in {self.region}: {e}")
                 # Continue with other batches
                 continue
 
@@ -225,9 +209,7 @@ class ConfigResourceCollector:
 
             # Add Config-specific metadata to raw_config
             raw_config["_config_metadata"] = {
-                "configurationItemCaptureTime": config_item.get(
-                    "configurationItemCaptureTime"
-                ),
+                "configurationItemCaptureTime": config_item.get("configurationItemCaptureTime"),
                 "configurationStateId": config_item.get("configurationStateId"),
                 "awsAccountId": config_item.get("accountId"),
                 "configurationItemStatus": config_item.get("configurationItemStatus"),
@@ -257,9 +239,7 @@ class ConfigResourceCollector:
                     created_at = capture_time
                 elif isinstance(capture_time, str):
                     try:
-                        created_at = datetime.fromisoformat(
-                            capture_time.replace("Z", "+00:00")
-                        )
+                        created_at = datetime.fromisoformat(capture_time.replace("Z", "+00:00"))
                     except ValueError:
                         pass
 

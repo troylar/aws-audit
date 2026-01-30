@@ -49,14 +49,18 @@ class TestSecretsManagerCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        mock_paginator.paginate.return_value = [{
-            "SecretList": [{
-                "Name": "my-secret",
-                "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc123",
-                "CreatedDate": created_at,
-                "Tags": [{"Key": "Environment", "Value": "test"}],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {
+                        "Name": "my-secret",
+                        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc123",
+                        "CreatedDate": created_at,
+                        "Tags": [{"Key": "Environment", "Value": "test"}],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_secret.return_value = {
             "Name": "my-secret",
@@ -81,20 +85,22 @@ class TestSecretsManagerCollectorCollect:
         """Test collecting multiple secrets."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "SecretList": [
-                {
-                    "Name": "secret-1",
-                    "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret-1-abc",
-                    "Tags": [],
-                },
-                {
-                    "Name": "secret-2",
-                    "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret-2-def",
-                    "Tags": [],
-                },
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {
+                        "Name": "secret-1",
+                        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret-1-abc",
+                        "Tags": [],
+                    },
+                    {
+                        "Name": "secret-2",
+                        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:secret-2-def",
+                        "Tags": [],
+                    },
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_secret.return_value = {}
         mock_create_client.return_value = mock_client
@@ -111,13 +117,17 @@ class TestSecretsManagerCollectorCollect:
         """Test collecting continues when describe_secret fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "SecretList": [{
-                "Name": "my-secret",
-                "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {
+                        "Name": "my-secret",
+                        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_secret.side_effect = Exception("Access denied")
         mock_create_client.return_value = mock_client
@@ -167,13 +177,17 @@ class TestSecretsManagerCollectorCollect:
         """Test that sensitive fields are filtered from config."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "SecretList": [{
-                "Name": "my-secret",
-                "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {
+                        "Name": "my-secret",
+                        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_secret.return_value = {
             "Name": "my-secret",
@@ -196,13 +210,17 @@ class TestSecretsManagerCollectorCollect:
         """Test that config hash is generated."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "SecretList": [{
-                "Name": "my-secret",
-                "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
-                "Tags": [],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {
+                        "Name": "my-secret",
+                        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
+                        "Tags": [],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_secret.return_value = {}
         mock_create_client.return_value = mock_client
@@ -219,17 +237,21 @@ class TestSecretsManagerCollectorCollect:
         """Test collecting secret with multiple tags."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "SecretList": [{
-                "Name": "my-secret",
-                "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
-                "Tags": [
-                    {"Key": "Environment", "Value": "prod"},
-                    {"Key": "Team", "Value": "platform"},
-                    {"Key": "App", "Value": "api"},
-                ],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {
+                        "Name": "my-secret",
+                        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret-abc",
+                        "Tags": [
+                            {"Key": "Environment", "Value": "prod"},
+                            {"Key": "Team", "Value": "platform"},
+                            {"Key": "App", "Value": "api"},
+                        ],
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_secret.return_value = {}
         mock_create_client.return_value = mock_client

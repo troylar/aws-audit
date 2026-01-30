@@ -1,9 +1,7 @@
 """Tests for cost analyzer."""
 
-from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch
-
-import pytest
+from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from src.cost.analyzer import CostAnalyzer
 from src.models.resource import Resource

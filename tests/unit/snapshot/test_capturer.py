@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.snapshot.capturer import (
     COLLECTOR_REGISTRY,
     _get_collectors,
@@ -106,7 +104,7 @@ class TestCreateSnapshotMVP:
         mock_snapshot = MagicMock()
         mock_create_snapshot.return_value = mock_snapshot
 
-        result = create_snapshot_mvp(
+        create_snapshot_mvp(
             name="my-snapshot",
             regions=["eu-west-1"],
             account_id="987654321098",

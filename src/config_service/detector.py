@@ -83,9 +83,7 @@ def detect_config_availability(
 
     try:
         # Create Config client
-        profile = profile_name or (
-            session.profile_name if hasattr(session, "profile_name") else None
-        )
+        profile = profile_name or (session.profile_name if hasattr(session, "profile_name") else None)
         client = create_boto_client(
             service_name="config",
             region_name=region,
@@ -107,9 +105,7 @@ def detect_config_availability(
 
         # Check recording group settings
         recording_group = recorder.get("recordingGroup", {})
-        availability.recording_group_all_supported = recording_group.get(
-            "allSupported", False
-        )
+        availability.recording_group_all_supported = recording_group.get("allSupported", False)
 
         # Get specific resource types if not recording all
         if not availability.recording_group_all_supported:
@@ -229,18 +225,14 @@ def check_aggregator_availability(
         Tuple of (is_available, error_message)
     """
     try:
-        profile = profile_name or (
-            session.profile_name if hasattr(session, "profile_name") else None
-        )
+        profile = profile_name or (session.profile_name if hasattr(session, "profile_name") else None)
         client = create_boto_client(
             service_name="config",
             region_name=region,
             profile_name=profile,
         )
 
-        response = client.describe_configuration_aggregators(
-            ConfigurationAggregatorNames=[aggregator_name]
-        )
+        response = client.describe_configuration_aggregators(ConfigurationAggregatorNames=[aggregator_name])
 
         aggregators = response.get("ConfigurationAggregators", [])
         if aggregators:

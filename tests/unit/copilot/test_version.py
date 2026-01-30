@@ -2,11 +2,11 @@
 
 from datetime import date
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from src.copilot.models import FileType, InstalledFile, ModelVersionHeader
+from src.copilot.models import FileType
 from src.copilot.version import get_installed_file_info, parse_frontmatter
 
 

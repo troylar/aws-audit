@@ -1,7 +1,6 @@
 """Unit tests for ResourceStore creator-related methods."""
 
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 class TestResourceStoreCreators:

@@ -22,7 +22,6 @@ from ..config_service.detector import (
 )
 from ..config_service.resource_type_mapping import (
     COLLECTOR_TO_CONFIG_TYPES,
-    is_config_supported_type,
 )
 from .resource_collectors.apigateway import APIGatewayCollector
 from .resource_collectors.backup import BackupCollector
@@ -33,13 +32,13 @@ from .resource_collectors.codebuild import CodeBuildCollector
 from .resource_collectors.codepipeline import CodePipelineCollector
 from .resource_collectors.dynamodb import DynamoDBCollector
 from .resource_collectors.ec2 import EC2Collector
-from .resource_collectors.glue import GlueCollector
 from .resource_collectors.ecs import ECSCollector
 from .resource_collectors.efs_collector import EFSCollector
 from .resource_collectors.eks import EKSCollector
 from .resource_collectors.elasticache_collector import ElastiCacheCollector
 from .resource_collectors.elb import ELBCollector
 from .resource_collectors.eventbridge import EventBridgeCollector
+from .resource_collectors.glue import GlueCollector
 from .resource_collectors.iam import IAMCollector
 from .resource_collectors.kms import KMSCollector
 from .resource_collectors.lambda_func import LambdaCollector
@@ -144,7 +143,9 @@ def create_snapshot(
                 availability = detect_config_availability(session, region, profile_name)
                 config_availability[region] = availability
                 if availability.is_enabled:
-                    logger.debug(f"  {region}: Config enabled (all_supported={availability.recording_group_all_supported})")
+                    logger.debug(
+                        f"  {region}: Config enabled (all_supported={availability.recording_group_all_supported})"
+                    )
                 else:
                     logger.debug(f"  {region}: Config not available ({availability.error_message})")
             except Exception as e:
@@ -204,7 +205,8 @@ def create_snapshot(
                 # Special handling for LambdaCollector to pass code storage options
                 if collector_class == LambdaCollector and lambda_code_max_size is not None:
                     collector = collector_class(
-                        session, region,
+                        session,
+                        region,
                         max_inline_code_size=lambda_code_max_size,
                         snapshot_name=name,
                     )
@@ -225,17 +227,10 @@ def create_snapshot(
                 region_config = config_availability.get(config_region)
                 service_config_types = COLLECTOR_TO_CONFIG_TYPES.get(collector.service_name, [])
 
-                if (
-                    use_config
-                    and region_config
-                    and region_config.is_enabled
-                    and service_config_types
-                ):
+                if use_config and region_config and region_config.is_enabled and service_config_types:
                     # Try to collect via AWS Config
                     try:
-                        config_collector = ConfigResourceCollector(
-                            session, config_region, profile_name, region_config
-                        )
+                        config_collector = ConfigResourceCollector(session, config_region, profile_name, region_config)
 
                         # Collect each resource type this service handles
                         for config_type in service_config_types:
@@ -375,10 +370,9 @@ def create_snapshot(
         service_counts[resource.resource_type] = service_counts.get(resource.resource_type, 0) + 1
 
     # Build Config-related metadata
-    config_enabled_regions = [
-        region for region, avail in config_availability.items()
-        if avail.is_enabled
-    ] if use_config else []
+    config_enabled_regions = (
+        [region for region, avail in config_availability.items() if avail.is_enabled] if use_config else []
+    )
 
     # Create snapshot
     snapshot = Snapshot(

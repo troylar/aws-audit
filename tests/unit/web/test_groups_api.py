@@ -5,6 +5,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# Skip entire module if web dependencies not installed
+pytest.importorskip("fastapi", reason="Requires 'web' optional dependencies")
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -66,10 +70,7 @@ class TestCreateGroup:
         mock_group_store.exists.return_value = False
         mock_group_store.save.return_value = 1
 
-        response = client.post("/api/groups", json={
-            "name": "new-group",
-            "description": "A new group"
-        })
+        response = client.post("/api/groups", json={"name": "new-group", "description": "A new group"})
 
         assert response.status_code == 200
         data = response.json()
@@ -80,9 +81,7 @@ class TestCreateGroup:
         """Test creating a duplicate group returns error."""
         mock_group_store.exists.return_value = True
 
-        response = client.post("/api/groups", json={
-            "name": "existing"
-        })
+        response = client.post("/api/groups", json={"name": "existing"})
 
         assert response.status_code == 400
 
@@ -91,10 +90,7 @@ class TestCreateGroup:
         mock_group_store.exists.return_value = False
         mock_group_store.create_from_snapshot.return_value = 10
 
-        response = client.post("/api/groups", json={
-            "name": "snap-group",
-            "from_snapshot": "my-snapshot"
-        })
+        response = client.post("/api/groups", json={"name": "snap-group", "from_snapshot": "my-snapshot"})
 
         assert response.status_code == 200
         data = response.json()
@@ -113,7 +109,7 @@ class TestGetGroup:
             description="Test group",
             source_snapshot="snap-1",
             resource_count=5,
-            is_favorite=False
+            is_favorite=False,
         )
 
         response = client.get("/api/groups/my-group")
@@ -202,12 +198,15 @@ class TestAddMembers:
         mock_group_store.exists.return_value = True
         mock_group_store.add_members_from_arns.return_value = 2
 
-        response = client.post("/api/groups/add-group/members", json={
-            "arns": [
-                {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket"},
-                {"arn": "arn:aws:s3:::bucket-2", "resource_type": "s3:bucket"},
-            ]
-        })
+        response = client.post(
+            "/api/groups/add-group/members",
+            json={
+                "arns": [
+                    {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket"},
+                    {"arn": "arn:aws:s3:::bucket-2", "resource_type": "s3:bucket"},
+                ]
+            },
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -225,7 +224,7 @@ class TestRemoveMember:
         response = client.request(
             "DELETE",
             "/api/groups/remove-group/members",
-            params={"resource_name": "to-remove", "resource_type": "s3:bucket"}
+            params={"resource_name": "to-remove", "resource_type": "s3:bucket"},
         )
 
         assert response.status_code == 200
@@ -237,7 +236,7 @@ class TestRemoveMember:
         response = client.request(
             "DELETE",
             "/api/groups/nonexistent/members",
-            params={"resource_name": "to-remove", "resource_type": "s3:bucket"}
+            params={"resource_name": "to-remove", "resource_type": "s3:bucket"},
         )
 
         assert response.status_code == 404
@@ -250,7 +249,7 @@ class TestRemoveMember:
         response = client.request(
             "DELETE",
             "/api/groups/my-group/members",
-            params={"resource_name": "not-there", "resource_type": "s3:bucket"}
+            params={"resource_name": "not-there", "resource_type": "s3:bucket"},
         )
 
         assert response.status_code == 200
@@ -415,9 +414,7 @@ class TestGetResourcesInGroup:
         data = response.json()
         assert data["limit"] == 50
         assert data["offset"] == 100
-        mock_group_store.get_resources_in_group.assert_called_once_with(
-            "my-group", "my-snapshot", limit=50, offset=100
-        )
+        mock_group_store.get_resources_in_group.assert_called_once_with("my-group", "my-snapshot", limit=50, offset=100)
 
 
 class TestGetResourcesNotInGroup:

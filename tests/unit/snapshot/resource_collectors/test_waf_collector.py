@@ -62,13 +62,17 @@ class TestWAFCollectorCollect:
         mock_client = MagicMock()
 
         mock_regional_paginator = MagicMock()
-        mock_regional_paginator.paginate.return_value = [{
-            "WebACLs": [{
-                "Name": "my-web-acl",
-                "Id": "web-acl-123",
-                "ARN": "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-web-acl/123",
-            }]
-        }]
+        mock_regional_paginator.paginate.return_value = [
+            {
+                "WebACLs": [
+                    {
+                        "Name": "my-web-acl",
+                        "Id": "web-acl-123",
+                        "ARN": "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-web-acl/123",
+                    }
+                ]
+            }
+        ]
 
         mock_cf_paginator = MagicMock()
         mock_cf_paginator.paginate.return_value = [{"WebACLs": []}]
@@ -89,9 +93,7 @@ class TestWAFCollectorCollect:
             }
         }
         mock_client.list_tags_for_resource.return_value = {
-            "TagInfoForResource": {
-                "TagList": [{"Key": "Environment", "Value": "test"}]
-            }
+            "TagInfoForResource": {"TagList": [{"Key": "Environment", "Value": "test"}]}
         }
         mock_create_client.return_value = mock_client
 
@@ -118,13 +120,17 @@ class TestWAFCollectorCollect:
             if kwargs.get("Scope") == "REGIONAL":
                 return [{"WebACLs": []}]
             elif kwargs.get("Scope") == "CLOUDFRONT":
-                return [{
-                    "WebACLs": [{
-                        "Name": "cf-web-acl",
-                        "Id": "cf-acl-123",
-                        "ARN": "arn:aws:wafv2:global:123456789012:global/webacl/cf-web-acl/123",
-                    }]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {
+                                "Name": "cf-web-acl",
+                                "Id": "cf-acl-123",
+                                "ARN": "arn:aws:wafv2:global:123456789012:global/webacl/cf-web-acl/123",
+                            }
+                        ]
+                    }
+                ]
             return [{"WebACLs": []}]
 
         mock_paginator = MagicMock()
@@ -137,9 +143,7 @@ class TestWAFCollectorCollect:
                 "Rules": [],
             }
         }
-        mock_client.list_tags_for_resource.return_value = {
-            "TagInfoForResource": {"TagList": []}
-        }
+        mock_client.list_tags_for_resource.return_value = {"TagInfoForResource": {"TagList": []}}
         mock_create_client.return_value = mock_client
 
         collector = WAFCollector(session=mock_session, region="us-east-1")
@@ -176,12 +180,14 @@ class TestWAFCollectorCollect:
 
         def paginate_side_effect(**kwargs):
             if kwargs.get("Scope") == "REGIONAL":
-                return [{
-                    "WebACLs": [
-                        {"Name": "good-acl", "Id": "1", "ARN": "arn:1"},
-                        {"Name": "bad-acl", "Id": "2", "ARN": "arn:2"},
-                    ]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {"Name": "good-acl", "Id": "1", "ARN": "arn:1"},
+                            {"Name": "bad-acl", "Id": "2", "ARN": "arn:2"},
+                        ]
+                    }
+                ]
             return [{"WebACLs": []}]
 
         mock_paginator = MagicMock()
@@ -194,9 +200,7 @@ class TestWAFCollectorCollect:
             return {"WebACL": {"Name": kwargs["Name"], "Rules": []}}
 
         mock_client.get_web_acl.side_effect = get_web_acl_side_effect
-        mock_client.list_tags_for_resource.return_value = {
-            "TagInfoForResource": {"TagList": []}
-        }
+        mock_client.list_tags_for_resource.return_value = {"TagInfoForResource": {"TagList": []}}
         mock_create_client.return_value = mock_client
 
         collector = WAFCollector(session=mock_session, region="us-east-1")
@@ -214,21 +218,23 @@ class TestWAFCollectorCollect:
 
         def paginate_side_effect(**kwargs):
             if kwargs.get("Scope") == "REGIONAL":
-                return [{
-                    "WebACLs": [{
-                        "Name": "my-acl",
-                        "Id": "1",
-                        "ARN": "arn:1",
-                    }]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {
+                                "Name": "my-acl",
+                                "Id": "1",
+                                "ARN": "arn:1",
+                            }
+                        ]
+                    }
+                ]
             return [{"WebACLs": []}]
 
         mock_paginator = MagicMock()
         mock_paginator.paginate = paginate_side_effect
         mock_client.get_paginator.return_value = mock_paginator
-        mock_client.get_web_acl.return_value = {
-            "WebACL": {"Name": "my-acl", "Rules": []}
-        }
+        mock_client.get_web_acl.return_value = {"WebACL": {"Name": "my-acl", "Rules": []}}
         mock_client.list_tags_for_resource.side_effect = Exception("Access denied")
         mock_create_client.return_value = mock_client
 
@@ -263,24 +269,24 @@ class TestWAFCollectorCollect:
 
         def paginate_side_effect(**kwargs):
             if kwargs.get("Scope") == "REGIONAL":
-                return [{
-                    "WebACLs": [{
-                        "Name": "my-acl",
-                        "Id": "1",
-                        "ARN": "arn:1",
-                    }]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {
+                                "Name": "my-acl",
+                                "Id": "1",
+                                "ARN": "arn:1",
+                            }
+                        ]
+                    }
+                ]
             return [{"WebACLs": []}]
 
         mock_paginator = MagicMock()
         mock_paginator.paginate = paginate_side_effect
         mock_client.get_paginator.return_value = mock_paginator
-        mock_client.get_web_acl.return_value = {
-            "WebACL": {"Name": "my-acl", "Rules": []}
-        }
-        mock_client.list_tags_for_resource.return_value = {
-            "TagInfoForResource": {"TagList": []}
-        }
+        mock_client.get_web_acl.return_value = {"WebACL": {"Name": "my-acl", "Rules": []}}
+        mock_client.list_tags_for_resource.return_value = {"TagInfoForResource": {"TagList": []}}
         mock_create_client.return_value = mock_client
 
         collector = WAFCollector(session=mock_session, region="us-east-1")
@@ -298,32 +304,36 @@ class TestWAFCollectorCollect:
 
         def paginate_side_effect(**kwargs):
             if kwargs.get("Scope") == "REGIONAL":
-                return [{
-                    "WebACLs": [{
-                        "Name": "regional-acl",
-                        "Id": "1",
-                        "ARN": "arn:1",
-                    }]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {
+                                "Name": "regional-acl",
+                                "Id": "1",
+                                "ARN": "arn:1",
+                            }
+                        ]
+                    }
+                ]
             elif kwargs.get("Scope") == "CLOUDFRONT":
-                return [{
-                    "WebACLs": [{
-                        "Name": "cf-acl",
-                        "Id": "2",
-                        "ARN": "arn:2",
-                    }]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {
+                                "Name": "cf-acl",
+                                "Id": "2",
+                                "ARN": "arn:2",
+                            }
+                        ]
+                    }
+                ]
             return [{"WebACLs": []}]
 
         mock_paginator = MagicMock()
         mock_paginator.paginate = paginate_side_effect
         mock_client.get_paginator.return_value = mock_paginator
-        mock_client.get_web_acl.return_value = {
-            "WebACL": {"Rules": []}
-        }
-        mock_client.list_tags_for_resource.return_value = {
-            "TagInfoForResource": {"TagList": []}
-        }
+        mock_client.get_web_acl.return_value = {"WebACL": {"Rules": []}}
+        mock_client.list_tags_for_resource.return_value = {"TagInfoForResource": {"TagList": []}}
         mock_create_client.return_value = mock_client
 
         collector = WAFCollector(session=mock_session, region="us-east-1")
@@ -344,21 +354,23 @@ class TestWAFCollectorCollect:
             if kwargs.get("Scope") == "REGIONAL":
                 return [{"WebACLs": []}]
             elif kwargs.get("Scope") == "CLOUDFRONT":
-                return [{
-                    "WebACLs": [{
-                        "Name": "cf-acl",
-                        "Id": "1",
-                        "ARN": "arn:aws:wafv2:global:123456789012:global/webacl/cf-acl/123",
-                    }]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {
+                                "Name": "cf-acl",
+                                "Id": "1",
+                                "ARN": "arn:aws:wafv2:global:123456789012:global/webacl/cf-acl/123",
+                            }
+                        ]
+                    }
+                ]
             return [{"WebACLs": []}]
 
         mock_paginator = MagicMock()
         mock_paginator.paginate = paginate_side_effect
         mock_client.get_paginator.return_value = mock_paginator
-        mock_client.get_web_acl.return_value = {
-            "WebACL": {"Name": "cf-acl", "Rules": []}
-        }
+        mock_client.get_web_acl.return_value = {"WebACL": {"Name": "cf-acl", "Rules": []}}
         mock_client.list_tags_for_resource.side_effect = Exception("Access denied")
         mock_create_client.return_value = mock_client
 
@@ -379,12 +391,14 @@ class TestWAFCollectorCollect:
             if kwargs.get("Scope") == "REGIONAL":
                 return [{"WebACLs": []}]
             elif kwargs.get("Scope") == "CLOUDFRONT":
-                return [{
-                    "WebACLs": [
-                        {"Name": "good-cf-acl", "Id": "1", "ARN": "arn:1"},
-                        {"Name": "bad-cf-acl", "Id": "2", "ARN": "arn:2"},
-                    ]
-                }]
+                return [
+                    {
+                        "WebACLs": [
+                            {"Name": "good-cf-acl", "Id": "1", "ARN": "arn:1"},
+                            {"Name": "bad-cf-acl", "Id": "2", "ARN": "arn:2"},
+                        ]
+                    }
+                ]
             return [{"WebACLs": []}]
 
         mock_paginator = MagicMock()
@@ -397,9 +411,7 @@ class TestWAFCollectorCollect:
             return {"WebACL": {"Name": kwargs["Name"], "Rules": []}}
 
         mock_client.get_web_acl.side_effect = get_web_acl_side_effect
-        mock_client.list_tags_for_resource.return_value = {
-            "TagInfoForResource": {"TagList": []}
-        }
+        mock_client.list_tags_for_resource.return_value = {"TagInfoForResource": {"TagList": []}}
         mock_create_client.return_value = mock_client
 
         collector = WAFCollector(session=mock_session, region="us-east-1")

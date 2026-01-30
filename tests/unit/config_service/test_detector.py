@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.config_service.detector import (
     ConfigAvailability,
     check_aggregator_availability,
@@ -92,9 +90,7 @@ class TestDetectConfigAvailability:
                 }
             ]
         }
-        mock_client.describe_delivery_channels.return_value = {
-            "DeliveryChannels": [{"name": "default"}]
-        }
+        mock_client.describe_delivery_channels.return_value = {"DeliveryChannels": [{"name": "default"}]}
 
         mock_session = MagicMock()
         result = detect_config_availability(mock_session, "us-east-1")
@@ -111,9 +107,7 @@ class TestDetectConfigAvailability:
         mock_client = MagicMock()
         mock_create_client.return_value = mock_client
 
-        mock_client.describe_configuration_recorders.return_value = {
-            "ConfigurationRecorders": []
-        }
+        mock_client.describe_configuration_recorders.return_value = {"ConfigurationRecorders": []}
 
         mock_session = MagicMock()
         result = detect_config_availability(mock_session, "us-east-1")
@@ -212,9 +206,7 @@ class TestGetConfigSupportedResourceTypes:
     @patch("src.config_service.detector.detect_config_availability")
     def test_returns_empty_when_disabled(self, mock_detect):
         """Test returns empty set when Config is disabled."""
-        mock_detect.return_value = ConfigAvailability(
-            region="us-east-1", is_enabled=False
-        )
+        mock_detect.return_value = ConfigAvailability(region="us-east-1", is_enabled=False)
 
         mock_session = MagicMock()
         result = get_config_supported_resource_types(mock_session, "us-east-1")
@@ -271,9 +263,7 @@ class TestCheckAggregatorAvailability:
         }
 
         mock_session = MagicMock()
-        is_available, error = check_aggregator_availability(
-            mock_session, "my-aggregator"
-        )
+        is_available, error = check_aggregator_availability(mock_session, "my-aggregator")
 
         assert is_available is True
         assert error is None
@@ -284,14 +274,10 @@ class TestCheckAggregatorAvailability:
         mock_client = MagicMock()
         mock_create_client.return_value = mock_client
 
-        mock_client.describe_configuration_aggregators.return_value = {
-            "ConfigurationAggregators": []
-        }
+        mock_client.describe_configuration_aggregators.return_value = {"ConfigurationAggregators": []}
 
         mock_session = MagicMock()
-        is_available, error = check_aggregator_availability(
-            mock_session, "nonexistent"
-        )
+        is_available, error = check_aggregator_availability(mock_session, "nonexistent")
 
         assert is_available is False
         assert "not found" in error
@@ -308,14 +294,10 @@ class TestCheckAggregatorAvailability:
             "NoSuchConfigurationAggregatorException", (Exception,), {}
         )
 
-        mock_client.describe_configuration_aggregators.side_effect = Exception(
-            "Access denied"
-        )
+        mock_client.describe_configuration_aggregators.side_effect = Exception("Access denied")
 
         mock_session = MagicMock()
-        is_available, error = check_aggregator_availability(
-            mock_session, "my-aggregator"
-        )
+        is_available, error = check_aggregator_availability(mock_session, "my-aggregator")
 
         assert is_available is False
         assert "Access denied" in error

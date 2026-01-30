@@ -85,7 +85,7 @@ class ReportFormatter:
         # Create header panel
         header_content = f"""[bold]Inventory:[/bold]     {metadata.inventory_name}
 [bold]Account ID:[/bold]    {metadata.account_id}
-[bold]Created:[/bold]       {metadata.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}
+[bold]Created:[/bold]       {metadata.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")}
 [bold]Regions:[/bold]       {metadata.region_summary}"""
 
         panel = Panel(

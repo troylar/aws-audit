@@ -49,12 +49,16 @@ class TestKMSCollectorCollect:
         mock_client = MagicMock()
         mock_paginator = MagicMock()
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "key-12345",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-12345",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "key-12345",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-12345",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {
@@ -64,15 +68,9 @@ class TestKMSCollectorCollect:
                 "CreationDate": created_at,
             }
         }
-        mock_client.list_aliases.return_value = {
-            "Aliases": [{"AliasName": "alias/my-key"}]
-        }
-        mock_client.list_resource_tags.return_value = {
-            "Tags": [{"TagKey": "Environment", "TagValue": "test"}]
-        }
-        mock_client.get_key_rotation_status.return_value = {
-            "KeyRotationEnabled": True
-        }
+        mock_client.list_aliases.return_value = {"Aliases": [{"AliasName": "alias/my-key"}]}
+        mock_client.list_resource_tags.return_value = {"Tags": [{"TagKey": "Environment", "TagValue": "test"}]}
+        mock_client.get_key_rotation_status.return_value = {"KeyRotationEnabled": True}
         mock_create_client.return_value = mock_client
 
         collector = KMSCollector(session=mock_session, region="us-east-1")
@@ -90,12 +88,16 @@ class TestKMSCollectorCollect:
         """Test that AWS-managed keys are skipped."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "aws-managed-key",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/aws-managed-key",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "aws-managed-key",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/aws-managed-key",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {
@@ -117,12 +119,16 @@ class TestKMSCollectorCollect:
         """Test that keys pending deletion are skipped."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "key-pending",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-pending",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "key-pending",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-pending",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {
@@ -144,12 +150,16 @@ class TestKMSCollectorCollect:
         """Test collecting key without alias uses key ID as name."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "key-no-alias",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-no-alias",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "key-no-alias",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-no-alias",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {
@@ -174,12 +184,14 @@ class TestKMSCollectorCollect:
         """Test collecting continues when describe_key fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [
-                {"KeyId": "good-key", "KeyArn": "arn:1"},
-                {"KeyId": "bad-key", "KeyArn": "arn:2"},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {"KeyId": "good-key", "KeyArn": "arn:1"},
+                    {"KeyId": "bad-key", "KeyArn": "arn:2"},
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
         def describe_key_side_effect(**kwargs):
@@ -211,12 +223,16 @@ class TestKMSCollectorCollect:
         """Test collecting continues when list_aliases fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "key-123",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "key-123",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {
@@ -242,12 +258,16 @@ class TestKMSCollectorCollect:
         """Test collecting continues when list_resource_tags fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "key-123",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "key-123",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {
@@ -273,12 +293,16 @@ class TestKMSCollectorCollect:
         """Test collecting continues when get_key_rotation_status fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "key-123",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "key-123",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {
@@ -319,12 +343,16 @@ class TestKMSCollectorCollect:
         """Test that config hash is generated."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "Keys": [{
-                "KeyId": "key-123",
-                "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "Keys": [
+                    {
+                        "KeyId": "key-123",
+                        "KeyArn": "arn:aws:kms:us-east-1:123456789012:key/key-123",
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.describe_key.return_value = {
             "KeyMetadata": {

@@ -52,13 +52,17 @@ class TestAPIGatewayCollectorCollect:
 
         # V1 client for REST APIs
         mock_v1_paginator = MagicMock()
-        mock_v1_paginator.paginate.return_value = [{
-            "items": [{
-                "id": "abc123",
-                "name": "my-rest-api",
-                "createdDate": created_at,
-            }]
-        }]
+        mock_v1_paginator.paginate.return_value = [
+            {
+                "items": [
+                    {
+                        "id": "abc123",
+                        "name": "my-rest-api",
+                        "createdDate": created_at,
+                    }
+                ]
+            }
+        ]
         mock_v1_client.get_paginator.return_value = mock_v1_paginator
         mock_v1_client.get_tags.return_value = {"tags": {"Environment": "test"}}
 
@@ -100,15 +104,19 @@ class TestAPIGatewayCollectorCollect:
 
         # V2 client returns HTTP API
         mock_v2_paginator = MagicMock()
-        mock_v2_paginator.paginate.return_value = [{
-            "Items": [{
-                "ApiId": "xyz789",
-                "Name": "my-http-api",
-                "ProtocolType": "HTTP",
-                "CreatedDate": created_at,
-                "Tags": {"Team": "platform"},
-            }]
-        }]
+        mock_v2_paginator.paginate.return_value = [
+            {
+                "Items": [
+                    {
+                        "ApiId": "xyz789",
+                        "Name": "my-http-api",
+                        "ProtocolType": "HTTP",
+                        "CreatedDate": created_at,
+                        "Tags": {"Team": "platform"},
+                    }
+                ]
+            }
+        ]
         mock_v2_client.get_paginator.return_value = mock_v2_paginator
 
         def create_client_side_effect(service_name=None):
@@ -139,14 +147,18 @@ class TestAPIGatewayCollectorCollect:
 
         # V2 client returns WebSocket API
         mock_v2_paginator = MagicMock()
-        mock_v2_paginator.paginate.return_value = [{
-            "Items": [{
-                "ApiId": "ws123",
-                "Name": "my-websocket-api",
-                "ProtocolType": "WEBSOCKET",
-                "Tags": {},
-            }]
-        }]
+        mock_v2_paginator.paginate.return_value = [
+            {
+                "Items": [
+                    {
+                        "ApiId": "ws123",
+                        "Name": "my-websocket-api",
+                        "ProtocolType": "WEBSOCKET",
+                        "Tags": {},
+                    }
+                ]
+            }
+        ]
         mock_v2_client.get_paginator.return_value = mock_v2_paginator
 
         def create_client_side_effect(service_name=None):
@@ -176,14 +188,18 @@ class TestAPIGatewayCollectorCollect:
 
         # V2 client returns unknown protocol
         mock_v2_paginator = MagicMock()
-        mock_v2_paginator.paginate.return_value = [{
-            "Items": [{
-                "ApiId": "new123",
-                "Name": "my-new-api",
-                "ProtocolType": "NEWPROTOCOL",
-                "Tags": {},
-            }]
-        }]
+        mock_v2_paginator.paginate.return_value = [
+            {
+                "Items": [
+                    {
+                        "ApiId": "new123",
+                        "Name": "my-new-api",
+                        "ProtocolType": "NEWPROTOCOL",
+                        "Tags": {},
+                    }
+                ]
+            }
+        ]
         mock_v2_client.get_paginator.return_value = mock_v2_paginator
 
         def create_client_side_effect(service_name=None):
@@ -207,20 +223,20 @@ class TestAPIGatewayCollectorCollect:
 
         # V1 client returns REST API
         mock_v1_paginator = MagicMock()
-        mock_v1_paginator.paginate.return_value = [{
-            "items": [{"id": "rest1", "name": "rest-api-1"}]
-        }]
+        mock_v1_paginator.paginate.return_value = [{"items": [{"id": "rest1", "name": "rest-api-1"}]}]
         mock_v1_client.get_paginator.return_value = mock_v1_paginator
         mock_v1_client.get_tags.return_value = {"tags": {}}
 
         # V2 client returns HTTP and WebSocket APIs
         mock_v2_paginator = MagicMock()
-        mock_v2_paginator.paginate.return_value = [{
-            "Items": [
-                {"ApiId": "http1", "Name": "http-api-1", "ProtocolType": "HTTP", "Tags": {}},
-                {"ApiId": "ws1", "Name": "ws-api-1", "ProtocolType": "WEBSOCKET", "Tags": {}},
-            ]
-        }]
+        mock_v2_paginator.paginate.return_value = [
+            {
+                "Items": [
+                    {"ApiId": "http1", "Name": "http-api-1", "ProtocolType": "HTTP", "Tags": {}},
+                    {"ApiId": "ws1", "Name": "ws-api-1", "ProtocolType": "WEBSOCKET", "Tags": {}},
+                ]
+            }
+        ]
         mock_v2_client.get_paginator.return_value = mock_v2_paginator
 
         def create_client_side_effect(service_name=None):
@@ -252,9 +268,9 @@ class TestAPIGatewayCollectorCollect:
 
         # V2 client works
         mock_v2_paginator = MagicMock()
-        mock_v2_paginator.paginate.return_value = [{
-            "Items": [{"ApiId": "http1", "Name": "http-api", "ProtocolType": "HTTP", "Tags": {}}]
-        }]
+        mock_v2_paginator.paginate.return_value = [
+            {"Items": [{"ApiId": "http1", "Name": "http-api", "ProtocolType": "HTTP", "Tags": {}}]}
+        ]
         mock_v2_client.get_paginator.return_value = mock_v2_paginator
 
         def create_client_side_effect(service_name=None):
@@ -279,9 +295,7 @@ class TestAPIGatewayCollectorCollect:
 
         # V1 client works
         mock_v1_paginator = MagicMock()
-        mock_v1_paginator.paginate.return_value = [{
-            "items": [{"id": "rest1", "name": "rest-api"}]
-        }]
+        mock_v1_paginator.paginate.return_value = [{"items": [{"id": "rest1", "name": "rest-api"}]}]
         mock_v1_client.get_paginator.return_value = mock_v1_paginator
         mock_v1_client.get_tags.return_value = {"tags": {}}
 
@@ -312,9 +326,7 @@ class TestAPIGatewayCollectorCollect:
 
         # V1 client returns REST API
         mock_v1_paginator = MagicMock()
-        mock_v1_paginator.paginate.return_value = [{
-            "items": [{"id": "rest1", "name": "rest-api"}]
-        }]
+        mock_v1_paginator.paginate.return_value = [{"items": [{"id": "rest1", "name": "rest-api"}]}]
         mock_v1_client.get_paginator.return_value = mock_v1_paginator
         mock_v1_client.get_tags.side_effect = Exception("Access denied")
 
@@ -345,9 +357,7 @@ class TestAPIGatewayCollectorCollect:
 
         # V1 client returns REST API
         mock_v1_paginator = MagicMock()
-        mock_v1_paginator.paginate.return_value = [{
-            "items": [{"id": "rest1", "name": "rest-api"}]
-        }]
+        mock_v1_paginator.paginate.return_value = [{"items": [{"id": "rest1", "name": "rest-api"}]}]
         mock_v1_client.get_paginator.return_value = mock_v1_paginator
         mock_v1_client.get_tags.return_value = {"tags": {}}
 

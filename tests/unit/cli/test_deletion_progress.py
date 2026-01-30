@@ -1,9 +1,7 @@
 """Unit tests for deletion progress display."""
 
-import pytest
 from dataclasses import dataclass
-from typing import Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from src.cli.deletion_progress import (
     DeletionProgressDisplay,

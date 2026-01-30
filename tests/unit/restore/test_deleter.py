@@ -1199,7 +1199,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_client.get_object_lock_configuration.return_value = {
             "ObjectLockConfiguration": {
                 "ObjectLockEnabled": "Enabled",
-                "Rule": {"DefaultRetention": {"Mode": "COMPLIANCE"}}
+                "Rule": {"DefaultRetention": {"Mode": "COMPLIANCE"}},
             }
         }
         mock_create_client.return_value = mock_client
@@ -1251,7 +1251,7 @@ class TestResourceDeleterAdditionalCoverage:
         # For cleanup
         mock_client.get_web_acl.return_value = {
             "WebACL": {"ARN": "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/my-webacl/id"},
-            "LockToken": "lock-token-123"
+            "LockToken": "lock-token-123",
         }
         mock_client.list_resources_for_web_acl.return_value = {"ResourceArns": []}
         mock_client.delete_web_acl.return_value = {}
@@ -1272,10 +1272,7 @@ class TestResourceDeleterAdditionalCoverage:
     def test_delete_waf_rulegroup_via_delete_resource(self, mock_create_client: Mock) -> None:
         """Test WAF RuleGroup deletion through delete_resource method."""
         mock_client = Mock()
-        mock_client.get_rule_group.return_value = {
-            "RuleGroup": {},
-            "LockToken": "lock-token-456"
-        }
+        mock_client.get_rule_group.return_value = {"RuleGroup": {}, "LockToken": "lock-token-456"}
         mock_client.delete_rule_group.return_value = {}
         mock_create_client.return_value = mock_client
 
@@ -1303,13 +1300,10 @@ class TestResourceDeleterAdditionalCoverage:
         # Versioning fails, triggers fallback
         version_paginator = Mock()
         version_paginator.paginate.side_effect = ClientError(
-            {"Error": {"Code": "NoSuchVersion", "Message": "Versioning not enabled"}},
-            "ListObjectVersions"
+            {"Error": {"Code": "NoSuchVersion", "Message": "Versioning not enabled"}}, "ListObjectVersions"
         )
         object_paginator = Mock()
-        object_paginator.paginate.return_value = [
-            {"Contents": [{"Key": "file1.txt"}, {"Key": "file2.txt"}]}
-        ]
+        object_paginator.paginate.return_value = [{"Contents": [{"Key": "file1.txt"}, {"Key": "file2.txt"}]}]
 
         def get_paginator(operation):
             if operation == "list_object_versions":
@@ -1342,9 +1336,7 @@ class TestResourceDeleterAdditionalCoverage:
         def get_paginator_side_effect(operation):
             paginator = Mock()
             if operation == "list_access_keys":
-                paginator.paginate.return_value = [
-                    {"AccessKeyMetadata": [{"AccessKeyId": "AKIAIOSFODNN7EXAMPLE"}]}
-                ]
+                paginator.paginate.return_value = [{"AccessKeyMetadata": [{"AccessKeyId": "AKIAIOSFODNN7EXAMPLE"}]}]
             elif operation == "list_mfa_devices":
                 paginator.paginate.return_value = [{"MFADevices": []}]
             else:
@@ -1409,8 +1401,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_client.deactivate_mfa_device.return_value = {}
         # Hardware MFA device cannot be deleted
         mock_client.delete_virtual_mfa_device.side_effect = ClientError(
-            {"Error": {"Code": "InvalidInput", "Message": "Cannot delete hardware device"}},
-            "DeleteVirtualMFADevice"
+            {"Error": {"Code": "InvalidInput", "Message": "Cannot delete hardware device"}}, "DeleteVirtualMFADevice"
         )
         mock_paginator = Mock()
         mock_paginator.paginate.return_value = [{}]
@@ -1438,9 +1429,7 @@ class TestResourceDeleterAdditionalCoverage:
         def get_paginator_side_effect(operation):
             paginator = Mock()
             if operation == "list_signing_certificates":
-                paginator.paginate.return_value = [
-                    {"Certificates": [{"CertificateId": "cert-123"}]}
-                ]
+                paginator.paginate.return_value = [{"Certificates": [{"CertificateId": "cert-123"}]}]
             elif operation == "list_ssh_public_keys":
                 paginator.paginate.return_value = [{}]
             else:
@@ -1471,9 +1460,7 @@ class TestResourceDeleterAdditionalCoverage:
         def get_paginator_side_effect(operation):
             paginator = Mock()
             if operation == "list_ssh_public_keys":
-                paginator.paginate.return_value = [
-                    {"SSHPublicKeys": [{"SSHPublicKeyId": "ssh-key-123"}]}
-                ]
+                paginator.paginate.return_value = [{"SSHPublicKeys": [{"SSHPublicKeyId": "ssh-key-123"}]}]
             else:
                 paginator.paginate.return_value = [{}]
             return paginator
@@ -1502,9 +1489,7 @@ class TestResourceDeleterAdditionalCoverage:
         mock_paginator.paginate.return_value = [{}]
         mock_client.get_paginator.return_value = mock_paginator
         mock_client.list_service_specific_credentials.return_value = {
-            "ServiceSpecificCredentials": [
-                {"ServiceSpecificCredentialId": "cred-123", "ServiceName": "codecommit"}
-            ]
+            "ServiceSpecificCredentials": [{"ServiceSpecificCredentialId": "cred-123", "ServiceName": "codecommit"}]
         }
         mock_client.delete_service_specific_credential.return_value = {}
         mock_client.delete_login_profile.side_effect = ClientError(

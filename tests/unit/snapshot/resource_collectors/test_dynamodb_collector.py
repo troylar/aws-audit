@@ -59,9 +59,7 @@ class TestDynamoDBCollectorCollect:
                 "CreationDateTime": created_at,
             }
         }
-        mock_client.list_tags_of_resource.return_value = {
-            "Tags": [{"Key": "Environment", "Value": "test"}]
-        }
+        mock_client.list_tags_of_resource.return_value = {"Tags": [{"Key": "Environment", "Value": "test"}]}
         mock_create_client.return_value = mock_client
 
         collector = DynamoDBCollector(session=mock_session, region="us-east-1")
@@ -79,9 +77,7 @@ class TestDynamoDBCollectorCollect:
         """Test collecting multiple tables."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [
-            {"TableNames": ["table-1", "table-2"]}
-        ]
+        mock_paginator.paginate.return_value = [{"TableNames": ["table-1", "table-2"]}]
         mock_client.get_paginator.return_value = mock_paginator
 
         def describe_table_side_effect(**kwargs):
@@ -109,9 +105,7 @@ class TestDynamoDBCollectorCollect:
         """Test collecting continues when describe_table fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [
-            {"TableNames": ["good-table", "bad-table"]}
-        ]
+        mock_paginator.paginate.return_value = [{"TableNames": ["good-table", "bad-table"]}]
         mock_client.get_paginator.return_value = mock_paginator
 
         def describe_table_side_effect(**kwargs):

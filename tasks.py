@@ -47,12 +47,12 @@ def test_integration(c, verbose=False):
 
 @task
 def format(c, check=False):
-    """Format code with black.
+    """Format code with ruff.
 
     Args:
         check: Only check formatting without making changes
     """
-    cmd = "black src/ tests/"
+    cmd = "ruff format src/ tests/"
     if check:
         cmd += " --check"
     c.run(cmd)

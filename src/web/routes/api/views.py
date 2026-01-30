@@ -105,10 +105,7 @@ async def get_default_view():
         "id": None,
         "name": "Default View",
         "view_config": {
-            "columns": [
-                {"field": c["field"], "label": c["label"], "visible": c["default"]}
-                for c in AVAILABLE_COLUMNS
-            ],
+            "columns": [{"field": c["field"], "label": c["label"], "visible": c["default"]} for c in AVAILABLE_COLUMNS],
             "sort_by": "name",
             "sort_order": "asc",
         },

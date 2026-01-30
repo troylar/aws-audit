@@ -70,14 +70,20 @@ class TestELBCollectorCollect:
 
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
         mock_elbv2_paginator = MagicMock()
-        mock_elbv2_paginator.paginate.return_value = [{
-            "LoadBalancers": [{
-                "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/my-alb/12345",
-                "LoadBalancerName": "my-alb",
-                "Type": "application",
-                "CreatedTime": created_at,
-            }]
-        }]
+        mock_elbv2_paginator.paginate.return_value = [
+            {
+                "LoadBalancers": [
+                    {
+                        "LoadBalancerArn": (
+                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/my-alb/12345"
+                        ),
+                        "LoadBalancerName": "my-alb",
+                        "Type": "application",
+                        "CreatedTime": created_at,
+                    }
+                ]
+            }
+        ]
         mock_elbv2_client.get_paginator.return_value = mock_elbv2_paginator
         mock_elbv2_client.describe_tags.return_value = {
             "TagDescriptions": [{"Tags": [{"Key": "Environment", "Value": "test"}]}]
@@ -115,13 +121,19 @@ class TestELBCollectorCollect:
         mock_elb_client = MagicMock()
 
         mock_elbv2_paginator = MagicMock()
-        mock_elbv2_paginator.paginate.return_value = [{
-            "LoadBalancers": [{
-                "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/net/my-nlb/12345",
-                "LoadBalancerName": "my-nlb",
-                "Type": "network",
-            }]
-        }]
+        mock_elbv2_paginator.paginate.return_value = [
+            {
+                "LoadBalancers": [
+                    {
+                        "LoadBalancerArn": (
+                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/net/my-nlb/12345"
+                        ),
+                        "LoadBalancerName": "my-nlb",
+                        "Type": "network",
+                    }
+                ]
+            }
+        ]
         mock_elbv2_client.get_paginator.return_value = mock_elbv2_paginator
         mock_elbv2_client.describe_tags.return_value = {"TagDescriptions": []}
 
@@ -154,13 +166,19 @@ class TestELBCollectorCollect:
         mock_elb_client = MagicMock()
 
         mock_elbv2_paginator = MagicMock()
-        mock_elbv2_paginator.paginate.return_value = [{
-            "LoadBalancers": [{
-                "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/gwy/my-gwlb/12345",
-                "LoadBalancerName": "my-gwlb",
-                "Type": "gateway",
-            }]
-        }]
+        mock_elbv2_paginator.paginate.return_value = [
+            {
+                "LoadBalancers": [
+                    {
+                        "LoadBalancerArn": (
+                            "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/gwy/my-gwlb/12345"
+                        ),
+                        "LoadBalancerName": "my-gwlb",
+                        "Type": "gateway",
+                    }
+                ]
+            }
+        ]
         mock_elbv2_client.get_paginator.return_value = mock_elbv2_paginator
         mock_elbv2_client.describe_tags.return_value = {"TagDescriptions": []}
 
@@ -198,12 +216,16 @@ class TestELBCollectorCollect:
 
         created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
         mock_elb_paginator = MagicMock()
-        mock_elb_paginator.paginate.return_value = [{
-            "LoadBalancerDescriptions": [{
-                "LoadBalancerName": "my-classic-elb",
-                "CreatedTime": created_at,
-            }]
-        }]
+        mock_elb_paginator.paginate.return_value = [
+            {
+                "LoadBalancerDescriptions": [
+                    {
+                        "LoadBalancerName": "my-classic-elb",
+                        "CreatedTime": created_at,
+                    }
+                ]
+            }
+        ]
         mock_elb_client.get_paginator.return_value = mock_elb_paginator
         mock_elb_client.describe_tags.return_value = {
             "TagDescriptions": [{"Tags": [{"Key": "Environment", "Value": "prod"}]}]
@@ -237,22 +259,30 @@ class TestELBCollectorCollect:
         mock_elb_client = MagicMock()
 
         mock_elbv2_paginator = MagicMock()
-        mock_elbv2_paginator.paginate.return_value = [{
-            "LoadBalancers": [{
-                "LoadBalancerArn": "arn:1",
-                "LoadBalancerName": "my-alb",
-                "Type": "application",
-            }]
-        }]
+        mock_elbv2_paginator.paginate.return_value = [
+            {
+                "LoadBalancers": [
+                    {
+                        "LoadBalancerArn": "arn:1",
+                        "LoadBalancerName": "my-alb",
+                        "Type": "application",
+                    }
+                ]
+            }
+        ]
         mock_elbv2_client.get_paginator.return_value = mock_elbv2_paginator
         mock_elbv2_client.describe_tags.return_value = {"TagDescriptions": []}
 
         mock_elb_paginator = MagicMock()
-        mock_elb_paginator.paginate.return_value = [{
-            "LoadBalancerDescriptions": [{
-                "LoadBalancerName": "my-classic",
-            }]
-        }]
+        mock_elb_paginator.paginate.return_value = [
+            {
+                "LoadBalancerDescriptions": [
+                    {
+                        "LoadBalancerName": "my-classic",
+                    }
+                ]
+            }
+        ]
         mock_elb_client.get_paginator.return_value = mock_elb_paginator
         mock_elb_client.describe_tags.return_value = {"TagDescriptions": []}
 
@@ -283,13 +313,17 @@ class TestELBCollectorCollect:
         mock_elb_client = MagicMock()
 
         mock_elbv2_paginator = MagicMock()
-        mock_elbv2_paginator.paginate.return_value = [{
-            "LoadBalancers": [{
-                "LoadBalancerArn": "arn:1",
-                "LoadBalancerName": "my-alb",
-                "Type": "application",
-            }]
-        }]
+        mock_elbv2_paginator.paginate.return_value = [
+            {
+                "LoadBalancers": [
+                    {
+                        "LoadBalancerArn": "arn:1",
+                        "LoadBalancerName": "my-alb",
+                        "Type": "application",
+                    }
+                ]
+            }
+        ]
         mock_elbv2_client.get_paginator.return_value = mock_elbv2_paginator
         mock_elbv2_client.describe_tags.side_effect = Exception("Access denied")
 
@@ -326,9 +360,7 @@ class TestELBCollectorCollect:
         mock_elbv2_client.get_paginator.return_value = mock_elbv2_paginator
 
         mock_elb_paginator = MagicMock()
-        mock_elb_paginator.paginate.return_value = [{
-            "LoadBalancerDescriptions": [{"LoadBalancerName": "my-classic"}]
-        }]
+        mock_elb_paginator.paginate.return_value = [{"LoadBalancerDescriptions": [{"LoadBalancerName": "my-classic"}]}]
         mock_elb_client.get_paginator.return_value = mock_elb_paginator
         mock_elb_client.describe_tags.side_effect = Exception("Access denied")
 
@@ -421,13 +453,17 @@ class TestELBCollectorCollect:
         mock_elb_client = MagicMock()
 
         mock_elbv2_paginator = MagicMock()
-        mock_elbv2_paginator.paginate.return_value = [{
-            "LoadBalancers": [{
-                "LoadBalancerArn": "arn:1",
-                "LoadBalancerName": "my-lb",
-                "Type": "unknown_type",
-            }]
-        }]
+        mock_elbv2_paginator.paginate.return_value = [
+            {
+                "LoadBalancers": [
+                    {
+                        "LoadBalancerArn": "arn:1",
+                        "LoadBalancerName": "my-lb",
+                        "Type": "unknown_type",
+                    }
+                ]
+            }
+        ]
         mock_elbv2_client.get_paginator.return_value = mock_elbv2_paginator
         mock_elbv2_client.describe_tags.return_value = {"TagDescriptions": []}
 

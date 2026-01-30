@@ -113,7 +113,7 @@ def detect_format(filepath: str) -> str:
     elif extension == ".txt":
         return "txt"
     else:
-        raise ValueError(f"Unsupported export format '{extension}'. " f"Supported formats: .json, .csv, .txt")
+        raise ValueError(f"Unsupported export format '{extension}'. Supported formats: .json, .csv, .txt")
 
 
 def export_report_json(

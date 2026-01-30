@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -41,11 +40,7 @@ class TestGroupStoreBasicCRUD:
 
     def test_save_new_group(self, group_store):
         """Test creating a new group."""
-        group = ResourceGroup(
-            name="test-group",
-            description="A test group",
-            source_snapshot="test-snapshot"
-        )
+        group = ResourceGroup(name="test-group", description="A test group", source_snapshot="test-snapshot")
 
         group_id = group_store.save(group)
 
@@ -57,13 +52,9 @@ class TestGroupStoreBasicCRUD:
             GroupMember(resource_name="bucket-1", resource_type="s3:bucket"),
             GroupMember(resource_name="bucket-2", resource_type="s3:bucket"),
         ]
-        group = ResourceGroup(
-            name="test-group",
-            description="A test group",
-            members=members
-        )
+        group = ResourceGroup(name="test-group", description="A test group", members=members)
 
-        group_id = group_store.save(group)
+        group_store.save(group)
         loaded = group_store.load("test-group")
 
         assert loaded is not None
@@ -72,11 +63,7 @@ class TestGroupStoreBasicCRUD:
 
     def test_load_existing_group(self, group_store):
         """Test loading an existing group."""
-        group = ResourceGroup(
-            name="my-group",
-            description="My test group",
-            source_snapshot="snap-1"
-        )
+        group = ResourceGroup(name="my-group", description="My test group", source_snapshot="snap-1")
         group_store.save(group)
 
         loaded = group_store.load("my-group")
@@ -251,9 +238,7 @@ class TestGroupStoreMemberManagement:
 
     def test_get_members_with_pagination(self, group_store):
         """Test getting members with pagination."""
-        members = [
-            GroupMember(resource_name=f"m{i}", resource_type="type") for i in range(10)
-        ]
+        members = [GroupMember(resource_name=f"m{i}", resource_type="type") for i in range(10)]
         group = ResourceGroup(name="paginate-group", members=members)
         group_store.save(group)
 
@@ -294,6 +279,7 @@ class TestGroupStoreComparison:
 
         # Create a snapshot with resources
         from src.models import Resource, Snapshot
+
         snapshot = Snapshot(
             name="test-snap",
             created_at=datetime.now(),
@@ -305,16 +291,16 @@ class TestGroupStoreComparison:
                     resource_type="s3:bucket",
                     region="global",
                     name="common-resource",
-                    config_hash="hash1"
+                    config_hash="hash1",
                 ),
                 Resource(
                     arn="arn:aws:s3:::extra-resource",
                     resource_type="s3:bucket",
                     region="global",
                     name="extra-resource",
-                    config_hash="hash2"
+                    config_hash="hash2",
                 ),
-            ]
+            ],
         )
         snapshot_store.save(snapshot)
 
@@ -335,6 +321,7 @@ class TestGroupStoreCreateFromSnapshot:
     def test_create_from_snapshot(self, group_store, snapshot_store):
         """Test creating a group from a snapshot."""
         from datetime import datetime
+
         from src.models import Resource, Snapshot
 
         snapshot = Snapshot(
@@ -348,16 +335,16 @@ class TestGroupStoreCreateFromSnapshot:
                     resource_type="s3:bucket",
                     region="global",
                     name="bucket-1",
-                    config_hash="hash1"
+                    config_hash="hash1",
                 ),
                 Resource(
                     arn="arn:aws:s3:::bucket-2",
                     resource_type="s3:bucket",
                     region="global",
                     name="bucket-2",
-                    config_hash="hash2"
+                    config_hash="hash2",
                 ),
-            ]
+            ],
         )
         snapshot_store.save(snapshot)
 
@@ -371,6 +358,7 @@ class TestGroupStoreCreateFromSnapshot:
     def test_create_from_snapshot_with_type_filter(self, group_store, snapshot_store):
         """Test creating a group from a snapshot with type filter."""
         from datetime import datetime
+
         from src.models import Resource, Snapshot
 
         snapshot = Snapshot(
@@ -384,24 +372,20 @@ class TestGroupStoreCreateFromSnapshot:
                     resource_type="s3:bucket",
                     region="global",
                     name="bucket-1",
-                    config_hash="hash1"
+                    config_hash="hash1",
                 ),
                 Resource(
                     arn="arn:aws:lambda:us-east-1:123:function:func-1",
                     resource_type="lambda:function",
                     region="us-east-1",
                     name="func-1",
-                    config_hash="hash2"
+                    config_hash="hash2",
                 ),
-            ]
+            ],
         )
         snapshot_store.save(snapshot)
 
-        count = group_store.create_from_snapshot(
-            "filtered-group",
-            "filter-snap",
-            type_filter="s3:bucket"
-        )
+        count = group_store.create_from_snapshot("filtered-group", "filter-snap", type_filter="s3:bucket")
 
         assert count == 1
         loaded = group_store.load("filtered-group")
@@ -511,12 +495,7 @@ class TestResourceGroupModel:
             GroupMember(resource_name="r1", resource_type="t1"),
             GroupMember(resource_name="r2", resource_type="t2"),
         ]
-        group = ResourceGroup(
-            name="full",
-            description="A full group",
-            members=members,
-            resource_count=2
-        )
+        group = ResourceGroup(name="full", description="A full group", members=members, resource_count=2)
 
         assert group.name == "full"
         assert len(group.members) == 2
@@ -529,9 +508,7 @@ class TestGroupMemberModel:
     def test_create_member(self):
         """Test creating a group member."""
         member = GroupMember(
-            resource_name="my-resource",
-            resource_type="s3:bucket",
-            original_arn="arn:aws:s3:::my-resource"
+            resource_name="my-resource", resource_type="s3:bucket", original_arn="arn:aws:s3:::my-resource"
         )
 
         assert member.resource_name == "my-resource"
@@ -540,10 +517,7 @@ class TestGroupMemberModel:
 
     def test_create_member_without_arn(self):
         """Test creating a group member without original ARN."""
-        member = GroupMember(
-            resource_name="my-resource",
-            resource_type="s3:bucket"
-        )
+        member = GroupMember(resource_name="my-resource", resource_type="s3:bucket")
 
         assert member.original_arn is None
 
@@ -580,9 +554,24 @@ class TestGetResourcesInGroup:
             snapshot_store,
             "test-snapshot",
             [
-                {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket", "name": "bucket-1", "region": "us-east-1"},
-                {"arn": "arn:aws:s3:::bucket-2", "resource_type": "s3:bucket", "name": "bucket-2", "region": "us-east-1"},
-                {"arn": "arn:aws:s3:::bucket-3", "resource_type": "s3:bucket", "name": "bucket-3", "region": "us-west-2"},
+                {
+                    "arn": "arn:aws:s3:::bucket-1",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-1",
+                    "region": "us-east-1",
+                },
+                {
+                    "arn": "arn:aws:s3:::bucket-2",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-2",
+                    "region": "us-east-1",
+                },
+                {
+                    "arn": "arn:aws:s3:::bucket-3",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-3",
+                    "region": "us-west-2",
+                },
             ],
         )
 
@@ -608,7 +597,12 @@ class TestGetResourcesInGroup:
             snapshot_store,
             "test-snapshot",
             [
-                {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket", "name": "bucket-1", "region": "us-east-1"},
+                {
+                    "arn": "arn:aws:s3:::bucket-1",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-1",
+                    "region": "us-east-1",
+                },
             ],
         )
 
@@ -640,7 +634,12 @@ class TestGetResourcesInGroup:
         """Test pagination works correctly."""
         # Create snapshot with many resources
         resources = [
-            {"arn": f"arn:aws:s3:::bucket-{i}", "resource_type": "s3:bucket", "name": f"bucket-{i}", "region": "us-east-1"}
+            {
+                "arn": f"arn:aws:s3:::bucket-{i}",
+                "resource_type": "s3:bucket",
+                "name": f"bucket-{i}",
+                "region": "us-east-1",
+            }
             for i in range(10)
         ]
         self._create_snapshot(snapshot_store, "test-snapshot", resources)
@@ -696,9 +695,24 @@ class TestGetResourcesNotInGroup:
             snapshot_store,
             "test-snapshot",
             [
-                {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket", "name": "bucket-1", "region": "us-east-1"},
-                {"arn": "arn:aws:s3:::bucket-2", "resource_type": "s3:bucket", "name": "bucket-2", "region": "us-east-1"},
-                {"arn": "arn:aws:s3:::bucket-3", "resource_type": "s3:bucket", "name": "bucket-3", "region": "us-west-2"},
+                {
+                    "arn": "arn:aws:s3:::bucket-1",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-1",
+                    "region": "us-east-1",
+                },
+                {
+                    "arn": "arn:aws:s3:::bucket-2",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-2",
+                    "region": "us-east-1",
+                },
+                {
+                    "arn": "arn:aws:s3:::bucket-3",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-3",
+                    "region": "us-west-2",
+                },
             ],
         )
 
@@ -721,7 +735,12 @@ class TestGetResourcesNotInGroup:
             snapshot_store,
             "test-snapshot",
             [
-                {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket", "name": "bucket-1", "region": "us-east-1"},
+                {
+                    "arn": "arn:aws:s3:::bucket-1",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-1",
+                    "region": "us-east-1",
+                },
             ],
         )
 
@@ -742,8 +761,18 @@ class TestGetResourcesNotInGroup:
             snapshot_store,
             "test-snapshot",
             [
-                {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket", "name": "bucket-1", "region": "us-east-1"},
-                {"arn": "arn:aws:s3:::bucket-2", "resource_type": "s3:bucket", "name": "bucket-2", "region": "us-east-1"},
+                {
+                    "arn": "arn:aws:s3:::bucket-1",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-1",
+                    "region": "us-east-1",
+                },
+                {
+                    "arn": "arn:aws:s3:::bucket-2",
+                    "resource_type": "s3:bucket",
+                    "name": "bucket-2",
+                    "region": "us-east-1",
+                },
             ],
         )
 
@@ -775,7 +804,12 @@ class TestGetResourcesNotInGroup:
         """Test pagination works correctly."""
         # Create snapshot with many resources
         resources = [
-            {"arn": f"arn:aws:s3:::bucket-{i}", "resource_type": "s3:bucket", "name": f"bucket-{i}", "region": "us-east-1"}
+            {
+                "arn": f"arn:aws:s3:::bucket-{i}",
+                "resource_type": "s3:bucket",
+                "name": f"bucket-{i}",
+                "region": "us-east-1",
+            }
             for i in range(10)
         ]
         self._create_snapshot(snapshot_store, "test-snapshot", resources)
@@ -804,8 +838,18 @@ class TestGetResourcesNotInGroup:
             snapshot_store,
             "test-snapshot",
             [
-                {"arn": "arn:aws:s3:::my-resource", "resource_type": "s3:bucket", "name": "my-resource", "region": "us-east-1"},
-                {"arn": "arn:aws:lambda:us-east-1:123:function:my-resource", "resource_type": "lambda:function", "name": "my-resource", "region": "us-east-1"},
+                {
+                    "arn": "arn:aws:s3:::my-resource",
+                    "resource_type": "s3:bucket",
+                    "name": "my-resource",
+                    "region": "us-east-1",
+                },
+                {
+                    "arn": "arn:aws:lambda:us-east-1:123:function:my-resource",
+                    "resource_type": "lambda:function",
+                    "name": "my-resource",
+                    "region": "us-east-1",
+                },
             ],
         )
 

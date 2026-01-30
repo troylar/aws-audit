@@ -1,9 +1,5 @@
 """Unit tests for copilot template validation (T033-T035, T053-T054)."""
 
-from pathlib import Path
-
-import pytest
-
 
 def estimate_token_count(text: str) -> int:
     """Estimate token count for GPT models.
@@ -43,7 +39,7 @@ class TestTokenLimits:
         token_estimate = estimate_token_count(content)
 
         # Base instructions should be under 4000 tokens
-        assert token_estimate < 4000, f"copilot-instructions.md has ~{token_estimate} tokens, " f"should be under 4000"
+        assert token_estimate < 4000, f"copilot-instructions.md has ~{token_estimate} tokens, should be under 4000"
 
     def test_generate_terraform_under_2000_tokens(self) -> None:
         """generate-terraform.prompt.md should be under 2000 tokens (T034)."""
@@ -51,9 +47,7 @@ class TestTokenLimits:
         token_estimate = estimate_token_count(content)
 
         # Task prompts should be under 2000 tokens
-        assert token_estimate < 2000, (
-            f"generate-terraform.prompt.md has ~{token_estimate} tokens, " f"should be under 2000"
-        )
+        assert token_estimate < 2000, f"generate-terraform.prompt.md has ~{token_estimate} tokens, should be under 2000"
 
     def test_generate_cdk_typescript_under_2000_tokens(self) -> None:
         """generate-cdk-typescript.prompt.md should be under 2000 tokens (T053)."""
@@ -62,7 +56,7 @@ class TestTokenLimits:
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-cdk-typescript.prompt.md has ~{token_estimate} tokens, " f"should be under 2000"
+            f"generate-cdk-typescript.prompt.md has ~{token_estimate} tokens, should be under 2000"
         )
 
     def test_generate_cdk_python_under_2000_tokens(self) -> None:
@@ -72,7 +66,7 @@ class TestTokenLimits:
 
         # Task prompts should be under 2000 tokens
         assert token_estimate < 2000, (
-            f"generate-cdk-python.prompt.md has ~{token_estimate} tokens, " f"should be under 2000"
+            f"generate-cdk-python.prompt.md has ~{token_estimate} tokens, should be under 2000"
         )
 
 

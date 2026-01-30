@@ -247,7 +247,10 @@ class TestSecurityReporter:
 
     def test_format_terminal_with_long_description(self) -> None:
         """Test that long descriptions are truncated in terminal output."""
-        long_description = "This is a very long description that exceeds sixty characters and should be truncated when displayed in the terminal table output."
+        long_description = (
+            "This is a very long description that exceeds sixty characters "
+            "and should be truncated when displayed in the terminal table output."
+        )
 
         finding = SecurityFinding(
             resource_arn="arn:aws:s3:::test-bucket",

@@ -152,9 +152,7 @@ async def create_saved_filter(filter_data: SavedFilter):
         return {"id": cursor.lastrowid, "message": "Filter saved"}
     except Exception as e:
         if "UNIQUE constraint" in str(e):
-            raise HTTPException(
-                status_code=400, detail=f"Filter with name '{filter_data.name}' already exists"
-            )
+            raise HTTPException(status_code=400, detail=f"Filter with name '{filter_data.name}' already exists")
         raise HTTPException(status_code=500, detail=str(e))
 
 

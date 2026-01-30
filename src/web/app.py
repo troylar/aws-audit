@@ -31,7 +31,7 @@ def get_templates() -> Jinja2Templates:
         """Truncate ARN for display."""
         if len(arn) <= max_length:
             return arn
-        return arn[:max_length - 3] + "..."
+        return arn[: max_length - 3] + "..."
 
     def service_from_type(resource_type: str) -> str:
         """Extract service name from resource type."""
@@ -85,10 +85,12 @@ def create_app(storage_path: Optional[str] = None) -> FastAPI:
 
     # Include API routes
     from .routes.api import router as api_router
+
     app.include_router(api_router, prefix="/api")
 
     # Include page routes
     from .routes import pages
+
     app.include_router(pages.router)
 
     # Add templates to app state for access in routes

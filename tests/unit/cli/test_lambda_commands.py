@@ -1,7 +1,6 @@
 """Tests for CLI lambda commands."""
 
 import base64
-import json
 import os
 import tempfile
 import zipfile
@@ -41,7 +40,7 @@ def sample_js_lambda_code():
     """Create a sample JavaScript Lambda deployment package."""
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("index.js", 'exports.handler = async (event) => {\n    return { statusCode: 200 };\n};\n')
+        zf.writestr("index.js", "exports.handler = async (event) => {\n    return { statusCode: 200 };\n};\n")
         zf.writestr("package.json", '{"name": "my-lambda", "version": "1.0.0"}\n')
     zip_buffer.seek(0)
     return base64.b64encode(zip_buffer.read()).decode("utf-8")
@@ -249,9 +248,7 @@ class TestLambdaExtractCommand:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = os.path.join(tmpdir, "lambda_code")
 
-            result = cli_runner.invoke(
-                app, ["lambda", "extract", "my-python-func", "--output", output_dir]
-            )
+            result = cli_runner.invoke(app, ["lambda", "extract", "my-python-func", "--output", output_dir])
 
             assert result.exit_code == 0
             assert "my-python-func" in result.stdout
@@ -327,9 +324,7 @@ class TestLambdaExtractCommand:
         mock_storage_cls.return_value = mock_storage
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = cli_runner.invoke(
-                app, ["lambda", "extract", "large-func", "--output", tmpdir]
-            )
+            result = cli_runner.invoke(app, ["lambda", "extract", "large-func", "--output", tmpdir])
 
             assert "No code stored" in result.stdout or ">10MB" in result.stdout
 
@@ -480,8 +475,20 @@ class TestLambdaDiffCommand:
             },
         )
 
-        snapshot1 = Snapshot(name="snap1", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource])
-        snapshot2 = Snapshot(name="snap2", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource])
+        snapshot1 = Snapshot(
+            name="snap1",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource],
+        )
+        snapshot2 = Snapshot(
+            name="snap2",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource],
+        )
 
         mock_storage.load_snapshot.side_effect = lambda name: snapshot1 if name == "snap1" else snapshot2
         mock_storage_cls.return_value = mock_storage
@@ -540,8 +547,20 @@ class TestLambdaDiffCommand:
             },
         )
 
-        snapshot1 = Snapshot(name="snap1", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource1])
-        snapshot2 = Snapshot(name="snap2", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource2])
+        snapshot1 = Snapshot(
+            name="snap1",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource1],
+        )
+        snapshot2 = Snapshot(
+            name="snap2",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource2],
+        )
 
         mock_storage.load_snapshot.side_effect = lambda name: snapshot1 if name == "snap1" else snapshot2
         mock_storage_cls.return_value = mock_storage
@@ -596,8 +615,20 @@ class TestLambdaDiffCommand:
             },
         )
 
-        snapshot1 = Snapshot(name="snap1", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource1])
-        snapshot2 = Snapshot(name="snap2", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource2])
+        snapshot1 = Snapshot(
+            name="snap1",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource1],
+        )
+        snapshot2 = Snapshot(
+            name="snap2",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource2],
+        )
 
         mock_storage.load_snapshot.side_effect = lambda name: snapshot1 if name == "snap1" else snapshot2
         mock_storage_cls.return_value = mock_storage
@@ -626,7 +657,13 @@ class TestLambdaDiffCommand:
         mock_storage = MagicMock()
 
         # Empty snapshots (no Lambda functions)
-        snapshot = Snapshot(name="snap", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[])
+        snapshot = Snapshot(
+            name="snap",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[],
+        )
         mock_storage.load_snapshot.return_value = snapshot
         mock_storage_cls.return_value = mock_storage
 
@@ -673,8 +710,20 @@ class TestLambdaDiffCommand:
             },
         )
 
-        snapshot1 = Snapshot(name="snap1", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource1])
-        snapshot2 = Snapshot(name="snap2", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource2])
+        snapshot1 = Snapshot(
+            name="snap1",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource1],
+        )
+        snapshot2 = Snapshot(
+            name="snap2",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource2],
+        )
 
         mock_storage.load_snapshot.side_effect = lambda name: snapshot1 if name == "snap1" else snapshot2
         mock_storage_cls.return_value = mock_storage
@@ -701,7 +750,13 @@ class TestLambdaDiffCommand:
             },
         )
 
-        snapshot = Snapshot(name="snap", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource])
+        snapshot = Snapshot(
+            name="snap",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource],
+        )
         mock_storage.load_snapshot.return_value = snapshot
         mock_storage_cls.return_value = mock_storage
 
@@ -729,7 +784,13 @@ class TestLambdaEdgeCases:
             raw_config=None,
         )
 
-        snapshot = Snapshot(name="snap", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource])
+        snapshot = Snapshot(
+            name="snap",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource],
+        )
         mock_storage.load_snapshot.return_value = snapshot
         mock_storage_cls.return_value = mock_storage
 
@@ -752,7 +813,13 @@ class TestLambdaEdgeCases:
             raw_config={"Runtime": "python3.11", "_code": {}},
         )
 
-        snapshot = Snapshot(name="snap", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource])
+        snapshot = Snapshot(
+            name="snap",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource],
+        )
         mock_storage.load_snapshot.return_value = snapshot
         mock_storage_cls.return_value = mock_storage
 
@@ -778,7 +845,13 @@ class TestLambdaEdgeCases:
             },
         )
 
-        snapshot = Snapshot(name="snap", created_at=datetime.now(timezone.utc), account_id="123456789012", regions=["us-east-1"], resources=[resource])
+        snapshot = Snapshot(
+            name="snap",
+            created_at=datetime.now(timezone.utc),
+            account_id="123456789012",
+            regions=["us-east-1"],
+            resources=[resource],
+        )
         mock_storage.load_snapshot.return_value = snapshot
         mock_storage_cls.return_value = mock_storage
 

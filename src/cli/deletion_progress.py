@@ -61,14 +61,14 @@ class DeletionProgressDisplay:
     TIER_EMOJIS: Dict[int, str] = {
         1: "🚀",  # Application Layer - rockets/apps
         2: "💻",  # Compute Layer - computers
-        3: "⚖️",   # Load Balancers - balance scales
+        3: "⚖️",  # Load Balancers - balance scales
         4: "🔌",  # Networking Accessories - plugs
-        5: "🛡️",   # Security Groups - shields
-        6: "🛤️",   # Subnets & Route Tables - railway tracks
+        5: "🛡️",  # Security Groups - shields
+        6: "🛤️",  # Subnets & Route Tables - railway tracks
         7: "🌐",  # Internet Gateways - globe
         8: "🏠",  # VPCs - houses/networks
         9: "📦",  # Standalone Resources - packages
-        10: "🔑", # IAM Resources - keys
+        10: "🔑",  # IAM Resources - keys
     }
 
     # Threshold for switching to compact mode
@@ -170,7 +170,11 @@ class DeletionProgressDisplay:
             tier_name = self.TIER_NAMES.get(tier, f"Tier {tier}")
 
             # Count completed in this tier
-            tier_done = sum(1 for r in tier_resources if r.status in (ResourceStatus.SUCCEEDED, ResourceStatus.SKIPPED, ResourceStatus.FAILED))
+            tier_done = sum(
+                1
+                for r in tier_resources
+                if r.status in (ResourceStatus.SUCCEEDED, ResourceStatus.SKIPPED, ResourceStatus.FAILED)
+            )
             tier_failed = sum(1 for r in tier_resources if r.status == ResourceStatus.FAILED)
             tier_skipped = sum(1 for r in tier_resources if r.status == ResourceStatus.SKIPPED)
 
@@ -404,7 +408,6 @@ class DeletionProgressDisplay:
 
     def print_final_summary(self) -> None:
         """Print a final summary report of all deletions organized by tier."""
-        from rich.panel import Panel
         from rich.table import Table
 
         self.console.print()

@@ -2,8 +2,6 @@
 
 from datetime import datetime, timezone
 
-import pytest
-
 from src.models.resource import Resource
 from src.snapshot.filter import ResourceFilter
 
@@ -109,14 +107,8 @@ class TestResourceFilterDateFiltering:
     def test_before_date_filter_excludes_newer(self):
         """Test before_date excludes resources created after."""
         cutoff = datetime(2025, 1, 15, tzinfo=timezone.utc)
-        old_resource = make_resource(
-            name="old",
-            created_at=datetime(2025, 1, 1, tzinfo=timezone.utc)
-        )
-        new_resource = make_resource(
-            name="new",
-            created_at=datetime(2025, 1, 20, tzinfo=timezone.utc)
-        )
+        old_resource = make_resource(name="old", created_at=datetime(2025, 1, 1, tzinfo=timezone.utc))
+        new_resource = make_resource(name="new", created_at=datetime(2025, 1, 20, tzinfo=timezone.utc))
 
         filter = ResourceFilter(before_date=cutoff)
         result = filter.apply([old_resource, new_resource])
@@ -127,10 +119,7 @@ class TestResourceFilterDateFiltering:
     def test_before_date_filter_exclusive(self):
         """Test before_date is exclusive (same date excluded)."""
         cutoff = datetime(2025, 1, 15, tzinfo=timezone.utc)
-        exact_resource = make_resource(
-            name="exact",
-            created_at=datetime(2025, 1, 15, tzinfo=timezone.utc)
-        )
+        exact_resource = make_resource(name="exact", created_at=datetime(2025, 1, 15, tzinfo=timezone.utc))
 
         filter = ResourceFilter(before_date=cutoff)
         result = filter.apply([exact_resource])
@@ -140,14 +129,8 @@ class TestResourceFilterDateFiltering:
     def test_after_date_filter_excludes_older(self):
         """Test after_date excludes resources created before."""
         cutoff = datetime(2025, 1, 15, tzinfo=timezone.utc)
-        old_resource = make_resource(
-            name="old",
-            created_at=datetime(2025, 1, 1, tzinfo=timezone.utc)
-        )
-        new_resource = make_resource(
-            name="new",
-            created_at=datetime(2025, 1, 20, tzinfo=timezone.utc)
-        )
+        old_resource = make_resource(name="old", created_at=datetime(2025, 1, 1, tzinfo=timezone.utc))
+        new_resource = make_resource(name="new", created_at=datetime(2025, 1, 20, tzinfo=timezone.utc))
 
         filter = ResourceFilter(after_date=cutoff)
         result = filter.apply([old_resource, new_resource])
@@ -158,10 +141,7 @@ class TestResourceFilterDateFiltering:
     def test_after_date_filter_inclusive(self):
         """Test after_date is inclusive (same date included)."""
         cutoff = datetime(2025, 1, 15, tzinfo=timezone.utc)
-        exact_resource = make_resource(
-            name="exact",
-            created_at=datetime(2025, 1, 15, tzinfo=timezone.utc)
-        )
+        exact_resource = make_resource(name="exact", created_at=datetime(2025, 1, 15, tzinfo=timezone.utc))
 
         filter = ResourceFilter(after_date=cutoff)
         result = filter.apply([exact_resource])
@@ -173,18 +153,9 @@ class TestResourceFilterDateFiltering:
         start = datetime(2025, 1, 10, tzinfo=timezone.utc)
         end = datetime(2025, 1, 20, tzinfo=timezone.utc)
 
-        too_early = make_resource(
-            name="early",
-            created_at=datetime(2025, 1, 5, tzinfo=timezone.utc)
-        )
-        in_range = make_resource(
-            name="inrange",
-            created_at=datetime(2025, 1, 15, tzinfo=timezone.utc)
-        )
-        too_late = make_resource(
-            name="late",
-            created_at=datetime(2025, 1, 25, tzinfo=timezone.utc)
-        )
+        too_early = make_resource(name="early", created_at=datetime(2025, 1, 5, tzinfo=timezone.utc))
+        in_range = make_resource(name="inrange", created_at=datetime(2025, 1, 15, tzinfo=timezone.utc))
+        too_late = make_resource(name="late", created_at=datetime(2025, 1, 25, tzinfo=timezone.utc))
 
         filter = ResourceFilter(after_date=start, before_date=end)
         result = filter.apply([too_early, in_range, too_late])
@@ -196,9 +167,7 @@ class TestResourceFilterDateFiltering:
         """Test resources without created_at are included."""
         resource = make_resource(name="no-date", created_at=None)
 
-        filter = ResourceFilter(
-            before_date=datetime(2025, 1, 15, tzinfo=timezone.utc)
-        )
+        filter = ResourceFilter(before_date=datetime(2025, 1, 15, tzinfo=timezone.utc))
         result = filter.apply([resource])
 
         assert len(result) == 1
@@ -208,10 +177,7 @@ class TestResourceFilterDateFiltering:
         """Test handling of naive datetime (no timezone)."""
         # Naive datetime for cutoff
         cutoff = datetime(2025, 1, 15)
-        resource = make_resource(
-            name="resource",
-            created_at=datetime(2025, 1, 10)  # Naive
-        )
+        resource = make_resource(name="resource", created_at=datetime(2025, 1, 10))  # Naive
 
         filter = ResourceFilter(before_date=cutoff)
         result = filter.apply([resource])
@@ -225,18 +191,9 @@ class TestResourceFilterTagFiltering:
 
     def test_include_tags_filters_by_key_and_value(self):
         """Test include_tags filters by both key and value."""
-        matching = make_resource(
-            name="matching",
-            tags={"Environment": "prod", "Team": "alpha"}
-        )
-        wrong_value = make_resource(
-            name="wrong-value",
-            tags={"Environment": "dev", "Team": "alpha"}
-        )
-        missing_key = make_resource(
-            name="missing-key",
-            tags={"Team": "alpha"}
-        )
+        matching = make_resource(name="matching", tags={"Environment": "prod", "Team": "alpha"})
+        wrong_value = make_resource(name="wrong-value", tags={"Environment": "dev", "Team": "alpha"})
+        missing_key = make_resource(name="missing-key", tags={"Team": "alpha"})
 
         filter = ResourceFilter(include_tags={"Environment": "prod"})
         result = filter.apply([matching, wrong_value, missing_key])
@@ -246,18 +203,10 @@ class TestResourceFilterTagFiltering:
 
     def test_include_tags_and_logic(self):
         """Test include_tags uses AND logic (all must match)."""
-        all_tags = make_resource(
-            name="all-tags",
-            tags={"Environment": "prod", "Team": "alpha"}
-        )
-        partial_tags = make_resource(
-            name="partial-tags",
-            tags={"Environment": "prod"}
-        )
+        all_tags = make_resource(name="all-tags", tags={"Environment": "prod", "Team": "alpha"})
+        partial_tags = make_resource(name="partial-tags", tags={"Environment": "prod"})
 
-        filter = ResourceFilter(
-            include_tags={"Environment": "prod", "Team": "alpha"}
-        )
+        filter = ResourceFilter(include_tags={"Environment": "prod", "Team": "alpha"})
         result = filter.apply([all_tags, partial_tags])
 
         assert len(result) == 1
@@ -266,10 +215,7 @@ class TestResourceFilterTagFiltering:
     def test_exclude_tags_filters_out_matching(self):
         """Test exclude_tags filters out resources with matching tags."""
         normal = make_resource(name="normal", tags={"Type": "normal"})
-        temporary = make_resource(
-            name="temporary",
-            tags={"Temporary": "true"}
-        )
+        temporary = make_resource(name="temporary", tags={"Temporary": "true"})
 
         filter = ResourceFilter(exclude_tags={"Temporary": "true"})
         result = filter.apply([normal, temporary])
@@ -279,22 +225,11 @@ class TestResourceFilterTagFiltering:
 
     def test_exclude_tags_or_logic(self):
         """Test exclude_tags uses OR logic (any match excludes)."""
-        resource1 = make_resource(
-            name="test1",
-            tags={"Skip": "yes"}
-        )
-        resource2 = make_resource(
-            name="test2",
-            tags={"Ignore": "true"}
-        )
-        resource3 = make_resource(
-            name="keep",
-            tags={"Type": "normal"}
-        )
+        resource1 = make_resource(name="test1", tags={"Skip": "yes"})
+        resource2 = make_resource(name="test2", tags={"Ignore": "true"})
+        resource3 = make_resource(name="keep", tags={"Type": "normal"})
 
-        filter = ResourceFilter(
-            exclude_tags={"Skip": "yes", "Ignore": "true"}
-        )
+        filter = ResourceFilter(exclude_tags={"Skip": "yes", "Ignore": "true"})
         result = filter.apply([resource1, resource2, resource3])
 
         assert len(result) == 1
@@ -302,23 +237,11 @@ class TestResourceFilterTagFiltering:
 
     def test_combined_include_exclude_tags(self):
         """Test combining include and exclude tags."""
-        good = make_resource(
-            name="good",
-            tags={"Environment": "prod", "Type": "normal"}
-        )
-        excluded = make_resource(
-            name="excluded",
-            tags={"Environment": "prod", "Temporary": "true"}
-        )
-        wrong_env = make_resource(
-            name="wrong-env",
-            tags={"Environment": "dev"}
-        )
+        good = make_resource(name="good", tags={"Environment": "prod", "Type": "normal"})
+        excluded = make_resource(name="excluded", tags={"Environment": "prod", "Temporary": "true"})
+        wrong_env = make_resource(name="wrong-env", tags={"Environment": "dev"})
 
-        filter = ResourceFilter(
-            include_tags={"Environment": "prod"},
-            exclude_tags={"Temporary": "true"}
-        )
+        filter = ResourceFilter(include_tags={"Environment": "prod"}, exclude_tags={"Temporary": "true"})
         result = filter.apply([good, excluded, wrong_env])
 
         assert len(result) == 1
@@ -336,18 +259,14 @@ class TestResourceFilterGetFilterSummary:
 
     def test_before_date_summary(self):
         """Test summary includes before_date."""
-        filter = ResourceFilter(
-            before_date=datetime(2025, 1, 15, tzinfo=timezone.utc)
-        )
+        filter = ResourceFilter(before_date=datetime(2025, 1, 15, tzinfo=timezone.utc))
         summary = filter.get_filter_summary()
         assert "created before" in summary
         assert "2025-01-15" in summary
 
     def test_after_date_summary(self):
         """Test summary includes after_date."""
-        filter = ResourceFilter(
-            after_date=datetime(2025, 1, 10, tzinfo=timezone.utc)
-        )
+        filter = ResourceFilter(after_date=datetime(2025, 1, 10, tzinfo=timezone.utc))
         summary = filter.get_filter_summary()
         assert "created on/after" in summary
         assert "2025-01-10" in summary
@@ -371,7 +290,7 @@ class TestResourceFilterGetFilterSummary:
         filter = ResourceFilter(
             before_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
             include_tags={"Environment": "prod"},
-            exclude_tags={"Temporary": "true"}
+            exclude_tags={"Temporary": "true"},
         )
         summary = filter.get_filter_summary()
         assert "created before" in summary

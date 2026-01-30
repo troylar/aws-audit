@@ -27,6 +27,7 @@ class NormalizationResult:
     method: str = "none"
     confidence: float = 0.9
 
+
 logger = logging.getLogger(__name__)
 
 # Try to import openai, but don't fail if not installed
@@ -107,9 +108,7 @@ class ResourceNormalizer:
             else:
                 needs_ai.append(resource)
 
-        logger.info(
-            f"Normalization: {len(results)} via rules, {len(needs_ai)} need AI"
-        )
+        logger.info(f"Normalization: {len(results)} via rules, {len(needs_ai)} need AI")
 
         # Phase 2: AI normalization for ambiguous names
         if needs_ai and use_ai and self.client:
@@ -394,19 +393,13 @@ class ResourceNormalizer:
 
             except Exception as e:
                 wait_time = 2**attempt
-                logger.warning(
-                    f"AI normalization attempt {attempt + 1} failed: {e}. "
-                    f"Retrying in {wait_time}s..."
-                )
+                logger.warning(f"AI normalization attempt {attempt + 1} failed: {e}. Retrying in {wait_time}s...")
                 if attempt < self.config.max_retries - 1:
                     time.sleep(wait_time)
 
         # All retries failed - use fallback
         logger.error("AI normalization failed after all retries")
-        return {
-            r.get("arn", ""): self._basic_normalize(r.get("name", ""))
-            for r in resources
-        }
+        return {r.get("arn", ""): self._basic_normalize(r.get("name", "")) for r in resources}
 
     def _parse_ai_response(
         self,
@@ -444,7 +437,4 @@ class ResourceNormalizer:
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI response as JSON: {e}")
             logger.debug(f"Response content: {content[:500]}...")
-            return {
-                r.get("arn", ""): self._basic_normalize(r.get("name", ""))
-                for r in resources
-            }
+            return {r.get("arn", ""): self._basic_normalize(r.get("name", "")) for r in resources}

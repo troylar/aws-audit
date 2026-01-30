@@ -5,7 +5,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from .database import Database, json_deserialize
+from .database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -476,13 +476,15 @@ class ResourceStore:
             creators[creator]["resource_types"][rtype] += 1
 
             # Add resource details
-            creators[creator]["resources"].append({
-                "arn": row["arn"],
-                "resource_type": rtype,
-                "name": row["name"],
-                "region": row["region"],
-                "created_at": row.get("created_at"),
-            })
+            creators[creator]["resources"].append(
+                {
+                    "arn": row["arn"],
+                    "resource_type": rtype,
+                    "name": row["name"],
+                    "region": row["region"],
+                    "created_at": row.get("created_at"),
+                }
+            )
 
         # Convert to list and sort by resource count descending
         result = list(creators.values())

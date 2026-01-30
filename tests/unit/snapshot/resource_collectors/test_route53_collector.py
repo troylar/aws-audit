@@ -52,20 +52,22 @@ class TestRoute53CollectorCollect:
         """Test collecting a single public hosted zone."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "HostedZones": [{
-                "Id": "/hostedzone/Z123ABC",
-                "Name": "example.com.",
-                "CallerReference": "ref-123",
-                "Config": {"PrivateZone": False},
-                "ResourceRecordSetCount": 10,
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "HostedZones": [
+                    {
+                        "Id": "/hostedzone/Z123ABC",
+                        "Name": "example.com.",
+                        "CallerReference": "ref-123",
+                        "Config": {"PrivateZone": False},
+                        "ResourceRecordSetCount": 10,
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
-        mock_client.list_tags_for_resource.return_value = {
-            "Tags": [{"Key": "Environment", "Value": "production"}]
-        }
+        mock_client.list_tags_for_resource.return_value = {"Tags": [{"Key": "Environment", "Value": "production"}]}
         mock_client.get_hosted_zone.return_value = {
             "HostedZone": {
                 "Id": "/hostedzone/Z123ABC",
@@ -91,13 +93,17 @@ class TestRoute53CollectorCollect:
         """Test collecting a private hosted zone."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "HostedZones": [{
-                "Id": "/hostedzone/Z456DEF",
-                "Name": "internal.local.",
-                "Config": {"PrivateZone": True},
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "HostedZones": [
+                    {
+                        "Id": "/hostedzone/Z456DEF",
+                        "Name": "internal.local.",
+                        "Config": {"PrivateZone": True},
+                    }
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.list_tags_for_resource.return_value = {"Tags": []}
@@ -121,13 +127,15 @@ class TestRoute53CollectorCollect:
         """Test collecting multiple hosted zones."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "HostedZones": [
-                {"Id": "/hostedzone/Z1", "Name": "zone1.com."},
-                {"Id": "/hostedzone/Z2", "Name": "zone2.com."},
-                {"Id": "/hostedzone/Z3", "Name": "zone3.com."},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "HostedZones": [
+                    {"Id": "/hostedzone/Z1", "Name": "zone1.com."},
+                    {"Id": "/hostedzone/Z2", "Name": "zone2.com."},
+                    {"Id": "/hostedzone/Z3", "Name": "zone3.com."},
+                ]
+            }
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.list_tags_for_resource.return_value = {"Tags": []}
@@ -181,9 +189,7 @@ class TestRoute53CollectorCollect:
         """Test collecting continues when list_tags_for_resource fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "HostedZones": [{"Id": "/hostedzone/Z123", "Name": "example.com."}]
-        }]
+        mock_paginator.paginate.return_value = [{"HostedZones": [{"Id": "/hostedzone/Z123", "Name": "example.com."}]}]
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.list_tags_for_resource.side_effect = Exception("Access denied")
@@ -202,9 +208,7 @@ class TestRoute53CollectorCollect:
         """Test collecting continues when get_hosted_zone fails."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "HostedZones": [{"Id": "/hostedzone/Z123", "Name": "example.com."}]
-        }]
+        mock_paginator.paginate.return_value = [{"HostedZones": [{"Id": "/hostedzone/Z123", "Name": "example.com."}]}]
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.list_tags_for_resource.return_value = {"Tags": []}
@@ -223,9 +227,7 @@ class TestRoute53CollectorCollect:
         """Test that config hash is generated."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "HostedZones": [{"Id": "/hostedzone/Z123", "Name": "example.com."}]
-        }]
+        mock_paginator.paginate.return_value = [{"HostedZones": [{"Id": "/hostedzone/Z123", "Name": "example.com."}]}]
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.list_tags_for_resource.return_value = {"Tags": []}
@@ -244,9 +246,9 @@ class TestRoute53CollectorCollect:
         """Test that zone ID is correctly extracted from /hostedzone/ID format."""
         mock_client = MagicMock()
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "HostedZones": [{"Id": "/hostedzone/ZABCDEFGH12345", "Name": "test.com."}]
-        }]
+        mock_paginator.paginate.return_value = [
+            {"HostedZones": [{"Id": "/hostedzone/ZABCDEFGH12345", "Name": "test.com."}]}
+        ]
         mock_client.get_paginator.return_value = mock_paginator
 
         mock_client.list_tags_for_resource.return_value = {"Tags": []}
@@ -260,6 +262,4 @@ class TestRoute53CollectorCollect:
         # ARN should contain extracted ID
         assert "ZABCDEFGH12345" in resources[0].arn
         # list_tags should be called with just the ID
-        mock_client.list_tags_for_resource.assert_called_with(
-            ResourceType="hostedzone", ResourceId="ZABCDEFGH12345"
-        )
+        mock_client.list_tags_for_resource.assert_called_with(ResourceType="hostedzone", ResourceId="ZABCDEFGH12345")

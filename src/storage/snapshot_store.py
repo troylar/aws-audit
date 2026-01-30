@@ -1,9 +1,7 @@
 """Snapshot storage operations for SQLite backend."""
 
-import json
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..matching import ResourceNormalizer
@@ -131,7 +129,9 @@ class SnapshotStore:
                         tag_data,
                     )
 
-            logger.debug(f"Saved snapshot '{snapshot.name}' with {len(snapshot.resources)} resources (id={snapshot_id})")
+            logger.debug(
+                f"Saved snapshot '{snapshot.name}' with {len(snapshot.resources)} resources (id={snapshot_id})"
+            )
             return snapshot_id
 
     def load(self, name: str) -> Optional[Snapshot]:
@@ -387,6 +387,7 @@ class SnapshotStore:
         # Compute config hash if not provided
         if config_hash is None:
             from ..utils.hash import compute_config_hash
+
             config_hash = compute_config_hash(raw_config)
 
         with self.db.transaction() as cursor:

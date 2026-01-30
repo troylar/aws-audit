@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.utils.unsupported_resources import (
     SUPPORTED_RESOURCE_TYPE_PREFIXES,
     UnsupportedResource,
@@ -66,12 +64,16 @@ class TestGetAllTaggedResources:
         mock_session.client.return_value = mock_tagging_client
 
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "ResourceTagMappingList": [{
-                "ResourceARN": "arn:aws:s3:::my-bucket",
-                "Tags": [{"Key": "Environment", "Value": "test"}],
-            }]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "ResourceTagMappingList": [
+                    {
+                        "ResourceARN": "arn:aws:s3:::my-bucket",
+                        "Tags": [{"Key": "Environment", "Value": "test"}],
+                    }
+                ]
+            }
+        ]
         mock_tagging_client.get_paginator.return_value = mock_paginator
 
         resources = get_all_tagged_resources(mock_session, regions=["us-east-1"])
@@ -90,12 +92,14 @@ class TestGetAllTaggedResources:
         mock_session.client.return_value = mock_tagging_client
 
         mock_paginator = MagicMock()
-        mock_paginator.paginate.return_value = [{
-            "ResourceTagMappingList": [
-                {"ResourceARN": "arn:aws:lambda:us-east-1:123456789012:function:my-func", "Tags": []},
-                {"ResourceARN": "arn:aws:ec2:us-east-1:123456789012:instance/i-123", "Tags": []},
-            ]
-        }]
+        mock_paginator.paginate.return_value = [
+            {
+                "ResourceTagMappingList": [
+                    {"ResourceARN": "arn:aws:lambda:us-east-1:123456789012:function:my-func", "Tags": []},
+                    {"ResourceARN": "arn:aws:ec2:us-east-1:123456789012:instance/i-123", "Tags": []},
+                ]
+            }
+        ]
         mock_tagging_client.get_paginator.return_value = mock_paginator
 
         resources = get_all_tagged_resources(mock_session, regions=["us-east-1"])
@@ -117,8 +121,7 @@ class TestGetAllTaggedResources:
 
         mock_paginator = MagicMock()
         mock_paginator.paginate.side_effect = ClientError(
-            {"Error": {"Code": "AccessDenied", "Message": "Access denied"}},
-            "GetResources"
+            {"Error": {"Code": "AccessDenied", "Message": "Access denied"}}, "GetResources"
         )
         mock_tagging_client.get_paginator.return_value = mock_paginator
 
@@ -241,9 +244,7 @@ class TestCheckForUnsupportedResourcesQuick:
             ]
         }
 
-        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(
-            mock_session, "us-east-1"
-        )
+        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(mock_session, "us-east-1")
 
         assert has_unsupported is False
         assert len(unsupported_types) == 0
@@ -260,9 +261,7 @@ class TestCheckForUnsupportedResourcesQuick:
             ]
         }
 
-        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(
-            mock_session, "us-east-1"
-        )
+        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(mock_session, "us-east-1")
 
         assert has_unsupported is True
         assert "newservice:thing" in unsupported_types
@@ -275,9 +274,7 @@ class TestCheckForUnsupportedResourcesQuick:
         mock_session.client.return_value = mock_client
         mock_client.get_resources.side_effect = Exception("API error")
 
-        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(
-            mock_session, "us-east-1"
-        )
+        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(mock_session, "us-east-1")
 
         assert has_unsupported is False
         assert len(unsupported_types) == 0
@@ -351,8 +348,7 @@ class TestGetAllTaggedResourcesNoneSession:
         mock_session.client.side_effect = client_side_effect
 
         mock_ec2_client.describe_regions.side_effect = ClientError(
-            {"Error": {"Code": "AccessDenied", "Message": "Access denied"}},
-            "DescribeRegions"
+            {"Error": {"Code": "AccessDenied", "Message": "Access denied"}}, "DescribeRegions"
         )
 
         mock_paginator = MagicMock()
@@ -410,9 +406,7 @@ class TestCheckForUnsupportedResourcesQuickNoneSession:
             ]
         }
 
-        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(
-            mock_session, "us-east-1"
-        )
+        has_unsupported, unsupported_types = check_for_unsupported_resources_quick(mock_session, "us-east-1")
 
         # Lambda functions are supported
         assert has_unsupported is False

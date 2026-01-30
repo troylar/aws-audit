@@ -3,8 +3,6 @@
 from datetime import date
 from pathlib import Path
 
-import pytest
-
 from src.copilot.models import (
     FileType,
     InstalledFile,

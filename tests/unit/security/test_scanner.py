@@ -126,7 +126,7 @@ class TestSecurityScanner:
 
     def test_scan_handles_check_execution_error(self) -> None:
         """Test that scan continues when a check raises an exception."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import MagicMock
 
         snapshot = create_mock_snapshot(resources=[])
         scanner = SecurityScanner()
@@ -147,7 +147,7 @@ class TestSecurityScanner:
 
     def test_load_checks_handles_module_import_error(self) -> None:
         """Test that _load_checks handles module import errors gracefully."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
 
         # Create a scanner with mocked module loading
         with patch("src.security.scanner.importlib.import_module") as mock_import:

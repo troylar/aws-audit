@@ -151,7 +151,9 @@ class TestEKSCollector:
         mock_client.describe_fargate_profile.return_value = {
             "fargateProfile": {
                 "fargateProfileName": "my-fargate-profile",
-                "fargateProfileArn": "arn:aws:eks:us-east-1:123456789012:fargateprofile/my-cluster/my-fargate-profile/abc123",
+                "fargateProfileArn": (
+                    "arn:aws:eks:us-east-1:123456789012:fargateprofile/my-cluster/my-fargate-profile/abc123"
+                ),
                 "clusterName": "my-cluster",
                 "status": "ACTIVE",
                 "createdAt": datetime(2024, 3, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -201,7 +203,7 @@ class TestEKSCollector:
         mock_paginator.paginate.return_value = [{"clusters": [], "nodegroups": [], "fargateProfileNames": []}]
 
         with patch.object(collector, "_create_client", return_value=mock_client):
-            resources = collector.collect()
+            collector.collect()
 
         # Should have called get_paginator at least once for clusters
         assert mock_client.get_paginator.call_count >= 1
@@ -330,7 +332,9 @@ class TestEKSCollector:
             return {
                 "fargateProfile": {
                     "fargateProfileName": fargateProfileName,
-                    "fargateProfileArn": f"arn:aws:eks:us-east-1:123456789012:fargateprofile/{clusterName}/{fargateProfileName}/abc",
+                    "fargateProfileArn": (
+                        f"arn:aws:eks:us-east-1:123456789012:fargateprofile/{clusterName}/{fargateProfileName}/abc"
+                    ),
                     "createdAt": datetime.now(timezone.utc),
                     "tags": {},
                 }

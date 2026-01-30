@@ -70,7 +70,7 @@ class CostExplorerClient:
                 params["Filter"] = filter_expression
 
             logger.info(
-                f"Retrieving cost data from {start_date.strftime('%Y-%m-%d')} " f"to {end_date.strftime('%Y-%m-%d')}"
+                f"Retrieving cost data from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
             )
 
             response = self.client.get_cost_and_usage(**params)
@@ -84,8 +84,7 @@ class CostExplorerClient:
 
             if error_code == "AccessDeniedException":
                 raise CostExplorerError(
-                    "Access denied to Cost Explorer. Ensure your IAM user/role has the "
-                    "'ce:GetCostAndUsage' permission."
+                    "Access denied to Cost Explorer. Ensure your IAM user/role has the 'ce:GetCostAndUsage' permission."
                 )
             elif error_code == "DataUnavailableException":
                 raise CostExplorerError(

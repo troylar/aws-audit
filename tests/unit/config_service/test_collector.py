@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -211,17 +210,13 @@ class TestBatchGetResourceConfigs:
                     "configuration": "{}",
                 }
             ],
-            "unprocessedResourceKeys": [
-                {"resourceType": "AWS::S3::Bucket", "resourceId": "bucket-2"}
-            ],
+            "unprocessedResourceKeys": [{"resourceType": "AWS::S3::Bucket", "resourceId": "bucket-2"}],
         }
 
         mock_session = MagicMock()
         collector = ConfigResourceCollector(mock_session, "us-east-1")
 
-        result = collector._batch_get_resource_configs(
-            "AWS::S3::Bucket", ["bucket-1", "bucket-2"]
-        )
+        result = collector._batch_get_resource_configs("AWS::S3::Bucket", ["bucket-1", "bucket-2"])
 
         # Should return only the processed items
         assert len(result) == 1
@@ -289,10 +284,12 @@ class TestNormalizeConfigItem:
             "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-1234567890abcdef0",
             "configuration": "{}",
             "supplementaryConfiguration": {
-                "Tags": json.dumps([
-                    {"Key": "Name", "Value": "my-instance"},
-                    {"Key": "Environment", "Value": "production"},
-                ])
+                "Tags": json.dumps(
+                    [
+                        {"Key": "Name", "Value": "my-instance"},
+                        {"Key": "Environment", "Value": "production"},
+                    ]
+                )
             },
         }
 
@@ -426,9 +423,7 @@ class TestCollectMultipleTypes:
         mock_session = MagicMock()
         collector = ConfigResourceCollector(mock_session, "us-east-1")
 
-        resources = collector.collect_multiple_types(
-            ["AWS::EC2::Instance", "AWS::S3::Bucket"]
-        )
+        resources = collector.collect_multiple_types(["AWS::EC2::Instance", "AWS::S3::Bucket"])
 
         assert len(resources) == 2
 
@@ -467,9 +462,7 @@ class TestCollectMultipleTypes:
         collector = ConfigResourceCollector(mock_session, "us-east-1")
 
         # Should continue with second type even though first failed
-        resources = collector.collect_multiple_types(
-            ["AWS::EC2::Instance", "AWS::S3::Bucket"]
-        )
+        resources = collector.collect_multiple_types(["AWS::EC2::Instance", "AWS::S3::Bucket"])
 
         assert len(resources) == 1
         assert resources[0].resource_type == "AWS::S3::Bucket"

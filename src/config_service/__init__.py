@@ -3,8 +3,8 @@
 This module provides Config-first resource collection with fallback to direct API.
 """
 
-from .detector import ConfigAvailability, detect_config_availability
 from .collector import ConfigResourceCollector
+from .detector import ConfigAvailability, detect_config_availability
 from .resource_type_mapping import (
     CONFIG_SUPPORTED_TYPES,
     DIRECT_API_ONLY_TYPES,
