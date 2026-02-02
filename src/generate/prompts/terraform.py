@@ -23,7 +23,13 @@ Generate Terraform configuration files from AWS resource descriptions.
 
 4. **Provider Configuration**: Do NOT include provider blocks - I'll handle that separately
 
-5. **Naming Convention**: Use terraform names I provide for each resource
+5. **CRITICAL - Naming Convention**: You MUST use the EXACT Terraform name I provide for each resource.
+   - Each resource description includes "Terraform name: `<name>`"
+   - Use this EXACT name as the resource identifier
+   - Example: If I say "Terraform name: `my_security_group_abc123`", use:
+     `resource "aws_security_group" "my_security_group_abc123" { ... }`
+   - NEVER use generic names like "default", "main", or "this"
+   - The names I provide are already unique and validated
 
 6. **Dependencies**: Use implicit dependencies via references
    - Explicit depends_on only when necessary
