@@ -62,7 +62,11 @@ def format_layer_prompt(
     """
     resource_descriptions = []
     for resource in layer.resources:
-        tracked = TrackedResource.from_inventory(resource)
+        # Handle both TrackedResource objects and dicts
+        if isinstance(resource, TrackedResource):
+            tracked = resource
+        else:
+            tracked = TrackedResource.from_inventory(resource)
         desc = format_resource_for_prompt(tracked)
         resource_descriptions.append(desc)
 

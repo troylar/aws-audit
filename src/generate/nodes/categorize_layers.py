@@ -45,14 +45,17 @@ def categorize_layers(state: GenerationState) -> Dict[str, Any]:
         layer = RESOURCE_TYPE_TO_LAYER.get(resource.resource_type, LayerOrder.COMPUTE)
         layer_resources[layer].append(resource)
 
-    layers: List[Layer] = []
-    for layer_order in sorted(layer_resources.keys()):
-        layer = Layer(
-            order=layer_order,
-            name=LAYER_NAMES.get(layer_order, f"Layer {layer_order}"),
-            resources=layer_resources[layer_order],
-            status=LayerStatus.PENDING,
-        )
-        layers.append(layer)
+    # Build layers dict and layer_order list for generate_layer node
+    layers_dict: Dict[str, List[TrackedResource]] = {}
+    layer_order_list: List[str] = []
 
-    return {"layers": layers}
+    for layer_ord in sorted(layer_resources.keys()):
+        layer_name = LAYER_NAMES.get(layer_ord, f"Layer {layer_ord}")
+        layers_dict[layer_name] = layer_resources[layer_ord]
+        layer_order_list.append(layer_name)
+
+    return {
+        "layers": layers_dict,
+        "layer_order": layer_order_list,
+        "total_resources": len(resources),
+    }

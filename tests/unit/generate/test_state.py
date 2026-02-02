@@ -17,10 +17,10 @@ class TestGenerationConfig:
         """Test that default values are set correctly."""
         config = GenerationConfig()
 
-        assert config.bedrock_model_id == "anthropic.claude-sonnet-4-20250514-v1:0"
+        assert config.bedrock_model_id == "us.anthropic.claude-3-sonnet-20240229-v1:0"
         assert config.bedrock_region == "us-east-1"
         assert config.temperature == 0.2
-        assert config.max_tokens == 8000
+        assert config.max_tokens == 4096
         assert config.max_retries == 3
         assert config.validate_each_layer is True
         assert config.terraform_init is True
@@ -87,7 +87,7 @@ class TestGenerationConfig:
         with patch.dict(os.environ, clean_env, clear=True):
             config = GenerationConfig.from_env()
 
-        assert config.bedrock_model_id == "anthropic.claude-sonnet-4-20250514-v1:0"
+        assert config.bedrock_model_id == "us.anthropic.claude-3-sonnet-20240229-v1:0"
         assert config.bedrock_region == "ap-southeast-1"
 
     def test_from_env_with_no_variables(self) -> None:
@@ -97,7 +97,7 @@ class TestGenerationConfig:
         with patch.dict(os.environ, clean_env, clear=True):
             config = GenerationConfig.from_env()
 
-        assert config.bedrock_model_id == "anthropic.claude-sonnet-4-20250514-v1:0"
+        assert config.bedrock_model_id == "us.anthropic.claude-3-sonnet-20240229-v1:0"
         assert config.bedrock_region == "us-east-1"
 
     def test_from_env_uses_aws_default_region_fallback(self) -> None:
@@ -133,7 +133,7 @@ class TestGenerationConfig:
             config = GenerationConfig.from_env()
 
         assert config.temperature == 0.2
-        assert config.max_tokens == 8000
+        assert config.max_tokens == 4096
         assert config.max_retries == 3
         assert config.validate_each_layer is True
         assert config.terraform_init is True

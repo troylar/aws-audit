@@ -16,6 +16,7 @@ class GenerationState(TypedDict, total=False):
     output_dir: str
     output_format: str  # terraform, cdk-typescript, cdk-python
     inventory: List[Dict[str, Any]]
+    resources: List[Any]  # TrackedResource objects from parse_inventory
     resource_map: Dict[str, str]  # live_id -> terraform_ref
     layers: Dict[str, List[Dict[str, Any]]]
     layer_order: List[str]
@@ -37,10 +38,10 @@ class GenerationState(TypedDict, total=False):
 class GenerationConfig:
     """Configuration for the IaC generation process."""
 
-    bedrock_model_id: str = "anthropic.claude-sonnet-4-20250514-v1:0"
+    bedrock_model_id: str = "us.anthropic.claude-3-sonnet-20240229-v1:0"
     bedrock_region: str = "us-east-1"
     temperature: float = 0.2
-    max_tokens: int = 8000
+    max_tokens: int = 4096
     max_retries: int = 3
     validate_each_layer: bool = True
     terraform_init: bool = True
@@ -62,6 +63,6 @@ class GenerationConfig:
             AWS_DEFAULT_REGION: Fallback for Bedrock region
         """
         return cls(
-            bedrock_model_id=os.environ.get("AWSINV_BEDROCK_MODEL_ID", "anthropic.claude-sonnet-4-20250514-v1:0"),
+            bedrock_model_id=os.environ.get("AWSINV_BEDROCK_MODEL_ID", "us.anthropic.claude-3-sonnet-20240229-v1:0"),
             bedrock_region=os.environ.get("AWSINV_BEDROCK_REGION", os.environ.get("AWS_DEFAULT_REGION", "us-east-1")),
         )

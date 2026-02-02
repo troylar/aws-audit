@@ -209,11 +209,23 @@ class TestResourceTypeToLayer:
             assert isinstance(layer, LayerOrder), f"{resource_type} maps to invalid layer: {layer}"
 
     def test_resource_types_follow_naming_convention(self) -> None:
-        """Test that all resource type keys follow the service:type convention."""
+        """Test that all resource type keys follow valid conventions.
+
+        Supports two formats:
+        - service:type (e.g., ec2:vpc)
+        - AWS::Service::Type (e.g., AWS::EC2::VPC)
+        """
         for resource_type in RESOURCE_TYPE_TO_LAYER.keys():
             assert ":" in resource_type, f"Resource type missing colon: {resource_type}"
-            parts = resource_type.split(":")
-            assert len(parts) == 2, f"Resource type has wrong format: {resource_type}"
-            service, rtype = parts
-            assert len(service) > 0, f"Empty service in: {resource_type}"
-            assert len(rtype) > 0, f"Empty type in: {resource_type}"
+
+            if resource_type.startswith("AWS::"):
+                # CloudFormation format: AWS::Service::Type
+                parts = resource_type.split("::")
+                assert len(parts) >= 3, f"AWS format should have at least 3 parts: {resource_type}"
+            else:
+                # Internal format: service:type
+                parts = resource_type.split(":")
+                assert len(parts) == 2, f"Resource type has wrong format: {resource_type}"
+                service, rtype = parts
+                assert len(service) > 0, f"Empty service in: {resource_type}"
+                assert len(rtype) > 0, f"Empty type in: {resource_type}"

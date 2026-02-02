@@ -537,83 +537,76 @@ class TestCategorizeLayersNode:
         result = categorize_layers(state_with_tracked_resources)
 
         assert "layers" in result
-        layers = result["layers"]
+        layers_dict = result["layers"]
 
-        assert isinstance(layers, list)
-        assert len(layers) > 0
+        assert isinstance(layers_dict, dict)
+        assert len(layers_dict) > 0
 
-    def test_returns_layer_objects(self, state_with_tracked_resources: Dict[str, Any]) -> None:
-        """Test that categorize_layers returns Layer objects."""
+    def test_returns_dict_and_order(self, state_with_tracked_resources: Dict[str, Any]) -> None:
+        """Test that categorize_layers returns layers dict and layer_order list."""
         result = categorize_layers(state_with_tracked_resources)
 
-        layers = result["layers"]
-        for layer in layers:
-            assert isinstance(layer, Layer)
-            assert hasattr(layer, "order")
-            assert hasattr(layer, "name")
-            assert hasattr(layer, "resources")
-            assert hasattr(layer, "status")
+        assert "layers" in result
+        assert "layer_order" in result
+        assert isinstance(result["layers"], dict)
+        assert isinstance(result["layer_order"], list)
 
     def test_layer_ordering(self, state_with_tracked_resources: Dict[str, Any]) -> None:
-        """Test that layers are ordered correctly."""
+        """Test that layer_order contains valid layer names."""
         result = categorize_layers(state_with_tracked_resources)
 
-        layers = result["layers"]
+        layer_order = result["layer_order"]
+        layers_dict = result["layers"]
 
-        orders = [layer.order for layer in layers]
-        assert orders == sorted(orders), "Layers should be in ascending order"
+        # All names in order should be in dict
+        for name in layer_order:
+            assert name in layers_dict
 
     def test_network_layer_contains_vpc(self, state_with_tracked_resources: Dict[str, Any]) -> None:
-        """Test VPC resources are in NETWORK layer."""
+        """Test VPC resources are in Network Foundation layer."""
         result = categorize_layers(state_with_tracked_resources)
 
-        layers = result["layers"]
+        layers_dict = result["layers"]
 
-        network_layer = None
-        for layer in layers:
-            if layer.order == LayerOrder.NETWORK:
-                network_layer = layer
-                break
+        assert "Network Foundation" in layers_dict, "Network Foundation layer should exist"
+        network_resources = layers_dict["Network Foundation"]
 
-        assert network_layer is not None, "NETWORK layer should exist"
-
-        vpc_resources = [r for r in network_layer.resources if r.resource_type == "ec2:vpc"]
+        vpc_resources = [r for r in network_resources if r.resource_type == "ec2:vpc"]
         assert len(vpc_resources) >= 1
 
     def test_compute_layer_contains_lambda(self, state_with_tracked_resources: Dict[str, Any]) -> None:
-        """Test Lambda functions are in COMPUTE layer."""
+        """Test Lambda functions are in Compute layer."""
         result = categorize_layers(state_with_tracked_resources)
 
-        layers = result["layers"]
+        layers_dict = result["layers"]
 
-        compute_layer = None
-        for layer in layers:
-            if layer.order == LayerOrder.COMPUTE:
-                compute_layer = layer
-                break
+        assert "Compute" in layers_dict, "Compute layer should exist"
+        compute_resources = layers_dict["Compute"]
 
-        assert compute_layer is not None, "COMPUTE layer should exist"
-
-        lambda_resources = [r for r in compute_layer.resources if r.resource_type == "lambda:function"]
+        lambda_resources = [r for r in compute_resources if r.resource_type == "lambda:function"]
         assert len(lambda_resources) >= 1
 
     def test_all_resources_categorized(self, state_with_tracked_resources: Dict[str, Any]) -> None:
         """Test that all resources are placed into layers."""
         result = categorize_layers(state_with_tracked_resources)
 
-        layers = result["layers"]
+        layers_dict = result["layers"]
 
-        total_resources = sum(len(layer.resources) for layer in layers)
+        total_resources = sum(len(resources) for resources in layers_dict.values())
         assert total_resources == len(state_with_tracked_resources["resources"])
 
-    def test_layers_have_pending_status(self, state_with_tracked_resources: Dict[str, Any]) -> None:
-        """Test that all layers start with PENDING status."""
+    def test_returns_layer_order(self, state_with_tracked_resources: Dict[str, Any]) -> None:
+        """Test that layer_order is returned and matches layers dict."""
         result = categorize_layers(state_with_tracked_resources)
 
-        layers = result["layers"]
+        assert "layer_order" in result
+        assert "layers" in result
 
-        for layer in layers:
-            assert layer.status == LayerStatus.PENDING
+        layer_order = result["layer_order"]
+        layers_dict = result["layers"]
+
+        for layer_name in layer_order:
+            assert layer_name in layers_dict
 
     def test_handles_unknown_resource_types(self) -> None:
         """Test handling of resource types not in RESOURCE_TYPE_TO_LAYER."""

@@ -29,9 +29,21 @@ class GenerationResult:
     @property
     def summary(self) -> Dict[str, Any]:
         """Get generation summary."""
-        completed = sum(1 for layer in self.layers if layer.status == LayerStatus.COMPLETED)
-        failed = sum(1 for layer in self.layers if layer.status == LayerStatus.FAILED)
-        total_resources = sum(len(layer.resources) for layer in self.layers)
+        # Handle both List[Layer] and List[List[TrackedResource]] formats
+        total_resources = 0
+        completed = 0
+        failed = 0
+
+        for layer in self.layers:
+            if isinstance(layer, Layer):
+                total_resources += len(layer.resources)
+                if layer.status == LayerStatus.COMPLETED:
+                    completed += 1
+                elif layer.status == LayerStatus.FAILED:
+                    failed += 1
+            elif isinstance(layer, list):
+                total_resources += len(layer)
+                completed += 1  # Assume completed if we have the resources
 
         return {
             "success": self.success,

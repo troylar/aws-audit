@@ -114,6 +114,7 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
         return {
             "layers": layers,
             "errors": [{"message": f"Failed to generate {layer_name}: {e}"}],
+            "current_layer_index": current_layer_index + 1,  # Skip failed layer
             "current_layer_status": LayerStatus.FAILED.value,
         }
 
