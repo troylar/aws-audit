@@ -236,13 +236,26 @@ def _get_comparison_system_prompt() -> str:
         "and determine how well the Terraform represents the original resources.\n\n"
         "You must respond with ONLY valid JSON in the exact structure specified. "
         "Do not include any text before or after the JSON.\n\n"
-        "Analyze each inventory resource and determine:\n"
-        "1. Whether it is represented in the Terraform code (by matching type and key identifiers)\n"
-        "2. If represented, which Terraform resource corresponds to it\n"
-        "3. If missing, why it might be missing\n"
-        "4. Any issues like mismatched configurations or incomplete resource definitions\n\n"
-        "Be thorough but fair - a resource is \"represented\" if there's a corresponding "
-        "Terraform resource even if some attributes differ slightly."
+        "MATCHING RULES - A resource is REPRESENTED if:\n"
+        "1. The Terraform resource TYPE matches the AWS resource type:\n"
+        "   - ec2:vpc → aws_vpc\n"
+        "   - ec2:subnet → aws_subnet\n"
+        "   - ec2:security-group → aws_security_group\n"
+        "   - s3:bucket → aws_s3_bucket\n"
+        "   - lambda:function → aws_lambda_function\n"
+        "   - iam:role → aws_iam_role\n"
+        "   - rds:db-instance → aws_db_instance\n"
+        "2. The resource can be identified by ANY of these:\n"
+        "   - Similar name (ignore case, hyphens vs underscores: 'my-vpc' matches 'my_vpc')\n"
+        "   - Matching key attributes (CIDR block, function name, bucket name, etc.)\n"
+        "   - Same resource count of that type if names differ\n\n"
+        "BE GENEROUS in matching - if a Terraform resource exists for the same type "
+        "and has similar identifying attributes, count it as represented. "
+        "Only mark as MISSING if there is NO corresponding Terraform resource of that type.\n\n"
+        "Issues should only flag SIGNIFICANT problems like:\n"
+        "- Missing required attributes that would cause deployment failure\n"
+        "- Security misconfigurations\n"
+        "- Hardcoded values that should be variables"
     )
 
 
@@ -265,6 +278,16 @@ def _format_comparison_prompt(inventory_text: str, terraform_text: str, total_re
 ## GENERATED TERRAFORM CODE:
 {terraform_text}
 
+## MATCHING INSTRUCTIONS:
+For EACH inventory resource, find the corresponding Terraform resource by:
+1. Match the resource TYPE (ec2:subnet → aws_subnet, s3:bucket → aws_s3_bucket, etc.)
+2. Match by name OR key attributes (CIDR, function_name, bucket name, etc.)
+3. Treat hyphens and underscores as equivalent (my-vpc = my_vpc)
+4. If multiple resources of same type exist, match by count and attributes
+
+A resource IS REPRESENTED if there's a Terraform resource of the matching type with similar config.
+A resource is MISSING ONLY if no Terraform resource of that type exists for it.
+
 ## REQUIRED OUTPUT FORMAT:
 Return ONLY a JSON object with this exact structure:
 {{
@@ -284,11 +307,10 @@ Return ONLY a JSON object with this exact structure:
     "summary": "<2-3 sentence summary of coverage and key findings>"
 }}
 
-Important:
-- coverage_percentage = (represented_count / total_resources) * 100
-- represented_count + missing_count must equal total_resources
-- List ALL resources in either represented_resources or missing_resources
-- issues should note any significant attribute mismatches or concerns"""
+CRITICAL RULES:
+- represented_count + missing_count MUST equal {total_resources}
+- Every inventory resource MUST appear in either represented_resources OR missing_resources
+- Be GENEROUS - if a matching Terraform resource exists, count it as represented"""
 
 
 def _parse_comparison_response(response_text: str, total_resources: int) -> Dict[str, Any]:

@@ -8,6 +8,14 @@ from typing import Any, Dict, List
 from typing_extensions import Annotated, TypedDict
 
 
+def merge_dicts(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge two dictionaries, with b taking precedence."""
+    result = dict(a) if a else {}
+    if b:
+        result.update(b)
+    return result
+
+
 class GenerationState(TypedDict, total=False):
     """State container for the IaC generation workflow."""
 
@@ -25,9 +33,9 @@ class GenerationState(TypedDict, total=False):
     attempt_count: int
     max_attempts: int
     validation_errors: Annotated[List[str], add]  # accumulates
-    generated_code: Dict[str, str]
+    generated_code: Annotated[Dict[str, str], merge_dicts]  # accumulates per layer
     generated_files: Annotated[List[str], add]
-    lambda_code_paths: Dict[str, str]
+    lambda_code_paths: Annotated[Dict[str, str], merge_dicts]  # accumulates
     total_resources: int
     processed_resources: int
     comparison_result: Dict[str, Any]  # Structured comparison from AI
