@@ -206,12 +206,26 @@ class TerraformGenerator:
 
         final_state = dict(initial_state)
         last_node = None
+        last_layer_index = -1
 
         for event in self.agent.stream(initial_state, stream_mode="updates"):
             for node_name, state_update in event.items():
                 if node_name != last_node:
                     self.progress_callback("node_start", {"node": node_name})
                     last_node = node_name
+
+                    # Emit layer_start when generate_layer begins
+                    if node_name == "generate_layer":
+                        layer_order = final_state.get("layer_order", [])
+                        current_idx = final_state.get("current_layer_index", 0)
+                        if current_idx != last_layer_index and current_idx < len(layer_order):
+                            layer_name = layer_order[current_idx]
+                            self.progress_callback("layer_start", {
+                                "layer_name": layer_name,
+                                "layer_index": current_idx,
+                                "total_layers": len(layer_order),
+                            })
+                            last_layer_index = current_idx
 
                 final_state.update(state_update)
 

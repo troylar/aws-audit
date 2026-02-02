@@ -5735,6 +5735,10 @@ def generate(
             layer_order = data.get("layer_order", [])
             progress.set_layers(layers, layer_order)
 
+        elif event == "layer_start":
+            layer_name = data.get("layer_name", "")
+            progress.start_layer(layer_name)
+
         elif event == "layer_complete":
             layer_name = data.get("layer_name", "")
             status = data.get("status", "")
@@ -5747,8 +5751,8 @@ def generate(
 
             # Check if all layers are done
             all_done = all(
-                l.status.value in ("completed", "failed")
-                for l in progress.layers.values()
+                layer.status.value in ("completed", "failed")
+                for layer in progress.layers.values()
             ) if progress.layers else False
             if all_done:
                 progress.complete_step(WorkflowStep.GENERATE_LAYERS)
