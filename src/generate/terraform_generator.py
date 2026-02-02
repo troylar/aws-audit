@@ -2,12 +2,15 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..models.generation import Layer
 from .agent import compile_terraform_agent
 from .layers import LayerStatus
 from .state import GenerationConfig, GenerationState
+
+# Progress callback type: (step_name, step_data) -> None
+ProgressCallback = Callable[[str, Dict[str, Any]], None]
 
 
 @dataclass
@@ -82,6 +85,7 @@ class TerraformGenerator:
         output_dir: str = "./terraform",
         model_id: Optional[str] = None,
         region: Optional[str] = None,
+        progress_callback: Optional[ProgressCallback] = None,
     ):
         """Initialize generator.
 
@@ -89,8 +93,10 @@ class TerraformGenerator:
             output_dir: Directory to write Terraform files
             model_id: Bedrock model ID (or use AWSINV_BEDROCK_MODEL_ID env)
             region: AWS region for Bedrock (or use AWSINV_BEDROCK_REGION env)
+            progress_callback: Optional callback for progress updates
         """
         self.output_dir = output_dir
+        self.progress_callback = progress_callback
 
         base_config = GenerationConfig.from_env()
 
@@ -148,7 +154,7 @@ class TerraformGenerator:
         }
 
         try:
-            final_state = self.agent.invoke(initial_state)
+            final_state = self._run_with_progress(initial_state)
 
             self._generate_provider_config()
             self._generate_variables_file(final_state)
@@ -159,12 +165,13 @@ class TerraformGenerator:
             layer_order = final_state.get("layer_order", [])
             errors = final_state.get("errors", [])
             validation_errors = final_state.get("validation_errors", [])
+            comparison_result = final_state.get("comparison_result", {})
 
             layers = [layers_dict[layer_name] for layer_name in layer_order if layer_name in layers_dict]
 
             success = len(errors) == 0 and len(generated_files) > 0
 
-            return GenerationResult(
+            result = GenerationResult(
                 success=success,
                 output_dir=self.output_dir,
                 generated_files=generated_files,
@@ -173,12 +180,84 @@ class TerraformGenerator:
                 validation_errors=[str(e) for e in validation_errors],
             )
 
+            if self.progress_callback and comparison_result:
+                self.progress_callback("comparison_complete", {"result": comparison_result})
+
+            return result
+
         except Exception as e:
             return GenerationResult(
                 success=False,
                 output_dir=self.output_dir,
                 errors=[f"Generation failed: {e}"],
             )
+
+    def _run_with_progress(self, initial_state: GenerationState) -> Dict[str, Any]:
+        """Run the agent with progress streaming.
+
+        Args:
+            initial_state: Initial state for the agent
+
+        Returns:
+            Final state after agent execution
+        """
+        if not self.progress_callback:
+            return self.agent.invoke(initial_state)
+
+        final_state = dict(initial_state)
+        last_node = None
+
+        for event in self.agent.stream(initial_state, stream_mode="updates"):
+            for node_name, state_update in event.items():
+                if node_name != last_node:
+                    self.progress_callback("node_start", {"node": node_name})
+                    last_node = node_name
+
+                final_state.update(state_update)
+
+                if node_name == "parse_inventory":
+                    resources = state_update.get("resources", [])
+                    self.progress_callback("resources_loaded", {
+                        "count": len(resources),
+                        "resources": resources,
+                    })
+
+                elif node_name == "categorize_layers":
+                    layers = state_update.get("layers", {})
+                    layer_order = state_update.get("layer_order", [])
+                    self.progress_callback("layers_categorized", {
+                        "layers": layers,
+                        "layer_order": layer_order,
+                    })
+
+                elif node_name == "generate_layer":
+                    layer_order = final_state.get("layer_order", [])
+                    current_idx = state_update.get("current_layer_index", 0) - 1
+                    if 0 <= current_idx < len(layer_order):
+                        layer_name = layer_order[current_idx]
+                        status = state_update.get("current_layer_status", "")
+                        generated_code = state_update.get("generated_code", {})
+                        generated_files = state_update.get("generated_files", [])
+
+                        self.progress_callback("layer_complete", {
+                            "layer_name": layer_name,
+                            "status": status,
+                            "generated_code": generated_code.get(layer_name, ""),
+                            "generated_file": generated_files[0] if generated_files else None,
+                        })
+
+                elif node_name == "compare_inventory":
+                    comparison = state_update.get("comparison_result", {})
+                    if comparison:
+                        self.progress_callback("comparison_complete", {"result": comparison})
+
+                elif node_name == "validate_terraform":
+                    errors = state_update.get("validation_errors", [])
+                    self.progress_callback("validation_complete", {"errors": errors})
+
+                self.progress_callback("node_complete", {"node": node_name})
+
+        return final_state
 
     def _generate_provider_config(self) -> None:
         """Generate main.tf with provider configuration."""
@@ -266,6 +345,7 @@ def generate_terraform(
     model_id: Optional[str] = None,
     region: Optional[str] = None,
     input_file: Optional[str] = None,
+    progress_callback: Optional[ProgressCallback] = None,
 ) -> GenerationResult:
     """Generate Terraform from a snapshot or export file.
 
@@ -275,6 +355,7 @@ def generate_terraform(
         model_id: Bedrock model ID
         region: AWS region for Bedrock
         input_file: Path to JSON/YAML export file (use this OR snapshot_name)
+        progress_callback: Optional callback for progress updates
 
     Returns:
         GenerationResult
@@ -283,5 +364,6 @@ def generate_terraform(
         output_dir=output_dir,
         model_id=model_id,
         region=region,
+        progress_callback=progress_callback,
     )
     return generator.run(snapshot_name=snapshot_name, input_file=input_file)

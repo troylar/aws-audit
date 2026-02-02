@@ -30,6 +30,7 @@ class GenerationState(TypedDict, total=False):
     lambda_code_paths: Dict[str, str]
     total_resources: int
     processed_resources: int
+    comparison_result: Dict[str, Any]  # Structured comparison from AI
     errors: Annotated[List[Dict[str, Any]], add]
     messages: Annotated[List[Dict[str, Any]], add]
 

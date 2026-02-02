@@ -5686,54 +5686,106 @@ def generate(
     # Import here to avoid loading langgraph unless needed
     try:
         from ..generate.terraform_generator import generate_terraform
+        from .generation_progress import GenerationProgressDisplay, WorkflowStep
     except ImportError as e:
         console.print("[red]Error:[/red] Generate dependencies not installed.")
         console.print("Install with: pip install aws-inventory-manager[generate]")
         console.print(f"Details: {e}")
         raise typer.Exit(1)
 
-    # Display source information
-    if from_file:
-        console.print(f"\n[bold]Generating Terraform from file:[/bold] {from_file}")
-    else:
-        console.print(f"\n[bold]Generating Terraform from snapshot:[/bold] {snapshot_name}")
-    console.print(f"[dim]Output directory: {output}[/dim]\n")
-
     if dry_run:
         console.print("[yellow]Dry run mode - no files will be created[/yellow]\n")
-        # TODO: Implement dry run mode
         raise typer.Exit(0)
 
-    # Run generation
-    with console.status("[bold blue]Generating Terraform...[/bold blue]"):
+    # Set up progress display
+    progress = GenerationProgressDisplay(console)
+    source_name = from_file if from_file else snapshot_name or ""
+    progress.set_source(source_name, output)
+
+    # Map node names to workflow steps
+    node_to_step = {
+        "parse_inventory": WorkflowStep.PARSE_INVENTORY,
+        "build_resource_map": WorkflowStep.BUILD_RESOURCE_MAP,
+        "categorize_layers": WorkflowStep.CATEGORIZE_LAYERS,
+        "extract_lambda": WorkflowStep.EXTRACT_LAMBDA,
+        "generate_layer": WorkflowStep.GENERATE_LAYERS,
+        "compare_inventory": WorkflowStep.COMPARE_INVENTORY,
+        "validate_terraform": WorkflowStep.VALIDATE_TERRAFORM,
+    }
+
+    def progress_callback(event: str, data: dict) -> None:
+        """Handle progress events from the generator."""
+        if event == "node_start":
+            node = data.get("node", "")
+            step = node_to_step.get(node)
+            if step:
+                progress.start_step(step)
+
+        elif event == "node_complete":
+            node = data.get("node", "")
+            step = node_to_step.get(node)
+            if step and step != WorkflowStep.GENERATE_LAYERS:
+                progress.complete_step(step)
+
+        elif event == "resources_loaded":
+            progress.set_total_resources(data.get("count", 0))
+
+        elif event == "layers_categorized":
+            layers = data.get("layers", {})
+            layer_order = data.get("layer_order", [])
+            progress.set_layers(layers, layer_order)
+
+        elif event == "layer_complete":
+            layer_name = data.get("layer_name", "")
+            status = data.get("status", "")
+            generated_file = data.get("generated_file")
+
+            if status == "completed":
+                progress.complete_layer(layer_name, generated_file)
+            elif status == "failed":
+                progress.fail_layer(layer_name, "Generation failed")
+
+            # Check if all layers are done
+            all_done = all(
+                l.status.value in ("completed", "failed")
+                for l in progress.layers.values()
+            ) if progress.layers else False
+            if all_done:
+                progress.complete_step(WorkflowStep.GENERATE_LAYERS)
+
+        elif event == "comparison_complete":
+            result_data = data.get("result", {})
+            if result_data:
+                progress.set_comparison_result(result_data)
+
+        elif event == "validation_complete":
+            errors = data.get("errors", [])
+            progress.set_validation_errors(errors)
+
+    # Run generation with progress
+    progress.start()
+    try:
         result = generate_terraform(
             snapshot_name=snapshot_name,
             output_dir=output,
             model_id=model_id,
             region=region,
             input_file=from_file,
+            progress_callback=progress_callback,
         )
 
-    # Display results
-    if result.success:
-        console.print("[bold green]Generation complete![/bold green]\n")
+        if result.success:
+            progress.complete_step(WorkflowStep.VALIDATE_TERRAFORM)
+            progress.current_step = WorkflowStep.COMPLETE
+    finally:
+        progress.stop()
 
-        summary = result.summary
-        console.print(f"  Layers processed: {summary['completed_layers']}/{summary['total_layers']}")
-        console.print(f"  Resources: {summary['total_resources']}")
-        console.print(f"  Files generated: {summary['generated_files']}")
-        console.print(f"\n  Output: [cyan]{result.output_dir}[/cyan]")
+    # Print final summary
+    progress.print_final_summary(result.success)
 
-        if verbose and result.generated_files:
-            console.print("\n  Generated files:")
-            for f in result.generated_files:
-                console.print(f"    - {f}")
-    else:
-        console.print("[bold red]Generation failed[/bold red]\n")
-
+    if not result.success:
         for error in result.errors:
             console.print(f"  [red]Error:[/red] {error}")
-
         raise typer.Exit(1)
 
 
