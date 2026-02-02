@@ -5710,7 +5710,8 @@ def generate(
         "extract_lambda": WorkflowStep.EXTRACT_LAMBDA,
         "generate_layer": WorkflowStep.GENERATE_LAYERS,
         "compare_inventory": WorkflowStep.COMPARE_INVENTORY,
-        "validate_terraform": WorkflowStep.VALIDATE_TERRAFORM,
+        "terraform_init": WorkflowStep.TERRAFORM_INIT,
+        "terraform_validate": WorkflowStep.TERRAFORM_VALIDATE,
     }
 
     def progress_callback(event: str, data: dict) -> None:
@@ -5762,6 +5763,11 @@ def generate(
             if result_data:
                 progress.set_comparison_result(result_data)
 
+        elif event == "terraform_init_complete":
+            if not data.get("success", False):
+                errors = data.get("errors", [])
+                progress.set_validation_errors(errors)
+
         elif event == "validation_complete":
             errors = data.get("errors", [])
             progress.set_validation_errors(errors)
@@ -5779,7 +5785,7 @@ def generate(
         )
 
         if result.success:
-            progress.complete_step(WorkflowStep.VALIDATE_TERRAFORM)
+            progress.complete_step(WorkflowStep.TERRAFORM_VALIDATE)
             progress.current_step = WorkflowStep.COMPLETE
     finally:
         progress.stop()

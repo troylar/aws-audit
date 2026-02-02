@@ -169,6 +169,23 @@ class IAMCollector(BaseResourceCollector):
                     except Exception as e:
                         self.logger.debug(f"Could not get tags for policy {policy['PolicyName']}: {e}")
 
+                    # Fetch the policy document from the default version
+                    policy_document = None
+                    default_version_id = policy.get("DefaultVersionId")
+                    if default_version_id:
+                        try:
+                            version_response = client.get_policy_version(
+                                PolicyArn=arn, VersionId=default_version_id
+                            )
+                            policy_document = version_response.get("PolicyVersion", {}).get("Document")
+                        except Exception as e:
+                            self.logger.debug(f"Could not get policy document for {policy['PolicyName']}: {e}")
+
+                    # Add PolicyDocument to raw_config
+                    policy_config = dict(policy)
+                    if policy_document:
+                        policy_config["PolicyDocument"] = policy_document
+
                     # Create resource
                     resource = Resource(
                         arn=arn,
@@ -176,9 +193,9 @@ class IAMCollector(BaseResourceCollector):
                         name=policy["PolicyName"],
                         region="global",
                         tags=tags,
-                        config_hash=compute_config_hash(policy),
+                        config_hash=compute_config_hash(policy_config),
                         created_at=policy.get("CreateDate"),
-                        raw_config=policy,
+                        raw_config=policy_config,
                     )
                     resources.append(resource)
 

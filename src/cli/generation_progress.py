@@ -35,7 +35,8 @@ class WorkflowStep(Enum):
     EXTRACT_LAMBDA = "extract_lambda"
     GENERATE_LAYERS = "generate_layers"
     COMPARE_INVENTORY = "compare_inventory"
-    VALIDATE_TERRAFORM = "validate_terraform"
+    TERRAFORM_INIT = "terraform_init"
+    TERRAFORM_VALIDATE = "terraform_validate"
     COMPLETE = "complete"
 
 
@@ -76,7 +77,8 @@ class GenerationProgressDisplay:
         WorkflowStep.EXTRACT_LAMBDA: "Extracting Lambda code",
         WorkflowStep.GENERATE_LAYERS: "Generating Terraform",
         WorkflowStep.COMPARE_INVENTORY: "Comparing coverage",
-        WorkflowStep.VALIDATE_TERRAFORM: "Validating Terraform",
+        WorkflowStep.TERRAFORM_INIT: "Terraform init",
+        WorkflowStep.TERRAFORM_VALIDATE: "Terraform validate",
         WorkflowStep.COMPLETE: "Complete",
     }
 
@@ -87,7 +89,8 @@ class GenerationProgressDisplay:
         WorkflowStep.EXTRACT_LAMBDA: "λ",
         WorkflowStep.GENERATE_LAYERS: "⚙️",
         WorkflowStep.COMPARE_INVENTORY: "🔍",
-        WorkflowStep.VALIDATE_TERRAFORM: "✅",
+        WorkflowStep.TERRAFORM_INIT: "🔧",
+        WorkflowStep.TERRAFORM_VALIDATE: "✅",
         WorkflowStep.COMPLETE: "🎉",
     }
 
@@ -323,7 +326,8 @@ class GenerationProgressDisplay:
             WorkflowStep.EXTRACT_LAMBDA,
             WorkflowStep.GENERATE_LAYERS,
             WorkflowStep.COMPARE_INVENTORY,
-            WorkflowStep.VALIDATE_TERRAFORM,
+            WorkflowStep.TERRAFORM_INIT,
+            WorkflowStep.TERRAFORM_VALIDATE,
         ]
 
         for i, step in enumerate(workflow_steps):
@@ -424,7 +428,7 @@ class GenerationProgressDisplay:
             val_line = Text()
             val_line.append(f"   ⚠️  Validation: {len(self.validation_errors)} errors", style="yellow")
             lines.append(val_line)
-        elif WorkflowStep.VALIDATE_TERRAFORM in self.completed_steps:
+        elif WorkflowStep.TERRAFORM_VALIDATE in self.completed_steps:
             val_line = Text()
             val_line.append("   ✅ Validation: passed", style="green")
             lines.append(val_line)

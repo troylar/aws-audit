@@ -167,6 +167,7 @@ class LambdaCode:
         """Create LambdaCode from a Lambda TrackedResource.
 
         Extracts code storage information from the resource's raw_config.
+        Handles both the new `_code` format from LambdaCollector and legacy `Code` format.
 
         Args:
             resource: TrackedResource for a Lambda function
@@ -175,29 +176,37 @@ class LambdaCode:
             LambdaCode instance
         """
         config = resource.raw_config
-        code_config = config.get("Code", {})
 
-        storage_type = "unknown"
-        if code_config.get("ImageUri"):
-            storage_type = "image"
-        elif code_config.get("S3Bucket"):
-            storage_type = "s3"
-        elif code_config.get("ZipFile"):
-            storage_type = "inline"
+        # Check for new _code format from LambdaCollector first
+        code_config = config.get("_code", {})
+        if not code_config:
+            # Fall back to legacy Code format
+            code_config = config.get("Code", {})
+
+        storage_type = code_config.get("storage_type", "unknown")
+        if storage_type == "unknown":
+            # Infer from available data
+            if code_config.get("image_uri") or code_config.get("ImageUri"):
+                storage_type = "image"
+            elif code_config.get("s3_bucket") or code_config.get("S3Bucket"):
+                storage_type = "s3"
+            elif code_config.get("code_base64") or code_config.get("ZipFile"):
+                storage_type = "inline"
 
         return cls(
             function_name=resource.name,
             runtime=config.get("Runtime", ""),
             handler=config.get("Handler", ""),
             storage_type=storage_type,
-            code_stored=bool(code_config.get("ZipFile")),
-            code_base64=code_config.get("ZipFile"),
-            s3_bucket=code_config.get("S3Bucket"),
-            s3_key=code_config.get("S3Key"),
-            s3_version=code_config.get("S3ObjectVersion"),
-            image_uri=code_config.get("ImageUri"),
-            code_sha256=config.get("CodeSha256"),
-            code_size_bytes=config.get("CodeSize"),
+            code_stored=code_config.get("code_stored", bool(code_config.get("ZipFile"))),
+            code_base64=code_config.get("code_base64") or code_config.get("ZipFile"),
+            code_file_path=code_config.get("code_file_path"),
+            s3_bucket=code_config.get("s3_bucket") or code_config.get("S3Bucket"),
+            s3_key=code_config.get("s3_key") or code_config.get("S3Key"),
+            s3_version=code_config.get("s3_object_version") or code_config.get("S3ObjectVersion"),
+            image_uri=code_config.get("image_uri") or code_config.get("ImageUri"),
+            code_sha256=code_config.get("code_sha256") or config.get("CodeSha256"),
+            code_size_bytes=code_config.get("code_size_bytes") or config.get("CodeSize"),
         )
 
     def extract_to(self, output_dir: Path) -> Optional[str]:

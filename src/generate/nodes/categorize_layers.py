@@ -3,8 +3,8 @@
 from collections import defaultdict
 from typing import Any, Dict, List
 
-from ...models.generation import Layer, TrackedResource
-from ..layers import RESOURCE_TYPE_TO_LAYER, LayerOrder, LayerStatus
+from ...models.generation import TrackedResource
+from ..layers import RESOURCE_TYPE_TO_LAYER, LayerOrder
 from ..state import GenerationState
 
 LAYER_NAMES = {

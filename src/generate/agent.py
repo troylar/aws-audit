@@ -10,7 +10,7 @@ from .nodes.compare_inventory import compare_inventory
 from .nodes.extract_lambda import extract_lambda_code
 from .nodes.generate_layer import generate_layer
 from .nodes.parse_inventory import parse_inventory
-from .nodes.validate_terraform import validate_terraform
+from .nodes.validate_terraform import terraform_init, terraform_validate
 from .state import GenerationState
 
 
@@ -35,7 +35,8 @@ def create_terraform_graph() -> StateGraph:
     4. extract_lambda - Extract Lambda code to files
     5. generate_layer - Generate Terraform for each layer (loops)
     6. compare_inventory - Compare inventory against generated code (AI)
-    7. validate_terraform - Run terraform init and validate
+    7. terraform_init - Run terraform init
+    8. terraform_validate - Run terraform validate
 
     Returns:
         Configured StateGraph ready to compile
@@ -48,7 +49,8 @@ def create_terraform_graph() -> StateGraph:
     graph.add_node("extract_lambda", extract_lambda_code)
     graph.add_node("generate_layer", generate_layer)
     graph.add_node("compare_inventory", compare_inventory)
-    graph.add_node("validate_terraform", validate_terraform)
+    graph.add_node("terraform_init", terraform_init)
+    graph.add_node("terraform_validate", terraform_validate)
 
     graph.set_entry_point("parse_inventory")
     graph.add_edge("parse_inventory", "build_resource_map")
@@ -65,8 +67,9 @@ def create_terraform_graph() -> StateGraph:
         },
     )
 
-    graph.add_edge("compare_inventory", "validate_terraform")
-    graph.add_edge("validate_terraform", END)
+    graph.add_edge("compare_inventory", "terraform_init")
+    graph.add_edge("terraform_init", "terraform_validate")
+    graph.add_edge("terraform_validate", END)
 
     return graph
 

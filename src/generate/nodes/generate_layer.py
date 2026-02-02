@@ -37,6 +37,7 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     current_layer_index: int = state.get("current_layer_index", 0)
     generated_files: List[str] = list(state.get("generated_files", []))
     output_dir: str = state.get("output_dir", "./terraform")
+    lambda_code_paths: Dict[str, str] = state.get("lambda_code_paths", {})
 
     config = GenerationConfig.from_env()
 
@@ -67,6 +68,7 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
             layer=layer,
             resource_map=resource_map,
             previous_layers=generated_files,
+            lambda_code_paths=lambda_code_paths,
         )
 
         response = client.converse(

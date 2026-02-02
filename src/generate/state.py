@@ -39,6 +39,8 @@ class GenerationState(TypedDict, total=False):
     total_resources: int
     processed_resources: int
     comparison_result: Dict[str, Any]  # Structured comparison from AI
+    init_success: bool  # Whether terraform init succeeded
+    validation_skipped: bool  # Whether validation was skipped (no files to validate)
     errors: Annotated[List[Dict[str, Any]], add]
     messages: Annotated[List[Dict[str, Any]], add]
 

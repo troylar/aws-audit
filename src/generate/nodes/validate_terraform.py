@@ -1,10 +1,12 @@
-"""Terraform validation node for the generation workflow.
+"""Terraform validation nodes for the generation workflow.
 
 Runs `terraform init` and `terraform validate` on generated code to catch errors.
+Split into separate nodes for real-time progress updates.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -16,11 +18,66 @@ from ..state import GenerationState
 logger = logging.getLogger(__name__)
 
 
-def validate_terraform(state: GenerationState) -> Dict[str, Any]:
-    """Validate generated Terraform code using terraform CLI.
+def terraform_init(state: GenerationState) -> Dict[str, Any]:
+    """Run terraform init on generated code.
 
-    Runs `terraform init` followed by `terraform validate` in the output directory.
-    Captures validation errors and adds them to state.
+    Args:
+        state: Current generation state
+
+    Returns:
+        State updates with init_success flag and any errors
+    """
+    output_dir = state.get("output_dir", "./terraform")
+    generated_files = state.get("generated_files", [])
+
+    # Skip if no files were generated
+    if not generated_files:
+        logger.warning("No generated files to validate")
+        return {"init_success": False, "validation_errors": [], "validation_skipped": True}
+
+    # Check if terraform CLI is available
+    terraform_path = shutil.which("terraform")
+    if not terraform_path:
+        error = "terraform CLI not found in PATH - skipping validation"
+        logger.warning(error)
+        return {"init_success": False, "validation_errors": [error]}
+
+    # Ensure output directory exists
+    if not os.path.isdir(output_dir):
+        error = f"Output directory does not exist: {output_dir}"
+        logger.error(error)
+        return {"init_success": False, "validation_errors": [error]}
+
+    logger.info(f"Running terraform init in {output_dir}")
+    try:
+        init_result = subprocess.run(
+            ["terraform", "init", "-backend=false", "-input=false"],
+            cwd=output_dir,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
+        if init_result.returncode != 0:
+            error_msg = f"terraform init failed: {init_result.stderr.strip()}"
+            logger.error(error_msg)
+            return {"init_success": False, "validation_errors": [error_msg]}
+
+        logger.info("terraform init successful")
+        return {"init_success": True}
+
+    except subprocess.TimeoutExpired:
+        error = "terraform init timed out after 120 seconds"
+        logger.error(error)
+        return {"init_success": False, "validation_errors": [error]}
+    except Exception as e:
+        error = f"terraform init error: {e}"
+        logger.error(error)
+        return {"init_success": False, "validation_errors": [error]}
+
+
+def terraform_validate(state: GenerationState) -> Dict[str, Any]:
+    """Run terraform validate on generated code.
 
     Args:
         state: Current generation state
@@ -29,58 +86,15 @@ def validate_terraform(state: GenerationState) -> Dict[str, Any]:
         State updates with validation_errors list
     """
     output_dir = state.get("output_dir", "./terraform")
-    generated_files = state.get("generated_files", [])
+    init_success = state.get("init_success", False)
 
-    # Skip validation if no files were generated
-    if not generated_files:
-        logger.warning("No generated files to validate")
-        return {"validation_errors": []}
-
-    # Check if terraform CLI is available
-    terraform_path = shutil.which("terraform")
-    if not terraform_path:
-        error = "terraform CLI not found in PATH - skipping validation"
-        logger.warning(error)
-        return {"validation_errors": [error]}
-
-    # Ensure output directory exists
-    if not os.path.isdir(output_dir):
-        error = f"Output directory does not exist: {output_dir}"
-        logger.error(error)
-        return {"validation_errors": [error]}
+    # Skip validation if init failed
+    if not init_success:
+        logger.warning("Skipping terraform validate - init failed or skipped")
+        return {}
 
     validation_errors: list[str] = []
 
-    # Run terraform init
-    logger.info(f"Running terraform init in {output_dir}")
-    try:
-        init_result = subprocess.run(
-            ["terraform", "init", "-backend=false", "-input=false"],
-            cwd=output_dir,
-            capture_output=True,
-            text=True,
-            timeout=120,  # 2 minute timeout
-        )
-
-        if init_result.returncode != 0:
-            error_msg = f"terraform init failed: {init_result.stderr.strip()}"
-            logger.error(error_msg)
-            validation_errors.append(error_msg)
-            # Don't proceed to validate if init failed
-            return {"validation_errors": validation_errors}
-
-        logger.info("terraform init successful")
-
-    except subprocess.TimeoutExpired:
-        error = "terraform init timed out after 120 seconds"
-        logger.error(error)
-        return {"validation_errors": [error]}
-    except Exception as e:
-        error = f"terraform init error: {e}"
-        logger.error(error)
-        return {"validation_errors": [error]}
-
-    # Run terraform validate
     logger.info(f"Running terraform validate in {output_dir}")
     try:
         validate_result = subprocess.run(
@@ -88,13 +102,10 @@ def validate_terraform(state: GenerationState) -> Dict[str, Any]:
             cwd=output_dir,
             capture_output=True,
             text=True,
-            timeout=60,  # 1 minute timeout
+            timeout=60,
         )
 
         if validate_result.returncode != 0:
-            # Parse JSON output for detailed errors
-            import json
-
             try:
                 validate_json = json.loads(validate_result.stdout)
                 if not validate_json.get("valid", True):
@@ -103,7 +114,6 @@ def validate_terraform(state: GenerationState) -> Dict[str, Any]:
                         summary = diagnostic.get("summary", "Unknown error")
                         detail = diagnostic.get("detail", "")
 
-                        # Get location info if available
                         location = ""
                         if "range" in diagnostic:
                             range_info = diagnostic["range"]
@@ -117,7 +127,6 @@ def validate_terraform(state: GenerationState) -> Dict[str, Any]:
                             error_msg += f" - {detail}"
                         validation_errors.append(error_msg)
             except json.JSONDecodeError:
-                # Fallback to stderr if JSON parsing fails
                 validation_errors.append(f"terraform validate failed: {validate_result.stderr.strip()}")
 
             logger.warning(f"terraform validate found {len(validation_errors)} errors")
@@ -134,6 +143,35 @@ def validate_terraform(state: GenerationState) -> Dict[str, Any]:
         validation_errors.append(error)
 
     return {"validation_errors": validation_errors}
+
+
+# Keep the combined function for backwards compatibility
+def validate_terraform(state: GenerationState) -> Dict[str, Any]:
+    """Validate generated Terraform code using terraform CLI.
+
+    Runs `terraform init` followed by `terraform validate` in the output directory.
+    This is a combined function for backwards compatibility.
+
+    Args:
+        state: Current generation state
+
+    Returns:
+        State updates with validation_errors list
+    """
+    init_result = terraform_init(state)
+
+    # If validation was skipped (no files to validate), return empty errors
+    if init_result.get("validation_skipped", False):
+        return {"validation_errors": []}
+
+    if not init_result.get("init_success", False):
+        return {"validation_errors": init_result.get("validation_errors", [])}
+
+    state_with_init = dict(state)
+    state_with_init["init_success"] = True
+    validate_result = terraform_validate(state_with_init)
+
+    return {"validation_errors": validate_result.get("validation_errors", [])}
 
 
 def is_terraform_available() -> bool:

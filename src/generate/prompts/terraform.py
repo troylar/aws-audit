@@ -49,6 +49,7 @@ def format_layer_prompt(
     layer: Layer,
     resource_map: ResourceMap,
     previous_layers: Optional[List[str]] = None,
+    lambda_code_paths: Optional[Dict[str, str]] = None,
 ) -> str:
     """Format prompt for generating a single layer.
 
@@ -56,6 +57,7 @@ def format_layer_prompt(
         layer: The layer to generate
         resource_map: Available resource references
         previous_layers: List of already generated layer file paths
+        lambda_code_paths: Mapping of Lambda function names to extracted code file paths
 
     Returns:
         Formatted prompt string
@@ -67,7 +69,7 @@ def format_layer_prompt(
             tracked = resource
         else:
             tracked = TrackedResource.from_inventory(resource)
-        desc = format_resource_for_prompt(tracked)
+        desc = format_resource_for_prompt(tracked, lambda_code_paths)
         resource_descriptions.append(desc)
 
     resources_text = "\n\n".join(resource_descriptions)
@@ -84,6 +86,13 @@ def format_layer_prompt(
         for layer_file in previous_layers:
             context_text += f"- {layer_file}\n"
 
+    lambda_code_text = ""
+    if lambda_code_paths:
+        lambda_code_text = "\n\n## Lambda Code Files\n\n"
+        lambda_code_text += "Use `filename` attribute to reference these pre-extracted code archives:\n\n"
+        for func_name, code_path in lambda_code_paths.items():
+            lambda_code_text += f"- `{func_name}` -> `{code_path}`\n"
+
     prompt = f"""Generate Terraform configuration for the **{layer.name}** layer.
 
 ## Resources to Generate ({len(layer.resources)} resources)
@@ -92,6 +101,7 @@ def format_layer_prompt(
 
 {map_text}
 {context_text}
+{lambda_code_text}
 
 Generate complete, valid Terraform HCL for all resources above.
 """
@@ -99,7 +109,10 @@ Generate complete, valid Terraform HCL for all resources above.
     return prompt
 
 
-def format_resource_for_prompt(resource: TrackedResource) -> str:
+def format_resource_for_prompt(
+    resource: TrackedResource,
+    lambda_code_paths: Optional[Dict[str, str]] = None,
+) -> str:
     """Format a single resource for inclusion in prompt.
 
     Applies property filtering and formatting:
@@ -109,6 +122,7 @@ def format_resource_for_prompt(resource: TrackedResource) -> str:
 
     Args:
         resource: The resource to format
+        lambda_code_paths: Mapping of Lambda function names to extracted code file paths
 
     Returns:
         Formatted resource description
@@ -128,6 +142,12 @@ def format_resource_for_prompt(resource: TrackedResource) -> str:
 
     if resource.tags:
         lines.append(f"Tags: {resource.tags}")
+
+    # Add Lambda code file reference if available
+    if lambda_code_paths and resource.name in lambda_code_paths:
+        code_path = lambda_code_paths[resource.name]
+        lines.append(f"\n**Lambda Code File:** `{code_path}`")
+        lines.append("(Use `filename = \"{code_path}\"` in the aws_lambda_function resource)")
 
     lines.append("\n**Properties:**")
     lines.append("```json")

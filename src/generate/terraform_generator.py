@@ -265,7 +265,15 @@ class TerraformGenerator:
                     if comparison:
                         self.progress_callback("comparison_complete", {"result": comparison})
 
-                elif node_name == "validate_terraform":
+                elif node_name == "terraform_init":
+                    init_success = state_update.get("init_success", False)
+                    init_errors = state_update.get("validation_errors", [])
+                    self.progress_callback("terraform_init_complete", {
+                        "success": init_success,
+                        "errors": init_errors,
+                    })
+
+                elif node_name == "terraform_validate":
                     errors = state_update.get("validation_errors", [])
                     self.progress_callback("validation_complete", {"errors": errors})
 
