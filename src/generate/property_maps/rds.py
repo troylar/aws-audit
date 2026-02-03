@@ -309,51 +309,36 @@ def get_rds_cluster_properties(
     return configurable, computed, sensitive
 
 
-# Register property maps with the registry
-def _register_maps() -> None:
-    """Register RDS property maps with the registry."""
-    try:
-        from . import register_property_map
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter RDS properties for Terraform generation.
 
-        register_property_map(
-            "rds:instance",
-            {
-                "configurable": RDS_INSTANCE_CONFIGURABLE,
-                "computed": RDS_INSTANCE_COMPUTED,
-                "sensitive": SENSITIVE_FIELDS,
-            },
-        )
-        register_property_map(
-            "rds:cluster",
-            {
-                "configurable": RDS_CLUSTER_CONFIGURABLE,
-                "computed": RDS_CLUSTER_COMPUTED,
-                "sensitive": SENSITIVE_FIELDS,
-            },
-        )
-        register_property_map(
-            "AWS::RDS::DBInstance",
-            {
-                "configurable": RDS_INSTANCE_CONFIGURABLE,
-                "computed": RDS_INSTANCE_COMPUTED,
-                "sensitive": SENSITIVE_FIELDS,
-            },
-        )
-        register_property_map(
-            "AWS::RDS::DBCluster",
-            {
-                "configurable": RDS_CLUSTER_CONFIGURABLE,
-                "computed": RDS_CLUSTER_COMPUTED,
-                "sensitive": SENSITIVE_FIELDS,
-            },
-        )
-    except ImportError:
-        # Registry not available yet, will be registered on import
-        pass
+    Args:
+        raw_config: Raw RDS configuration from AWS API
+        resource_type: Resource type string
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    resource_type_lower = resource_type.lower()
+
+    if "cluster" in resource_type_lower:
+        configurable = RDS_CLUSTER_CONFIGURABLE
+    else:
+        configurable = RDS_INSTANCE_CONFIGURABLE
+
+    filtered = {}
+
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None and aws_field not in SENSITIVE_FIELDS:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+
+    return filtered
 
 
-# Auto-register on module import
-_register_maps()
+# Note: Registration is handled by __init__.py which registers the module.
 
 __all__ = [
     "RDS_INSTANCE_CONFIGURABLE",

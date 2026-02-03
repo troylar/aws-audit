@@ -151,6 +151,20 @@ register_property_map(
     },
 )
 
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Efs properties for Terraform generation."""
+    configurable = EFS_FILESYSTEM_CONFIGURABLE
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+
 __all__ = [
     "EFS_FILESYSTEM_CONFIGURABLE",
     "EFS_FILESYSTEM_COMPUTED",

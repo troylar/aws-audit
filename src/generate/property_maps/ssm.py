@@ -173,3 +173,17 @@ def get_ssm_parameter_computed_properties(raw_config: Dict[str, Any]) -> Dict[st
         computed["last_modified_date"] = str(raw_config["LastModifiedDate"])
 
     return computed
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Ssm properties for Terraform generation."""
+    configurable = SSM_PARAMETER_CONFIGURABLE
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+

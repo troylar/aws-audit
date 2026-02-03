@@ -188,3 +188,22 @@ def get_http_api_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 register_property_map("apigateway:rest_api", __name__)
 register_property_map("apigateway:http_api", __name__)
 register_property_map("apigateway", __name__)
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Apigateway properties for Terraform generation."""
+    resource_type_lower = resource_type.lower()
+    if "api" in resource_type_lower:
+        configurable = REST_API_CONFIGURABLE
+    else:
+        configurable = HTTP_API_CONFIGURABLE
+    
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+

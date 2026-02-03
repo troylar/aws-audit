@@ -93,3 +93,17 @@ register_property_map("events:rule", __name__)
 register_property_map("events", __name__)
 register_property_map("eventbridge:rule", __name__)
 register_property_map("eventbridge", __name__)
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Eventbridge properties for Terraform generation."""
+    configurable = EVENTBRIDGE_CONFIGURABLE
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+

@@ -189,58 +189,38 @@ def get_ecs_task_definition_properties(raw_config: Dict[str, Any]) -> Dict[str, 
     return terraform_config
 
 
-# Register ECS property maps with the registry
-register_property_map(
-    "ecs:cluster",
-    {
-        "configurable": ECS_CLUSTER_CONFIGURABLE,
-        "computed": ECS_CLUSTER_COMPUTED,
-        "get_properties": get_ecs_cluster_properties,
-    },
-)
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter ECS properties for Terraform generation.
 
-register_property_map(
-    "ecs:service",
-    {
-        "configurable": ECS_SERVICE_CONFIGURABLE,
-        "computed": ECS_SERVICE_COMPUTED,
-        "get_properties": get_ecs_service_properties,
-    },
-)
+    Args:
+        raw_config: Raw ECS configuration from AWS API
+        resource_type: Resource type string
 
-register_property_map(
-    "ecs:task_definition",
-    {
-        "configurable": ECS_TASK_DEFINITION_CONFIGURABLE,
-        "computed": ECS_TASK_DEFINITION_COMPUTED,
-        "get_properties": get_ecs_task_definition_properties,
-    },
-)
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    resource_type_lower = resource_type.lower()
 
-# Also register with AWS CloudFormation resource type names
-register_property_map(
-    "AWS::ECS::Cluster",
-    {
-        "configurable": ECS_CLUSTER_CONFIGURABLE,
-        "computed": ECS_CLUSTER_COMPUTED,
-    },
-)
+    if "service" in resource_type_lower:
+        configurable = ECS_SERVICE_CONFIGURABLE
+    elif "task" in resource_type_lower:
+        configurable = ECS_TASK_DEFINITION_CONFIGURABLE
+    else:
+        configurable = ECS_CLUSTER_CONFIGURABLE
 
-register_property_map(
-    "AWS::ECS::Service",
-    {
-        "configurable": ECS_SERVICE_CONFIGURABLE,
-        "computed": ECS_SERVICE_COMPUTED,
-    },
-)
+    filtered = {}
 
-register_property_map(
-    "AWS::ECS::TaskDefinition",
-    {
-        "configurable": ECS_TASK_DEFINITION_CONFIGURABLE,
-        "computed": ECS_TASK_DEFINITION_COMPUTED,
-    },
-)
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+
+    return filtered
+
+
+# Note: Registration is handled by __init__.py which registers the module.
 
 __all__ = [
     "ECS_CLUSTER_CONFIGURABLE",

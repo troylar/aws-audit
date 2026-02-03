@@ -169,21 +169,26 @@ register_property_map(
 )
 
 # Also register with AWS CloudFormation resource type names
-register_property_map(
-    "AWS::EKS::Cluster",
-    {
-        "configurable": EKS_CLUSTER_CONFIGURABLE,
-        "computed": EKS_CLUSTER_COMPUTED,
-    },
-)
 
-register_property_map(
-    "AWS::EKS::NodeGroup",
-    {
-        "configurable": EKS_NODE_GROUP_CONFIGURABLE,
-        "computed": EKS_NODE_GROUP_COMPUTED,
-    },
-)
+
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Eks properties for Terraform generation."""
+    resource_type_lower = resource_type.lower()
+    if "group" in resource_type_lower:
+        configurable = EKS_NODE_GROUP_CONFIGURABLE
+    else:
+        configurable = EKS_CLUSTER_CONFIGURABLE
+    
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
 
 __all__ = [
     "EKS_CLUSTER_CONFIGURABLE",

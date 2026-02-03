@@ -346,20 +346,35 @@ def get_dynamodb_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, An
     return computed
 
 
-# Register this property map for DynamoDB resources
-from . import register_property_map
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter DynamoDB properties for Terraform generation.
 
-register_property_map(
-    "dynamodb",
-    {
-        "table": {
-            "configurable": DYNAMODB_TABLE_CONFIGURABLE,
-            "computed": DYNAMODB_TABLE_COMPUTED,
-            "get_properties": get_dynamodb_table_properties,
-            "get_computed": get_dynamodb_computed_properties,
-        },
-    },
-)
+    Uses DYNAMODB_TABLE_CONFIGURABLE as whitelist.
+
+    Args:
+        raw_config: Raw DynamoDB configuration from AWS API
+        resource_type: Resource type string
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    configurable = DYNAMODB_TABLE_CONFIGURABLE
+
+    filtered = {}
+
+    # Include all configurable properties
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                # Skip empty collections
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+
+    return filtered
+
+
+# Note: Registration is handled by __init__.py which registers the module.
 
 __all__ = [
     "DYNAMODB_TABLE_CONFIGURABLE",

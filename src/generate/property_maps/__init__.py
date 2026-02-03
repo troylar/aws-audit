@@ -15,7 +15,10 @@ def get_property_map(resource_type: str) -> Optional[Any]:
     """Get property map for a resource type.
 
     Args:
-        resource_type: AWS resource type (e.g., "ec2:instance", "lambda:function")
+        resource_type: AWS resource type in various formats:
+            - CloudFormation: "AWS::Lambda::Function", "AWS::IAM::Policy"
+            - Short format: "lambda:function", "iam:policy"
+            - Service only: "lambda", "iam"
 
     Returns:
         Property map module or None if not found
@@ -23,6 +26,49 @@ def get_property_map(resource_type: str) -> Optional[Any]:
     # Try exact match first
     if resource_type in _PROPERTY_MAPS:
         return _PROPERTY_MAPS[resource_type]
+
+    # Handle CloudFormation-style types (AWS::Service::Resource)
+    if resource_type.startswith("AWS::"):
+        parts = resource_type.split("::")
+        if len(parts) >= 2:
+            # Extract service name and convert to lowercase
+            service = parts[1].lower()
+            # Map CloudFormation service names to our registry keys
+            service_map = {
+                "lambda": "lambda",
+                "iam": "iam",
+                "ec2": "ec2",
+                "s3": "s3",
+                "sqs": "sqs",
+                "sns": "sns",
+                "dynamodb": "dynamodb",
+                "rds": "rds",
+                "ecs": "ecs",
+                "eks": "eks",
+                "logs": "cloudwatch",  # CloudWatch Logs
+                "cloudwatch": "cloudwatch",
+                "events": "eventbridge",  # EventBridge
+                "apigateway": "apigateway",
+                "kms": "kms",
+                "secretsmanager": "secretsmanager",
+                "ssm": "ssm",
+                "stepfunctions": "stepfunctions",
+                "route53": "route53",
+                "elasticache": "elasticache",
+                "backup": "backup",
+                "glue": "glue",
+                "codebuild": "codebuild",
+                "codepipeline": "codepipeline",
+                "efs": "efs",
+                "elb": "elb",
+                "elbv2": "elb",
+                "waf": "waf",
+                "wafv2": "waf",
+                "cloudformation": "cloudformation",
+            }
+            mapped_service = service_map.get(service, service)
+            if mapped_service in _PROPERTY_MAPS:
+                return _PROPERTY_MAPS[mapped_service]
 
     # Try prefix match (e.g., "ec2" for "ec2:instance")
     prefix = resource_type.split(":")[0] if ":" in resource_type else resource_type

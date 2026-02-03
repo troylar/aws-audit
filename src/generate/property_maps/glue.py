@@ -419,3 +419,22 @@ def get_glue_table_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, 
         computed["update_time"] = str(raw_config["UpdateTime"])
 
     return computed
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Glue properties for Terraform generation."""
+    resource_type_lower = resource_type.lower()
+    if "database" in resource_type_lower:
+        configurable = GLUE_DATABASE_CONFIGURABLE
+    else:
+        configurable = GLUE_TABLE_CONFIGURABLE
+    
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+

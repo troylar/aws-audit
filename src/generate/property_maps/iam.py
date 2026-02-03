@@ -229,67 +229,8 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
     return filtered
 
 
-# Register property maps with the registry
-def _register_maps() -> None:
-    """Register IAM property maps with the registry."""
-    try:
-        from . import register_property_map
-
-        register_property_map(
-            "iam:role",
-            {
-                "configurable": IAM_ROLE_CONFIGURABLE,
-                "computed": IAM_ROLE_COMPUTED,
-                "get_properties": get_iam_role_properties,
-            },
-        )
-        register_property_map(
-            "iam:policy",
-            {
-                "configurable": IAM_POLICY_CONFIGURABLE,
-                "computed": IAM_POLICY_COMPUTED,
-                "get_properties": get_iam_policy_properties,
-            },
-        )
-        register_property_map(
-            "iam:instance_profile",
-            {
-                "configurable": IAM_INSTANCE_PROFILE_CONFIGURABLE,
-                "computed": IAM_INSTANCE_PROFILE_COMPUTED,
-                "get_properties": get_iam_instance_profile_properties,
-            },
-        )
-        register_property_map(
-            "AWS::IAM::Role",
-            {
-                "configurable": IAM_ROLE_CONFIGURABLE,
-                "computed": IAM_ROLE_COMPUTED,
-                "get_properties": get_iam_role_properties,
-            },
-        )
-        register_property_map(
-            "AWS::IAM::Policy",
-            {
-                "configurable": IAM_POLICY_CONFIGURABLE,
-                "computed": IAM_POLICY_COMPUTED,
-                "get_properties": get_iam_policy_properties,
-            },
-        )
-        register_property_map(
-            "AWS::IAM::InstanceProfile",
-            {
-                "configurable": IAM_INSTANCE_PROFILE_CONFIGURABLE,
-                "computed": IAM_INSTANCE_PROFILE_COMPUTED,
-                "get_properties": get_iam_instance_profile_properties,
-            },
-        )
-    except ImportError:
-        # Registry not available yet, will be registered on import
-        pass
-
-
-# Auto-register on module import
-_register_maps()
+# Note: Registration is handled by __init__.py which registers the module.
+# The filter_properties function handles different IAM resource types internally.
 
 __all__ = [
     "IAM_ROLE_CONFIGURABLE",

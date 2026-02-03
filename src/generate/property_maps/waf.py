@@ -239,3 +239,17 @@ def get_waf_webacl_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 register_property_map("wafv2:web_acl", __name__)
 register_property_map("wafv2", __name__)
 register_property_map("waf", __name__)
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Waf properties for Terraform generation."""
+    configurable = WAF_WEBACL_CONFIGURABLE
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+

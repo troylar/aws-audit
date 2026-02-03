@@ -92,3 +92,17 @@ def get_kms_key_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 # Register the property map for KMS keys
 register_property_map("kms:key", __name__)
 register_property_map("kms", __name__)
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Kms properties for Terraform generation."""
+    configurable = KMS_KEY_CONFIGURABLE
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+

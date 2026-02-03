@@ -1,3 +1,3 @@
 """AWS Baseline Snapshot & Delta Tracking tool."""
 
-__version__ = "0.33.0"
+__version__ = "0.33.1"

@@ -119,3 +119,17 @@ def get_secretsmanager_secret_properties(raw_config: Dict[str, Any]) -> Dict[str
 # Register the property map for Secrets Manager secrets
 register_property_map("secretsmanager:secret", __name__)
 register_property_map("secretsmanager", __name__)
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter Secretsmanager properties for Terraform generation."""
+    configurable = SECRETSMANAGER_SECRET_CONFIGURABLE
+    filtered = {}
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+    return filtered
+
