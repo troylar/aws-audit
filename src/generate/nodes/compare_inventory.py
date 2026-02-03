@@ -209,12 +209,19 @@ def _get_resource_name(resource: Any) -> str:
 def _format_inventory_for_comparison(resources: List[Any]) -> str:
     """Format inventory resources for AI comparison prompt.
 
+    For large inventories (>100 resources), uses a summary format to avoid
+    exceeding model context limits.
+
     Args:
         resources: List of TrackedResource objects or resource dicts
 
     Returns:
         Formatted string listing all resources with key attributes
     """
+    # For large inventories, use summary format
+    if len(resources) > 100:
+        return _format_inventory_summary(resources)
+
     lines = []
     for i, resource in enumerate(resources, 1):
         if isinstance(resource, TrackedResource):
@@ -232,6 +239,48 @@ def _format_inventory_for_comparison(resources: List[Any]) -> str:
         attrs_str = ", ".join(f"{k}={v}" for k, v in key_attrs.items()) if key_attrs else "none"
 
         lines.append(f"{i}. Type: {resource_type} | Name: {name} | ARN: {arn} | Key attrs: {attrs_str}")
+
+    return "\n".join(lines)
+
+
+def _format_inventory_summary(resources: List[Any]) -> str:
+    """Format large inventory as a summary by resource type.
+
+    Groups resources by type and shows counts with sample names.
+
+    Args:
+        resources: List of TrackedResource objects or resource dicts
+
+    Returns:
+        Summary format string
+    """
+    # Group by resource type
+    by_type: Dict[str, List[str]] = {}
+    for resource in resources:
+        if isinstance(resource, TrackedResource):
+            resource_type = resource.resource_type
+            name = resource.name
+        else:
+            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
+            name = resource.get("name", "unnamed")
+
+        if resource_type not in by_type:
+            by_type[resource_type] = []
+        by_type[resource_type].append(name)
+
+    lines = [f"INVENTORY SUMMARY ({len(resources)} total resources):", ""]
+
+    for resource_type in sorted(by_type.keys()):
+        names = by_type[resource_type]
+        count = len(names)
+        # Show first 5 names as samples
+        samples = names[:5]
+        sample_str = ", ".join(samples)
+        if count > 5:
+            sample_str += f", ... and {count - 5} more"
+
+        lines.append(f"- {resource_type}: {count} resources")
+        lines.append(f"  Names: {sample_str}")
 
     return "\n".join(lines)
 
@@ -345,6 +394,31 @@ def _format_comparison_prompt(inventory_text: str, terraform_text: str, total_re
     Returns:
         Formatted prompt string
     """
+    # Check if using summary format (for large inventories)
+    is_summary = "INVENTORY SUMMARY" in inventory_text
+
+    if is_summary:
+        matching_instructions = """## MATCHING INSTRUCTIONS (SUMMARY MODE):
+The inventory is provided as a summary by resource type. For each resource TYPE:
+1. Count how many Terraform resources exist for that type
+2. Compare counts: inventory count vs Terraform count
+3. Type mapping: ec2:vpc → aws_vpc, ec2:subnet → aws_subnet, lambda:function → aws_lambda_function, etc.
+4. A type is FULLY COVERED if Terraform has >= the inventory count for that type
+5. A type is PARTIALLY COVERED if Terraform has some but fewer resources
+6. A type is MISSING if Terraform has 0 resources of that type
+
+Calculate coverage as: (sum of covered resources across all types) / total_resources * 100"""
+    else:
+        matching_instructions = """## MATCHING INSTRUCTIONS:
+For EACH inventory resource, find the corresponding Terraform resource by:
+1. Match the resource TYPE (ec2:subnet → aws_subnet, s3:bucket → aws_s3_bucket, etc.)
+2. Match by name OR key attributes (CIDR, function_name, bucket name, etc.)
+3. Treat hyphens and underscores as equivalent (my-vpc = my_vpc)
+4. If multiple resources of same type exist, match by count and attributes
+
+A resource IS REPRESENTED if there's a Terraform resource of the matching type with similar config.
+A resource is MISSING ONLY if no Terraform resource of that type exists for it."""
+
     return f"""Compare the following AWS inventory resources against the generated Terraform code.
 
 ## INVENTORY RESOURCES ({total_resources} total):
@@ -353,15 +427,7 @@ def _format_comparison_prompt(inventory_text: str, terraform_text: str, total_re
 ## GENERATED TERRAFORM CODE:
 {terraform_text}
 
-## MATCHING INSTRUCTIONS:
-For EACH inventory resource, find the corresponding Terraform resource by:
-1. Match the resource TYPE (ec2:subnet → aws_subnet, s3:bucket → aws_s3_bucket, etc.)
-2. Match by name OR key attributes (CIDR, function_name, bucket name, etc.)
-3. Treat hyphens and underscores as equivalent (my-vpc = my_vpc)
-4. If multiple resources of same type exist, match by count and attributes
-
-A resource IS REPRESENTED if there's a Terraform resource of the matching type with similar config.
-A resource is MISSING ONLY if no Terraform resource of that type exists for it.
+{matching_instructions}
 
 ## REQUIRED OUTPUT FORMAT:
 Return ONLY a JSON object with this exact structure:
@@ -371,10 +437,10 @@ Return ONLY a JSON object with this exact structure:
     "represented_count": <int>,
     "missing_count": <int>,
     "represented_resources": [
-        {{"type": "<resource_type>", "name": "<resource_name>", "terraform_resource": "<aws_resource.name>"}}
+        {{"type": "<resource_type>", "name": "<resource_name or 'multiple'>"}}
     ],
     "missing_resources": [
-        {{"type": "<resource_type>", "name": "<resource_name>", "reason": "<why missing>"}}
+        {{"type": "<resource_type>", "name": "<resource_name or 'multiple'>"}}
     ],
     "issues": [
         {{"severity": "warning|error", "resource": "<resource_name>", "description": "<issue description>"}}
