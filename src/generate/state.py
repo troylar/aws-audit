@@ -72,7 +72,7 @@ class GenerationState(TypedDict, total=False):
 class GenerationConfig:
     """Configuration for the IaC generation process."""
 
-    bedrock_model_id: str = "us.anthropic.claude-3-sonnet-20240229-v1:0"
+    bedrock_model_id: str = "us.anthropic.claude-opus-4-20250514-v1:0"
     bedrock_region: str = "us-east-1"
     temperature: float = 0.2
     max_tokens: int = 4096
@@ -97,6 +97,6 @@ class GenerationConfig:
             AWS_DEFAULT_REGION: Fallback for Bedrock region
         """
         return cls(
-            bedrock_model_id=os.environ.get("AWSINV_BEDROCK_MODEL_ID", "us.anthropic.claude-3-sonnet-20240229-v1:0"),
+            bedrock_model_id=os.environ.get("AWSINV_BEDROCK_MODEL_ID", "us.anthropic.claude-opus-4-20250514-v1:0"),
             bedrock_region=os.environ.get("AWSINV_BEDROCK_REGION", os.environ.get("AWS_DEFAULT_REGION", "us-east-1")),
         )
