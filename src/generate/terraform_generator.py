@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional
 from ..models.generation import Layer
 from .agent import compile_terraform_agent
 from .layers import LayerStatus
-from .state import GenerationConfig, GenerationState
+from .state import GenerationConfig, GenerationState, set_progress_callback
 
 # Progress callback type: (step_name, step_data) -> None
 ProgressCallback = Callable[[str, Dict[str, Any]], None]
@@ -204,82 +204,89 @@ class TerraformGenerator:
         if not self.progress_callback:
             return self.agent.invoke(initial_state)
 
+        # Set the global progress callback for nodes to use
+        set_progress_callback(self.progress_callback)
+
         final_state = dict(initial_state)
         last_node = None
         last_layer_index = -1
 
-        for event in self.agent.stream(initial_state, stream_mode="updates"):
-            for node_name, state_update in event.items():
-                if node_name != last_node:
-                    self.progress_callback("node_start", {"node": node_name})
-                    last_node = node_name
+        try:
+            for event in self.agent.stream(initial_state, stream_mode="updates"):
+                for node_name, state_update in event.items():
+                    if node_name != last_node:
+                        self.progress_callback("node_start", {"node": node_name})
+                        last_node = node_name
 
-                    # Emit layer_start when generate_layer begins
-                    if node_name == "generate_layer":
-                        layer_order = final_state.get("layer_order", [])
-                        current_idx = final_state.get("current_layer_index", 0)
-                        if current_idx != last_layer_index and current_idx < len(layer_order):
-                            layer_name = layer_order[current_idx]
-                            self.progress_callback("layer_start", {
-                                "layer_name": layer_name,
-                                "layer_index": current_idx,
-                                "total_layers": len(layer_order),
-                            })
-                            last_layer_index = current_idx
+                        # Emit layer_start when generate_layer begins
+                        if node_name == "generate_layer":
+                            layer_order = final_state.get("layer_order", [])
+                            current_idx = final_state.get("current_layer_index", 0)
+                            if current_idx != last_layer_index and current_idx < len(layer_order):
+                                layer_name = layer_order[current_idx]
+                                self.progress_callback("layer_start", {
+                                    "layer_name": layer_name,
+                                    "layer_index": current_idx,
+                                    "total_layers": len(layer_order),
+                                })
+                                last_layer_index = current_idx
 
-                final_state.update(state_update)
+                    final_state.update(state_update)
 
-                if node_name == "parse_inventory":
-                    resources = state_update.get("resources", [])
-                    self.progress_callback("resources_loaded", {
-                        "count": len(resources),
-                        "resources": resources,
-                    })
-
-                elif node_name == "categorize_layers":
-                    layers = state_update.get("layers", {})
-                    layer_order = state_update.get("layer_order", [])
-                    self.progress_callback("layers_categorized", {
-                        "layers": layers,
-                        "layer_order": layer_order,
-                    })
-
-                elif node_name == "generate_layer":
-                    layer_order = final_state.get("layer_order", [])
-                    current_idx = state_update.get("current_layer_index", 0) - 1
-                    if 0 <= current_idx < len(layer_order):
-                        layer_name = layer_order[current_idx]
-                        status = state_update.get("current_layer_status", "")
-                        generated_code = state_update.get("generated_code", {})
-                        generated_files = state_update.get("generated_files", [])
-
-                        self.progress_callback("layer_complete", {
-                            "layer_name": layer_name,
-                            "status": status,
-                            "generated_code": generated_code.get(layer_name, ""),
-                            "generated_file": generated_files[0] if generated_files else None,
+                    if node_name == "parse_inventory":
+                        resources = state_update.get("resources", [])
+                        self.progress_callback("resources_loaded", {
+                            "count": len(resources),
+                            "resources": resources,
                         })
 
-                elif node_name == "compare_inventory":
-                    comparison = state_update.get("comparison_result", {})
-                    if comparison:
-                        self.progress_callback("comparison_complete", {"result": comparison})
+                    elif node_name == "categorize_layers":
+                        layers = state_update.get("layers", {})
+                        layer_order = state_update.get("layer_order", [])
+                        self.progress_callback("layers_categorized", {
+                            "layers": layers,
+                            "layer_order": layer_order,
+                        })
 
-                elif node_name == "terraform_init":
-                    init_success = state_update.get("init_success", False)
-                    init_errors = state_update.get("validation_errors", [])
-                    self.progress_callback("terraform_init_complete", {
-                        "success": init_success,
-                        "errors": init_errors,
-                    })
+                    elif node_name == "generate_layer":
+                        layer_order = final_state.get("layer_order", [])
+                        current_idx = state_update.get("current_layer_index", 0) - 1
+                        if 0 <= current_idx < len(layer_order):
+                            layer_name = layer_order[current_idx]
+                            status = state_update.get("current_layer_status", "")
+                            generated_code = state_update.get("generated_code", {})
+                            generated_files = state_update.get("generated_files", [])
 
-                elif node_name == "terraform_validate":
-                    errors = state_update.get("validation_errors", [])
-                    self.progress_callback("validation_complete", {"errors": errors})
+                            self.progress_callback("layer_complete", {
+                                "layer_name": layer_name,
+                                "status": status,
+                                "generated_code": generated_code.get(layer_name, ""),
+                                "generated_file": generated_files[0] if generated_files else None,
+                            })
 
-                self.progress_callback("node_complete", {"node": node_name})
+                    elif node_name == "compare_inventory":
+                        comparison = state_update.get("comparison_result", {})
+                        if comparison:
+                            self.progress_callback("comparison_complete", {"result": comparison})
 
-        return final_state
+                    elif node_name == "terraform_init":
+                        init_success = state_update.get("init_success", False)
+                        init_errors = state_update.get("validation_errors", [])
+                        self.progress_callback("terraform_init_complete", {
+                            "success": init_success,
+                            "errors": init_errors,
+                        })
+
+                    elif node_name == "terraform_validate":
+                        errors = state_update.get("validation_errors", [])
+                        self.progress_callback("validation_complete", {"errors": errors})
+
+                    self.progress_callback("node_complete", {"node": node_name})
+
+            return final_state
+        finally:
+            # Clear the global progress callback
+            set_progress_callback(None)
 
     def _generate_provider_config(self) -> None:
         """Generate main.tf with provider configuration."""

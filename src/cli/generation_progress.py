@@ -160,6 +160,8 @@ class GenerationProgressDisplay:
         self.current_activity: str = ""
         self.resource_types_found: Dict[str, int] = {}
         self.lambda_functions_extracted: int = 0
+        self.activity_history: List[str] = []  # Recent activity messages
+        self.max_activity_history: int = 3  # Show last N activities
 
         # Initialize all steps
         for step in WorkflowStep:
@@ -200,8 +202,13 @@ class GenerationProgressDisplay:
         self._refresh()
 
     def set_activity(self, activity: str) -> None:
-        """Set current activity description."""
+        """Set current activity description and add to history."""
         self.current_activity = activity
+        if activity:
+            # Add to history, keeping only recent entries
+            self.activity_history.append(activity)
+            if len(self.activity_history) > self.max_activity_history:
+                self.activity_history.pop(0)
         self._refresh()
 
     def start_step(self, step: WorkflowStep) -> None:
@@ -400,6 +407,15 @@ class GenerationProgressDisplay:
             )
 
         elements.append(steps_table)
+
+        # Current activity indicator
+        if self.current_activity:
+            elements.append(Text("\n"))
+            activity_line = Text()
+            activity_line.append("  ", style="")
+            activity_line.append("⟳ ", style="yellow")
+            activity_line.append(self.current_activity, style="yellow italic")
+            elements.append(activity_line)
 
         # Layer details (show during generation)
         if self.layers and self.current_step == WorkflowStep.GENERATE_LAYERS:

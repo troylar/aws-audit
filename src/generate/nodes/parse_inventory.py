@@ -8,7 +8,7 @@ import yaml
 
 from ...models.generation import TrackedResource
 from ...snapshot.storage import SnapshotStorage
-from ..state import GenerationState
+from ..state import GenerationState, emit_progress
 
 
 def _load_from_file(filepath: str) -> List[Dict[str, Any]]:
@@ -77,6 +77,10 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
 
     # Load from file if provided
     if input_file:
+        emit_progress("activity", {
+            "message": f"Loading resources from {Path(input_file).name}",
+            "step": "parse_inventory",
+        })
         try:
             resource_dicts = _load_from_file(input_file)
         except (FileNotFoundError, ValueError) as e:
@@ -86,11 +90,38 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
                 "errors": [str(e)],
             }
 
+        emit_progress("activity", {
+            "message": f"Converting {len(resource_dicts)} resources",
+            "step": "parse_inventory",
+            "count": len(resource_dicts),
+        })
+
         # Convert to TrackedResource objects
         resources: List[TrackedResource] = []
-        for res in resource_dicts:
+        for i, res in enumerate(resource_dicts):
             tracked = TrackedResource.from_inventory(res)
             resources.append(tracked)
+            # Emit progress every 10 resources
+            if (i + 1) % 10 == 0:
+                emit_progress("activity", {
+                    "message": f"Processed {i + 1}/{len(resource_dicts)} resources",
+                    "step": "parse_inventory",
+                    "processed": i + 1,
+                    "total": len(resource_dicts),
+                })
+
+        # Count resource types
+        type_counts: Dict[str, int] = {}
+        for r in resources:
+            rtype = r.resource_type.split(":")[0] if ":" in r.resource_type else r.resource_type
+            type_counts[rtype] = type_counts.get(rtype, 0) + 1
+
+        emit_progress("activity", {
+            "message": f"Loaded {len(resources)} resources ({len(type_counts)} types)",
+            "step": "parse_inventory",
+            "total": len(resources),
+            "types": type_counts,
+        })
 
         return {
             "resources": resources,
@@ -106,6 +137,11 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
             "errors": ["No snapshot_name or input_file provided"],
         }
 
+    emit_progress("activity", {
+        "message": f"Loading snapshot '{snapshot_name}'",
+        "step": "parse_inventory",
+    })
+
     storage = SnapshotStorage()
     try:
         snapshot = storage.load_snapshot(snapshot_name)
@@ -116,9 +152,15 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
             "errors": [f"Snapshot '{snapshot_name}' not found"],
         }
 
+    emit_progress("activity", {
+        "message": f"Converting {len(snapshot.resources)} resources",
+        "step": "parse_inventory",
+        "count": len(snapshot.resources),
+    })
+
     # Convert to TrackedResource objects
     resources = []
-    for resource in snapshot.resources:
+    for i, resource in enumerate(snapshot.resources):
         tracked = TrackedResource(
             resource_type=resource.resource_type,
             name=resource.name,
@@ -128,6 +170,27 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
             tags=resource.tags or {},
         )
         resources.append(tracked)
+        # Emit progress every 10 resources
+        if (i + 1) % 10 == 0:
+            emit_progress("activity", {
+                "message": f"Processed {i + 1}/{len(snapshot.resources)} resources",
+                "step": "parse_inventory",
+                "processed": i + 1,
+                "total": len(snapshot.resources),
+            })
+
+    # Count resource types
+    type_counts: Dict[str, int] = {}
+    for r in resources:
+        rtype = r.resource_type.split(":")[0] if ":" in r.resource_type else r.resource_type
+        type_counts[rtype] = type_counts.get(rtype, 0) + 1
+
+    emit_progress("activity", {
+        "message": f"Loaded {len(resources)} resources ({len(type_counts)} types)",
+        "step": "parse_inventory",
+        "total": len(resources),
+        "types": type_counts,
+    })
 
     return {
         "resources": resources,

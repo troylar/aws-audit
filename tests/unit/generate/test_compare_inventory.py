@@ -172,6 +172,7 @@ resource "aws_lambda_function" "my_function" {
 
         mock_client = MagicMock()
         mock_client.converse.return_value = mock_bedrock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             compare_inventory(state)
@@ -196,6 +197,7 @@ resource "aws_lambda_function" "my_function" {
 
         mock_client = MagicMock()
         mock_client.converse.return_value = mock_bedrock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             result = compare_inventory(state)
@@ -218,6 +220,7 @@ resource "aws_lambda_function" "my_function" {
         }
 
         mock_client = MagicMock()
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
         mock_client.converse.side_effect = Exception("Bedrock API Error")
 
         with patch("boto3.client", return_value=mock_client):
@@ -243,6 +246,7 @@ resource "aws_lambda_function" "my_function" {
 
         mock_client = MagicMock()
         mock_client.converse.return_value = mock_bedrock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             result = compare_inventory(state)

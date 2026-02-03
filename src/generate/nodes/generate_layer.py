@@ -13,7 +13,7 @@ from ..prompts.terraform import (
     format_layer_prompt,
     get_terraform_system_prompt,
 )
-from ..state import GenerationConfig, GenerationState
+from ..state import GenerationConfig, GenerationState, emit_progress
 
 
 def generate_layer(state: GenerationState) -> Dict[str, Any]:
@@ -53,6 +53,13 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
             "current_layer_status": LayerStatus.COMPLETED.value,
         }
 
+    # Emit progress: starting layer generation
+    emit_progress("activity", {
+        "message": f"Preparing {layer_name} layer ({len(layer_resources)} resources)",
+        "layer": layer_name,
+        "resource_count": len(layer_resources),
+    })
+
     layer = Layer(
         name=layer_name,
         order=current_layer_index,
@@ -61,7 +68,19 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     )
 
     try:
+        # Emit progress: creating Bedrock client
+        emit_progress("activity", {
+            "message": f"Connecting to Bedrock ({config.bedrock_region})",
+            "layer": layer_name,
+        })
+
         client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
+
+        # Emit progress: building prompt
+        emit_progress("activity", {
+            "message": f"Building prompt for {len(layer_resources)} resources",
+            "layer": layer_name,
+        })
 
         system_prompt = get_terraform_system_prompt()
         user_prompt = format_layer_prompt(
@@ -71,26 +90,88 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
             lambda_code_paths=lambda_code_paths,
         )
 
-        response = client.converse(
-            modelId=config.bedrock_model_id,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [{"text": user_prompt}],
-                }
-            ],
-            system=[{"text": system_prompt}],
-            inferenceConfig={
-                "temperature": config.temperature,
-                "maxTokens": config.max_tokens,
-            },
-        )
+        # Emit progress: calling AI
+        emit_progress("activity", {
+            "message": f"Calling AI to generate Terraform ({config.bedrock_model_id.split('/')[-1]})",
+            "layer": layer_name,
+            "model": config.bedrock_model_id,
+        })
 
-        terraform_code = response["output"]["message"]["content"][0]["text"] or ""
+        # Use streaming API for real-time progress
+        terraform_code = ""
+        token_count = 0
+
+        try:
+            response = client.converse_stream(
+                modelId=config.bedrock_model_id,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"text": user_prompt}],
+                    }
+                ],
+                system=[{"text": system_prompt}],
+                inferenceConfig={
+                    "temperature": config.temperature,
+                    "maxTokens": config.max_tokens,
+                },
+            )
+
+            # Stream the response
+            for event in response.get("stream", []):
+                if "contentBlockDelta" in event:
+                    delta = event["contentBlockDelta"].get("delta", {})
+                    if "text" in delta:
+                        terraform_code += delta["text"]
+                        token_count += 1
+                        # Emit progress every 50 tokens
+                        if token_count % 50 == 0:
+                            emit_progress("activity", {
+                                "message": f"Generating code... ({token_count} tokens)",
+                                "layer": layer_name,
+                                "tokens": token_count,
+                            })
+
+        except Exception:
+            # Fall back to non-streaming if streaming fails
+            response = client.converse(
+                modelId=config.bedrock_model_id,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"text": user_prompt}],
+                    }
+                ],
+                system=[{"text": system_prompt}],
+                inferenceConfig={
+                    "temperature": config.temperature,
+                    "maxTokens": config.max_tokens,
+                },
+            )
+            terraform_code = response["output"]["message"]["content"][0]["text"] or ""
+
+        # Emit progress: processing response
+        emit_progress("activity", {
+            "message": f"Processing AI response ({len(terraform_code)} chars)",
+            "layer": layer_name,
+            "code_length": len(terraform_code),
+        })
 
         terraform_code = _clean_terraform_code(terraform_code)
 
+        # Emit progress: replacing IDs
+        emit_progress("activity", {
+            "message": "Replacing AWS IDs with Terraform references",
+            "layer": layer_name,
+        })
+
         terraform_code = resource_map.replace_ids_in_code(terraform_code)
+
+        # Emit progress: saving file
+        emit_progress("activity", {
+            "message": f"Saving {layer_name} Terraform file",
+            "layer": layer_name,
+        })
 
         output_file = _save_layer_file(
             layer=layer,
@@ -103,6 +184,13 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
 
         layers[layer_name] = layer_resources
 
+        # Emit progress: layer complete
+        emit_progress("activity", {
+            "message": f"Completed {layer_name} layer",
+            "layer": layer_name,
+            "file": output_file,
+        })
+
         return {
             "layers": layers,
             "generated_files": [output_file],
@@ -113,6 +201,11 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
 
     except Exception as e:
         layer.status = LayerStatus.FAILED.value
+        emit_progress("activity", {
+            "message": f"Failed: {str(e)[:50]}",
+            "layer": layer_name,
+            "error": str(e),
+        })
         return {
             "layers": layers,
             "errors": [{"message": f"Failed to generate {layer_name}: {e}"}],

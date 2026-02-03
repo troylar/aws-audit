@@ -5772,6 +5772,11 @@ def generate(
             errors = data.get("errors", [])
             progress.set_validation_errors(errors)
 
+        elif event == "activity":
+            message = data.get("message", "")
+            if message:
+                progress.set_activity(message)
+
     # Run generation with progress
     progress.start()
     try:

@@ -927,6 +927,7 @@ resource "aws_subnet" "public_1" {
         mock_client = MagicMock()
         mock_response = {"output": {"message": {"content": [{"text": "```hcl\n# test\n```"}]}}}
         mock_client.converse.return_value = mock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             generate_layer(state_with_current_layer)
@@ -942,6 +943,7 @@ resource "aws_subnet" "public_1" {
         mock_client = MagicMock()
         mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
         mock_client.converse.return_value = mock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
@@ -968,6 +970,7 @@ resource "aws_subnet" "public_1" {
         mock_client = MagicMock()
         mock_response = {"output": {"message": {"content": [{"text": ai_response_with_hardcoded_ids}]}}}
         mock_client.converse.return_value = mock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
@@ -982,6 +985,7 @@ resource "aws_subnet" "public_1" {
         state_with_current_layer["output_dir"] = str(tmp_path)
 
         mock_client = MagicMock()
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
         mock_client.converse.side_effect = Exception("Bedrock API Error")
 
         with patch("boto3.client", return_value=mock_client):
@@ -1000,6 +1004,7 @@ resource "aws_subnet" "public_1" {
         mock_client = MagicMock()
         mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
         mock_client.converse.return_value = mock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
@@ -1016,6 +1021,7 @@ resource "aws_subnet" "public_1" {
         mock_client = MagicMock()
         mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
         mock_client.converse.return_value = mock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
@@ -1032,6 +1038,7 @@ resource "aws_subnet" "public_1" {
         mock_client = MagicMock()
         mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
         mock_client.converse.return_value = mock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         with patch("boto3.client", return_value=mock_client):
             result = generate_layer(state_with_current_layer)
@@ -1178,6 +1185,7 @@ class TestNodeReturnTypes:
         mock_client = MagicMock()
         mock_response = {"output": {"message": {"content": [{"text": "```hcl\n# test\n```"}]}}}
         mock_client.converse.return_value = mock_response
+        mock_client.converse_stream.side_effect = Exception("Streaming not available")
 
         state: Dict[str, Any] = {
             "snapshot_name": "test",

@@ -3,9 +3,32 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from operator import add
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from typing_extensions import Annotated, TypedDict
+
+# Type for progress callback: (event_name, event_data) -> None
+ProgressCallback = Callable[[str, Dict[str, Any]], None]
+
+# Global progress callback for nodes to use (set by terraform_generator)
+_progress_callback: Optional[ProgressCallback] = None
+
+
+def set_progress_callback(callback: Optional[ProgressCallback]) -> None:
+    """Set the global progress callback for nodes to use."""
+    global _progress_callback
+    _progress_callback = callback
+
+
+def get_progress_callback() -> Optional[ProgressCallback]:
+    """Get the current progress callback."""
+    return _progress_callback
+
+
+def emit_progress(event: str, data: Dict[str, Any]) -> None:
+    """Emit a progress event if callback is set."""
+    if _progress_callback:
+        _progress_callback(event, data)
 
 
 def merge_dicts(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:

@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 import boto3
 
 from ...models.generation import TrackedResource
-from ..state import GenerationConfig, GenerationState
+from ..state import GenerationConfig, GenerationState, emit_progress
 
 
 def compare_inventory(state: GenerationState) -> Dict[str, Any]:
@@ -68,32 +68,99 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
 
     config = GenerationConfig.from_env()
 
+    emit_progress("activity", {
+        "message": f"Formatting {len(resources)} resources for comparison",
+        "step": "compare_inventory",
+    })
+
     inventory_text = _format_inventory_for_comparison(resources)
     terraform_text = _combine_generated_code(generated_code)
 
+    emit_progress("activity", {
+        "message": f"Prepared {len(generated_code)} layers ({len(terraform_text)} chars)",
+        "step": "compare_inventory",
+        "layers": len(generated_code),
+    })
+
     try:
+        emit_progress("activity", {
+            "message": f"Connecting to Bedrock ({config.bedrock_region})",
+            "step": "compare_inventory",
+        })
+
         client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
 
         system_prompt = _get_comparison_system_prompt()
         user_prompt = _format_comparison_prompt(inventory_text, terraform_text, len(resources))
 
-        response = client.converse(
-            modelId=config.bedrock_model_id,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [{"text": user_prompt}],
-                }
-            ],
-            system=[{"text": system_prompt}],
-            inferenceConfig={
-                "temperature": 0.1,
-                "maxTokens": config.max_tokens,
-            },
-        )
+        emit_progress("activity", {
+            "message": "Calling AI to analyze coverage",
+            "step": "compare_inventory",
+            "model": config.bedrock_model_id,
+        })
 
-        response_text = response["output"]["message"]["content"][0]["text"] or ""
+        # Use streaming for real-time progress
+        response_text = ""
+        token_count = 0
+
+        try:
+            response = client.converse_stream(
+                modelId=config.bedrock_model_id,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"text": user_prompt}],
+                    }
+                ],
+                system=[{"text": system_prompt}],
+                inferenceConfig={
+                    "temperature": 0.1,
+                    "maxTokens": config.max_tokens,
+                },
+            )
+
+            for event in response.get("stream", []):
+                if "contentBlockDelta" in event:
+                    delta = event["contentBlockDelta"].get("delta", {})
+                    if "text" in delta:
+                        response_text += delta["text"]
+                        token_count += 1
+                        if token_count % 50 == 0:
+                            emit_progress("activity", {
+                                "message": f"Analyzing... ({token_count} tokens)",
+                                "step": "compare_inventory",
+                                "tokens": token_count,
+                            })
+        except Exception:
+            # Fall back to non-streaming
+            response = client.converse(
+                modelId=config.bedrock_model_id,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"text": user_prompt}],
+                    }
+                ],
+                system=[{"text": system_prompt}],
+                inferenceConfig={
+                    "temperature": 0.1,
+                    "maxTokens": config.max_tokens,
+                },
+            )
+            response_text = response["output"]["message"]["content"][0]["text"] or ""
+
+        emit_progress("activity", {
+            "message": "Parsing comparison results",
+            "step": "compare_inventory",
+        })
+
         comparison_result = _parse_comparison_response(response_text, len(resources))
+
+        emit_progress("activity", {
+            "message": f"Coverage: {comparison_result.get('coverage_percentage', 0):.0f}%",
+            "step": "compare_inventory",
+            "coverage": comparison_result.get("coverage_percentage", 0),
+        })
 
         return {"comparison_result": comparison_result}
 
