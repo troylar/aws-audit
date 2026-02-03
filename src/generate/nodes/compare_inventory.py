@@ -172,18 +172,18 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
 
         deterministic = _deterministic_coverage_check(resources, terraform_text)
         det_covered = deterministic["estimated_covered"]
-        ai_covered = comparison_result.get("represented_count", 0)
 
-        # If AI result differs significantly from deterministic (>20% difference),
-        # trust the deterministic result as it's more reliable
+        # If AI result is significantly LOWER than deterministic (AI under-reporting),
+        # use the deterministic result as a floor. Only override upward, never downward.
         if len(resources) > 0:
             det_pct = det_covered / len(resources) * 100
             ai_pct = comparison_result.get("coverage_percentage", 0)
 
-            # Check for significant discrepancy (more than 20 percentage points)
-            if abs(det_pct - ai_pct) > 20:
+            # Only override if deterministic found MORE coverage than AI
+            # (AI is under-reporting, which was the original bug)
+            if det_pct > ai_pct + 20:
                 emit_progress("activity", {
-                    "message": f"AI result ({ai_pct:.0f}%) differs from deterministic ({det_pct:.0f}%), using deterministic",
+                    "message": f"AI under-reported ({ai_pct:.0f}%), deterministic found ({det_pct:.0f}%), using deterministic",
                     "step": "compare_inventory",
                 })
 
@@ -194,7 +194,15 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
                 comparison_result["issues"].append({
                     "severity": "warning",
                     "resource": "validation",
-                    "description": f"AI reported {ai_pct:.0f}% coverage but deterministic check found {det_pct:.0f}%. Using deterministic result.",
+                    "description": f"AI reported {ai_pct:.0f}% but deterministic check found {det_pct:.0f}%. Using deterministic result.",
+                })
+            elif ai_pct > det_pct + 20 and det_covered > 0:
+                # AI found more than deterministic - add a note but trust AI
+                # (deterministic may have incomplete type mapping)
+                comparison_result["issues"].append({
+                    "severity": "info",
+                    "resource": "validation",
+                    "description": f"AI reported {ai_pct:.0f}% but deterministic check found {det_pct:.0f}%. Trusting AI result.",
                 })
 
         emit_progress("activity", {
