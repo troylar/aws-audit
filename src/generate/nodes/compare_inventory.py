@@ -104,7 +104,7 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
         token_count = 0
 
         try:
-            response = client.converse_stream(
+            stream_response = client.converse_stream(
                 modelId=config.bedrock_model_id,
                 messages=[
                     {
@@ -119,18 +119,26 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
                 },
             )
 
-            for event in response.get("stream", []):
-                if "contentBlockDelta" in event:
-                    delta = event["contentBlockDelta"].get("delta", {})
-                    if "text" in delta:
-                        response_text += delta["text"]
-                        token_count += 1
-                        if token_count % 50 == 0:
-                            emit_progress("activity", {
-                                "message": f"Analyzing... ({token_count} tokens)",
-                                "step": "compare_inventory",
-                                "tokens": token_count,
-                            })
+            # Stream is an EventStream object
+            event_stream = stream_response.get("stream")
+            if event_stream:
+                for event in event_stream:
+                    if "contentBlockDelta" in event:
+                        delta = event["contentBlockDelta"].get("delta", {})
+                        if "text" in delta:
+                            response_text += delta["text"]
+                            token_count += 1
+                            if token_count % 50 == 0:
+                                emit_progress("activity", {
+                                    "message": f"Analyzing... ({token_count} tokens)",
+                                    "step": "compare_inventory",
+                                    "tokens": token_count,
+                                })
+
+            # If streaming didn't produce any text, fall back to non-streaming
+            if not response_text:
+                raise ValueError("Streaming produced no output")
+
         except Exception:
             # Fall back to non-streaming
             response = client.converse(

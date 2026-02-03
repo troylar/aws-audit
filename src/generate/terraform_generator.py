@@ -160,12 +160,12 @@ class TerraformGenerator:
             self._generate_variables_file(final_state)
             self._generate_outputs_file(final_state)
 
-            generated_files = final_state.get("generated_files", [])
-            layers_dict = final_state.get("layers", {})
-            layer_order = final_state.get("layer_order", [])
-            errors = final_state.get("errors", [])
-            validation_errors = final_state.get("validation_errors", [])
-            comparison_result = final_state.get("comparison_result", {})
+            generated_files = final_state.get("generated_files") or []
+            layers_dict = final_state.get("layers") or {}
+            layer_order = final_state.get("layer_order") or []
+            errors = final_state.get("errors") or []
+            validation_errors = final_state.get("validation_errors") or []
+            comparison_result = final_state.get("comparison_result") or {}
 
             layers = [layers_dict[layer_name] for layer_name in layer_order if layer_name in layers_dict]
 
@@ -176,8 +176,8 @@ class TerraformGenerator:
                 output_dir=self.output_dir,
                 generated_files=generated_files,
                 layers=layers,
-                errors=[str(e) for e in errors],
-                validation_errors=[str(e) for e in validation_errors],
+                errors=[str(e) for e in errors] if errors else [],
+                validation_errors=[str(e) for e in validation_errors] if validation_errors else [],
             )
 
             if self.progress_callback and comparison_result:
