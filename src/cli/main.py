@@ -5804,6 +5804,137 @@ def generate(
         raise typer.Exit(1)
 
 
+# =============================================================================
+# Compare Command (IaC Coverage Validation)
+# =============================================================================
+
+
+@app.command()
+def compare(
+    snapshot_name: Optional[str] = typer.Argument(None, help="Name of snapshot to compare against"),
+    iac_dir: str = typer.Option("./terraform", "--iac-dir", "-d", help="Directory containing IaC files"),
+    from_file: Optional[str] = typer.Option(
+        None, "--from-file", "-f", help="Path to JSON/YAML inventory file (alternative to snapshot)"
+    ),
+    model_id: Optional[str] = typer.Option(
+        None, "--model-id", "-m", help="Bedrock model ID (default: from AWSINV_BEDROCK_MODEL_ID)"
+    ),
+    region: Optional[str] = typer.Option(
+        None, "--region", "-r", help="AWS region for Bedrock (default: from AWSINV_BEDROCK_REGION)"
+    ),
+    output_json: bool = typer.Option(False, "--json", help="Output results as JSON"),
+) -> None:
+    """Compare inventory coverage against existing IaC code.
+
+    Validates how well existing Terraform/CDK code covers the resources in an
+    inventory snapshot or export file. Useful for:
+
+    - Checking coverage of manually written IaC
+    - Re-validating after manual edits to generated code
+    - Comparing inventory against existing infrastructure-as-code
+
+    Examples:
+        awsinv compare my-snapshot --iac-dir ./terraform
+        awsinv compare --from-file inventory.yaml --iac-dir ./infra
+        awsinv compare my-snapshot --iac-dir ./terraform --json
+    """
+    # Validate input
+    if not snapshot_name and not from_file:
+        console.print("[red]Error:[/red] Either provide a snapshot name or use --from-file")
+        raise typer.Exit(1)
+
+    # Import here to avoid loading dependencies unless needed
+    try:
+        from ..generate.compare import compare_coverage
+    except ImportError as e:
+        console.print("[red]Error:[/red] Generate dependencies not installed.")
+        console.print("Install with: pip install aws-inventory-manager[generate]")
+        console.print(f"Details: {e}")
+        raise typer.Exit(1)
+
+    # Set environment variables for model/region if provided
+    import os
+    if model_id:
+        os.environ["AWSINV_BEDROCK_MODEL_ID"] = model_id
+    if region:
+        os.environ["AWSINV_BEDROCK_REGION"] = region
+
+    source_name = from_file if from_file else snapshot_name or ""
+
+    if not output_json:
+        console.print(f"\n[bold]IaC Coverage Comparison[/bold]")
+        console.print(f"  Source: {source_name}")
+        console.print(f"  IaC Directory: {iac_dir}\n")
+
+    # Progress callback for non-JSON output
+    def progress_callback(event: str, data: dict) -> None:
+        if not output_json and event == "activity":
+            message = data.get("message", "")
+            if message:
+                console.print(f"  [dim]{message}[/dim]")
+
+    # Run comparison
+    result = compare_coverage(
+        snapshot_name=snapshot_name,
+        inventory_file=from_file,
+        iac_dir=iac_dir,
+        progress_callback=progress_callback if not output_json else None,
+    )
+
+    if output_json:
+        import json
+        output = {
+            "success": result.success,
+            "coverage_percentage": result.coverage_percentage,
+            "total_resources": result.total_resources,
+            "represented_count": result.represented_count,
+            "missing_count": result.missing_count,
+            "represented_resources": result.represented_resources,
+            "missing_resources": result.missing_resources,
+            "issues": result.issues,
+            "summary": result.summary,
+            "errors": result.errors,
+        }
+        console.print(json.dumps(output, indent=2))
+    else:
+        console.print()
+        # Coverage summary
+        coverage_color = "green" if result.coverage_percentage >= 90 else "yellow" if result.coverage_percentage >= 70 else "red"
+        console.print(f"  [bold]Coverage:[/bold] [{coverage_color}]{result.coverage_percentage:.1f}%[/{coverage_color}]")
+        console.print(f"  [bold]Resources:[/bold] {result.represented_count}/{result.total_resources} represented")
+
+        if result.missing_count > 0:
+            console.print(f"\n  [yellow]Missing Resources ({result.missing_count}):[/yellow]")
+            for missing in result.missing_resources[:10]:  # Show first 10
+                console.print(f"    - {missing.get('type', 'unknown')}: {missing.get('name', 'unnamed')}")
+                if missing.get('reason'):
+                    console.print(f"      [dim]{missing['reason']}[/dim]")
+            if result.missing_count > 10:
+                console.print(f"    ... and {result.missing_count - 10} more")
+
+        if result.issues:
+            console.print(f"\n  [yellow]Issues ({len(result.issues)}):[/yellow]")
+            for issue in result.issues[:5]:  # Show first 5
+                severity = issue.get("severity", "warning")
+                color = "red" if severity == "error" else "yellow"
+                console.print(f"    [{color}]{severity}[/{color}]: {issue.get('description', '')}")
+            if len(result.issues) > 5:
+                console.print(f"    ... and {len(result.issues) - 5} more")
+
+        if result.summary:
+            console.print(f"\n  [dim]{result.summary}[/dim]")
+
+        if result.errors:
+            console.print(f"\n  [red]Errors:[/red]")
+            for error in result.errors:
+                console.print(f"    - {error}")
+
+        console.print()
+
+    if not result.success:
+        raise typer.Exit(1)
+
+
 def cli_main():
     """Entry point for console script."""
     app()
