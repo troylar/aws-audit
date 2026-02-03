@@ -459,14 +459,16 @@ class TestFilterProperties:
         assert "Tags" not in result
         assert "InstanceType" in result
 
-    def test_filters_private_keys(self, terraform_prompts: Any) -> None:
-        """Test that keys starting with underscore are filtered."""
+    def test_filters_private_keys_except_code(self, terraform_prompts: Any) -> None:
+        """Test that keys starting with underscore are filtered, except _code."""
         raw_config = {
             "InstanceType": "t3.medium",
             "_internal": "value",
+            "_code": {"code_stored": True},  # Should be preserved for Lambda
         }
         result = terraform_prompts._filter_properties(raw_config, None)
         assert "_internal" not in result
+        assert "_code" in result  # _code is preserved
         assert "InstanceType" in result
 
     def test_keeps_non_empty_lists(self, terraform_prompts: Any) -> None:

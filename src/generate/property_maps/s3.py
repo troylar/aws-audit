@@ -208,3 +208,57 @@ def get_s3_public_access_block_config(raw_config: Dict[str, Any]) -> Optional[Di
         "ignore_public_acls": public_access_block.get("IgnorePublicAcls", False),
         "restrict_public_buckets": public_access_block.get("RestrictPublicBuckets", False),
     }
+
+
+# S3 configurable property keys (for filter_properties)
+S3_CONFIGURABLE_KEYS = {
+    "Name",  # bucket name
+    "Tags",
+    "Versioning",
+    "Encryption",
+    "PublicAccessBlock",
+    "Logging",
+    "LifecycleConfiguration",
+    "CorsConfiguration",
+    "WebsiteConfiguration",
+    "Policy",
+    "Acl",
+    "ObjectLockConfiguration",
+    "ReplicationConfiguration",
+    "NotificationConfiguration",
+    "AccelerateConfiguration",
+    "RequestPaymentConfiguration",
+}
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter S3 properties for Terraform generation.
+
+    Includes bucket name, tags, and configuration sections that map
+    to separate Terraform resources.
+
+    Args:
+        raw_config: Raw S3 bucket configuration from AWS API
+        resource_type: Resource type string
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    filtered = {}
+
+    for key in S3_CONFIGURABLE_KEYS:
+        if key in raw_config:
+            value = raw_config[key]
+            if value is not None:
+                # Skip empty collections
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[key] = value
+
+    return filtered
+
+
+# Register the property map for S3 buckets
+from . import register_property_map
+
+register_property_map("s3", __name__)
+register_property_map("s3:bucket", __name__)

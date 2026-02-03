@@ -135,7 +135,7 @@ def format_resource_for_prompt(
     """
     property_map = get_property_map(resource.resource_type)
 
-    props = _filter_properties(resource.raw_config, property_map)
+    props = _filter_properties(resource.raw_config, property_map, resource.resource_type)
 
     lines = [
         f"### {resource.resource_type}: {resource.resource_id if hasattr(resource, 'resource_id') else resource.name}",
@@ -170,11 +170,33 @@ def format_resource_for_prompt(
 def _filter_properties(
     raw_config: Dict[str, Any],
     property_map: Optional[Any],
+    resource_type: str = "",
 ) -> Dict[str, Any]:
     """Filter properties for prompt inclusion.
 
-    Removes computed properties and applies property map transformations.
+    Uses property map's filter_properties if available, otherwise falls back
+    to generic computed property filtering.
+
+    Args:
+        raw_config: Raw resource configuration from AWS API
+        property_map: Property map module or dict (may have filter_properties function)
+        resource_type: Resource type string for context
+
+    Returns:
+        Filtered dictionary suitable for Terraform generation prompt
     """
+    # Try to use property map's filter_properties if available
+    if property_map and hasattr(property_map, "filter_properties"):
+        import inspect
+
+        # Check if filter_properties accepts resource_type parameter
+        sig = inspect.signature(property_map.filter_properties)
+        if len(sig.parameters) > 1:
+            return property_map.filter_properties(raw_config, resource_type)
+        else:
+            return property_map.filter_properties(raw_config)
+
+    # Fallback to generic filtering if no property map
     computed_props = {
         "CreateTime",
         "CreationDate",
@@ -183,6 +205,7 @@ def _filter_properties(
         "State",
         "Status",
         "Arn",
+        "FunctionArn",
         "OwnerId",
         "RequesterId",
         "Attachments",
@@ -192,7 +215,6 @@ def _filter_properties(
         "StateReason",
         "StateTransitionReason",
         "Platform",
-        "Architecture",
         "RootDeviceType",
         "VirtualizationType",
         "Monitoring",
@@ -207,6 +229,24 @@ def _filter_properties(
         "BootMode",
         "CurrentInstanceBootMode",
         "PrivateDnsNameOptions",
+        # IAM computed fields
+        "RoleId",
+        "PolicyId",
+        "CreateDate",
+        "UpdateDate",
+        "AttachmentCount",
+        "IsAttachable",
+        "DefaultVersionId",
+        "PolicyVersionList",
+        # Lambda computed fields
+        "CodeSize",
+        "Version",
+        "Revision",
+        "PackageType",
+        "StateReasonCode",
+        "LastUpdateStatus",
+        "LastUpdateStatusReason",
+        "LastUpdateStatusReasonCode",
     }
 
     filtered = {}
@@ -221,13 +261,15 @@ def _filter_properties(
         if isinstance(value, (list, dict)) and not value:
             continue
 
+        # Preserve internal data like _code for Lambda
+        # (these contain important code reference info)
         if key.startswith("_"):
+            # Only preserve known important internal keys
+            if key in ("_code",):
+                filtered[key] = value
             continue
 
         filtered[key] = value
-
-    if property_map and hasattr(property_map, "filter_properties"):
-        filtered = property_map.filter_properties(filtered)
 
     return filtered
 

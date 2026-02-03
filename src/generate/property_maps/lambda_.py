@@ -316,6 +316,70 @@ def get_lambda_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
+def filter_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Filter Lambda properties for Terraform generation.
+
+    Uses LAMBDA_CONFIGURABLE as whitelist - only includes properties
+    that can be set in Terraform.
+
+    Args:
+        raw_config: Raw Lambda configuration from AWS API
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    filtered = {}
+
+    # Include all configurable properties
+    for aws_field, tf_field in LAMBDA_CONFIGURABLE.items():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                # Apply transformations for nested structures
+                if aws_field == "VpcConfig":
+                    transformed = _transform_vpc_config(value)
+                    if transformed:
+                        filtered[aws_field] = value  # Keep original for prompt
+                elif aws_field == "Environment":
+                    transformed = _transform_environment_variables(value)
+                    if transformed:
+                        filtered[aws_field] = value
+                elif aws_field == "EphemeralStorage":
+                    transformed = _transform_ephemeral_storage(value)
+                    if transformed:
+                        filtered[aws_field] = value
+                elif aws_field == "DeadLetterConfig":
+                    transformed = _transform_dead_letter_config(value)
+                    if transformed:
+                        filtered[aws_field] = value
+                elif aws_field == "TracingConfig":
+                    transformed = _transform_tracing_config(value)
+                    if transformed:
+                        filtered[aws_field] = value
+                elif aws_field == "ImageConfig":
+                    transformed = _transform_image_config(value)
+                    if transformed:
+                        filtered[aws_field] = value
+                elif aws_field == "SnapStart":
+                    transformed = _transform_snap_start(value)
+                    if transformed:
+                        filtered[aws_field] = value
+                elif aws_field == "LoggingConfig":
+                    transformed = _transform_logging_config(value)
+                    if transformed:
+                        filtered[aws_field] = value
+                else:
+                    # Simple properties - include if not empty
+                    if not (isinstance(value, (list, dict)) and not value):
+                        filtered[aws_field] = value
+
+    # Preserve _code data for Lambda code references
+    if "_code" in raw_config:
+        filtered["_code"] = raw_config["_code"]
+
+    return filtered
+
+
 # Register the property map for Lambda functions
 register_property_map("lambda:function", __name__)
 register_property_map("lambda", __name__)

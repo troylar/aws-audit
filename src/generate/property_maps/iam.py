@@ -171,6 +171,64 @@ def get_iam_instance_profile_properties(raw_config: Dict[str, Any]) -> Dict[str,
     return terraform_config
 
 
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter IAM properties for Terraform generation.
+
+    Uses the appropriate CONFIGURABLE dict as whitelist based on resource type.
+
+    Args:
+        raw_config: Raw IAM configuration from AWS API
+        resource_type: Resource type (e.g., "AWS::IAM::Role", "AWS::IAM::Policy")
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    # Determine which configurable map to use based on resource type
+    resource_type_lower = resource_type.lower()
+
+    if "policy" in resource_type_lower and "role" not in resource_type_lower:
+        configurable = IAM_POLICY_CONFIGURABLE
+    elif "instanceprofile" in resource_type_lower or "instance_profile" in resource_type_lower:
+        configurable = IAM_INSTANCE_PROFILE_CONFIGURABLE
+    else:
+        # Default to role
+        configurable = IAM_ROLE_CONFIGURABLE
+
+    filtered = {}
+
+    # Include all configurable properties
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                # Handle special cases
+                if aws_field == "AssumeRolePolicyDocument":
+                    # Keep as dict for JSON serialization in prompt
+                    filtered[aws_field] = value
+                elif aws_field == "PolicyDocument":
+                    # Keep as dict for JSON serialization in prompt
+                    filtered[aws_field] = value
+                elif aws_field == "PermissionsBoundary":
+                    # Extract ARN if it's a dict
+                    if isinstance(value, dict):
+                        filtered[aws_field] = value.get("PermissionsBoundaryArn", value)
+                    else:
+                        filtered[aws_field] = value
+                elif aws_field == "Roles":
+                    # For instance profiles - extract role names
+                    if isinstance(value, list) and len(value) > 0:
+                        if isinstance(value[0], dict):
+                            filtered[aws_field] = [r.get("RoleName", r) for r in value]
+                        else:
+                            filtered[aws_field] = value
+                else:
+                    # Skip empty collections
+                    if not (isinstance(value, (list, dict)) and not value):
+                        filtered[aws_field] = value
+
+    return filtered
+
+
 # Register property maps with the registry
 def _register_maps() -> None:
     """Register IAM property maps with the registry."""

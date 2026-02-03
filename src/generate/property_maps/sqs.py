@@ -117,6 +117,32 @@ def get_sqs_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter SQS properties for Terraform generation.
+
+    Uses SQS_CONFIGURABLE as whitelist.
+
+    Args:
+        raw_config: Raw SQS configuration from AWS API
+        resource_type: Resource type string
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    filtered = {}
+
+    # Include all configurable properties
+    for aws_field in SQS_CONFIGURABLE.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                # Skip empty collections
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+
+    return filtered
+
+
 # Register the property map for SQS queues
 register_property_map("sqs:queue", __name__)
 register_property_map("sqs", __name__)

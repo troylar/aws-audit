@@ -99,6 +99,76 @@ EC2_INSTANCE_COMPUTED: set = {
 }
 
 
+# EC2 VPC configurable properties
+EC2_VPC_CONFIGURABLE: Dict[str, str] = {
+    "CidrBlock": "cidr_block",
+    "EnableDnsHostnames": "enable_dns_hostnames",
+    "EnableDnsSupport": "enable_dns_support",
+    "InstanceTenancy": "instance_tenancy",
+    "Tags": "tags",
+}
+
+# EC2 Subnet configurable properties
+EC2_SUBNET_CONFIGURABLE: Dict[str, str] = {
+    "CidrBlock": "cidr_block",
+    "VpcId": "vpc_id",
+    "AvailabilityZone": "availability_zone",
+    "MapPublicIpOnLaunch": "map_public_ip_on_launch",
+    "Tags": "tags",
+}
+
+# EC2 Security Group configurable properties
+EC2_SECURITY_GROUP_CONFIGURABLE: Dict[str, str] = {
+    "GroupName": "name",
+    "Description": "description",
+    "VpcId": "vpc_id",
+    "Tags": "tags",
+}
+
+
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter EC2 properties for Terraform generation.
+
+    Uses the appropriate configurable dict based on resource type.
+
+    Args:
+        raw_config: Raw EC2 configuration from AWS API
+        resource_type: Resource type (e.g., "AWS::EC2::Instance", "ec2:vpc")
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    resource_type_lower = resource_type.lower()
+
+    # Determine which configurable map to use based on resource type
+    if "vpc" in resource_type_lower and "endpoint" not in resource_type_lower:
+        configurable = EC2_VPC_CONFIGURABLE
+    elif "subnet" in resource_type_lower:
+        configurable = EC2_SUBNET_CONFIGURABLE
+    elif "security" in resource_type_lower or "securitygroup" in resource_type_lower:
+        configurable = EC2_SECURITY_GROUP_CONFIGURABLE
+    else:
+        # Default to instance
+        configurable = EC2_INSTANCE_CONFIGURABLE
+
+    filtered = {}
+
+    # Include all configurable properties
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                # Skip empty collections
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+
+    # For instances, also include ImageId/AMI which is required
+    if configurable == EC2_INSTANCE_CONFIGURABLE and "ImageId" in raw_config:
+        filtered["ImageId"] = raw_config["ImageId"]
+
+    return filtered
+
+
 def get_ec2_instance_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     """Filter and transform EC2 instance properties for Terraform.
 

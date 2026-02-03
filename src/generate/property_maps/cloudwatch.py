@@ -145,6 +145,40 @@ def get_log_group_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter CloudWatch properties for Terraform generation.
+
+    Uses ALARM_CONFIGURABLE or LOG_GROUP_CONFIGURABLE as whitelist
+    depending on resource type.
+
+    Args:
+        raw_config: Raw CloudWatch configuration from AWS API
+        resource_type: Resource type string
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    # Determine which configurable map to use
+    resource_type_lower = resource_type.lower()
+    if "log" in resource_type_lower or "loggroup" in resource_type_lower:
+        configurable = LOG_GROUP_CONFIGURABLE
+    else:
+        configurable = ALARM_CONFIGURABLE
+
+    filtered = {}
+
+    # Include all configurable properties
+    for aws_field in configurable.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                # Skip empty collections
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+
+    return filtered
+
+
 # Register the property maps for CloudWatch resources
 register_property_map("cloudwatch:alarm", __name__)
 register_property_map("cloudwatch:log_group", __name__)

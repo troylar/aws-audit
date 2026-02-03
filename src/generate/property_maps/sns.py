@@ -100,6 +100,32 @@ def get_sns_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+    """Filter SNS properties for Terraform generation.
+
+    Uses SNS_CONFIGURABLE as whitelist.
+
+    Args:
+        raw_config: Raw SNS configuration from AWS API
+        resource_type: Resource type string
+
+    Returns:
+        Filtered dictionary with only Terraform-relevant properties
+    """
+    filtered = {}
+
+    # Include all configurable properties
+    for aws_field in SNS_CONFIGURABLE.keys():
+        if aws_field in raw_config:
+            value = raw_config[aws_field]
+            if value is not None:
+                # Skip empty collections
+                if not (isinstance(value, (list, dict)) and not value):
+                    filtered[aws_field] = value
+
+    return filtered
+
+
 # Register the property map for SNS topics
 register_property_map("sns:topic", __name__)
 register_property_map("sns", __name__)
