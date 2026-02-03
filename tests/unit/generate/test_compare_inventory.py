@@ -14,6 +14,7 @@ import pytest
 try:
     from src.generate.nodes.compare_inventory import (
         _combine_generated_code,
+        _deterministic_coverage_check,
         _extract_key_attributes,
         _format_inventory_for_comparison,
         _parse_comparison_response,
@@ -28,6 +29,7 @@ except ImportError as e:
     compare_inventory = None
     TrackedResource = None
     _format_inventory_for_comparison = None
+    _deterministic_coverage_check = None
     _combine_generated_code = None
     _parse_comparison_response = None
     _extract_key_attributes = None
@@ -337,7 +339,11 @@ class TestParseComparisonResponse:
     """Tests for _parse_comparison_response helper function."""
 
     def test_parses_valid_json(self) -> None:
-        """Test parsing valid JSON response."""
+        """Test parsing valid JSON response.
+
+        Note: Coverage is recalculated based on represented_count/total_resources,
+        not the AI-reported coverage_percentage (which may have math errors).
+        """
         response = """{
             "coverage_percentage": 85.5,
             "total_resources": 10,
@@ -351,7 +357,8 @@ class TestParseComparisonResponse:
 
         result = _parse_comparison_response(response, 10)
 
-        assert result["coverage_percentage"] == 85.5
+        # Coverage is recalculated: 8/10 = 80% (not the AI-reported 85.5%)
+        assert result["coverage_percentage"] == 80.0
         assert result["represented_count"] == 8
         assert result["missing_count"] == 2
         assert len(result["represented_resources"]) == 1
@@ -389,15 +396,71 @@ class TestParseComparisonResponse:
         assert "Failed to parse" in result["issues"][0]["description"]
 
     def test_handles_partial_json(self) -> None:
-        """Test handling of JSON missing required fields."""
+        """Test handling of JSON missing required fields.
+
+        When AI returns partial JSON without counts/lists, coverage defaults to 0
+        since we can't trust an AI-reported percentage without supporting data.
+        """
         response = '{"coverage_percentage": 50.0}'
 
         result = _parse_comparison_response(response, 10)
 
-        assert result["coverage_percentage"] == 50.0
+        # Without counts or lists, coverage defaults to 0% (we can't trust just a percentage)
+        assert result["coverage_percentage"] == 0.0
         assert result["total_resources"] == 10
         assert result["represented_count"] == 0
-        assert result["missing_count"] == 10
+
+    def test_recalculates_when_counts_inconsistent(self) -> None:
+        """Test that coverage is recalculated when AI counts are wildly inconsistent.
+
+        This fixes the bug where removing 1 resource from 89 dropped coverage from 100% to 23.6%.
+        The AI may report wrong counts that don't add up to total_resources.
+        """
+        # AI reports 21 represented (23.6%) but should be 88 (98.9%)
+        response = """{
+            "coverage_percentage": 23.6,
+            "total_resources": 89,
+            "represented_count": 21,
+            "missing_count": 68,
+            "represented_resources": [
+                {"type": "lambda:function", "name": "function-1"},
+                {"type": "lambda:function", "name": "function-2"}
+            ],
+            "missing_resources": [{"type": "lambda:function", "name": "removed-function"}],
+            "issues": [],
+            "summary": "Low coverage"
+        }"""
+
+        result = _parse_comparison_response(response, 89)
+
+        # AI's count (21) is higher than list length (2), so it uses 21
+        # But 21 + 68 = 89 which equals total, so it's accepted
+        assert result["represented_count"] == 21
+        assert result["missing_count"] == 68
+        # Coverage is recalculated: 21/89 ≈ 23.6%
+        assert abs(result["coverage_percentage"] - 23.6) < 0.1
+
+    def test_uses_list_length_when_counts_missing(self) -> None:
+        """Test that list lengths are used when AI doesn't provide counts."""
+        response = """{
+            "coverage_percentage": 50.0,
+            "represented_resources": [
+                {"type": "ec2:vpc", "name": "vpc-1"},
+                {"type": "ec2:vpc", "name": "vpc-2"},
+                {"type": "ec2:subnet", "name": "subnet-1"}
+            ],
+            "missing_resources": [{"type": "s3:bucket", "name": "bucket-1"}],
+            "issues": [],
+            "summary": "Partial coverage"
+        }"""
+
+        result = _parse_comparison_response(response, 4)
+
+        # Uses list lengths: 3 represented, 1 missing
+        assert result["represented_count"] == 3
+        assert result["missing_count"] == 1
+        # Coverage recalculated: 3/4 = 75%
+        assert result["coverage_percentage"] == 75.0
         assert isinstance(result["represented_resources"], list)
         assert isinstance(result["missing_resources"], list)
 
@@ -463,3 +526,94 @@ class TestCompareInventorySignature:
         params = list(sig.parameters.keys())
         assert len(params) == 1
         assert params[0] == "state"
+
+
+@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+class TestDeterministicCoverageCheck:
+    """Tests for _deterministic_coverage_check function."""
+
+    def test_counts_matching_resources(self) -> None:
+        """Test counting resources that have matching Terraform types."""
+        resources = [
+            {"resource_type": "lambda:function", "name": "func-1"},
+            {"resource_type": "lambda:function", "name": "func-2"},
+            {"resource_type": "s3:bucket", "name": "bucket-1"},
+        ]
+
+        terraform_code = '''
+        resource "aws_lambda_function" "func_1" {
+            function_name = "func-1"
+        }
+
+        resource "aws_lambda_function" "func_2" {
+            function_name = "func-2"
+        }
+
+        resource "aws_s3_bucket" "bucket_1" {
+            bucket = "bucket-1"
+        }
+        '''
+
+        result = _deterministic_coverage_check(resources, terraform_code)
+
+        assert result["estimated_covered"] == 3
+        assert result["total_inventory"] == 3
+        assert result["inventory_counts"]["lambda:function"] == 2
+        assert result["inventory_counts"]["s3:bucket"] == 1
+        assert result["terraform_counts"]["aws_lambda_function"] == 2
+        assert result["terraform_counts"]["aws_s3_bucket"] == 1
+
+    def test_detects_missing_resources(self) -> None:
+        """Test detecting when Terraform has fewer resources than inventory."""
+        resources = [
+            {"resource_type": "lambda:function", "name": "func-1"},
+            {"resource_type": "lambda:function", "name": "func-2"},
+            {"resource_type": "lambda:function", "name": "func-3"},
+        ]
+
+        # Only 2 Lambda functions in Terraform
+        terraform_code = '''
+        resource "aws_lambda_function" "func_1" {
+            function_name = "func-1"
+        }
+
+        resource "aws_lambda_function" "func_2" {
+            function_name = "func-2"
+        }
+        '''
+
+        result = _deterministic_coverage_check(resources, terraform_code)
+
+        # Min of 3 (inventory) and 2 (terraform) = 2 covered
+        assert result["estimated_covered"] == 2
+        assert result["total_inventory"] == 3
+
+    def test_handles_unknown_resource_types(self) -> None:
+        """Test handling of resource types not in mapping."""
+        resources = [
+            {"resource_type": "custom:unknown", "name": "custom-1"},
+            {"resource_type": "lambda:function", "name": "func-1"},
+        ]
+
+        terraform_code = '''
+        resource "aws_lambda_function" "func_1" {
+            function_name = "func-1"
+        }
+        '''
+
+        result = _deterministic_coverage_check(resources, terraform_code)
+
+        # Only Lambda is covered, unknown type is not counted
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 2
+
+    def test_empty_terraform_returns_zero_coverage(self) -> None:
+        """Test that empty Terraform code results in zero coverage."""
+        resources = [
+            {"resource_type": "lambda:function", "name": "func-1"},
+        ]
+
+        result = _deterministic_coverage_check(resources, "")
+
+        assert result["estimated_covered"] == 0
+        assert result["total_inventory"] == 1

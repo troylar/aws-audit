@@ -164,6 +164,39 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
 
         comparison_result = _parse_comparison_response(response_text, len(resources))
 
+        # Run deterministic check to validate AI results
+        emit_progress("activity", {
+            "message": "Validating results with deterministic check",
+            "step": "compare_inventory",
+        })
+
+        deterministic = _deterministic_coverage_check(resources, terraform_text)
+        det_covered = deterministic["estimated_covered"]
+        ai_covered = comparison_result.get("represented_count", 0)
+
+        # If AI result differs significantly from deterministic (>20% difference),
+        # trust the deterministic result as it's more reliable
+        if len(resources) > 0:
+            det_pct = det_covered / len(resources) * 100
+            ai_pct = comparison_result.get("coverage_percentage", 0)
+
+            # Check for significant discrepancy (more than 20 percentage points)
+            if abs(det_pct - ai_pct) > 20:
+                emit_progress("activity", {
+                    "message": f"AI result ({ai_pct:.0f}%) differs from deterministic ({det_pct:.0f}%), using deterministic",
+                    "step": "compare_inventory",
+                })
+
+                # Override with deterministic results
+                comparison_result["represented_count"] = det_covered
+                comparison_result["missing_count"] = len(resources) - det_covered
+                comparison_result["coverage_percentage"] = det_pct
+                comparison_result["issues"].append({
+                    "severity": "warning",
+                    "resource": "validation",
+                    "description": f"AI reported {ai_pct:.0f}% coverage but deterministic check found {det_pct:.0f}%. Using deterministic result.",
+                })
+
         emit_progress("activity", {
             "message": f"Coverage: {comparison_result.get('coverage_percentage', 0):.0f}%",
             "step": "compare_inventory",
@@ -361,25 +394,34 @@ def _get_comparison_system_prompt() -> str:
         "You must respond with ONLY valid JSON in the exact structure specified. "
         "Do not include any text before or after the JSON.\n\n"
         "MATCHING RULES - A resource is REPRESENTED if:\n"
-        "1. The Terraform resource TYPE matches the AWS resource type:\n"
+        "1. A Terraform resource of the MATCHING TYPE exists:\n"
         "   - ec2:vpc → aws_vpc\n"
         "   - ec2:subnet → aws_subnet\n"
         "   - ec2:security-group → aws_security_group\n"
         "   - s3:bucket → aws_s3_bucket\n"
         "   - lambda:function → aws_lambda_function\n"
         "   - iam:role → aws_iam_role\n"
+        "   - iam:policy → aws_iam_policy or aws_iam_role_policy\n"
         "   - rds:db-instance → aws_db_instance\n"
-        "2. The resource can be identified by ANY of these:\n"
+        "   - apigateway:rest-api → aws_api_gateway_rest_api\n"
+        "   - dynamodb:table → aws_dynamodb_table\n"
+        "   - sns:topic → aws_sns_topic\n"
+        "   - sqs:queue → aws_sqs_queue\n"
+        "   - cloudwatch:log-group → aws_cloudwatch_log_group\n"
+        "2. Match by ANY of these criteria:\n"
         "   - Similar name (ignore case, hyphens vs underscores: 'my-vpc' matches 'my_vpc')\n"
         "   - Matching key attributes (CIDR block, function name, bucket name, etc.)\n"
-        "   - Same resource count of that type if names differ\n\n"
-        "BE GENEROUS in matching - if a Terraform resource exists for the same type "
-        "and has similar identifying attributes, count it as represented. "
-        "Only mark as MISSING if there is NO corresponding Terraform resource of that type.\n\n"
+        "   - SAME COUNT of resources of that type (if you have 5 subnets in inventory and 5 aws_subnet resources, all 5 are REPRESENTED)\n\n"
+        "CRITICAL: BE VERY GENEROUS in matching!\n"
+        "- If there's a Terraform resource of the same type with a similar name or attributes, it's REPRESENTED\n"
+        "- Only mark as MISSING if there is absolutely NO Terraform resource that could represent it\n"
+        "- When in doubt, mark as REPRESENTED\n\n"
+        "IMPORTANT for list output:\n"
+        "- If there are many resources of the same type, you can group them: {\"type\": \"lambda:function\", \"name\": \"all 15 functions\"}\n"
+        "- The counts (represented_count, missing_count) MUST be accurate even if you summarize the lists\n\n"
         "Issues should only flag SIGNIFICANT problems like:\n"
         "- Missing required attributes that would cause deployment failure\n"
-        "- Security misconfigurations\n"
-        "- Hardcoded values that should be variables"
+        "- Security misconfigurations"
     )
 
 
@@ -454,8 +496,90 @@ CRITICAL RULES:
 - Be GENEROUS - if a matching Terraform resource exists, count it as represented"""
 
 
+def _deterministic_coverage_check(resources: List[Any], terraform_code: str) -> Dict[str, int]:
+    """Perform a simple deterministic check of resource coverage.
+
+    This provides a sanity check against AI results by counting Terraform
+    resource types that match inventory resource types.
+
+    Args:
+        resources: List of inventory resources
+        terraform_code: Combined Terraform code string
+
+    Returns:
+        Dict with type_counts, terraform_counts, and estimated_covered
+    """
+    # Map inventory types to Terraform resource types
+    type_mapping = {
+        "ec2:vpc": "aws_vpc",
+        "ec2:subnet": "aws_subnet",
+        "ec2:security-group": "aws_security_group",
+        "ec2:instance": "aws_instance",
+        "ec2:route-table": "aws_route_table",
+        "ec2:internet-gateway": "aws_internet_gateway",
+        "ec2:nat-gateway": "aws_nat_gateway",
+        "ec2:network-interface": "aws_network_interface",
+        "ec2:elastic-ip": "aws_eip",
+        "s3:bucket": "aws_s3_bucket",
+        "lambda:function": "aws_lambda_function",
+        "iam:role": "aws_iam_role",
+        "iam:policy": "aws_iam_policy",
+        "rds:db-instance": "aws_db_instance",
+        "rds:db-cluster": "aws_rds_cluster",
+        "dynamodb:table": "aws_dynamodb_table",
+        "sns:topic": "aws_sns_topic",
+        "sqs:queue": "aws_sqs_queue",
+        "apigateway:rest-api": "aws_api_gateway_rest_api",
+        "cloudwatch:log-group": "aws_cloudwatch_log_group",
+        "cloudwatch:alarm": "aws_cloudwatch_metric_alarm",
+        "kms:key": "aws_kms_key",
+        "secretsmanager:secret": "aws_secretsmanager_secret",
+        "events:rule": "aws_cloudwatch_event_rule",
+        "elasticache:cluster": "aws_elasticache_cluster",
+        "efs:file-system": "aws_efs_file_system",
+    }
+
+    # Count inventory resources by type
+    inventory_counts: Dict[str, int] = {}
+    for resource in resources:
+        if isinstance(resource, TrackedResource):
+            resource_type = resource.resource_type
+        else:
+            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
+
+        inventory_counts[resource_type] = inventory_counts.get(resource_type, 0) + 1
+
+    # Count Terraform resources by type (simple regex)
+    terraform_counts: Dict[str, int] = {}
+    for inv_type, tf_type in type_mapping.items():
+        # Match patterns like: resource "aws_lambda_function" "name" {
+        pattern = rf'resource\s+"{re.escape(tf_type)}"\s+"[^"]+"\s*\{{'
+        matches = re.findall(pattern, terraform_code)
+        terraform_counts[tf_type] = len(matches)
+
+    # Estimate coverage by comparing counts
+    estimated_covered = 0
+    for inv_type, inv_count in inventory_counts.items():
+        tf_type = type_mapping.get(inv_type)
+        if tf_type:
+            tf_count = terraform_counts.get(tf_type, 0)
+            # Count as covered: min of inventory count and terraform count
+            estimated_covered += min(inv_count, tf_count)
+        # For unknown types, assume not covered (conservative)
+
+    return {
+        "inventory_counts": inventory_counts,
+        "terraform_counts": terraform_counts,
+        "estimated_covered": estimated_covered,
+        "total_inventory": len(resources),
+    }
+
+
 def _parse_comparison_response(response_text: str, total_resources: int) -> Dict[str, Any]:
     """Parse AI response into structured comparison result.
+
+    Validates and recalculates counts based on actual list lengths to handle
+    AI inconsistencies.
 
     Args:
         response_text: Raw response from Bedrock
@@ -469,14 +593,7 @@ def _parse_comparison_response(response_text: str, total_resources: int) -> Dict
         try:
             result = json.loads(json_match.group())
 
-            if not isinstance(result.get("coverage_percentage"), (int, float)):
-                result["coverage_percentage"] = 0.0
-            if not isinstance(result.get("total_resources"), int):
-                result["total_resources"] = total_resources
-            if not isinstance(result.get("represented_count"), int):
-                result["represented_count"] = 0
-            if not isinstance(result.get("missing_count"), int):
-                result["missing_count"] = total_resources
+            # Ensure lists exist
             if not isinstance(result.get("represented_resources"), list):
                 result["represented_resources"] = []
             if not isinstance(result.get("missing_resources"), list):
@@ -485,6 +602,54 @@ def _parse_comparison_response(response_text: str, total_resources: int) -> Dict
                 result["issues"] = []
             if not isinstance(result.get("summary"), str):
                 result["summary"] = "Comparison completed."
+
+            # Get the actual list lengths
+            represented_list_len = len(result["represented_resources"])
+            missing_list_len = len(result["missing_resources"])
+
+            # Get AI-reported counts
+            ai_represented = result.get("represented_count", 0)
+            ai_missing = result.get("missing_count", 0)
+
+            # Validate and fix inconsistencies
+            # Priority: trust list lengths over reported counts if they differ significantly
+            if represented_list_len > 0 or missing_list_len > 0:
+                # Lists have content, use them as source of truth
+                # But if AI reported higher counts, it may have truncated the lists
+                represented_count = max(represented_list_len, ai_represented) if ai_represented > represented_list_len else represented_list_len
+                missing_count = max(missing_list_len, ai_missing) if ai_missing > missing_list_len else missing_list_len
+
+                # Ensure counts don't exceed total
+                if represented_count + missing_count != total_resources:
+                    # Trust the represented count, derive missing
+                    if represented_count <= total_resources:
+                        missing_count = total_resources - represented_count
+                    else:
+                        # Cap represented at total
+                        represented_count = total_resources
+                        missing_count = 0
+            else:
+                # Empty lists - use AI-reported counts if they're valid
+                represented_count = ai_represented if isinstance(ai_represented, int) and ai_represented >= 0 else 0
+                missing_count = ai_missing if isinstance(ai_missing, int) and ai_missing >= 0 else total_resources
+
+                # Validate they sum correctly
+                if represented_count + missing_count != total_resources:
+                    # If AI counts are close, trust them
+                    if abs((represented_count + missing_count) - total_resources) <= 2:
+                        # Minor rounding, adjust missing
+                        missing_count = total_resources - represented_count
+                    else:
+                        # Significant discrepancy - default to 0 coverage
+                        represented_count = 0
+                        missing_count = total_resources
+
+            result["total_resources"] = total_resources
+            result["represented_count"] = represented_count
+            result["missing_count"] = missing_count
+
+            # Recalculate coverage based on validated counts
+            result["coverage_percentage"] = (represented_count / total_resources * 100) if total_resources > 0 else 0.0
 
             return result
         except json.JSONDecodeError:
