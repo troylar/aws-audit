@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-02-04
+
+### Added
+- **CDK TypeScript Generation**: Generate complete AWS CDK TypeScript projects from inventory snapshots
+  - `awsinv generate cdk-typescript my-snapshot` command
+  - Full project structure: `bin/app.ts`, `lib/*.ts`, `package.json`, `tsconfig.json`, `cdk.json`
+  - L2 construct generation with proper typing and exports
+  - npm build and cdk synth validation
+
+- **CDK Python Generation**: Generate complete AWS CDK Python projects from inventory snapshots
+  - `awsinv generate cdk-python my-snapshot` command
+  - Full project structure: `app.py`, `stacks/*.py`, `requirements.txt`, `setup.py`, `cdk.json`
+  - Snake_case naming conventions and Python best practices
+  - pip install and cdk synth validation
+
+- **CDK Coverage Detection**: Compare inventory against CDK code
+  - Detect CDK TypeScript constructs (`new ec2.Vpc`, `new s3.Bucket`, etc.)
+  - Detect CDK Python constructs (`ec2.Vpc`, `s3.Bucket`, etc.)
+  - Coverage percentage calculation for CDK projects
+
+### Changed
+- **Default AI Model**: Upgraded to Claude Opus 4 (`anthropic.claude-opus-4-20250514-v1:0`)
+- **IaC Generation**: Now supports three output formats: `terraform`, `cdk-typescript`, `cdk-python`
+
 ## [0.25.0] - 2026-01-29
 
 ### Added
