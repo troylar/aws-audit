@@ -1,6 +1,7 @@
 """CDK generator - high-level API for CDK IaC generation."""
 
 import os
+import sys
 from pathlib import Path
 from string import Template
 from typing import Any, Callable, Dict, Optional
@@ -12,8 +13,26 @@ from .terraform_generator import GenerationResult
 # Progress callback type: (step_name, step_data) -> None
 ProgressCallback = Callable[[str, Dict[str, Any]], None]
 
-# Template directory relative to this file
-TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+def _get_template_dir() -> Path:
+    """Get the template directory, handling both installed packages and development."""
+    # Try importlib.resources first (works for installed packages)
+    if sys.version_info >= (3, 9):
+        try:
+            from importlib.resources import files
+
+            templates = files("src.generate") / "templates"
+            # Check if it exists as a traversable
+            if hasattr(templates, "joinpath"):
+                return Path(str(templates))
+        except (ImportError, TypeError, FileNotFoundError):
+            pass
+
+    # Fall back to __file__ based path (works during development)
+    return Path(__file__).parent / "templates"
+
+
+TEMPLATE_DIR = _get_template_dir()
 
 
 class CDKGenerator:
