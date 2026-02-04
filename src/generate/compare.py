@@ -109,15 +109,11 @@ def compare_coverage(
             )
 
         if progress_callback:
-            progress_callback(
-                "activity", {"message": f"Loaded {len(resources)} resources"}
-            )
+            progress_callback("activity", {"message": f"Loaded {len(resources)} resources"})
 
         # Step 2: Read IaC files from directory
         if progress_callback:
-            progress_callback(
-                "activity", {"message": f"Reading IaC files from {iac_dir}"}
-            )
+            progress_callback("activity", {"message": f"Reading IaC files from {iac_dir}"})
 
         generated_code = _read_iac_files(iac_dir)
 
@@ -139,9 +135,7 @@ def compare_coverage(
             )
 
         if progress_callback:
-            progress_callback(
-                "activity", {"message": f"Found {len(generated_code)} IaC files"}
-            )
+            progress_callback("activity", {"message": f"Found {len(generated_code)} IaC files"})
 
         # Step 3: Run comparison
         if progress_callback:
@@ -165,14 +159,7 @@ def compare_coverage(
             missing_resources=comparison.get("missing_resources", []),
             issues=comparison.get("issues", []),
             summary=comparison.get("summary", ""),
-            errors=(
-                [
-                    e.get("message", str(e)) if isinstance(e, dict) else str(e)
-                    for e in errors
-                ]
-                if errors
-                else []
-            ),
+            errors=([e.get("message", str(e)) if isinstance(e, dict) else str(e) for e in errors] if errors else []),
         )
 
     except Exception as e:
@@ -212,9 +199,7 @@ def _read_iac_files(iac_dir: str) -> Dict[str, str]:
     # Detect project type
     is_cdk_project = (path / "cdk.json").exists()
     is_typescript_cdk = is_cdk_project and (
-        (path / "package.json").exists()
-        or (path / "tsconfig.json").exists()
-        or (path / "lib").is_dir()
+        (path / "package.json").exists() or (path / "tsconfig.json").exists() or (path / "lib").is_dir()
     )
     is_python_cdk = is_cdk_project and (
         (path / "requirements.txt").exists()

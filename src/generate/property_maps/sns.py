@@ -102,9 +102,7 @@ def get_sns_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter SNS properties for Terraform generation.
 
     Uses SNS_CONFIGURABLE as whitelist.

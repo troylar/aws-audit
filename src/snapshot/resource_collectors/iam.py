@@ -174,9 +174,7 @@ class IAMCollector(BaseResourceCollector):
                     default_version_id = policy.get("DefaultVersionId")
                     if default_version_id:
                         try:
-                            version_response = client.get_policy_version(
-                                PolicyArn=arn, VersionId=default_version_id
-                            )
+                            version_response = client.get_policy_version(PolicyArn=arn, VersionId=default_version_id)
                             policy_document = version_response.get("PolicyVersion", {}).get("Document")
                         except Exception as e:
                             self.logger.debug(f"Could not get policy document for {policy['PolicyName']}: {e}")

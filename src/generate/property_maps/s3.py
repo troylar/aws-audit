@@ -184,9 +184,7 @@ def get_s3_encryption_config(raw_config: Dict[str, Any]) -> Optional[Dict[str, A
     }
 
 
-def get_s3_public_access_block_config(
-    raw_config: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+def get_s3_public_access_block_config(raw_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Extract S3 public access block configuration for aws_s3_bucket_public_access_block resource.
 
     Public access block settings control whether S3 blocks public access at multiple levels.
@@ -208,9 +206,7 @@ def get_s3_public_access_block_config(
         "block_public_acls": public_access_block.get("BlockPublicAcls", False),
         "block_public_policy": public_access_block.get("BlockPublicPolicy", False),
         "ignore_public_acls": public_access_block.get("IgnorePublicAcls", False),
-        "restrict_public_buckets": public_access_block.get(
-            "RestrictPublicBuckets", False
-        ),
+        "restrict_public_buckets": public_access_block.get("RestrictPublicBuckets", False),
     }
 
 
@@ -235,9 +231,7 @@ S3_CONFIGURABLE_KEYS = {
 }
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter S3 properties for Terraform generation.
 
     Includes bucket name, tags, and configuration sections that map

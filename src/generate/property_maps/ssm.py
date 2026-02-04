@@ -175,9 +175,7 @@ def get_ssm_parameter_computed_properties(raw_config: Dict[str, Any]) -> Dict[st
     return computed
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Ssm properties for Terraform generation."""
     configurable = SSM_PARAMETER_CONFIGURABLE
     filtered = {}

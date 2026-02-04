@@ -171,9 +171,7 @@ register_property_map(
 # Also register with AWS CloudFormation resource type names
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Eks properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "group" in resource_type_lower:

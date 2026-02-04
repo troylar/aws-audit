@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 import importlib
-
-import pytest
+import sys
 
 # Ensure we're using the real modules, not mocked ones
 # Clear any cached mocks
@@ -15,7 +13,7 @@ for mod_name in list(sys.modules.keys()):
             del sys.modules[mod_name]
 
 # Import the actual modules
-from src.generate.property_maps import lambda_, iam, ec2, s3, sqs, sns, cloudwatch
+from src.generate.property_maps import cloudwatch, ec2, iam, lambda_, s3, sns, sqs
 
 # Reload to ensure we have the real implementations
 importlib.reload(lambda_)
@@ -506,11 +504,9 @@ class TestFilterPropertiesIntegration:
             "Path": "/service-role/",
             "AssumeRolePolicyDocument": {
                 "Version": "2012-10-17",
-                "Statement": [{
-                    "Effect": "Allow",
-                    "Principal": {"Service": "lambda.amazonaws.com"},
-                    "Action": "sts:AssumeRole"
-                }]
+                "Statement": [
+                    {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}
+                ],
             },
             "Description": "Role for Lambda execution",
             "MaxSessionDuration": 3600,

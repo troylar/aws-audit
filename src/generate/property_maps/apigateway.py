@@ -190,9 +190,7 @@ register_property_map("apigateway:http_api", __name__)
 register_property_map("apigateway", __name__)
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Apigateway properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "api" in resource_type_lower:

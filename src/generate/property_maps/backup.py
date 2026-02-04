@@ -164,9 +164,7 @@ def get_backup_plan_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
                 tf_lifecycle = {}
 
                 if "MoveToColdStorageAfterDays" in lifecycle:
-                    tf_lifecycle["move_to_cold_storage_after_days"] = lifecycle[
-                        "MoveToColdStorageAfterDays"
-                    ]
+                    tf_lifecycle["move_to_cold_storage_after_days"] = lifecycle["MoveToColdStorageAfterDays"]
 
                 if "DeleteAfterDays" in lifecycle:
                     tf_lifecycle["delete_after_days"] = lifecycle["DeleteAfterDays"]
@@ -266,9 +264,7 @@ def get_backup_vault_computed_properties(raw_config: Dict[str, Any]) -> Dict[str
     return computed
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Backup properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "plan" in resource_type_lower:

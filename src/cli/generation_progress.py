@@ -548,9 +548,7 @@ class GenerationProgressDisplay:
         elapsed = time.time() - self.start_time if self.start_time else 0
         table.add_row("Duration", self._format_duration(elapsed))
 
-        completed_layers = sum(
-            1 for layer in self.layers.values() if layer.status == LayerStatus.COMPLETED
-        )
+        completed_layers = sum(1 for layer in self.layers.values() if layer.status == LayerStatus.COMPLETED)
         table.add_row("Layers", f"{completed_layers}/{len(self.layers)}")
         table.add_row("Resources", str(self.total_resources))
         table.add_row("Files", str(len(self.generated_files)))
@@ -573,9 +571,7 @@ class GenerationProgressDisplay:
 
         # Show comparison details if available
         if self.comparison and self.comparison.missing_count > 0:
-            self.console.print(
-                f"  [yellow]⚠️  {self.comparison.missing_count} resources not fully covered[/yellow]"
-            )
+            self.console.print(f"  [yellow]⚠️  {self.comparison.missing_count} resources not fully covered[/yellow]")
             self.console.print()
 
         # Show validation errors if any

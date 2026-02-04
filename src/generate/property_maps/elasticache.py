@@ -121,9 +121,7 @@ def process_cache_nodes(raw_nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     return terraform_nodes
 
 
-def process_log_delivery_configurations(
-    raw_configs: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+def process_log_delivery_configurations(raw_configs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Transform AWS log delivery configurations to Terraform format.
 
     AWS format:
@@ -163,13 +161,9 @@ def process_log_delivery_configurations(
         # Handle destination details
         dest_details = config.get("DestinationDetails", {})
         if "CloudWatchLogsDetails" in dest_details:
-            tf_config["destination"] = dest_details["CloudWatchLogsDetails"].get(
-                "LogGroup"
-            )
+            tf_config["destination"] = dest_details["CloudWatchLogsDetails"].get("LogGroup")
         elif "KinesisFirehoseDetails" in dest_details:
-            tf_config["destination"] = dest_details["KinesisFirehoseDetails"].get(
-                "DeliveryStream"
-            )
+            tf_config["destination"] = dest_details["KinesisFirehoseDetails"].get("DeliveryStream")
 
         terraform_configs.append(tf_config)
 
@@ -205,15 +199,9 @@ def process_node_groups(raw_node_groups: List[Dict[str, Any]]) -> List[Dict[str,
                     {
                         "cache_node_id": member.get("CacheNodeId"),
                         "read_endpoint": member.get("ReadEndpoint", {}).get("Address"),
-                        "read_endpoint_port": member.get("ReadEndpoint", {}).get(
-                            "Port"
-                        ),
-                        "write_endpoint": member.get("WriteEndpoint", {}).get(
-                            "Address"
-                        ),
-                        "write_endpoint_port": member.get("WriteEndpoint", {}).get(
-                            "Port"
-                        ),
+                        "read_endpoint_port": member.get("ReadEndpoint", {}).get("Port"),
+                        "write_endpoint": member.get("WriteEndpoint", {}).get("Address"),
+                        "write_endpoint_port": member.get("WriteEndpoint", {}).get("Port"),
                     }
                 )
             tf_group["node_group_members"] = members
@@ -260,9 +248,7 @@ def get_elasticache_cluster_properties(raw_config: Dict[str, Any]) -> Dict[str, 
     return properties
 
 
-def get_elasticache_replication_group_properties(
-    raw_config: Dict[str, Any]
-) -> Dict[str, Any]:
+def get_elasticache_replication_group_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract ElastiCache replication group properties from raw AWS config.
 
     Args:
@@ -293,9 +279,7 @@ def get_elasticache_replication_group_properties(
                         else:
                             sg_ids.append(sg)
                     properties[tf_field] = sg_ids
-                elif aws_field == "LogDeliveryConfigurations" and isinstance(
-                    value, list
-                ):
+                elif aws_field == "LogDeliveryConfigurations" and isinstance(value, list):
                     log_configs = process_log_delivery_configurations(value)
                     if log_configs:
                         properties[tf_field] = log_configs
@@ -305,9 +289,7 @@ def get_elasticache_replication_group_properties(
     return properties
 
 
-def get_elasticache_cluster_computed_properties(
-    raw_config: Dict[str, Any]
-) -> Dict[str, Any]:
+def get_elasticache_cluster_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract computed/read-only ElastiCache cluster properties from raw AWS config.
 
     Args:
@@ -331,9 +313,7 @@ def get_elasticache_cluster_computed_properties(
     return computed
 
 
-def get_elasticache_replication_group_computed_properties(
-    raw_config: Dict[str, Any]
-) -> Dict[str, Any]:
+def get_elasticache_replication_group_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract computed/read-only ElastiCache replication group properties from raw AWS config.
 
     Args:
@@ -379,9 +359,7 @@ register_property_map(
 )
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Elasticache properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "cluster" in resource_type_lower:

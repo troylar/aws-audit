@@ -402,13 +402,7 @@ class TestCDKPythonEndToEnd:
                     response_text = value
                     break
 
-            return {
-                "output": {
-                    "message": {
-                        "content": [{"text": response_text}]
-                    }
-                }
-            }
+            return {"output": {"message": {"content": [{"text": response_text}]}}}
 
         mock_bedrock_client.converse.side_effect = converse_side_effect
         mock_boto_client.return_value = mock_bedrock_client

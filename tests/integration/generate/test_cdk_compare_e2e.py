@@ -410,8 +410,9 @@ class TestCompareInventoryNode:
         mock_bedrock_client.converse.return_value = {
             "output": {
                 "message": {
-                    "content": [{
-                        "text": """{
+                    "content": [
+                        {
+                            "text": """{
                             "coverage_percentage": 100.0,
                             "total_resources": 6,
                             "represented_count": 6,
@@ -421,7 +422,8 @@ class TestCompareInventoryNode:
                             "issues": [],
                             "summary": "All resources covered"
                         }"""
-                    }]
+                        }
+                    ]
                 }
             }
         }
@@ -454,8 +456,9 @@ class TestCompareInventoryNode:
         mock_bedrock_client.converse.return_value = {
             "output": {
                 "message": {
-                    "content": [{
-                        "text": """{
+                    "content": [
+                        {
+                            "text": """{
                             "coverage_percentage": 100.0,
                             "total_resources": 6,
                             "represented_count": 6,
@@ -465,7 +468,8 @@ class TestCompareInventoryNode:
                             "issues": [],
                             "summary": "All resources covered"
                         }"""
-                    }]
+                        }
+                    ]
                 }
             }
         }

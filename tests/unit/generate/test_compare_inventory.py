@@ -141,9 +141,7 @@ resource "aws_lambda_function" "my_function" {
         assert comparison["total_resources"] == 0
         assert comparison["summary"] == "No resources in inventory to compare."
 
-    def test_empty_generated_code_returns_all_missing(
-        self, sample_resources: List[TrackedResource]
-    ) -> None:
+    def test_empty_generated_code_returns_all_missing(self, sample_resources: List[TrackedResource]) -> None:
         """Test handling of empty generated code."""
         state: Dict[str, Any] = {
             "resources": sample_resources,
@@ -298,12 +296,8 @@ class TestFormatInventoryForComparison:
     def test_handles_multiple_resources(self) -> None:
         """Test formatting multiple resources with numbering."""
         resources = [
-            TrackedResource(
-                arn="arn:1", resource_type="ec2:vpc", name="vpc-1", region="us-east-1"
-            ),
-            TrackedResource(
-                arn="arn:2", resource_type="ec2:subnet", name="subnet-1", region="us-east-1"
-            ),
+            TrackedResource(arn="arn:1", resource_type="ec2:vpc", name="vpc-1", region="us-east-1"),
+            TrackedResource(arn="arn:2", resource_type="ec2:subnet", name="subnet-1", region="us-east-1"),
         ]
 
         result = _format_inventory_for_comparison(resources)
@@ -528,7 +522,10 @@ class TestCompareInventorySignature:
         assert params[0] == "state"
 
 
-@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+@pytest.mark.skipif(
+    not IMPORTS_AVAILABLE,
+    reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}",
+)
 class TestDeterministicCoverageCheck:
     """Tests for _deterministic_coverage_check function."""
 
@@ -540,7 +537,7 @@ class TestDeterministicCoverageCheck:
             {"resource_type": "s3:bucket", "name": "bucket-1"},
         ]
 
-        terraform_code = '''
+        terraform_code = """
         resource "aws_lambda_function" "func_1" {
             function_name = "func-1"
         }
@@ -552,7 +549,7 @@ class TestDeterministicCoverageCheck:
         resource "aws_s3_bucket" "bucket_1" {
             bucket = "bucket-1"
         }
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, terraform_code)
 
@@ -572,7 +569,7 @@ class TestDeterministicCoverageCheck:
         ]
 
         # Only 2 Lambda functions in Terraform
-        terraform_code = '''
+        terraform_code = """
         resource "aws_lambda_function" "func_1" {
             function_name = "func-1"
         }
@@ -580,7 +577,7 @@ class TestDeterministicCoverageCheck:
         resource "aws_lambda_function" "func_2" {
             function_name = "func-2"
         }
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, terraform_code)
 
@@ -595,11 +592,11 @@ class TestDeterministicCoverageCheck:
             {"resource_type": "lambda:function", "name": "func-1"},
         ]
 
-        terraform_code = '''
+        terraform_code = """
         resource "aws_lambda_function" "func_1" {
             function_name = "func-1"
         }
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, terraform_code)
 
@@ -619,7 +616,10 @@ class TestDeterministicCoverageCheck:
         assert result["total_inventory"] == 1
 
 
-@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+@pytest.mark.skipif(
+    not IMPORTS_AVAILABLE,
+    reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}",
+)
 class TestCDKTypescriptPatternDetection:
     """Tests for CDK TypeScript pattern detection in compare_inventory."""
 
@@ -629,14 +629,14 @@ class TestCDKTypescriptPatternDetection:
             {"resource_type": "ec2:vpc", "name": "main-vpc"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         import * as ec2 from 'aws-cdk-lib/aws-ec2';
 
         const vpc = new ec2.Vpc(this, 'MainVpc', {
             maxAzs: 3,
             cidr: '10.0.0.0/16',
         });
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 1
@@ -649,7 +649,7 @@ class TestCDKTypescriptPatternDetection:
             {"resource_type": "lambda:function", "name": "other-function"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         import * as lambda from 'aws-cdk-lib/aws-lambda';
 
         const myFunction = new lambda.Function(this, 'MyFunction', {
@@ -663,7 +663,7 @@ class TestCDKTypescriptPatternDetection:
             handler: 'index.handler',
             code: lambda.Code.fromAsset('lambda'),
         });
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 2
@@ -675,13 +675,13 @@ class TestCDKTypescriptPatternDetection:
             {"resource_type": "s3:bucket", "name": "my-bucket"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         import * as s3 from 'aws-cdk-lib/aws-s3';
 
         const bucket = new s3.Bucket(this, 'MyBucket', {
             versioned: true,
         });
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 1
@@ -693,13 +693,13 @@ class TestCDKTypescriptPatternDetection:
             {"resource_type": "dynamodb:table", "name": "my-table"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 
         const table = new dynamodb.Table(this, 'MyTable', {
             partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
         });
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 1
@@ -711,13 +711,13 @@ class TestCDKTypescriptPatternDetection:
             {"resource_type": "iam:role", "name": "my-role"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         import * as iam from 'aws-cdk-lib/aws-iam';
 
         const role = new iam.Role(this, 'MyRole', {
             assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
         });
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 1
@@ -734,7 +734,7 @@ class TestCDKTypescriptPatternDetection:
             {"resource_type": "s3:bucket", "name": "data-bucket"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         import * as ec2 from 'aws-cdk-lib/aws-ec2';
         import * as lambda from 'aws-cdk-lib/aws-lambda';
         import * as s3 from 'aws-cdk-lib/aws-s3';
@@ -764,14 +764,17 @@ class TestCDKTypescriptPatternDetection:
         const bucket = new s3.Bucket(this, 'DataBucket', {
             versioned: true,
         });
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 6
         assert result["total_inventory"] == 6
 
 
-@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+@pytest.mark.skipif(
+    not IMPORTS_AVAILABLE,
+    reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}",
+)
 class TestCDKPythonPatternDetection:
     """Tests for CDK Python pattern detection in compare_inventory."""
 
@@ -781,14 +784,14 @@ class TestCDKPythonPatternDetection:
             {"resource_type": "ec2:vpc", "name": "main-vpc"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         from aws_cdk import aws_ec2 as ec2
 
         vpc = ec2.Vpc(self, "MainVpc",
             max_azs=3,
             cidr="10.0.0.0/16",
         )
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 1
@@ -801,7 +804,7 @@ class TestCDKPythonPatternDetection:
             {"resource_type": "lambda:function", "name": "other-function"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         from aws_cdk import aws_lambda as _lambda
 
         my_function = _lambda.Function(self, "MyFunction",
@@ -815,7 +818,7 @@ class TestCDKPythonPatternDetection:
             handler="index.handler",
             code=_lambda.Code.from_asset("lambda"),
         )
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 2
@@ -827,13 +830,13 @@ class TestCDKPythonPatternDetection:
             {"resource_type": "s3:bucket", "name": "my-bucket"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         from aws_cdk import aws_s3 as s3
 
         bucket = s3.Bucket(self, "MyBucket",
             versioned=True,
         )
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 1
@@ -845,7 +848,7 @@ class TestCDKPythonPatternDetection:
             {"resource_type": "dynamodb:table", "name": "my-table"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         from aws_cdk import aws_dynamodb as dynamodb
 
         table = dynamodb.Table(self, "MyTable",
@@ -854,7 +857,7 @@ class TestCDKPythonPatternDetection:
                 type=dynamodb.AttributeType.STRING
             ),
         )
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 1
@@ -870,7 +873,7 @@ class TestCDKPythonPatternDetection:
             {"resource_type": "iam:role", "name": "lambda-role"},
         ]
 
-        cdk_code = '''
+        cdk_code = """
         from aws_cdk import (
             aws_ec2 as ec2,
             aws_lambda as _lambda,
@@ -894,14 +897,17 @@ class TestCDKPythonPatternDetection:
         )
 
         bucket = s3.Bucket(self, "DataBucket", versioned=True)
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, cdk_code)
         assert result["estimated_covered"] == 5
         assert result["total_inventory"] == 5
 
 
-@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+@pytest.mark.skipif(
+    not IMPORTS_AVAILABLE,
+    reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}",
+)
 class TestMixedIacPatternDetection:
     """Tests for detecting patterns across Terraform and CDK code."""
 
@@ -912,7 +918,7 @@ class TestMixedIacPatternDetection:
         ]
 
         # Both Terraform and CDK TypeScript defining same resource
-        mixed_code = '''
+        mixed_code = """
         # Terraform
         resource "aws_lambda_function" "my_function" {
             function_name = "my-function"
@@ -922,7 +928,7 @@ class TestMixedIacPatternDetection:
         const myFunction = new lambda.Function(this, 'MyFunction', {
             runtime: lambda.Runtime.PYTHON_3_11,
         });
-        '''
+        """
 
         result = _deterministic_coverage_check(resources, mixed_code)
         # Should count the resource once, min(inventory=1, terraform+cdk=2) = 1

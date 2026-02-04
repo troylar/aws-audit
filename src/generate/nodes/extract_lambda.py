@@ -42,11 +42,7 @@ def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:
     lambda_dir = Path(output_dir) / "lambda"
 
     # Count Lambda functions first
-    lambda_functions = [
-        r
-        for r in inventory
-        if r.get("type", r.get("resource_type", "")).startswith("lambda:function")
-    ]
+    lambda_functions = [r for r in inventory if r.get("type", r.get("resource_type", "")).startswith("lambda:function")]
 
     if lambda_functions:
         emit_progress(
@@ -60,9 +56,7 @@ def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:
 
     extracted_count = 0
     for i, resource_dict in enumerate(lambda_functions):
-        resource_type = resource_dict.get(
-            "type", resource_dict.get("resource_type", "")
-        )
+        resource_type = resource_dict.get("type", resource_dict.get("resource_type", ""))
 
         resource = TrackedResource.from_inventory(resource_dict)
         lambda_code = LambdaCode.from_resource(resource)

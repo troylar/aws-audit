@@ -187,9 +187,7 @@ def get_ecs_task_definition_properties(raw_config: Dict[str, Any]) -> Dict[str, 
     return terraform_config
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter ECS properties for Terraform generation.
 
     Args:

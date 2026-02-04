@@ -58,9 +58,7 @@ class CDKGenerator:
         self.output_dir = output_dir
         self.output_format = output_format
         self.progress_callback = progress_callback
-        self.project_name = project_name or Path(output_dir).name.replace(
-            "-", "_"
-        ).replace(" ", "_")
+        self.project_name = project_name or Path(output_dir).name.replace("-", "_").replace(" ", "_")
 
         base_config = GenerationConfig.from_env()
 
@@ -135,11 +133,7 @@ class CDKGenerator:
             validation_errors = final_state.get("validation_errors") or []
             comparison_result = final_state.get("comparison_result") or {}
 
-            layers = [
-                layers_dict[layer_name]
-                for layer_name in layer_order
-                if layer_name in layers_dict
-            ]
+            layers = [layers_dict[layer_name] for layer_name in layer_order if layer_name in layers_dict]
 
             success = len(errors) == 0 and len(generated_files) > 0
 
@@ -149,15 +143,11 @@ class CDKGenerator:
                 generated_files=generated_files,
                 layers=layers,
                 errors=[str(e) for e in errors] if errors else [],
-                validation_errors=(
-                    [str(e) for e in validation_errors] if validation_errors else []
-                ),
+                validation_errors=([str(e) for e in validation_errors] if validation_errors else []),
             )
 
             if self.progress_callback and comparison_result:
-                self.progress_callback(
-                    "comparison_complete", {"result": comparison_result}
-                )
+                self.progress_callback("comparison_complete", {"result": comparison_result})
 
             return result
 
@@ -186,9 +176,7 @@ class CDKGenerator:
         final_state = dict(initial_state)
         last_node = None
         last_layer_index = -1
-        format_label = (
-            "CDK TypeScript" if self.output_format == "cdk-typescript" else "CDK Python"
-        )
+        format_label = "CDK TypeScript" if self.output_format == "cdk-typescript" else "CDK Python"
 
         try:
             for event in self.agent.stream(initial_state, stream_mode="updates"):
@@ -200,9 +188,7 @@ class CDKGenerator:
                         if node_name == "generate_layer":
                             layer_order = final_state.get("layer_order", [])
                             current_idx = final_state.get("current_layer_index", 0)
-                            if current_idx != last_layer_index and current_idx < len(
-                                layer_order
-                            ):
+                            if current_idx != last_layer_index and current_idx < len(layer_order):
                                 layer_name = layer_order[current_idx]
                                 self.progress_callback(
                                     "layer_start",
@@ -257,21 +243,15 @@ class CDKGenerator:
                                 {
                                     "layer_name": layer_name,
                                     "status": status,
-                                    "generated_code": generated_code.get(
-                                        layer_name, ""
-                                    ),
-                                    "generated_file": (
-                                        generated_files[0] if generated_files else None
-                                    ),
+                                    "generated_code": generated_code.get(layer_name, ""),
+                                    "generated_file": (generated_files[0] if generated_files else None),
                                 },
                             )
 
                     elif node_name == "compare_inventory":
                         comparison = state_update.get("comparison_result", {})
                         if comparison:
-                            self.progress_callback(
-                                "comparison_complete", {"result": comparison}
-                            )
+                            self.progress_callback("comparison_complete", {"result": comparison})
 
                     elif node_name == "npm_build":
                         npm_success = state_update.get("npm_build_success", False)
@@ -286,9 +266,7 @@ class CDKGenerator:
 
                     elif node_name == "cdk_synth":
                         errors = state_update.get("validation_errors", [])
-                        self.progress_callback(
-                            "validation_complete", {"errors": errors}
-                        )
+                        self.progress_callback("validation_complete", {"errors": errors})
 
                     self.progress_callback("node_complete", {"node": node_name})
 
@@ -390,22 +368,14 @@ class CDKGenerator:
 
         for layer_name in layer_order:
             class_name = self._to_pascal_case(layer_name) + "Stack"
-            file_name = (
-                layer_name.lower().replace(" ", "_").replace("-", "_") + "_stack"
-            )
+            file_name = layer_name.lower().replace(" ", "_").replace("-", "_") + "_stack"
 
             imports.append(f"import {{ {class_name} }} from '../lib/{file_name}';")
             var_name = self._to_camel_case(layer_name) + "Stack"
-            instantiations.append(
-                f"const {var_name} = new {class_name}(app, '{class_name}');"
-            )
+            instantiations.append(f"const {var_name} = new {class_name}(app, '{class_name}');")
 
         stack_imports = "\n".join(imports) if imports else "// No stacks generated"
-        stack_instantiations = (
-            "\n".join(instantiations)
-            if instantiations
-            else "// No stacks to instantiate"
-        )
+        stack_instantiations = "\n".join(instantiations) if instantiations else "// No stacks to instantiate"
 
         template_dir = TEMPLATE_DIR / "typescript"
         bin_dir = os.path.join(self.output_dir, "bin")
@@ -429,20 +399,14 @@ class CDKGenerator:
 
         for layer_name in layer_order:
             class_name = self._to_pascal_case(layer_name) + "Stack"
-            module_name = (
-                layer_name.lower().replace(" ", "_").replace("-", "_") + "_stack"
-            )
+            module_name = layer_name.lower().replace(" ", "_").replace("-", "_") + "_stack"
 
             imports.append(f"from stacks.{module_name} import {class_name}")
             var_name = self._to_snake_case(layer_name) + "_stack"
             instantiations.append(f'{var_name} = {class_name}(app, "{class_name}")')
 
         stack_imports = "\n".join(imports) if imports else "# No stacks generated"
-        stack_instantiations = (
-            "\n".join(instantiations)
-            if instantiations
-            else "# No stacks to instantiate"
-        )
+        stack_instantiations = "\n".join(instantiations) if instantiations else "# No stacks to instantiate"
 
         template_dir = TEMPLATE_DIR / "python"
         self._render_template(
@@ -454,9 +418,7 @@ class CDKGenerator:
             },
         )
 
-    def _render_template(
-        self, template_path: Path, output_path: str, substitutions: Dict[str, str]
-    ) -> None:
+    def _render_template(self, template_path: Path, output_path: str, substitutions: Dict[str, str]) -> None:
         """Render a template file with substitutions.
 
         Args:

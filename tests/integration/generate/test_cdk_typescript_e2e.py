@@ -34,9 +34,8 @@ if not HAS_GENERATE_DEPS:
         allow_module_level=True,
     )
 
-from src.generate.layers import LayerOrder
 from src.generate.state import GenerationState
-from src.models.generation import ResourceMap, TrackedResource
+from src.models.generation import TrackedResource
 from src.models.resource import Resource
 from src.models.snapshot import Snapshot
 
@@ -490,13 +489,7 @@ class TestCDKTypescriptEndToEnd:
                     response_text = value
                     break
 
-            return {
-                "output": {
-                    "message": {
-                        "content": [{"text": response_text}]
-                    }
-                }
-            }
+            return {"output": {"message": {"content": [{"text": response_text}]}}}
 
         mock_bedrock_client.converse.side_effect = converse_side_effect
         mock_boto_client.return_value = mock_bedrock_client

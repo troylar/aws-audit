@@ -97,9 +97,7 @@ class GenerationConfig:
             AWS_DEFAULT_REGION: Fallback for Bedrock region
         """
         return cls(
-            bedrock_model_id=os.environ.get(
-                "AWSINV_BEDROCK_MODEL_ID", "us.anthropic.claude-opus-4-20250514-v1:0"
-            ),
+            bedrock_model_id=os.environ.get("AWSINV_BEDROCK_MODEL_ID", "us.anthropic.claude-opus-4-20250514-v1:0"),
             bedrock_region=os.environ.get(
                 "AWSINV_BEDROCK_REGION",
                 os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),

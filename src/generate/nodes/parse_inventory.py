@@ -42,9 +42,7 @@ def _load_from_file(filepath: str) -> List[Dict[str, Any]]:
     elif suffix in (".yaml", ".yml"):
         data = yaml.safe_load(content)
     else:
-        raise ValueError(
-            f"Unsupported file format: {suffix}. Use .json, .yaml, or .yml"
-        )
+        raise ValueError(f"Unsupported file format: {suffix}. Use .json, .yaml, or .yml")
 
     # Handle different data structures
     if isinstance(data, list):
@@ -57,9 +55,7 @@ def _load_from_file(filepath: str) -> List[Dict[str, Any]]:
         elif "inventory" in data:
             return data["inventory"]
         else:
-            raise ValueError(
-                "File must contain 'resources' or 'inventory' array, or be a direct array of resources"
-            )
+            raise ValueError("File must contain 'resources' or 'inventory' array, or be a direct array of resources")
     else:
         raise ValueError("Invalid file format: expected array or object with resources")
 
@@ -126,11 +122,7 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
         # Count resource types
         type_counts: Dict[str, int] = {}
         for r in resources:
-            rtype = (
-                r.resource_type.split(":")[0]
-                if ":" in r.resource_type
-                else r.resource_type
-            )
+            rtype = r.resource_type.split(":")[0] if ":" in r.resource_type else r.resource_type
             type_counts[rtype] = type_counts.get(rtype, 0) + 1
 
         emit_progress(
@@ -211,9 +203,7 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
     # Count resource types
     type_counts: Dict[str, int] = {}
     for r in resources:
-        rtype = (
-            r.resource_type.split(":")[0] if ":" in r.resource_type else r.resource_type
-        )
+        rtype = r.resource_type.split(":")[0] if ":" in r.resource_type else r.resource_type
         type_counts[rtype] = type_counts.get(rtype, 0) + 1
 
     emit_progress(

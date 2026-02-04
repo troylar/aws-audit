@@ -32,9 +32,7 @@ SQS_COMPUTED = {
 }
 
 
-def _transform_redrive_policy(
-    redrive_policy: Optional[Dict[str, Any]]
-) -> Optional[Dict[str, str]]:
+def _transform_redrive_policy(redrive_policy: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
     """Transform redrive policy to Terraform format.
 
     Args:
@@ -119,9 +117,7 @@ def get_sqs_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter SQS properties for Terraform generation.
 
     Uses SQS_CONFIGURABLE as whitelist.

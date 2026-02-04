@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -179,7 +179,7 @@ class TestCleanCode:
         """Test cleaning Terraform code removes markdown."""
         from src.generate.nodes.generate_layer import _clean_terraform_code
 
-        code = "```hcl\nresource \"aws_vpc\" \"main\" {}\n```"
+        code = '```hcl\nresource "aws_vpc" "main" {}\n```'
         result = _clean_terraform_code(code)
         assert "```" not in result
         assert "resource" in result

@@ -106,9 +106,7 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
         client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
 
         system_prompt = _get_comparison_system_prompt()
-        user_prompt = _format_comparison_prompt(
-            inventory_text, terraform_text, len(resources)
-        )
+        user_prompt = _format_comparison_prompt(inventory_text, terraform_text, len(resources))
 
         emit_progress(
             "activity",
@@ -325,21 +323,15 @@ def _format_inventory_for_comparison(resources: List[Any]) -> str:
             arn = resource.arn
             raw_config = resource.raw_config
         else:
-            resource_type = resource.get(
-                "resource_type", resource.get("type", "unknown")
-            )
+            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
             name = resource.get("name", "unnamed")
             arn = resource.get("arn", "")
             raw_config = resource.get("raw_config", {})
 
         key_attrs = _extract_key_attributes(resource_type, raw_config)
-        attrs_str = (
-            ", ".join(f"{k}={v}" for k, v in key_attrs.items()) if key_attrs else "none"
-        )
+        attrs_str = ", ".join(f"{k}={v}" for k, v in key_attrs.items()) if key_attrs else "none"
 
-        lines.append(
-            f"{i}. Type: {resource_type} | Name: {name} | ARN: {arn} | Key attrs: {attrs_str}"
-        )
+        lines.append(f"{i}. Type: {resource_type} | Name: {name} | ARN: {arn} | Key attrs: {attrs_str}")
 
     return "\n".join(lines)
 
@@ -362,9 +354,7 @@ def _format_inventory_summary(resources: List[Any]) -> str:
             resource_type = resource.resource_type
             name = resource.name
         else:
-            resource_type = resource.get(
-                "resource_type", resource.get("type", "unknown")
-            )
+            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
             name = resource.get("name", "unnamed")
 
         if resource_type not in by_type:
@@ -388,9 +378,7 @@ def _format_inventory_summary(resources: List[Any]) -> str:
     return "\n".join(lines)
 
 
-def _extract_key_attributes(
-    resource_type: str, raw_config: Dict[str, Any]
-) -> Dict[str, Any]:
+def _extract_key_attributes(resource_type: str, raw_config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract key configuration attributes based on resource type.
 
     Args:
@@ -516,9 +504,7 @@ def _get_comparison_system_prompt() -> str:
     )
 
 
-def _format_comparison_prompt(
-    inventory_text: str, terraform_text: str, total_resources: int
-) -> str:
+def _format_comparison_prompt(inventory_text: str, terraform_text: str, total_resources: int) -> str:
     """Format the user prompt for comparison.
 
     Args:
@@ -589,9 +575,7 @@ CRITICAL RULES:
 - Be GENEROUS - if a matching Terraform resource exists, count it as represented"""
 
 
-def _deterministic_coverage_check(
-    resources: List[Any], iac_code: str
-) -> Dict[str, int]:
+def _deterministic_coverage_check(resources: List[Any], iac_code: str) -> Dict[str, int]:
     """Perform a simple deterministic check of resource coverage.
 
     This provides a sanity check against AI results by counting IaC
@@ -672,9 +656,7 @@ def _deterministic_coverage_check(
         if isinstance(resource, TrackedResource):
             resource_type = resource.resource_type
         else:
-            resource_type = resource.get(
-                "resource_type", resource.get("type", "unknown")
-            )
+            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
 
         inventory_counts[resource_type] = inventory_counts.get(resource_type, 0) + 1
 
@@ -733,9 +715,7 @@ def _deterministic_coverage_check(
     }
 
 
-def _parse_comparison_response(
-    response_text: str, total_resources: int
-) -> Dict[str, Any]:
+def _parse_comparison_response(response_text: str, total_resources: int) -> Dict[str, Any]:
     """Parse AI response into structured comparison result.
 
     Validates and recalculates counts based on actual list lengths to handle
@@ -796,16 +776,8 @@ def _parse_comparison_response(
                         missing_count = 0
             else:
                 # Empty lists - use AI-reported counts if they're valid
-                represented_count = (
-                    ai_represented
-                    if isinstance(ai_represented, int) and ai_represented >= 0
-                    else 0
-                )
-                missing_count = (
-                    ai_missing
-                    if isinstance(ai_missing, int) and ai_missing >= 0
-                    else total_resources
-                )
+                represented_count = ai_represented if isinstance(ai_represented, int) and ai_represented >= 0 else 0
+                missing_count = ai_missing if isinstance(ai_missing, int) and ai_missing >= 0 else total_resources
 
                 # Validate they sum correctly
                 if represented_count + missing_count != total_resources:
@@ -823,11 +795,7 @@ def _parse_comparison_response(
             result["missing_count"] = missing_count
 
             # Recalculate coverage based on validated counts
-            result["coverage_percentage"] = (
-                (represented_count / total_resources * 100)
-                if total_resources > 0
-                else 0.0
-            )
+            result["coverage_percentage"] = (represented_count / total_resources * 100) if total_resources > 0 else 0.0
 
             return result
         except json.JSONDecodeError:

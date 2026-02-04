@@ -329,17 +329,23 @@ class TestCDKResourceFormatting:
             },
         )
 
-    def test_format_includes_resource_type(self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
+    def test_format_includes_resource_type(
+        self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource
+    ) -> None:
         """Test formatted output includes resource type."""
         result = cdk_typescript_prompts.format_resource_for_cdk_prompt(sample_ec2_resource)
         assert "ec2:instance" in result
 
-    def test_format_includes_resource_name(self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
+    def test_format_includes_resource_name(
+        self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource
+    ) -> None:
         """Test formatted output includes resource name."""
         result = cdk_typescript_prompts.format_resource_for_cdk_prompt(sample_ec2_resource)
         assert "web-server-1" in result or "web_server_1" in result or "webServer1" in result
 
-    def test_format_includes_cdk_construct_name(self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
+    def test_format_includes_cdk_construct_name(
+        self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource
+    ) -> None:
         """Test formatted output includes CDK construct name."""
         result = cdk_typescript_prompts.format_resource_for_cdk_prompt(sample_ec2_resource)
         assert "CDK construct" in result or "Construct" in result or "construct" in result
@@ -349,7 +355,9 @@ class TestCDKResourceFormatting:
         result = cdk_typescript_prompts.format_resource_for_cdk_prompt(sample_ec2_resource)
         assert "us-east-1" in result
 
-    def test_format_includes_properties(self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource) -> None:
+    def test_format_includes_properties(
+        self, cdk_typescript_prompts: Any, sample_ec2_resource: TrackedResource
+    ) -> None:
         """Test formatted output includes properties."""
         result = cdk_typescript_prompts.format_resource_for_cdk_prompt(sample_ec2_resource)
         assert "t3.medium" in result

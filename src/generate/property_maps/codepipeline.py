@@ -48,14 +48,10 @@ def _transform_stage_action(action: Dict[str, Any]) -> Dict[str, Any]:
         result["configuration"] = action["Configuration"]
 
     if "InputArtifacts" in action:
-        result["input_artifacts"] = [
-            {"name": artifact.get("Name")} for artifact in action["InputArtifacts"]
-        ]
+        result["input_artifacts"] = [{"name": artifact.get("Name")} for artifact in action["InputArtifacts"]]
 
     if "OutputArtifacts" in action:
-        result["output_artifacts"] = [
-            {"name": artifact.get("Name")} for artifact in action["OutputArtifacts"]
-        ]
+        result["output_artifacts"] = [{"name": artifact.get("Name")} for artifact in action["OutputArtifacts"]]
 
     if "RoleArn" in action:
         result["role_arn"] = action["RoleArn"]
@@ -84,16 +80,12 @@ def _transform_stage(stage: Dict[str, Any]) -> Dict[str, Any]:
         result["name"] = stage["Name"]
 
     if "Actions" in stage:
-        result["actions"] = [
-            _transform_stage_action(action) for action in stage["Actions"]
-        ]
+        result["actions"] = [_transform_stage_action(action) for action in stage["Actions"]]
 
     return result
 
 
-def _transform_stages(
-    stages: Optional[List[Dict[str, Any]]]
-) -> Optional[List[Dict[str, Any]]]:
+def _transform_stages(stages: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
     """Transform pipeline stages to Terraform format.
 
     Args:
@@ -187,9 +179,7 @@ def get_codepipeline_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 register_property_map("codepipeline", __name__)
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Codepipeline properties for Terraform generation."""
     configurable = CODEPIPELINE_CONFIGURABLE
     filtered = {}

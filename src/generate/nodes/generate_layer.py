@@ -131,9 +131,7 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     layers: Dict[str, List[Dict[str, Any]]] = state.get("layers", {})
     layer_order: List[str] = state.get("layer_order", [])
     raw_resource_map = state.get("resource_map")
-    resource_map = (
-        raw_resource_map if isinstance(raw_resource_map, ResourceMap) else ResourceMap()
-    )
+    resource_map = raw_resource_map if isinstance(raw_resource_map, ResourceMap) else ResourceMap()
     current_layer_index: int = state.get("current_layer_index", 0)
     generated_files: List[str] = list(state.get("generated_files", []))
     output_dir: str = state.get("output_dir", "./terraform")
@@ -372,9 +370,7 @@ def _clean_terraform_code(code: str) -> str:
     return code.strip()
 
 
-def _save_layer_file(
-    layer: Layer, code: str, output_dir: str, output_format: str = "terraform"
-) -> str:
+def _save_layer_file(layer: Layer, code: str, output_dir: str, output_format: str = "terraform") -> str:
     """Save generated IaC code to a file.
 
     File naming varies by format:
@@ -401,9 +397,7 @@ def _save_layer_file(
     else:
         # CDK uses stack naming convention
         # Put stacks in a stacks/ subdirectory for CDK projects
-        stacks_dir = os.path.join(
-            output_dir, "stacks" if output_format == "cdk-python" else "lib"
-        )
+        stacks_dir = os.path.join(output_dir, "stacks" if output_format == "cdk-python" else "lib")
         os.makedirs(stacks_dir, exist_ok=True)
         filename = f"{safe_name}_stack{extension}"
         output_dir = stacks_dir

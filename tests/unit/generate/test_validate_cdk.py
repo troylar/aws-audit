@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 def _setup_mocks() -> None:
@@ -28,7 +25,6 @@ from src.generate.nodes.validate_cdk import (
     is_npm_available,
     npm_build,
     pip_install,
-    validate_cdk,
 )
 
 
@@ -152,9 +148,7 @@ class TestCdkSynth:
 
     @patch("src.generate.nodes.validate_cdk.subprocess.run")
     @patch("src.generate.nodes.validate_cdk.shutil.which")
-    def test_cdk_synth_runs_cdk_synth(
-        self, mock_which: MagicMock, mock_run: MagicMock
-    ) -> None:
+    def test_cdk_synth_runs_cdk_synth(self, mock_which: MagicMock, mock_run: MagicMock) -> None:
         """Test cdk_synth runs cdk synth command."""
         mock_which.return_value = "/usr/bin/cdk"
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -171,9 +165,7 @@ class TestCdkSynth:
 
     @patch("src.generate.nodes.validate_cdk.subprocess.run")
     @patch("src.generate.nodes.validate_cdk.shutil.which")
-    def test_cdk_synth_handles_synth_failure(
-        self, mock_which: MagicMock, mock_run: MagicMock
-    ) -> None:
+    def test_cdk_synth_handles_synth_failure(self, mock_which: MagicMock, mock_run: MagicMock) -> None:
         """Test cdk_synth handles synthesis failure."""
         mock_which.return_value = "/usr/bin/cdk"
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="Synth failed: missing construct")

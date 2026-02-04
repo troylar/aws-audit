@@ -109,9 +109,7 @@ def npm_build(state: GenerationState) -> Dict[str, Any]:
             logger.error(error_msg)
 
             # Parse TypeScript errors from output
-            for line in build_result.stdout.split("\n") + build_result.stderr.split(
-                "\n"
-            ):
+            for line in build_result.stdout.split("\n") + build_result.stderr.split("\n"):
                 if "error TS" in line or "Error:" in line:
                     validation_errors.append(line.strip())
 
@@ -266,11 +264,7 @@ def cdk_synth(state: GenerationState) -> Dict[str, Any]:
             # Parse CDK synth errors
             for line in error_output.split("\n"):
                 line = line.strip()
-                if line and (
-                    "Error:" in line
-                    or "error:" in line.lower()
-                    or "failed" in line.lower()
-                ):
+                if line and ("Error:" in line or "error:" in line.lower() or "failed" in line.lower()):
                     validation_errors.append(line)
 
             if not validation_errors:

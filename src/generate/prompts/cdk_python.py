@@ -165,9 +165,7 @@ def format_resource_for_cdk_prompt(
         Formatted resource description
     """
     property_map = get_property_map(resource.resource_type)
-    props = _filter_properties(
-        resource.raw_config, property_map, resource.resource_type
-    )
+    props = _filter_properties(resource.raw_config, property_map, resource.resource_type)
 
     # Generate CDK-style construct ID (snake_case for Python)
     construct_id = _to_snake_case(resource.name)
@@ -187,9 +185,7 @@ def format_resource_for_cdk_prompt(
     if lambda_code_paths and resource.name in lambda_code_paths:
         code_path = lambda_code_paths[resource.name]
         lines.append(f"\n**Lambda Code File:** `{code_path}`")
-        lines.append(
-            f"(Use `_lambda.Code.from_asset('{code_path}')` in the Function construct)"
-        )
+        lines.append(f"(Use `_lambda.Code.from_asset('{code_path}')` in the Function construct)")
 
     lines.append("\n**Properties:**")
     lines.append("```json")

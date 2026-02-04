@@ -271,9 +271,7 @@ def _register_maps() -> None:
 _register_maps()
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Vpcendpoints properties for Terraform generation."""
     configurable = VPC_ENDPOINT_CONFIGURABLE
     filtered = {}

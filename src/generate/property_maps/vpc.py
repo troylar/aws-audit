@@ -127,9 +127,7 @@ register_property_map(
 )
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Vpc properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "vpc" in resource_type_lower:

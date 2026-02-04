@@ -23,9 +23,7 @@ WAF_WEBACL_COMPUTED = {
 }
 
 
-def _transform_default_action(
-    default_action: Optional[Dict[str, Any]]
-) -> Optional[Dict[str, Any]]:
+def _transform_default_action(default_action: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Transform WAF default action to Terraform format.
 
     Args:
@@ -44,25 +42,19 @@ def _transform_default_action(
         allow_config = default_action["Allow"]
         if allow_config and isinstance(allow_config, dict):
             if "CustomResponse" in allow_config:
-                result["allow"]["custom_response"] = _transform_custom_response(
-                    allow_config["CustomResponse"]
-                )
+                result["allow"]["custom_response"] = _transform_custom_response(allow_config["CustomResponse"])
 
     elif "Block" in default_action:
         result["block"] = {}
         block_config = default_action["Block"]
         if block_config and isinstance(block_config, dict):
             if "CustomResponse" in block_config:
-                result["block"]["custom_response"] = _transform_custom_response(
-                    block_config["CustomResponse"]
-                )
+                result["block"]["custom_response"] = _transform_custom_response(block_config["CustomResponse"])
 
     return result if result else None
 
 
-def _transform_custom_response(
-    custom_response: Optional[Dict[str, Any]]
-) -> Optional[Dict[str, Any]]:
+def _transform_custom_response(custom_response: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Transform WAF custom response to Terraform format.
 
     Args:
@@ -85,9 +77,7 @@ def _transform_custom_response(
     return result if result else None
 
 
-def _transform_visibility_config(
-    visibility_config: Optional[Dict[str, Any]]
-) -> Optional[Dict[str, Any]]:
+def _transform_visibility_config(visibility_config: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Transform WAF visibility config to Terraform format.
 
     Args:
@@ -181,9 +171,7 @@ def _transform_tags(tags: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
     # Tags may be a direct key-value pairs dict
     if isinstance(tags, dict):
         # Check if it's already in the right format (string keys and values)
-        is_simple_tags = all(
-            isinstance(k, str) and isinstance(v, str) for k, v in tags.items()
-        )
+        is_simple_tags = all(isinstance(k, str) and isinstance(v, str) for k, v in tags.items())
         if is_simple_tags:
             return tags
 
@@ -253,9 +241,7 @@ register_property_map("wafv2", __name__)
 register_property_map("waf", __name__)
 
 
-def filter_properties(
-    raw_config: Dict[str, Any], resource_type: str = ""
-) -> Dict[str, Any]:
+def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
     """Filter Waf properties for Terraform generation."""
     configurable = WAF_WEBACL_CONFIGURABLE
     filtered = {}
