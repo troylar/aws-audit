@@ -3,6 +3,7 @@
 from .build_resource_map import build_resource_map
 from .categorize_layers import categorize_layers
 from .compare_inventory import compare_inventory
+from .evaluate_guardrails import evaluate_guardrails
 from .extract_lambda import extract_lambda_code
 from .generate_layer import generate_layer
 from .parse_inventory import parse_inventory
@@ -27,6 +28,7 @@ __all__: list[str] = [
     "categorize_layers",
     "cdk_synth",
     "compare_inventory",
+    "evaluate_guardrails",
     "extract_lambda_code",
     "generate_layer",
     "is_cdk_available",

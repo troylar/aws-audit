@@ -1,0 +1,71 @@
+version: "1.0"
+guardrails:
+  - id: GR-TAG-001
+    short_description: "All resources must have required tags"
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to:
+      - "*"
+    condition:
+      attribute: Tags
+      operator: exists
+    ai_context: |
+      WHY: Tags are required for cost allocation, ownership tracking, and
+      compliance reporting. Missing tags prevent accurate chargeback and
+      make incident response difficult.
+
+      REQUIRED TAGS: Environment, Owner, CostCenter, Application
+
+      HOW TO FIX: Add default tags to resources missing them. Use these defaults:
+      - Environment: "unknown" (should be overridden by policy)
+      - Owner: "platform-team" (default owner for untagged resources)
+      - CostCenter: "UNALLOCATED" (triggers finance review)
+      - Application: Derive from resource name or use "unspecified"
+
+      TERRAFORM: Add `tags` block to resource.
+    tags:
+      - tagging
+      - cost
+      - compliance
+
+  - id: GR-TAG-002
+    short_description: "Resource must have Environment tag"
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to:
+      - "*"
+    condition:
+      attribute: Tags.Environment
+      operator: exists
+    ai_context: |
+      WHY: Environment tag is required for distinguishing production from
+      non-production resources, which affects compliance requirements.
+
+      HOW TO FIX: Add Environment tag with value matching the deployment target.
+      Default to "unknown" if environment cannot be determined.
+
+      TERRAFORM: Add `Environment = var.environment` to tags block.
+    tags:
+      - tagging
+      - environment
+
+  - id: GR-TAG-003
+    short_description: "Resource must have Owner tag"
+    severity: MEDIUM
+    action: AUTO-FIX
+    applies_to:
+      - "*"
+    condition:
+      attribute: Tags.Owner
+      operator: exists
+    ai_context: |
+      WHY: Owner tag identifies who is responsible for a resource, essential
+      for incident response and cost accountability.
+
+      HOW TO FIX: Add Owner tag identifying the team or individual responsible.
+      Default to "platform-team" if owner cannot be determined.
+
+      TERRAFORM: Add `Owner = var.owner` to tags block.
+    tags:
+      - tagging
+      - ownership

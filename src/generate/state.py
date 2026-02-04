@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from operator import add
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional  # noqa: F401 - Optional used in TypedDict
 
 from typing_extensions import Annotated, TypedDict
 
@@ -66,6 +66,16 @@ class GenerationState(TypedDict, total=False):
     validation_skipped: bool  # Whether validation was skipped (no files to validate)
     errors: Annotated[List[Dict[str, Any]], add]
     messages: Annotated[List[Dict[str, Any]], add]
+
+    # Guardrails fields
+    guardrails_enabled: bool  # Whether guardrail evaluation is enabled
+    guardrails_policy_path: Optional[str]  # Path to guardrail policy file
+    guardrails_environment: str  # Environment name for policy overrides (default: "default")
+    guardrails_strict: bool  # Fail on any violation, not just CRITICAL/HIGH
+    guardrails_auto_fix: bool  # Whether AI auto-fix is enabled (default: True)
+    guardrails_report: Dict[str, Any]  # Serialized GuardrailReport
+    guardrails_blocked: bool  # Whether generation was blocked by guardrails
+    guardrails_auto_fixes: Dict[str, Dict[str, Any]]  # resource_id -> config changes
 
 
 @dataclass

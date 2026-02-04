@@ -31,6 +31,7 @@ class WorkflowStep(Enum):
 
     PARSE_INVENTORY = "parse_inventory"
     BUILD_RESOURCE_MAP = "build_resource_map"
+    EVALUATE_GUARDRAILS = "evaluate_guardrails"
     CATEGORIZE_LAYERS = "categorize_layers"
     EXTRACT_LAMBDA = "extract_lambda"
     GENERATE_LAYERS = "generate_layers"

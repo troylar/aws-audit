@@ -5743,6 +5743,11 @@ def lambda_fetch(
 copilot_app = typer.Typer(help="GitHub Copilot instructions and prompt management")
 app.add_typer(copilot_app, name="copilot")
 
+# Register guardrails commands
+from .guardrails import guardrails_app
+
+app.add_typer(guardrails_app, name="guardrails")
+
 
 @copilot_app.command("install")
 def copilot_install(
@@ -5981,6 +5986,32 @@ def generate(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
+    guardrails: bool = typer.Option(False, "--guardrails", "-g", help="Enable guardrails policy evaluation"),
+    guardrails_policy: Optional[str] = typer.Option(
+        None,
+        "--guardrails-policy",
+        help="Path to custom guardrails policy file (YAML)",
+    ),
+    guardrails_env: str = typer.Option(
+        "default",
+        "--guardrails-env",
+        help="Environment for guardrails policy overrides",
+    ),
+    guardrails_strict: bool = typer.Option(
+        False,
+        "--guardrails-strict",
+        help="Strict mode: block on any violation (not just CRITICAL/HIGH)",
+    ),
+    guardrails_auto_fix: bool = typer.Option(
+        True,
+        "--guardrails-auto-fix/--no-guardrails-auto-fix",
+        help="Enable AI auto-fix for AUTO-FIX guardrails (requires Bedrock access)",
+    ),
+    guardrails_report: Optional[str] = typer.Option(
+        None,
+        "--guardrails-report",
+        help="Save guardrails report to file (JSON or YAML based on extension)",
+    ),
 ) -> None:
     """Generate IaC (Terraform/CDK) from an inventory snapshot or export file.
 
@@ -6041,6 +6072,7 @@ def generate(
     node_to_step = {
         "parse_inventory": WorkflowStep.PARSE_INVENTORY,
         "build_resource_map": WorkflowStep.BUILD_RESOURCE_MAP,
+        "evaluate_guardrails": WorkflowStep.EVALUATE_GUARDRAILS,
         "categorize_layers": WorkflowStep.CATEGORIZE_LAYERS,
         "extract_lambda": WorkflowStep.EXTRACT_LAMBDA,
         "generate_layer": WorkflowStep.GENERATE_LAYERS,
@@ -6122,6 +6154,24 @@ def generate(
             if message:
                 progress.set_activity(message)
 
+        elif event == "guardrails_start":
+            total = data.get("total_resources", 0)
+            progress.set_activity(f"Evaluating guardrails on {total} resources...")
+
+        elif event == "guardrails_progress":
+            current = data.get("current", 0)
+            total = data.get("total", 0)
+            progress.set_activity(f"Evaluating guardrails: {current}/{total}")
+
+        elif event == "guardrails_complete":
+            passed = data.get("passed", 0)
+            failed = data.get("failed", 0)
+            blocked = data.get("blocked", False)
+            if blocked:
+                progress.set_activity(f"Guardrails: {failed} violations (blocked)")
+            else:
+                progress.set_activity(f"Guardrails: {passed} passed, {failed} failed")
+
     # Run generation with progress
     progress.start()
     try:
@@ -6133,6 +6183,11 @@ def generate(
                 region=region,
                 input_file=from_file,
                 progress_callback=progress_callback,
+                guardrails_enabled=guardrails,
+                guardrails_policy_path=guardrails_policy,
+                guardrails_environment=guardrails_env,
+                guardrails_strict=guardrails_strict,
+                guardrails_auto_fix=guardrails_auto_fix,
             )
         else:
             # CDK generation (cdk-typescript or cdk-python)
@@ -6144,6 +6199,11 @@ def generate(
                 region=region,
                 input_file=from_file,
                 progress_callback=progress_callback,
+                guardrails_enabled=guardrails,
+                guardrails_policy_path=guardrails_policy,
+                guardrails_environment=guardrails_env,
+                guardrails_strict=guardrails_strict,
+                guardrails_auto_fix=guardrails_auto_fix,
             )
 
         if result.success:
@@ -6154,6 +6214,32 @@ def generate(
 
     # Print final summary
     progress.print_final_summary(result.success)
+
+    # Display guardrails report if enabled and blocked
+    if result.guardrails_blocked and result.guardrails_report:
+        from src.guardrails.reporter import format_terminal_report
+
+        console.print()
+        format_terminal_report(result.guardrails_report, console)
+
+    # Save guardrails report to file if requested
+    if guardrails_report and result.guardrails_report:
+        import json
+        from pathlib import Path
+
+        import yaml
+
+        report_path = Path(guardrails_report)
+        try:
+            if report_path.suffix == ".json":
+                with open(report_path, "w") as f:
+                    json.dump(result.guardrails_report, f, indent=2, default=str)
+            else:
+                with open(report_path, "w") as f:
+                    yaml.dump(result.guardrails_report, f, default_flow_style=False)
+            console.print(f"\nGuardrails report saved to: {report_path}")
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Failed to save guardrails report: {e}")
 
     if not result.success:
         for error in result.errors:

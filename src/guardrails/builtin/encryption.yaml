@@ -1,0 +1,109 @@
+version: "1.0"
+guardrails:
+  - id: GR-ENC-001
+    short_description: "S3 bucket must have encryption at rest"
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to:
+      - s3:bucket
+    condition:
+      attribute: ServerSideEncryptionConfiguration
+      operator: exists
+    ai_context: |
+      WHY: Financial regulations (PCI-DSS, SOX) require encryption of data at rest.
+      Unencrypted S3 buckets expose sensitive customer financial data to breach risk.
+      This is a compliance requirement, not optional.
+
+      HOW TO FIX: Add server-side encryption configuration to the S3 bucket resource.
+      Prefer AES-256 (SSE-S3) as the default. If the organization uses KMS, use the
+      default AWS managed key unless a specific key ARN is provided.
+
+      TERRAFORM: Add a `server_side_encryption_configuration` block with
+      `sse_algorithm = "AES256"` or `sse_algorithm = "aws:kms"`.
+    tags:
+      - encryption
+      - pci-dss
+      - s3
+
+  - id: GR-ENC-002
+    short_description: "RDS instance must have encryption at rest"
+    severity: CRITICAL
+    action: BLOCK
+    applies_to:
+      - rds:db
+      - rds:cluster
+    condition:
+      attribute: StorageEncrypted
+      operator: equals
+      value: true
+    ai_context: |
+      WHY: RDS encryption cannot be enabled after creation. Database encryption
+      is required for PCI-DSS and SOX compliance for financial data.
+
+      HOW TO FIX: Cannot auto-fix - encryption must be enabled in source AWS account.
+      The resource must be recreated with encryption enabled or data migrated to
+      a new encrypted instance.
+    tags:
+      - encryption
+      - rds
+      - pci-dss
+
+  - id: GR-ENC-003
+    short_description: "EBS volume must have encryption"
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to:
+      - ec2:volume
+    condition:
+      attribute: Encrypted
+      operator: equals
+      value: true
+    ai_context: |
+      WHY: EBS encryption protects data at rest on block storage volumes.
+      Required for compliance with data protection regulations.
+
+      HOW TO FIX: Add encrypted = true to the EBS volume configuration.
+
+      TERRAFORM: Set `encrypted = true` in the aws_ebs_volume resource.
+    tags:
+      - encryption
+      - ebs
+      - ec2
+
+  - id: GR-ENC-004
+    short_description: "DynamoDB table must have encryption"
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to:
+      - dynamodb:table
+    condition:
+      attribute: SSEDescription
+      operator: exists
+    ai_context: |
+      WHY: DynamoDB tables should use server-side encryption for data protection.
+
+      HOW TO FIX: Add server-side encryption configuration.
+
+      TERRAFORM: Add `server_side_encryption { enabled = true }` block.
+    tags:
+      - encryption
+      - dynamodb
+
+  - id: GR-ENC-005
+    short_description: "Secrets Manager secret must use encryption"
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to:
+      - secretsmanager:secret
+    condition:
+      attribute: KmsKeyId
+      operator: exists
+    ai_context: |
+      WHY: Secrets should be encrypted with KMS for enhanced security control.
+
+      HOW TO FIX: Configure KMS key for the secret.
+
+      TERRAFORM: Set `kms_key_id` in the aws_secretsmanager_secret resource.
+    tags:
+      - encryption
+      - secretsmanager

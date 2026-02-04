@@ -1,0 +1,107 @@
+version: "1.0"
+guardrails:
+  - id: GR-NET-001
+    short_description: "Security group must not allow SSH from 0.0.0.0/0"
+    severity: CRITICAL
+    action: BLOCK
+    applies_to:
+      - ec2:security-group
+    condition:
+      attribute: OpenSSHFromAnywhere
+      operator: not_exists
+    ai_context: |
+      WHY: Allowing SSH (port 22) from any IP address (0.0.0.0/0) exposes servers
+      to brute-force attacks and is a critical security vulnerability. Financial
+      services must restrict administrative access to known IP ranges or VPN.
+
+      HOW TO FIX: Cannot auto-fix because we don't know the organization's
+      allowed IP ranges. This must be manually corrected in the source account
+      before re-running generation.
+
+      REMEDIATION GUIDANCE: Update the security group in AWS to restrict port 22
+      ingress to specific CIDR blocks (e.g., corporate VPN range, bastion host).
+    tags:
+      - network
+      - security-group
+      - ssh
+
+  - id: GR-NET-002
+    short_description: "Security group must not allow RDP from 0.0.0.0/0"
+    severity: CRITICAL
+    action: BLOCK
+    applies_to:
+      - ec2:security-group
+    condition:
+      attribute: OpenRDPFromAnywhere
+      operator: not_exists
+    ai_context: |
+      WHY: Allowing RDP (port 3389) from any IP address (0.0.0.0/0) exposes
+      Windows servers to brute-force attacks and is a critical security vulnerability.
+
+      HOW TO FIX: Cannot auto-fix. Manually restrict RDP access in AWS to
+      specific CIDR blocks or use AWS Systems Manager Session Manager.
+    tags:
+      - network
+      - security-group
+      - rdp
+
+  - id: GR-NET-003
+    short_description: "Security group must not allow all traffic from 0.0.0.0/0"
+    severity: CRITICAL
+    action: BLOCK
+    applies_to:
+      - ec2:security-group
+    condition:
+      attribute: OpenAllPortsFromAnywhere
+      operator: not_exists
+    ai_context: |
+      WHY: Allowing all traffic from any IP is a severe security risk that
+      bypasses network-level security controls.
+
+      HOW TO FIX: Cannot auto-fix. Review and restrict security group rules
+      to only allow necessary ports from specific sources.
+    tags:
+      - network
+      - security-group
+
+  - id: GR-NET-004
+    short_description: "VPC must have flow logs enabled"
+    severity: HIGH
+    action: WARN
+    applies_to:
+      - ec2:vpc
+    condition:
+      attribute: FlowLogs
+      operator: exists
+    ai_context: |
+      WHY: VPC Flow Logs capture network traffic information for security
+      analysis and troubleshooting. Required for security incident investigation.
+
+      HOW TO FIX: Enable VPC Flow Logs in the AWS console or add flow log
+      configuration to the VPC resource.
+    tags:
+      - network
+      - vpc
+      - logging
+
+  - id: GR-NET-005
+    short_description: "Load balancer must have deletion protection"
+    severity: MEDIUM
+    action: AUTO-FIX
+    applies_to:
+      - elasticloadbalancing:loadbalancer
+    condition:
+      attribute: DeletionProtection
+      operator: equals
+      value: true
+    ai_context: |
+      WHY: Deletion protection prevents accidental removal of load balancers
+      that serve production traffic.
+
+      HOW TO FIX: Enable deletion protection on the load balancer.
+
+      TERRAFORM: Set `enable_deletion_protection = true` in the aws_lb resource.
+    tags:
+      - network
+      - elb
+      - protection

@@ -1,0 +1,67 @@
+version: "1.0"
+guardrails:
+  - id: GR-LOG-001
+    short_description: "S3 bucket must have access logging enabled"
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to:
+      - s3:bucket
+    condition:
+      attribute: LoggingConfiguration
+      operator: exists
+    ai_context: |
+      WHY: S3 access logging provides audit trail of who accessed what data,
+      required for security monitoring and compliance audits.
+
+      HOW TO FIX: Enable server access logging to a designated logging bucket.
+
+      TERRAFORM: Add `logging { target_bucket = var.log_bucket }` block to
+      aws_s3_bucket resource or use aws_s3_bucket_logging resource.
+    tags:
+      - logging
+      - s3
+      - audit
+
+  - id: GR-LOG-002
+    short_description: "CloudTrail must be enabled for API logging"
+    severity: CRITICAL
+    action: WARN
+    applies_to:
+      - cloudtrail:trail
+    condition:
+      attribute: IsLogging
+      operator: equals
+      value: true
+    ai_context: |
+      WHY: CloudTrail provides audit logging of AWS API calls, essential for
+      security monitoring, compliance, and incident investigation.
+
+      HOW TO FIX: Ensure CloudTrail trail is enabled and logging.
+    tags:
+      - logging
+      - cloudtrail
+      - audit
+
+  - id: GR-LOG-003
+    short_description: "Lambda function must have logging configured"
+    severity: MEDIUM
+    action: AUTO-FIX
+    applies_to:
+      - lambda:function
+    condition:
+      attribute: LoggingConfig
+      operator: exists
+    ai_context: |
+      WHY: Lambda function logs are essential for debugging and monitoring.
+      Without proper logging configuration, troubleshooting is difficult.
+
+      HOW TO FIX: Ensure Lambda function has proper IAM permissions to write
+      to CloudWatch Logs and optionally configure log retention.
+
+      TERRAFORM: Ensure aws_lambda_function has associated CloudWatch log group
+      and the execution role has logs:CreateLogGroup, logs:CreateLogStream,
+      logs:PutLogEvents permissions.
+    tags:
+      - logging
+      - lambda
+      - cloudwatch

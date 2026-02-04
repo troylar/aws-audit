@@ -161,7 +161,7 @@ Before diving in, here's the terminology:
 </td>
 <td width="33%" valign="top">
 
-### IaC Generation (New!)
+### IaC Generation
 - Generate Terraform, CDK TypeScript, or CDK Python
 - AI-powered code generation
 - Layer-based chunking (network → compute → etc.)
@@ -169,6 +169,23 @@ Before diving in, here's the terminology:
 - `terraform validate` / `cdk synth` validation
 - AWS Bedrock (Claude Opus 4)
 
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+
+### Guardrails (New!)
+- Policy-based compliance checking
+- Custom guardrails via YAML
+- Severity levels (CRITICAL/HIGH/MEDIUM/LOW)
+- Actions: BLOCK, AUTO-FIX, WARN
+- AI-powered auto-fix (Bedrock)
+- CI/CD integration ready
+
+</td>
+<td width="33%" valign="top">
+</td>
+<td width="33%" valign="top">
 </td>
 </tr>
 </table>
@@ -915,6 +932,138 @@ flowchart TD
 
 ---
 
+### Guardrails (Compliance Checking)
+
+Enforce security and compliance policies on your infrastructure before generating IaC. Guardrails can block generation, auto-fix issues with AI, or warn about violations.
+
+```bash
+# ─────────────────────────────────────────────────────────────
+# INTEGRATED WITH IaC GENERATION
+# ─────────────────────────────────────────────────────────────
+# Generate with guardrails enabled (uses built-in guardrails)
+awsinv generate terraform my-snapshot --guardrails
+
+# Use a custom policy file
+awsinv generate terraform my-snapshot --guardrails --guardrails-policy ./policy.yaml
+
+# Strict mode: block on any violation (not just CRITICAL/HIGH)
+awsinv generate terraform my-snapshot --guardrails --guardrails-strict
+
+# Environment-specific overrides
+awsinv generate terraform my-snapshot --guardrails --guardrails-env production
+
+# Save guardrails report to file
+awsinv generate terraform my-snapshot --guardrails --guardrails-report report.json
+
+# Disable AI auto-fix (default: enabled)
+awsinv generate terraform my-snapshot --guardrails --no-guardrails-auto-fix
+
+# ─────────────────────────────────────────────────────────────
+# STANDALONE COMPLIANCE CHECK (for CI/CD)
+# ─────────────────────────────────────────────────────────────
+# Check a snapshot without generating IaC
+awsinv guardrails check my-snapshot
+
+# Check from a file
+awsinv guardrails check --from-file inventory.yaml
+
+# Use custom policy and strict mode
+awsinv guardrails check my-snapshot --policy ./policy.yaml --strict
+
+# Output as JSON for CI/CD pipelines
+awsinv guardrails check my-snapshot --format json
+
+# List available guardrails
+awsinv guardrails list
+awsinv guardrails list --severity CRITICAL
+awsinv guardrails list --category ENC
+```
+
+**Custom Policy File:**
+
+Create a YAML policy with your organization's guardrails:
+
+```yaml
+# policy.yaml
+name: acme-security-policy
+version: "1.0"
+description: ACME Corp security standards
+
+guardrails:
+  - id: ACME-SEC-001
+    short_description: S3 buckets must have encryption enabled
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to:
+      - s3:bucket
+    condition:
+      attribute: ServerSideEncryptionConfiguration
+      operator: exists
+    ai_context: |
+      WHY: All data at rest must be encrypted per ACME security policy.
+      HOW TO FIX: Add server_side_encryption_configuration with AES256 or aws:kms.
+
+  - id: ACME-SEC-002
+    short_description: Resources must have Owner tag
+    severity: HIGH
+    action: WARN
+    applies_to:
+      - "*"
+    condition:
+      attribute: Tags.Owner
+      operator: exists
+
+# Environment-specific overrides
+overrides:
+  development:
+    - guardrail_id: ACME-SEC-001
+      severity: MEDIUM
+      action: WARN
+  production:
+    - guardrail_id: ACME-SEC-002
+      action: BLOCK
+```
+
+**Condition Operators:**
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `exists` | Attribute must exist | `Encryption exists` |
+| `not_exists` | Attribute must not exist | `PublicAccess not_exists` |
+| `equals` | Exact value match | `StorageEncrypted equals true` |
+| `not_equals` | Value must differ | `InstanceType not_equals t2.micro` |
+| `contains` | String/list contains value | `Tags contains "prod"` |
+| `matches` | Regex pattern match | `Name matches "^prod-.*"` |
+| `in` | Value in allowed list | `Region in ["us-east-1", "us-west-2"]` |
+| `greater_than` | Numeric comparison | `VolumeSize greater_than 100` |
+
+**AI Auto-Fix:**
+
+When a guardrail has `action: AUTO-FIX` and includes `ai_context`, the tool uses AWS Bedrock to automatically generate configuration fixes:
+
+1. Guardrail fails → AI analyzes the violation
+2. AI generates configuration changes
+3. Fix is applied to generated IaC
+4. Evaluation marked as `AUTO_FIXED`
+
+Requirements:
+- Bedrock access configured in AWS
+- Guardrail must have `ai_context` with remediation guidance
+
+**CI/CD Integration:**
+
+```bash
+# Exit code 0 = all checks passed
+# Exit code 1 = blocking violations found
+awsinv guardrails check my-snapshot --format json > report.json
+if [ $? -ne 0 ]; then
+  echo "Compliance check failed!"
+  exit 1
+fi
+```
+
+---
+
 ### Resource Cleanup
 
 The `cleanup` command has two modes:
@@ -1257,6 +1406,30 @@ awsinv generate cdk-python [snapshot]    # Generate CDK Python
     [--region <region>]               # AWS region for Bedrock
     [--dry-run]                       # Show what would be generated
     [--verbose]                       # Show detailed progress
+    # Guardrails options:
+    [--guardrails/-g]                 # Enable guardrails evaluation
+    [--guardrails-policy <path>]      # Custom policy file (YAML)
+    [--guardrails-env <name>]         # Environment for policy overrides
+    [--guardrails-strict]             # Block on any violation
+    [--guardrails-auto-fix/--no-guardrails-auto-fix]  # AI auto-fix (default: enabled)
+    [--guardrails-report <path>]      # Save report to JSON/YAML file
+
+# ─────────────────────────────────────────────────────────────
+# GUARDRAILS (Standalone Compliance)
+# ─────────────────────────────────────────────────────────────
+awsinv guardrails check [snapshot]       # Evaluate guardrails on snapshot
+    [--from-file <path>]              # JSON/YAML inventory file
+    [--policy/-p <path>]              # Custom policy file
+    [--env/-e <name>]                 # Environment for overrides
+    [--strict]                        # Block on any violation
+    [--format <table|json|yaml>]      # Output format
+    [--output/-o <path>]              # Save report to file
+
+awsinv guardrails list                   # List available guardrails
+    [--policy/-p <path>]              # Custom policy file
+    [--severity/-s <level>]           # Filter: CRITICAL, HIGH, MEDIUM, LOW, INFO
+    [--category/-c <cat>]             # Filter by category (ENC, NET, TAG, LOG)
+    [--format <table|json|yaml>]      # Output format
 
 # ─────────────────────────────────────────────────────────────
 # GLOBAL OPTIONS
@@ -1392,7 +1565,7 @@ invoke quality --fix     # Auto-fix issues
 invoke build             # Build distributable package
 ```
 
-**Test Coverage:** 2080+ tests, 61% overall coverage. Cleanup module: 98%+ coverage.
+**Test Coverage:** 2400+ tests, 61% overall coverage. Cleanup module: 98%+ coverage. Guardrails module: 75%+ coverage.
 
 ---
 

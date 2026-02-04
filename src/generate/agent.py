@@ -7,12 +7,25 @@ from langgraph.graph import END, StateGraph
 from .nodes.build_resource_map import build_resource_map
 from .nodes.categorize_layers import categorize_layers
 from .nodes.compare_inventory import compare_inventory
+from .nodes.evaluate_guardrails import evaluate_guardrails
 from .nodes.extract_lambda import extract_lambda_code
 from .nodes.generate_layer import generate_layer
 from .nodes.parse_inventory import parse_inventory
 from .nodes.validate_cdk import cdk_synth, npm_build
 from .nodes.validate_terraform import terraform_init, terraform_validate
 from .state import GenerationState
+
+
+def should_continue_after_guardrails(
+    state: GenerationState,
+) -> Literal["categorize_layers", "end"]:
+    """Check if generation should continue after guardrails evaluation.
+
+    If guardrails_blocked is True, stop generation early.
+    """
+    if state.get("guardrails_blocked", False):
+        return "end"
+    return "categorize_layers"
 
 
 def should_continue_generating(
@@ -34,12 +47,13 @@ def create_terraform_graph() -> StateGraph:
     Workflow:
     1. parse_inventory - Load snapshot and extract resources
     2. build_resource_map - Create AWS ID -> Terraform ref mapping
-    3. categorize_layers - Group resources by layer
-    4. extract_lambda - Extract Lambda code to files
-    5. generate_layer - Generate Terraform for each layer (loops)
-    6. compare_inventory - Compare inventory against generated code (AI)
-    7. terraform_init - Run terraform init
-    8. terraform_validate - Run terraform validate
+    3. evaluate_guardrails - Check resources against policy (optional)
+    4. categorize_layers - Group resources by layer
+    5. extract_lambda - Extract Lambda code to files
+    6. generate_layer - Generate Terraform for each layer (loops)
+    7. compare_inventory - Compare inventory against generated code (AI)
+    8. terraform_init - Run terraform init
+    9. terraform_validate - Run terraform validate
 
     Returns:
         Configured StateGraph ready to compile
@@ -48,6 +62,7 @@ def create_terraform_graph() -> StateGraph:
 
     graph.add_node("parse_inventory", parse_inventory)
     graph.add_node("build_resource_map", build_resource_map)
+    graph.add_node("evaluate_guardrails", evaluate_guardrails)
     graph.add_node("categorize_layers", categorize_layers)
     graph.add_node("extract_lambda", extract_lambda_code)
     graph.add_node("generate_layer", generate_layer)
@@ -57,7 +72,17 @@ def create_terraform_graph() -> StateGraph:
 
     graph.set_entry_point("parse_inventory")
     graph.add_edge("parse_inventory", "build_resource_map")
-    graph.add_edge("build_resource_map", "categorize_layers")
+    graph.add_edge("build_resource_map", "evaluate_guardrails")
+
+    graph.add_conditional_edges(
+        "evaluate_guardrails",
+        should_continue_after_guardrails,
+        {
+            "categorize_layers": "categorize_layers",
+            "end": END,
+        },
+    )
+
     graph.add_edge("categorize_layers", "extract_lambda")
     graph.add_edge("extract_lambda", "generate_layer")
 
@@ -93,12 +118,13 @@ def create_cdk_graph() -> StateGraph:
     Workflow:
     1. parse_inventory - Load snapshot and extract resources
     2. build_resource_map - Create AWS ID -> CDK ref mapping
-    3. categorize_layers - Group resources by layer
-    4. extract_lambda - Extract Lambda code to files
-    5. generate_layer - Generate CDK stacks for each layer (loops)
-    6. compare_inventory - Compare inventory against generated code (AI)
-    7. npm_build - Run npm install and build (TypeScript only)
-    8. cdk_synth - Run cdk synth to validate
+    3. evaluate_guardrails - Check resources against policy (optional)
+    4. categorize_layers - Group resources by layer
+    5. extract_lambda - Extract Lambda code to files
+    6. generate_layer - Generate CDK stacks for each layer (loops)
+    7. compare_inventory - Compare inventory against generated code (AI)
+    8. npm_build - Run npm install and build (TypeScript only)
+    9. cdk_synth - Run cdk synth to validate
 
     Returns:
         Configured StateGraph ready to compile
@@ -107,6 +133,7 @@ def create_cdk_graph() -> StateGraph:
 
     graph.add_node("parse_inventory", parse_inventory)
     graph.add_node("build_resource_map", build_resource_map)
+    graph.add_node("evaluate_guardrails", evaluate_guardrails)
     graph.add_node("categorize_layers", categorize_layers)
     graph.add_node("extract_lambda", extract_lambda_code)
     graph.add_node("generate_layer", generate_layer)
@@ -116,7 +143,17 @@ def create_cdk_graph() -> StateGraph:
 
     graph.set_entry_point("parse_inventory")
     graph.add_edge("parse_inventory", "build_resource_map")
-    graph.add_edge("build_resource_map", "categorize_layers")
+    graph.add_edge("build_resource_map", "evaluate_guardrails")
+
+    graph.add_conditional_edges(
+        "evaluate_guardrails",
+        should_continue_after_guardrails,
+        {
+            "categorize_layers": "categorize_layers",
+            "end": END,
+        },
+    )
+
     graph.add_edge("categorize_layers", "extract_lambda")
     graph.add_edge("extract_lambda", "generate_layer")
 

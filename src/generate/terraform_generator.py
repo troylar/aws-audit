@@ -23,6 +23,8 @@ class GenerationResult:
     layers: List[Layer] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     validation_errors: List[str] = field(default_factory=list)
+    guardrails_blocked: bool = False
+    guardrails_report: Optional[Dict[str, Any]] = None
 
     @property
     def is_valid(self) -> bool:
@@ -86,6 +88,11 @@ class TerraformGenerator:
         model_id: Optional[str] = None,
         region: Optional[str] = None,
         progress_callback: Optional[ProgressCallback] = None,
+        guardrails_enabled: bool = False,
+        guardrails_policy_path: Optional[str] = None,
+        guardrails_environment: str = "default",
+        guardrails_strict: bool = False,
+        guardrails_auto_fix: bool = True,
     ):
         """Initialize generator.
 
@@ -94,9 +101,19 @@ class TerraformGenerator:
             model_id: Bedrock model ID (or use AWSINV_BEDROCK_MODEL_ID env)
             region: AWS region for Bedrock (or use AWSINV_BEDROCK_REGION env)
             progress_callback: Optional callback for progress updates
+            guardrails_enabled: Enable guardrails evaluation
+            guardrails_policy_path: Path to custom policy file
+            guardrails_environment: Environment for policy overrides
+            guardrails_strict: Enable strict mode (any violation blocks)
+            guardrails_auto_fix: Enable AI auto-fix for AUTO-FIX guardrails
         """
         self.output_dir = output_dir
         self.progress_callback = progress_callback
+        self.guardrails_enabled = guardrails_enabled
+        self.guardrails_policy_path = guardrails_policy_path
+        self.guardrails_environment = guardrails_environment
+        self.guardrails_strict = guardrails_strict
+        self.guardrails_auto_fix = guardrails_auto_fix
 
         base_config = GenerationConfig.from_env()
 
@@ -151,6 +168,15 @@ class TerraformGenerator:
             "processed_resources": 0,
             "errors": [],
             "messages": [],
+            # Guardrails fields
+            "guardrails_enabled": self.guardrails_enabled,
+            "guardrails_policy_path": self.guardrails_policy_path,
+            "guardrails_environment": self.guardrails_environment,
+            "guardrails_strict": self.guardrails_strict,
+            "guardrails_auto_fix": self.guardrails_auto_fix,
+            "guardrails_report": None,
+            "guardrails_blocked": False,
+            "guardrails_auto_fixes": {},
         }
 
         try:
@@ -166,10 +192,18 @@ class TerraformGenerator:
             errors = final_state.get("errors") or []
             validation_errors = final_state.get("validation_errors") or []
             comparison_result = final_state.get("comparison_result") or {}
+            guardrails_blocked = final_state.get("guardrails_blocked", False)
+            guardrails_report = final_state.get("guardrails_report")
 
             layers = [layers_dict[layer_name] for layer_name in layer_order if layer_name in layers_dict]
 
-            success = len(errors) == 0 and len(generated_files) > 0
+            # If guardrails blocked, generation was stopped early
+            if guardrails_blocked:
+                success = False
+                if not errors:
+                    errors = ["Generation blocked by guardrails policy violations"]
+            else:
+                success = len(errors) == 0 and len(generated_files) > 0
 
             result = GenerationResult(
                 success=success,
@@ -178,6 +212,8 @@ class TerraformGenerator:
                 layers=layers,
                 errors=[str(e) for e in errors] if errors else [],
                 validation_errors=([str(e) for e in validation_errors] if validation_errors else []),
+                guardrails_blocked=guardrails_blocked,
+                guardrails_report=guardrails_report,
             )
 
             if self.progress_callback and comparison_result:
@@ -390,6 +426,11 @@ def generate_terraform(
     region: Optional[str] = None,
     input_file: Optional[str] = None,
     progress_callback: Optional[ProgressCallback] = None,
+    guardrails_enabled: bool = False,
+    guardrails_policy_path: Optional[str] = None,
+    guardrails_environment: str = "default",
+    guardrails_strict: bool = False,
+    guardrails_auto_fix: bool = True,
 ) -> GenerationResult:
     """Generate Terraform from a snapshot or export file.
 
@@ -400,6 +441,11 @@ def generate_terraform(
         region: AWS region for Bedrock
         input_file: Path to JSON/YAML export file (use this OR snapshot_name)
         progress_callback: Optional callback for progress updates
+        guardrails_enabled: Enable guardrails evaluation
+        guardrails_policy_path: Path to custom policy file
+        guardrails_environment: Environment for policy overrides
+        guardrails_strict: Enable strict mode (any violation blocks)
+        guardrails_auto_fix: Enable AI auto-fix for AUTO-FIX guardrails
 
     Returns:
         GenerationResult
@@ -409,5 +455,10 @@ def generate_terraform(
         model_id=model_id,
         region=region,
         progress_callback=progress_callback,
+        guardrails_enabled=guardrails_enabled,
+        guardrails_policy_path=guardrails_policy_path,
+        guardrails_environment=guardrails_environment,
+        guardrails_strict=guardrails_strict,
+        guardrails_auto_fix=guardrails_auto_fix,
     )
     return generator.run(snapshot_name=snapshot_name, input_file=input_file)

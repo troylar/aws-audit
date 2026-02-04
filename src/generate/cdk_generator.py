@@ -63,6 +63,11 @@ class CDKGenerator:
         region: Optional[str] = None,
         progress_callback: Optional[ProgressCallback] = None,
         project_name: Optional[str] = None,
+        guardrails_enabled: bool = False,
+        guardrails_policy_path: Optional[str] = None,
+        guardrails_environment: str = "default",
+        guardrails_strict: bool = False,
+        guardrails_auto_fix: bool = True,
     ):
         """Initialize generator.
 
@@ -73,11 +78,21 @@ class CDKGenerator:
             region: AWS region for Bedrock (or use AWSINV_BEDROCK_REGION env)
             progress_callback: Optional callback for progress updates
             project_name: Project name for package.json/setup.py (default: derived from output_dir)
+            guardrails_enabled: Enable guardrails evaluation
+            guardrails_policy_path: Path to custom policy file
+            guardrails_environment: Environment for policy overrides
+            guardrails_strict: Enable strict mode (any violation blocks)
+            guardrails_auto_fix: Enable AI auto-fix for AUTO-FIX guardrails
         """
         self.output_dir = output_dir
         self.output_format = output_format
         self.progress_callback = progress_callback
         self.project_name = project_name or Path(output_dir).name.replace("-", "_").replace(" ", "_")
+        self.guardrails_enabled = guardrails_enabled
+        self.guardrails_policy_path = guardrails_policy_path
+        self.guardrails_environment = guardrails_environment
+        self.guardrails_strict = guardrails_strict
+        self.guardrails_auto_fix = guardrails_auto_fix
 
         base_config = GenerationConfig.from_env()
 
@@ -137,6 +152,15 @@ class CDKGenerator:
             "processed_resources": 0,
             "errors": [],
             "messages": [],
+            # Guardrails fields
+            "guardrails_enabled": self.guardrails_enabled,
+            "guardrails_policy_path": self.guardrails_policy_path,
+            "guardrails_environment": self.guardrails_environment,
+            "guardrails_strict": self.guardrails_strict,
+            "guardrails_auto_fix": self.guardrails_auto_fix,
+            "guardrails_report": None,
+            "guardrails_blocked": False,
+            "guardrails_auto_fixes": {},
         }
 
         try:
@@ -151,10 +175,18 @@ class CDKGenerator:
             errors = final_state.get("errors") or []
             validation_errors = final_state.get("validation_errors") or []
             comparison_result = final_state.get("comparison_result") or {}
+            guardrails_blocked = final_state.get("guardrails_blocked", False)
+            guardrails_report = final_state.get("guardrails_report")
 
             layers = [layers_dict[layer_name] for layer_name in layer_order if layer_name in layers_dict]
 
-            success = len(errors) == 0 and len(generated_files) > 0
+            # If guardrails blocked, generation was stopped early
+            if guardrails_blocked:
+                success = False
+                if not errors:
+                    errors = ["Generation blocked by guardrails policy violations"]
+            else:
+                success = len(errors) == 0 and len(generated_files) > 0
 
             result = GenerationResult(
                 success=success,
@@ -163,6 +195,8 @@ class CDKGenerator:
                 layers=layers,
                 errors=[str(e) for e in errors] if errors else [],
                 validation_errors=([str(e) for e in validation_errors] if validation_errors else []),
+                guardrails_blocked=guardrails_blocked,
+                guardrails_report=guardrails_report,
             )
 
             if self.progress_callback and comparison_result:
@@ -485,6 +519,11 @@ def generate_cdk(
     input_file: Optional[str] = None,
     progress_callback: Optional[ProgressCallback] = None,
     project_name: Optional[str] = None,
+    guardrails_enabled: bool = False,
+    guardrails_policy_path: Optional[str] = None,
+    guardrails_environment: str = "default",
+    guardrails_strict: bool = False,
+    guardrails_auto_fix: bool = True,
 ) -> GenerationResult:
     """Generate CDK from a snapshot or export file.
 
@@ -497,6 +536,11 @@ def generate_cdk(
         input_file: Path to JSON/YAML export file (use this OR snapshot_name)
         progress_callback: Optional callback for progress updates
         project_name: Project name for package.json/setup.py
+        guardrails_enabled: Enable guardrails evaluation
+        guardrails_policy_path: Path to custom policy file
+        guardrails_environment: Environment for policy overrides
+        guardrails_strict: Enable strict mode (any violation blocks)
+        guardrails_auto_fix: Enable AI auto-fix for AUTO-FIX guardrails
 
     Returns:
         GenerationResult
@@ -508,5 +552,10 @@ def generate_cdk(
         region=region,
         progress_callback=progress_callback,
         project_name=project_name,
+        guardrails_enabled=guardrails_enabled,
+        guardrails_policy_path=guardrails_policy_path,
+        guardrails_environment=guardrails_environment,
+        guardrails_strict=guardrails_strict,
+        guardrails_auto_fix=guardrails_auto_fix,
     )
     return generator.run(snapshot_name=snapshot_name, input_file=input_file)
