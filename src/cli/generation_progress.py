@@ -450,7 +450,7 @@ class GenerationProgressDisplay:
 
             steps_table.add_row(
                 status_icon,
-                f"{config['icon']}  {config['name']}",
+                f"{config['icon']} {config['name']}",
                 status_text,
                 duration,
                 details,
@@ -488,29 +488,29 @@ class GenerationProgressDisplay:
                 layer_line.append("    ", style="")
 
                 if layer.status == LayerStatus.COMPLETED:
-                    layer_line.append("✓  ", style="green")
-                    layer_line.append(f"{icon}  {layer_name}", style="green")
+                    layer_line.append("✓ ", style="green")
+                    layer_line.append(f"{icon} {layer_name}", style="green")
                     layer_line.append(f" ({layer.resource_count})", style="dim")
                     if layer.start_time and layer.end_time:
                         dur = self._format_duration(layer.end_time - layer.start_time)
                         layer_line.append(f"  {dur}", style="dim")
                 elif layer.status == LayerStatus.GENERATING:
-                    layer_line.append("●  ", style="yellow")
-                    layer_line.append(f"{icon}  {layer_name}", style="yellow bold")
+                    layer_line.append("● ", style="yellow")
+                    layer_line.append(f"{icon} {layer_name}", style="yellow bold")
                     layer_line.append(f" ({layer.resource_count})", style="dim")
                     layer_line.append("  generating...", style="yellow italic")
                     if layer.start_time:
                         dur = self._format_duration(time.time() - layer.start_time)
                         layer_line.append(f" {dur}", style="dim")
                 elif layer.status == LayerStatus.FAILED:
-                    layer_line.append("✗  ", style="red")
-                    layer_line.append(f"{icon}  {layer_name}", style="red")
+                    layer_line.append("✗ ", style="red")
+                    layer_line.append(f"{icon} {layer_name}", style="red")
                     if layer.error:
                         err_short = layer.error[:30] + "..." if len(layer.error) > 30 else layer.error
                         layer_line.append(f"  {err_short}", style="red dim")
                 else:
-                    layer_line.append("○  ", style="dim")
-                    layer_line.append(f"{icon}  {layer_name}", style="dim")
+                    layer_line.append("○ ", style="dim")
+                    layer_line.append(f"{icon} {layer_name}", style="dim")
                     layer_line.append(f" ({layer.resource_count})", style="dim")
 
                 elements.append(layer_line)
