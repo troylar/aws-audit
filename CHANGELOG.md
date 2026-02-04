@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-04
+
+### Added
+- **Guardrails (Compliance Checking)**: Enforce security and compliance policies before IaC generation
+  - Policy-based compliance checking with custom guardrail definitions (YAML)
+  - Severity levels: CRITICAL, HIGH, MEDIUM, LOW, INFO
+  - Actions: BLOCK (stop generation), AUTO-FIX (AI remediation), WARN (continue with warning)
+  - 10+ condition operators: exists, not_exists, equals, contains, matches, in, greater_than, etc.
+  - Environment-specific policy overrides (dev, staging, production)
+  - AI-powered auto-fix using AWS Bedrock to automatically remediate violations
+  - Standalone `awsinv guardrails check` command for CI/CD integration
+  - `awsinv guardrails list` to view available guardrails
+  - Integration with `awsinv generate` via `--guardrails` flag
+  - JSON/YAML output formats for reports
+
+### Changed
+- IaC generation now supports guardrails flags: `--guardrails`, `--guardrails-policy`, `--guardrails-env`, `--guardrails-strict`, `--guardrails-auto-fix`
+
 ## [1.0.2] - 2026-02-04
 
 ### Fixed

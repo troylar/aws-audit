@@ -239,8 +239,8 @@ class CDKGenerator:
                         last_node = node_name
 
                         if node_name == "generate_layer":
-                            layer_order = final_state.get("layer_order", [])
-                            current_idx = final_state.get("current_layer_index", 0)
+                            layer_order: list = final_state.get("layer_order", [])
+                            current_idx: int = final_state.get("current_layer_index", 0)
                             if current_idx != last_layer_index and current_idx < len(layer_order):
                                 layer_name = layer_order[current_idx]
                                 self.progress_callback(
@@ -283,10 +283,10 @@ class CDKGenerator:
                         )
 
                     elif node_name == "generate_layer":
-                        layer_order = final_state.get("layer_order", [])
-                        current_idx = state_update.get("current_layer_index", 0) - 1
-                        if 0 <= current_idx < len(layer_order):
-                            layer_name = layer_order[current_idx]
+                        layer_order_list: list = final_state.get("layer_order", [])
+                        current_idx_val: int = state_update.get("current_layer_index", 0) - 1
+                        if 0 <= current_idx_val < len(layer_order_list):
+                            layer_name = layer_order_list[current_idx_val]
                             status = state_update.get("current_layer_status", "")
                             generated_code = state_update.get("generated_code", {})
                             generated_files = state_update.get("generated_files", [])

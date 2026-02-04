@@ -240,17 +240,11 @@ class GuardrailEvaluator:
                         if resource_id not in self._auto_fixes:
                             self._auto_fixes[resource_id] = {}
                         self._auto_fixes[resource_id][guardrail.id] = fix_config
-                        logger.info(
-                            f"Auto-fix applied for {guardrail.id} on {resource_name}: "
-                            f"{fix_description}"
-                        )
+                        logger.info(f"Auto-fix applied for {guardrail.id} on {resource_name}: {fix_description}")
                     else:
                         # Auto-fix failed, mark as FAIL
                         result = EvaluationResult.FAIL
-                        logger.warning(
-                            f"Auto-fix failed for {guardrail.id} on {resource_name}: "
-                            f"{fix_description}"
-                        )
+                        logger.warning(f"Auto-fix failed for {guardrail.id} on {resource_name}: {fix_description}")
                 else:
                     result = EvaluationResult.FAIL
 
@@ -334,9 +328,7 @@ class GuardrailEvaluator:
         blocking_violations = report.get_blocking_violations()
         if blocking_violations:
             report.blocked = True
-            report.block_reason = (
-                f"{len(blocking_violations)} CRITICAL/HIGH violations with BLOCK action"
-            )
+            report.block_reason = f"{len(blocking_violations)} CRITICAL/HIGH violations with BLOCK action"
 
         report.completed_at = datetime.now(timezone.utc)
         return report

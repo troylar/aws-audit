@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
-import yaml
 
 
 class TestLoadPolicy:
@@ -218,7 +216,7 @@ class TestLoadBuiltinGuardrails:
         guardrails = load_builtin_guardrails()
 
         for g in guardrails:
-            assert g.id, f"Guardrail missing id"
+            assert g.id, "Guardrail missing id"
             assert g.short_description, f"Guardrail {g.id} missing short_description"
             assert g.severity, f"Guardrail {g.id} missing severity"
             assert g.action, f"Guardrail {g.id} missing action"

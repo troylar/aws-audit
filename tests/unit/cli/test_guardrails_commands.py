@@ -5,11 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
-
 
 runner = CliRunner()
 
@@ -40,12 +38,11 @@ class TestGuardrailsCheckCommand:
         mock_load_policy: MagicMock,
     ) -> None:
         """Check command returns 0 when no violations found."""
-        # Setup mocks
+        # Setup mocks - return object with resources attribute
+        mock_snapshot = MagicMock()
+        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {}}]
         mock_storage = MagicMock()
-        mock_storage.load_snapshot.return_value = {
-            "name": "test-snapshot",
-            "resources": [{"resource_type": "s3:bucket", "name": "test", "config": {}}],
-        }
+        mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_class.return_value = mock_storage
 
         mock_evaluator = MagicMock()
@@ -82,11 +79,11 @@ class TestGuardrailsCheckCommand:
         """Check command returns 1 when CRITICAL/HIGH violations found."""
         from src.guardrails.models import Action, EvaluationResult, Severity
 
+        # Setup mocks - return object with resources attribute
+        mock_snapshot = MagicMock()
+        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {}}]
         mock_storage = MagicMock()
-        mock_storage.load_snapshot.return_value = {
-            "name": "test-snapshot",
-            "resources": [{"resource_type": "s3:bucket", "name": "test", "config": {}}],
-        }
+        mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_class.return_value = mock_storage
 
         mock_evaluator = MagicMock()
@@ -139,11 +136,11 @@ guardrails: []
 """
         )
 
+        # Setup mocks - return object with resources attribute
+        mock_snapshot = MagicMock()
+        mock_snapshot.resources = []
         mock_storage = MagicMock()
-        mock_storage.load_snapshot.return_value = {
-            "name": "test-snapshot",
-            "resources": [],
-        }
+        mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_class.return_value = mock_storage
 
         mock_evaluator = MagicMock()
@@ -165,9 +162,7 @@ guardrails: []
         mock_policy.guardrails = []
         mock_load_policy.return_value = mock_policy
 
-        result = runner.invoke(
-            app, ["guardrails", "check", "test-snapshot", "--policy", str(policy_file)]
-        )
+        runner.invoke(app, ["guardrails", "check", "test-snapshot", "--policy", str(policy_file)])
 
         mock_load_policy.assert_called_once()
         assert str(policy_file) in str(mock_load_policy.call_args)
@@ -186,11 +181,11 @@ guardrails: []
         """Check command with --strict returns 1 on any violation (even LOW)."""
         from src.guardrails.models import Action, EvaluationResult, Severity
 
+        # Setup mocks - return object with resources attribute
+        mock_snapshot = MagicMock()
+        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {}}]
         mock_storage = MagicMock()
-        mock_storage.load_snapshot.return_value = {
-            "name": "test-snapshot",
-            "resources": [{"resource_type": "s3:bucket", "name": "test", "config": {}}],
-        }
+        mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_class.return_value = mock_storage
 
         mock_evaluator = MagicMock()
@@ -215,9 +210,7 @@ guardrails: []
 
         mock_load_builtin.return_value = []
 
-        result = runner.invoke(
-            app, ["guardrails", "check", "test-snapshot", "--strict"]
-        )
+        result = runner.invoke(app, ["guardrails", "check", "test-snapshot", "--strict"])
         assert result.exit_code == 1
 
     @patch("src.cli.guardrails.load_builtin_guardrails")
@@ -256,9 +249,7 @@ resources:
 
         mock_load_builtin.return_value = []
 
-        result = runner.invoke(
-            app, ["guardrails", "check", "--from-file", str(inventory_file)]
-        )
+        result = runner.invoke(app, ["guardrails", "check", "--from-file", str(inventory_file)])
         assert result.exit_code == 0
 
 
@@ -286,9 +277,7 @@ class TestGuardrailsListCommand:
         assert "GR-ENC-001" in result.stdout
 
     @patch("src.cli.guardrails.load_policy")
-    def test_list_with_custom_policy(
-        self, mock_load_policy: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_list_with_custom_policy(self, mock_load_policy: MagicMock, tmp_path: Path) -> None:
         """List command shows guardrails from custom policy."""
         from src.guardrails.models import (
             Action,
@@ -317,9 +306,7 @@ class TestGuardrailsListCommand:
         )
         mock_load_policy.return_value = mock_policy
 
-        result = runner.invoke(
-            app, ["guardrails", "list", "--policy", str(policy_file)]
-        )
+        result = runner.invoke(app, ["guardrails", "list", "--policy", str(policy_file)])
         assert result.exit_code == 0
         assert "ACME-SEC-001" in result.stdout
 

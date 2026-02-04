@@ -159,9 +159,7 @@ def format_terminal_report(
 
         for guardrail_id, evals in by_guardrail.items():
             first = evals[0]
-            console.print(
-                f"  {guardrail_id} [{first.severity.value}] {first.guardrail_short_description}"
-            )
+            console.print(f"  {guardrail_id} [{first.severity.value}] {first.guardrail_short_description}")
             resource_names = [e.resource_name for e in evals[:3]]
             resource_list = ", ".join(resource_names)
             if len(evals) > 3:
@@ -172,19 +170,13 @@ def format_terminal_report(
             console.print()
 
     # Warning violations section
-    warn_evals = [
-        e
-        for e in report.evaluations
-        if e.result == EvaluationResult.FAIL and e.action == Action.WARN
-    ]
+    warn_evals = [e for e in report.evaluations if e.result == EvaluationResult.FAIL and e.action == Action.WARN]
     if warn_evals:
         console.print("  \u26a0\ufe0f  WARNINGS:", style="bold yellow")
         console.print()
 
         for eval in warn_evals[:5]:  # Show first 5 warnings
-            console.print(
-                f"  {eval.guardrail_id} [{eval.severity.value}] {eval.guardrail_short_description}"
-            )
+            console.print(f"  {eval.guardrail_id} [{eval.severity.value}] {eval.guardrail_short_description}")
             console.print(f"    Resource: {eval.resource_type}/{eval.resource_name}")
 
         if len(warn_evals) > 5:
@@ -206,9 +198,7 @@ def format_terminal_report(
 
 def _print_violation(console: Console, eval: GuardrailEvaluation) -> None:
     """Print a single violation to the console."""
-    console.print(
-        f"  {eval.guardrail_id} [{eval.severity.value}] {eval.guardrail_short_description}"
-    )
+    console.print(f"  {eval.guardrail_id} [{eval.severity.value}] {eval.guardrail_short_description}")
     console.print(f"    Resource: {eval.resource_type}/{eval.resource_name}")
     if eval.failure_reason:
         console.print(f"    Fix: {eval.failure_reason}")

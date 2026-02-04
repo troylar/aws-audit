@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestValidateGuardrail:
     """Tests for validate_guardrail() (T025)."""
@@ -358,11 +356,7 @@ class TestValidatePolicy:
                     "condition": {"attribute": "Tags", "operator": "exists"},
                 }
             ],
-            "overrides": {
-                "production": [
-                    {"guardrail_id": "GR-TAG-001", "severity": "CRITICAL", "action": "BLOCK"}
-                ]
-            },
+            "overrides": {"production": [{"guardrail_id": "GR-TAG-001", "severity": "CRITICAL", "action": "BLOCK"}]},
         }
         errors = validate_policy(policy_dict)
         assert errors == []
@@ -383,11 +377,7 @@ class TestValidatePolicy:
                     "condition": {"attribute": "Tags", "operator": "exists"},
                 }
             ],
-            "overrides": {
-                "production": [
-                    {"guardrail_id": "GR-NONEXISTENT-001", "severity": "CRITICAL"}
-                ]
-            },
+            "overrides": {"production": [{"guardrail_id": "GR-NONEXISTENT-001", "severity": "CRITICAL"}]},
         }
         errors = validate_policy(policy_dict)
         assert any("nonexistent" in e.lower() or "not found" in e.lower() for e in errors)

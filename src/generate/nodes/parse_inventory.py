@@ -200,19 +200,19 @@ def parse_inventory(state: GenerationState) -> Dict[str, Any]:
                 },
             )
 
-    # Count resource types
-    type_counts: Dict[str, int] = {}
+    # Count resource types for snapshot path
+    resource_type_counts: Dict[str, int] = {}
     for r in resources:
         rtype = r.resource_type.split(":")[0] if ":" in r.resource_type else r.resource_type
-        type_counts[rtype] = type_counts.get(rtype, 0) + 1
+        resource_type_counts[rtype] = resource_type_counts.get(rtype, 0) + 1
 
     emit_progress(
         "activity",
         {
-            "message": f"Loaded {len(resources)} resources ({len(type_counts)} types)",
+            "message": f"Loaded {len(resources)} resources ({len(resource_type_counts)} types)",
             "step": "parse_inventory",
             "total": len(resources),
-            "types": type_counts,
+            "types": resource_type_counts,
         },
     )
 

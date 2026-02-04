@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 
 class TestEvaluateCondition:
     """Tests for evaluate_condition() operators (T029)."""
@@ -586,9 +584,7 @@ class TestGuardrailEvaluatorEvaluateAll:
         policy = GuardrailPolicy(name="test", version="1.0", guardrails=[guardrail])
 
         evaluator = GuardrailEvaluator(policy, auto_fix_enabled=False)
-        resources = [
-            self._create_mock_resource(name=f"resource-{i}") for i in range(5)
-        ]
+        resources = [self._create_mock_resource(name=f"resource-{i}") for i in range(5)]
 
         progress_calls = []
 
@@ -860,10 +856,7 @@ class TestEvaluatorAutoFix:
                 output_format="terraform",
             )
 
-            resources = [
-                self._create_mock_resource(name=f"bucket-{i}", config={})
-                for i in range(3)
-            ]
+            resources = [self._create_mock_resource(name=f"bucket-{i}", config={}) for i in range(3)]
             report = evaluator.evaluate_all(resources, snapshot_name="test")
 
             # All 3 resources should be auto-fixed

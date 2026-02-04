@@ -47,9 +47,7 @@ def validate_guardrail(guardrail_dict: Dict[str, Any]) -> List[str]:
     else:
         guardrail_id = guardrail_dict["id"]
         if not ID_PATTERN.match(guardrail_id):
-            errors.append(
-                f"id '{guardrail_id}' must match pattern PREFIX-CATEGORY-NUMBER (e.g., GR-ENC-001)"
-            )
+            errors.append(f"id '{guardrail_id}' must match pattern PREFIX-CATEGORY-NUMBER (e.g., GR-ENC-001)")
 
     # Required field: short_description
     if "short_description" not in guardrail_dict:
@@ -65,9 +63,7 @@ def validate_guardrail(guardrail_dict: Dict[str, Any]) -> List[str]:
     else:
         severity = guardrail_dict["severity"]
         if severity not in VALID_SEVERITIES:
-            errors.append(
-                f"severity '{severity}' is invalid. Must be one of: {', '.join(VALID_SEVERITIES)}"
-            )
+            errors.append(f"severity '{severity}' is invalid. Must be one of: {', '.join(VALID_SEVERITIES)}")
 
     # Required field: action
     if "action" not in guardrail_dict:
@@ -75,9 +71,7 @@ def validate_guardrail(guardrail_dict: Dict[str, Any]) -> List[str]:
     else:
         action = guardrail_dict["action"]
         if action not in VALID_ACTIONS:
-            errors.append(
-                f"action '{action}' is invalid. Must be one of: {', '.join(VALID_ACTIONS)}"
-            )
+            errors.append(f"action '{action}' is invalid. Must be one of: {', '.join(VALID_ACTIONS)}")
 
     # Required field: applies_to
     if "applies_to" not in guardrail_dict:
@@ -125,10 +119,7 @@ def _validate_condition(condition_dict: Dict[str, Any]) -> List[str]:
     else:
         operator = condition_dict["operator"]
         if operator not in VALID_OPERATORS:
-            errors.append(
-                f"condition.operator '{operator}' is invalid. "
-                f"Must be one of: {', '.join(VALID_OPERATORS)}"
-            )
+            errors.append(f"condition.operator '{operator}' is invalid. Must be one of: {', '.join(VALID_OPERATORS)}")
 
     return errors
 
@@ -178,8 +169,6 @@ def validate_policy(policy_dict: Dict[str, Any]) -> List[str]:
                     continue
                 override_id = override.get("guardrail_id")
                 if override_id and override_id not in seen_ids:
-                    errors.append(
-                        f"overrides.{env}: guardrail_id '{override_id}' not found in guardrails"
-                    )
+                    errors.append(f"overrides.{env}: guardrail_id '{override_id}' not found in guardrails")
 
     return errors

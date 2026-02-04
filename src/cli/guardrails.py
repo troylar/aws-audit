@@ -32,9 +32,7 @@ guardrails_app = typer.Typer(
 
 @guardrails_app.command("check")
 def check(
-    snapshot_name: Optional[str] = typer.Argument(
-        None, help="Name of snapshot to evaluate"
-    ),
+    snapshot_name: Optional[str] = typer.Argument(None, help="Name of snapshot to evaluate"),
     policy: Optional[str] = typer.Option(
         None,
         "--policy",
@@ -83,9 +81,7 @@ def check(
     """
     # Validate input
     if not snapshot_name and not from_file:
-        console.print(
-            "[red]Error:[/red] Either provide a snapshot name or use --from-file"
-        )
+        console.print("[red]Error:[/red] Either provide a snapshot name or use --from-file")
         raise typer.Exit(1)
 
     # Load resources
@@ -120,13 +116,16 @@ def check(
     else:
         # Load from snapshot
         try:
+            if not snapshot_name:
+                console.print("[red]Error:[/red] Snapshot name is required")
+                raise typer.Exit(1)
             storage = SnapshotStorage()
-            snapshot_data = storage.load_snapshot(snapshot_name)
-            if not snapshot_data:
+            snapshot_obj = storage.load_snapshot(snapshot_name)
+            if not snapshot_obj:
                 console.print(f"[red]Error:[/red] Snapshot not found: {snapshot_name}")
                 raise typer.Exit(1)
-            resources = snapshot_data.get("resources", [])
-            snapshot_display_name = snapshot_name or ""
+            resources = snapshot_obj.resources or []
+            snapshot_display_name = snapshot_name
         except Exception as e:
             console.print(f"[red]Error:[/red] Failed to load snapshot: {e}")
             raise typer.Exit(1)
@@ -174,8 +173,7 @@ def check(
     num_resources = len(resource_objects)
     num_guardrails = len(loaded_policy.guardrails)
     console.print(
-        f"Evaluating [cyan]{num_resources}[/cyan] resources against "
-        f"[cyan]{num_guardrails}[/cyan] guardrails..."
+        f"Evaluating [cyan]{num_resources}[/cyan] resources against [cyan]{num_guardrails}[/cyan] guardrails..."
     )
     console.print()
 
@@ -297,10 +295,7 @@ def list_guardrails(
             sev = Severity[severity.upper()]
             filtered = [g for g in filtered if g.severity == sev]
         except KeyError:
-            console.print(
-                f"[red]Error:[/red] Invalid severity: {severity}. "
-                f"Use: CRITICAL, HIGH, MEDIUM, LOW, INFO"
-            )
+            console.print(f"[red]Error:[/red] Invalid severity: {severity}. Use: CRITICAL, HIGH, MEDIUM, LOW, INFO")
             raise typer.Exit(1)
 
     if category:

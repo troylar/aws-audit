@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestAttemptAutoFix:
     """Tests for attempt_auto_fix() (T046)."""
@@ -52,9 +50,7 @@ class TestAttemptAutoFix:
     def test_attempt_auto_fix_no_bedrock_client(self) -> None:
         from src.guardrails.auto_fix import attempt_auto_fix
 
-        guardrail = self._create_mock_guardrail(
-            ai_context="WHY: Compliance\nHOW TO FIX: Add encryption"
-        )
+        guardrail = self._create_mock_guardrail(ai_context="WHY: Compliance\nHOW TO FIX: Add encryption")
         resource = self._create_mock_resource()
 
         success, fix, description = attempt_auto_fix(
@@ -78,9 +74,7 @@ class TestAttemptAutoFix:
             "description": "Added AES256 encryption configuration",
         }
 
-        guardrail = self._create_mock_guardrail(
-            ai_context="WHY: Compliance\nHOW TO FIX: Add encryption"
-        )
+        guardrail = self._create_mock_guardrail(ai_context="WHY: Compliance\nHOW TO FIX: Add encryption")
         resource = self._create_mock_resource()
         mock_client = MagicMock()
 
@@ -106,9 +100,7 @@ class TestAttemptAutoFix:
             "description": "Bedrock API error",
         }
 
-        guardrail = self._create_mock_guardrail(
-            ai_context="WHY: Compliance\nHOW TO FIX: Add encryption"
-        )
+        guardrail = self._create_mock_guardrail(ai_context="WHY: Compliance\nHOW TO FIX: Add encryption")
         resource = self._create_mock_resource()
         mock_client = MagicMock()
 

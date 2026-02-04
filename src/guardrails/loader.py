@@ -162,20 +162,13 @@ def _parse_policy(policy_dict: Dict[str, Any]) -> GuardrailPolicy:
         GuardrailPolicy object.
     """
     # Parse guardrails
-    guardrails = [
-        _parse_guardrail(g_dict)
-        for g_dict in policy_dict.get("guardrails", [])
-    ]
+    guardrails = [_parse_guardrail(g_dict) for g_dict in policy_dict.get("guardrails", [])]
 
     # Parse overrides
     overrides: Dict[str, List[PolicyOverride]] = {}
     for env, env_overrides in policy_dict.get("overrides", {}).items():
         if isinstance(env_overrides, list):
-            overrides[env] = [
-                _parse_override(o_dict)
-                for o_dict in env_overrides
-                if isinstance(o_dict, dict)
-            ]
+            overrides[env] = [_parse_override(o_dict) for o_dict in env_overrides if isinstance(o_dict, dict)]
 
     return GuardrailPolicy(
         name=policy_dict["name"],
