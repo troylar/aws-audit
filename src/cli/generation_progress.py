@@ -80,7 +80,8 @@ class ComparisonResult:
 class GenerationProgressDisplay:
     """Manages real-time generation progress display with detailed workflow view."""
 
-    STEP_CONFIG: Dict[WorkflowStep, Dict[str, str]] = {
+    # Base step config - format-specific values are set dynamically via _get_step_config()
+    STEP_CONFIG_BASE: Dict[WorkflowStep, Dict[str, str]] = {
         WorkflowStep.PARSE_INVENTORY: {
             "name": "Parse Inventory",
             "icon": "📦",
@@ -88,8 +89,8 @@ class GenerationProgressDisplay:
         },
         WorkflowStep.BUILD_RESOURCE_MAP: {
             "name": "Build Resource Map",
-            "icon": "🗺️",
-            "description": "Creating AWS ID to Terraform reference mapping",
+            "icon": "🗺",
+            "description": "Creating AWS ID to reference mapping",
         },
         WorkflowStep.CATEGORIZE_LAYERS: {
             "name": "Categorize Layers",
@@ -98,13 +99,13 @@ class GenerationProgressDisplay:
         },
         WorkflowStep.EXTRACT_LAMBDA: {
             "name": "Extract Lambda Code",
-            "icon": "λ",
+            "icon": "⚡",
             "description": "Extracting Lambda function deployment packages",
         },
         WorkflowStep.GENERATE_LAYERS: {
-            "name": "Generate Terraform",
+            "name": "Generate Code",
             "icon": "⚙️",
-            "description": "Generating HCL code via AWS Bedrock",
+            "description": "Generating code via AWS Bedrock",
         },
         WorkflowStep.COMPARE_INVENTORY: {
             "name": "Compare Coverage",
@@ -112,12 +113,12 @@ class GenerationProgressDisplay:
             "description": "AI analysis of inventory vs generated code",
         },
         WorkflowStep.TERRAFORM_INIT: {
-            "name": "Terraform Init",
+            "name": "Initialize",
             "icon": "🔧",
-            "description": "Initializing Terraform providers",
+            "description": "Installing dependencies",
         },
         WorkflowStep.TERRAFORM_VALIDATE: {
-            "name": "Terraform Validate",
+            "name": "Validate",
             "icon": "✅",
             "description": "Validating generated configuration",
         },
@@ -152,6 +153,7 @@ class GenerationProgressDisplay:
         self.total_resources: int = 0
         self.source_name: str = ""
         self.output_dir: str = ""
+        self.output_format: str = "terraform"  # terraform, cdk-typescript, cdk-python
         self.comparison: Optional[ComparisonResult] = None
         self.validation_errors: List[str] = []
         self.live: Optional[Live] = None
@@ -172,6 +174,11 @@ class GenerationProgressDisplay:
         """Set the source snapshot/file name and output directory."""
         self.source_name = source_name
         self.output_dir = output_dir
+
+    def set_output_format(self, output_format: str) -> None:
+        """Set the output format (terraform, cdk-typescript, cdk-python)."""
+        self.output_format = output_format
+        self._refresh()
 
     def set_layers(self, layers: Dict[str, List[Any]], layer_order: List[str]) -> None:
         """Set the layers to be generated."""
@@ -295,17 +302,60 @@ class GenerationProgressDisplay:
             secs = int(seconds % 60)
             return f"{mins}m {secs}s"
 
+    def _get_format_display_name(self) -> str:
+        """Get display name for the current output format."""
+        if self.output_format == "cdk-typescript":
+            return "CDK TypeScript"
+        elif self.output_format == "cdk-python":
+            return "CDK Python"
+        return "Terraform"
+
+    def _is_cdk_format(self) -> bool:
+        """Check if current format is a CDK format."""
+        return self.output_format.startswith("cdk-")
+
+    def _get_step_config(self, step: WorkflowStep) -> Dict[str, str]:
+        """Get step configuration with format-specific overrides."""
+        config = dict(self.STEP_CONFIG_BASE[step])
+
+        # Format-specific overrides
+        if self._is_cdk_format():
+            if step == WorkflowStep.BUILD_RESOURCE_MAP:
+                config["description"] = "Creating AWS ID to CDK reference mapping"
+            elif step == WorkflowStep.GENERATE_LAYERS:
+                config["name"] = "Generate CDK"
+                config["description"] = "Generating CDK code via AWS Bedrock"
+            elif step == WorkflowStep.TERRAFORM_INIT:
+                config["name"] = "NPM Build"
+                config["description"] = "Installing dependencies and compiling"
+            elif step == WorkflowStep.TERRAFORM_VALIDATE:
+                config["name"] = "CDK Synth"
+                config["description"] = "Synthesizing CloudFormation templates"
+        else:
+            if step == WorkflowStep.GENERATE_LAYERS:
+                config["name"] = "Generate Terraform"
+                config["description"] = "Generating HCL code via AWS Bedrock"
+            elif step == WorkflowStep.TERRAFORM_INIT:
+                config["name"] = "Terraform Init"
+                config["description"] = "Initializing Terraform providers"
+            elif step == WorkflowStep.TERRAFORM_VALIDATE:
+                config["name"] = "Terraform Validate"
+                config["description"] = "Validating generated configuration"
+
+        return config
+
     def _build_display(self) -> RenderableType:
         """Build the Rich renderable for current state."""
         elements: List[RenderableType] = []
 
         # Header with elapsed time
         elapsed = time.time() - self.start_time if self.start_time else 0
+        format_name = self._get_format_display_name()
         header = Text()
         header.append("\n")
         header.append("  🏗️  ", style="bold")
-        header.append("Terraform Generation", style="bold cyan")
-        header.append(f"   ⏱️  {self._format_duration(elapsed)}", style="dim")
+        header.append(f"{format_name} Generation", style="bold cyan")
+        header.append(f"  ⏱️  {self._format_duration(elapsed)}", style="dim")
         elements.append(header)
 
         # Source info
@@ -346,7 +396,7 @@ class GenerationProgressDisplay:
         ]
 
         for step in workflow_order:
-            config = self.STEP_CONFIG[step]
+            config = self._get_step_config(step)
             tracked = self.steps.get(step)
 
             # Status icon

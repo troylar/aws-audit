@@ -6035,6 +6035,7 @@ def generate(
     progress = GenerationProgressDisplay(console)
     source_name = from_file if from_file else snapshot_name or ""
     progress.set_source(source_name, output)
+    progress.set_output_format(format)
 
     # Map node names to workflow steps (common nodes + format-specific)
     node_to_step = {
