@@ -617,3 +617,314 @@ class TestDeterministicCoverageCheck:
 
         assert result["estimated_covered"] == 0
         assert result["total_inventory"] == 1
+
+
+@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+class TestCDKTypescriptPatternDetection:
+    """Tests for CDK TypeScript pattern detection in compare_inventory."""
+
+    def test_detects_cdk_typescript_vpc(self) -> None:
+        """Test detection of CDK TypeScript Vpc construct."""
+        resources = [
+            {"resource_type": "ec2:vpc", "name": "main-vpc"},
+        ]
+
+        cdk_code = '''
+        import * as ec2 from 'aws-cdk-lib/aws-ec2';
+
+        const vpc = new ec2.Vpc(this, 'MainVpc', {
+            maxAzs: 3,
+            cidr: '10.0.0.0/16',
+        });
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1
+
+    def test_detects_cdk_typescript_lambda(self) -> None:
+        """Test detection of CDK TypeScript Lambda function construct."""
+        resources = [
+            {"resource_type": "lambda:function", "name": "my-function"},
+            {"resource_type": "lambda:function", "name": "other-function"},
+        ]
+
+        cdk_code = '''
+        import * as lambda from 'aws-cdk-lib/aws-lambda';
+
+        const myFunction = new lambda.Function(this, 'MyFunction', {
+            runtime: lambda.Runtime.PYTHON_3_11,
+            handler: 'index.handler',
+            code: lambda.Code.fromAsset('lambda'),
+        });
+
+        const otherFunction = new lambda.Function(this, 'OtherFunction', {
+            runtime: lambda.Runtime.NODEJS_18_X,
+            handler: 'index.handler',
+            code: lambda.Code.fromAsset('lambda'),
+        });
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 2
+        assert result["total_inventory"] == 2
+
+    def test_detects_cdk_typescript_s3_bucket(self) -> None:
+        """Test detection of CDK TypeScript S3 Bucket construct."""
+        resources = [
+            {"resource_type": "s3:bucket", "name": "my-bucket"},
+        ]
+
+        cdk_code = '''
+        import * as s3 from 'aws-cdk-lib/aws-s3';
+
+        const bucket = new s3.Bucket(this, 'MyBucket', {
+            versioned: true,
+        });
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1
+
+    def test_detects_cdk_typescript_dynamodb_table(self) -> None:
+        """Test detection of CDK TypeScript DynamoDB Table construct."""
+        resources = [
+            {"resource_type": "dynamodb:table", "name": "my-table"},
+        ]
+
+        cdk_code = '''
+        import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+
+        const table = new dynamodb.Table(this, 'MyTable', {
+            partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
+        });
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1
+
+    def test_detects_cdk_typescript_iam_role(self) -> None:
+        """Test detection of CDK TypeScript IAM Role construct."""
+        resources = [
+            {"resource_type": "iam:role", "name": "my-role"},
+        ]
+
+        cdk_code = '''
+        import * as iam from 'aws-cdk-lib/aws-iam';
+
+        const role = new iam.Role(this, 'MyRole', {
+            assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+        });
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1
+
+    def test_detects_multiple_cdk_typescript_constructs(self) -> None:
+        """Test detection of multiple CDK TypeScript constructs."""
+        resources = [
+            {"resource_type": "ec2:vpc", "name": "main-vpc"},
+            {"resource_type": "ec2:subnet", "name": "public-subnet-1"},
+            {"resource_type": "ec2:subnet", "name": "public-subnet-2"},
+            {"resource_type": "ec2:security-group", "name": "web-sg"},
+            {"resource_type": "lambda:function", "name": "api-handler"},
+            {"resource_type": "s3:bucket", "name": "data-bucket"},
+        ]
+
+        cdk_code = '''
+        import * as ec2 from 'aws-cdk-lib/aws-ec2';
+        import * as lambda from 'aws-cdk-lib/aws-lambda';
+        import * as s3 from 'aws-cdk-lib/aws-s3';
+
+        const vpc = new ec2.Vpc(this, 'MainVpc', { maxAzs: 2 });
+
+        const subnet1 = new ec2.Subnet(this, 'PublicSubnet1', {
+            vpcId: vpc.vpcId,
+            cidrBlock: '10.0.1.0/24',
+        });
+
+        const subnet2 = new ec2.Subnet(this, 'PublicSubnet2', {
+            vpcId: vpc.vpcId,
+            cidrBlock: '10.0.2.0/24',
+        });
+
+        const securityGroup = new ec2.SecurityGroup(this, 'WebSG', {
+            vpc: vpc,
+        });
+
+        const apiHandler = new lambda.Function(this, 'ApiHandler', {
+            runtime: lambda.Runtime.PYTHON_3_11,
+            handler: 'index.handler',
+            code: lambda.Code.fromAsset('lambda'),
+        });
+
+        const bucket = new s3.Bucket(this, 'DataBucket', {
+            versioned: true,
+        });
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 6
+        assert result["total_inventory"] == 6
+
+
+@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+class TestCDKPythonPatternDetection:
+    """Tests for CDK Python pattern detection in compare_inventory."""
+
+    def test_detects_cdk_python_vpc(self) -> None:
+        """Test detection of CDK Python Vpc construct."""
+        resources = [
+            {"resource_type": "ec2:vpc", "name": "main-vpc"},
+        ]
+
+        cdk_code = '''
+        from aws_cdk import aws_ec2 as ec2
+
+        vpc = ec2.Vpc(self, "MainVpc",
+            max_azs=3,
+            cidr="10.0.0.0/16",
+        )
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1
+
+    def test_detects_cdk_python_lambda(self) -> None:
+        """Test detection of CDK Python Lambda function construct."""
+        resources = [
+            {"resource_type": "lambda:function", "name": "my-function"},
+            {"resource_type": "lambda:function", "name": "other-function"},
+        ]
+
+        cdk_code = '''
+        from aws_cdk import aws_lambda as _lambda
+
+        my_function = _lambda.Function(self, "MyFunction",
+            runtime=_lambda.Runtime.PYTHON_3_11,
+            handler="index.handler",
+            code=_lambda.Code.from_asset("lambda"),
+        )
+
+        other_function = _lambda.Function(self, "OtherFunction",
+            runtime=_lambda.Runtime.PYTHON_3_11,
+            handler="index.handler",
+            code=_lambda.Code.from_asset("lambda"),
+        )
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 2
+        assert result["total_inventory"] == 2
+
+    def test_detects_cdk_python_s3_bucket(self) -> None:
+        """Test detection of CDK Python S3 Bucket construct."""
+        resources = [
+            {"resource_type": "s3:bucket", "name": "my-bucket"},
+        ]
+
+        cdk_code = '''
+        from aws_cdk import aws_s3 as s3
+
+        bucket = s3.Bucket(self, "MyBucket",
+            versioned=True,
+        )
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1
+
+    def test_detects_cdk_python_dynamodb_table(self) -> None:
+        """Test detection of CDK Python DynamoDB Table construct."""
+        resources = [
+            {"resource_type": "dynamodb:table", "name": "my-table"},
+        ]
+
+        cdk_code = '''
+        from aws_cdk import aws_dynamodb as dynamodb
+
+        table = dynamodb.Table(self, "MyTable",
+            partition_key=dynamodb.Attribute(
+                name="id",
+                type=dynamodb.AttributeType.STRING
+            ),
+        )
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1
+
+    def test_detects_multiple_cdk_python_constructs(self) -> None:
+        """Test detection of multiple CDK Python constructs."""
+        resources = [
+            {"resource_type": "ec2:vpc", "name": "main-vpc"},
+            {"resource_type": "ec2:security-group", "name": "web-sg"},
+            {"resource_type": "lambda:function", "name": "api-handler"},
+            {"resource_type": "s3:bucket", "name": "data-bucket"},
+            {"resource_type": "iam:role", "name": "lambda-role"},
+        ]
+
+        cdk_code = '''
+        from aws_cdk import (
+            aws_ec2 as ec2,
+            aws_lambda as _lambda,
+            aws_s3 as s3,
+            aws_iam as iam,
+        )
+
+        vpc = ec2.Vpc(self, "MainVpc", max_azs=2)
+
+        security_group = ec2.SecurityGroup(self, "WebSG", vpc=vpc)
+
+        role = iam.Role(self, "LambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+        )
+
+        api_handler = _lambda.Function(self, "ApiHandler",
+            runtime=_lambda.Runtime.PYTHON_3_11,
+            handler="index.handler",
+            code=_lambda.Code.from_asset("lambda"),
+            role=role,
+        )
+
+        bucket = s3.Bucket(self, "DataBucket", versioned=True)
+        '''
+
+        result = _deterministic_coverage_check(resources, cdk_code)
+        assert result["estimated_covered"] == 5
+        assert result["total_inventory"] == 5
+
+
+@pytest.mark.skipif(not IMPORTS_AVAILABLE, reason=f"Generate imports not available: {IMPORT_ERROR if 'IMPORT_ERROR' in dir() else 'unknown'}")
+class TestMixedIacPatternDetection:
+    """Tests for detecting patterns across Terraform and CDK code."""
+
+    def test_terraform_and_cdk_typescript_not_double_counted(self) -> None:
+        """Test that resources are not double-counted when both Terraform and CDK exist."""
+        resources = [
+            {"resource_type": "lambda:function", "name": "my-function"},
+        ]
+
+        # Both Terraform and CDK TypeScript defining same resource
+        mixed_code = '''
+        # Terraform
+        resource "aws_lambda_function" "my_function" {
+            function_name = "my-function"
+        }
+
+        # CDK TypeScript
+        const myFunction = new lambda.Function(this, 'MyFunction', {
+            runtime: lambda.Runtime.PYTHON_3_11,
+        });
+        '''
+
+        result = _deterministic_coverage_check(resources, mixed_code)
+        # Should count the resource once, min(inventory=1, terraform+cdk=2) = 1
+        assert result["estimated_covered"] == 1
+        assert result["total_inventory"] == 1

@@ -63,7 +63,9 @@ def _transform_logging_configuration(
                 tf_dest = {}
                 if "CloudWatchLogsLogGroup" in dest:
                     tf_dest["cloudwatch_logs_log_group"] = {
-                        "log_group_arn": dest["CloudWatchLogsLogGroup"].get("LogGroupArn")
+                        "log_group_arn": dest["CloudWatchLogsLogGroup"].get(
+                            "LogGroupArn"
+                        )
                     }
                 transformed_destinations.append(tf_dest)
             if transformed_destinations:
@@ -161,7 +163,9 @@ register_property_map("sfn:statemachine", __name__)
 register_property_map("sfn", __name__)
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Stepfunctions properties for Terraform generation."""
     configurable = STEPFUNCTIONS_CONFIGURABLE
     filtered = {}
@@ -172,4 +176,3 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
-

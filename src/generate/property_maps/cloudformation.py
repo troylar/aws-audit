@@ -148,8 +148,9 @@ register_property_map("cloudformation:stack", __name__)
 register_property_map("cloudformation", __name__)
 
 
-
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Cloudformation properties for Terraform generation."""
     configurable = CLOUDFORMATION_STACK_CONFIGURABLE
     filtered = {}
@@ -160,6 +161,7 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
+
 
 __all__ = [
     "CLOUDFORMATION_STACK_CONFIGURABLE",

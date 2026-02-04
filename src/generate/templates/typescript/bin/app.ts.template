@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+import 'source-map-support/register';
+import * as cdk from 'aws-cdk-lib';
+${STACK_IMPORTS}
+
+const app = new cdk.App();
+
+${STACK_INSTANTIATIONS}
+
+app.synth();

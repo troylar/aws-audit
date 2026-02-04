@@ -37,7 +37,9 @@ DYNAMODB_TABLE_COMPUTED: Dict[str, str] = {
 }
 
 
-def process_attribute_definitions(raw_attrs: List[Dict[str, str]]) -> List[Dict[str, str]]:
+def process_attribute_definitions(
+    raw_attrs: List[Dict[str, str]]
+) -> List[Dict[str, str]]:
     """Transform AWS attribute definitions to Terraform format.
 
     AWS format:
@@ -73,7 +75,9 @@ def process_attribute_definitions(raw_attrs: List[Dict[str, str]]) -> List[Dict[
     return terraform_attrs
 
 
-def process_key_schema(raw_schema: List[Dict[str, str]]) -> tuple[Optional[str], Optional[str]]:
+def process_key_schema(
+    raw_schema: List[Dict[str, str]]
+) -> tuple[Optional[str], Optional[str]]:
     """Extract hash and range keys from key schema.
 
     AWS format:
@@ -127,7 +131,9 @@ def process_provisioned_throughput(raw_throughput: Dict[str, int]) -> tuple[int,
     )
 
 
-def process_global_secondary_indexes(raw_gsis: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def process_global_secondary_indexes(
+    raw_gsis: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """Transform AWS global secondary indexes to Terraform format.
 
     Args:
@@ -160,7 +166,9 @@ def process_global_secondary_indexes(raw_gsis: List[Dict[str, Any]]) -> List[Dic
 
         # Add provisioned throughput if present
         if "ProvisionedThroughput" in gsi:
-            read_cap, write_cap = process_provisioned_throughput(gsi["ProvisionedThroughput"])
+            read_cap, write_cap = process_provisioned_throughput(
+                gsi["ProvisionedThroughput"]
+            )
             tf_gsi["read_capacity"] = read_cap
             tf_gsi["write_capacity"] = write_cap
 
@@ -169,7 +177,9 @@ def process_global_secondary_indexes(raw_gsis: List[Dict[str, Any]]) -> List[Dic
     return terraform_gsis
 
 
-def process_local_secondary_indexes(raw_lsis: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def process_local_secondary_indexes(
+    raw_lsis: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """Transform AWS local secondary indexes to Terraform format.
 
     Args:
@@ -203,7 +213,9 @@ def process_local_secondary_indexes(raw_lsis: List[Dict[str, Any]]) -> List[Dict
     return terraform_lsis
 
 
-def process_stream_specification(raw_stream: Dict[str, Any]) -> tuple[bool, Optional[str]]:
+def process_stream_specification(
+    raw_stream: Dict[str, Any]
+) -> tuple[bool, Optional[str]]:
     """Extract stream configuration from stream specification.
 
     AWS format:
@@ -270,7 +282,9 @@ def get_dynamodb_table_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Process attribute definitions
     if "AttributeDefinitions" in raw_config:
-        properties["attribute"] = process_attribute_definitions(raw_config["AttributeDefinitions"])
+        properties["attribute"] = process_attribute_definitions(
+            raw_config["AttributeDefinitions"]
+        )
 
     # Process key schema
     if "KeySchema" in raw_config:
@@ -285,8 +299,13 @@ def get_dynamodb_table_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
         properties["billing_mode"] = raw_config["BillingModeSummary"].get("BillingMode")
 
     # Process provisioned throughput
-    if "ProvisionedThroughput" in raw_config and properties.get("billing_mode") == "PROVISIONED":
-        read_cap, write_cap = process_provisioned_throughput(raw_config["ProvisionedThroughput"])
+    if (
+        "ProvisionedThroughput" in raw_config
+        and properties.get("billing_mode") == "PROVISIONED"
+    ):
+        read_cap, write_cap = process_provisioned_throughput(
+            raw_config["ProvisionedThroughput"]
+        )
         properties["read_capacity"] = read_cap
         properties["write_capacity"] = write_cap
 
@@ -304,7 +323,9 @@ def get_dynamodb_table_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Process stream specification
     if "StreamSpecification" in raw_config:
-        stream_enabled, stream_view_type = process_stream_specification(raw_config["StreamSpecification"])
+        stream_enabled, stream_view_type = process_stream_specification(
+            raw_config["StreamSpecification"]
+        )
         properties["stream_enabled"] = stream_enabled
         if stream_view_type:
             properties["stream_view_type"] = stream_view_type
@@ -346,7 +367,9 @@ def get_dynamodb_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, An
     return computed
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter DynamoDB properties for Terraform generation.
 
     Uses DYNAMODB_TABLE_CONFIGURABLE as whitelist.

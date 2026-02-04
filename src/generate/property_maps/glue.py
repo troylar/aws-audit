@@ -313,18 +313,24 @@ def process_storage_descriptor(
             tf_skewed["skewed_column_values"] = skewed_info["SkewedColumnValues"]
 
         if "SkewedColumnValueLocationMaps" in skewed_info:
-            tf_skewed["skewed_column_value_location_maps"] = skewed_info["SkewedColumnValueLocationMaps"]
+            tf_skewed["skewed_column_value_location_maps"] = skewed_info[
+                "SkewedColumnValueLocationMaps"
+            ]
 
         if tf_skewed:
             tf_descriptor["skewed_info"] = tf_skewed
 
     if "StoredAsSubDirectories" in storage_descriptor:
-        tf_descriptor["stored_as_sub_directories"] = storage_descriptor["StoredAsSubDirectories"]
+        tf_descriptor["stored_as_sub_directories"] = storage_descriptor[
+            "StoredAsSubDirectories"
+        ]
 
     return tf_descriptor
 
 
-def process_partition_keys(partition_keys: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def process_partition_keys(
+    partition_keys: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """Process Glue partition keys into Terraform format.
 
     Args:
@@ -421,14 +427,16 @@ def get_glue_table_computed_properties(raw_config: Dict[str, Any]) -> Dict[str, 
     return computed
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Glue properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "database" in resource_type_lower:
         configurable = GLUE_DATABASE_CONFIGURABLE
     else:
         configurable = GLUE_TABLE_CONFIGURABLE
-    
+
     filtered = {}
     for aws_field in configurable.keys():
         if aws_field in raw_config:
@@ -437,4 +445,3 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
-

@@ -162,12 +162,12 @@ Before diving in, here's the terminology:
 <td width="33%" valign="top">
 
 ### IaC Generation (New!)
-- Generate Terraform from snapshots
+- Generate Terraform, CDK TypeScript, or CDK Python
 - AI-powered code generation
 - Layer-based chunking (network → compute → etc.)
 - Automatic ID → reference mapping
-- `terraform validate` integration
-- AWS Bedrock (Claude Sonnet 4)
+- `terraform validate` / `cdk synth` validation
+- AWS Bedrock (Claude Opus 4)
 
 </td>
 </tr>
@@ -760,24 +760,42 @@ Large packages are stored to `~/.snapshots/lambda-code/<snapshot>/` and automati
 
 ---
 
-### IaC Generation (Terraform)
+### IaC Generation (Terraform & CDK)
 
-Generate Terraform code from your inventory snapshots using AWS Bedrock:
+Generate Infrastructure as Code from your inventory snapshots using AWS Bedrock. Supports Terraform, CDK TypeScript, and CDK Python.
 
 ```bash
-# Generate Terraform from a snapshot (uses AWS credentials)
+# ─────────────────────────────────────────────────────────────
+# TERRAFORM
+# ─────────────────────────────────────────────────────────────
+# Generate Terraform from a snapshot
 awsinv generate terraform my-snapshot
 
 # Generate from a JSON/YAML export file
 awsinv generate terraform --from-file inventory.json
 awsinv generate terraform --from-file export.yaml --output ./infra
 
-# Specify output directory
-awsinv generate terraform my-snapshot --output ./infrastructure
+# ─────────────────────────────────────────────────────────────
+# CDK TYPESCRIPT
+# ─────────────────────────────────────────────────────────────
+# Generate CDK TypeScript from a snapshot
+awsinv generate cdk-typescript my-snapshot
 
+# Specify output directory and project name
+awsinv generate cdk-typescript my-snapshot --output ./my-cdk-app
+
+# ─────────────────────────────────────────────────────────────
+# CDK PYTHON
+# ─────────────────────────────────────────────────────────────
+# Generate CDK Python from a snapshot
+awsinv generate cdk-python my-snapshot --output ./my-cdk-python-app
+
+# ─────────────────────────────────────────────────────────────
+# COMMON OPTIONS
+# ─────────────────────────────────────────────────────────────
 # Use different model or region
 awsinv generate terraform my-snapshot \
-  --model-id anthropic.claude-sonnet-4-20250514-v1:0 \
+  --model-id anthropic.claude-opus-4-20250514-v1:0 \
   --region us-west-2
 
 # Dry run (show what would be generated)
@@ -846,6 +864,8 @@ flowchart TD
 | 11 | 🌍 DNS | Route53, CloudFront |
 
 **Output Structure:**
+
+*Terraform:*
 ```
 ./terraform/
 ├── main.tf              # Provider configuration
@@ -854,15 +874,42 @@ flowchart TD
 ├── layer_01_network.tf  # VPCs, subnets, gateways
 ├── layer_02_security.tf # Security groups, ACLs
 ├── layer_03_iam.tf      # Roles, policies
-├── layer_04_data.tf     # RDS, DynamoDB
-├── layer_05_storage.tf  # S3, EFS
-├── layer_06_compute.tf  # EC2, Lambda, ECS
 └── ...
+```
+
+*CDK TypeScript:*
+```
+./cdk-app/
+├── bin/app.ts           # Entry point with stack imports
+├── lib/
+│   ├── network_foundation_stack.ts
+│   ├── security_groups_stack.ts
+│   ├── iam_resources_stack.ts
+│   └── ...
+├── package.json
+├── tsconfig.json
+└── cdk.json
+```
+
+*CDK Python:*
+```
+./cdk-app/
+├── app.py               # Entry point with stack imports
+├── stacks/
+│   ├── __init__.py
+│   ├── network_foundation_stack.py
+│   ├── security_groups_stack.py
+│   └── ...
+├── requirements.txt
+├── setup.py
+└── cdk.json
 ```
 
 **Requirements:**
 - AWS credentials with Bedrock access (uses your configured AWS profile)
-- Default model: `anthropic.claude-sonnet-4-20250514-v1:0` (Claude Sonnet 4)
+- Default model: `anthropic.claude-opus-4-20250514-v1:0` (Claude Opus 4)
+- For CDK TypeScript: Node.js 18+ and npm (for validation)
+- For CDK Python: Python 3.8+ (for validation)
 
 > **Note:** IaC generation requires the `langgraph` optional dependency: `pip install aws-inventory-manager[generate]`
 
@@ -1201,9 +1248,11 @@ awsinv query stats --group-by region
 # ─────────────────────────────────────────────────────────────
 # IAC GENERATION
 # ─────────────────────────────────────────────────────────────
-awsinv generate terraform [snapshot]  # Generate Terraform from snapshot
+awsinv generate terraform [snapshot]     # Generate Terraform from snapshot
+awsinv generate cdk-typescript [snapshot] # Generate CDK TypeScript
+awsinv generate cdk-python [snapshot]    # Generate CDK Python
     [--from-file <path>]              # JSON/YAML export file (alternative to snapshot)
-    [--output <dir>]                  # Output directory (default: ./terraform)
+    [--output <dir>]                  # Output directory
     [--model-id <id>]                 # Bedrock model ID
     [--region <region>]               # AWS region for Bedrock
     [--dry-run]                       # Show what would be generated

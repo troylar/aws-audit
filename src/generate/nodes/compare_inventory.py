@@ -57,47 +57,67 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
                     {
                         "type": _get_resource_type(r),
                         "name": _get_resource_name(r),
-                        "reason": "No Terraform code generated",
+                        "reason": "No IaC code generated",
                     }
                     for r in resources
                 ],
-                "issues": [{"severity": "error", "resource": "all", "description": "No Terraform code was generated"}],
-                "summary": "No Terraform code was generated to compare against inventory.",
+                "issues": [
+                    {
+                        "severity": "error",
+                        "resource": "all",
+                        "description": "No IaC code was generated",
+                    }
+                ],
+                "summary": "No IaC code was generated to compare against inventory.",
             }
         }
 
     config = GenerationConfig.from_env()
 
-    emit_progress("activity", {
-        "message": f"Formatting {len(resources)} resources for comparison",
-        "step": "compare_inventory",
-    })
+    emit_progress(
+        "activity",
+        {
+            "message": f"Formatting {len(resources)} resources for comparison",
+            "step": "compare_inventory",
+        },
+    )
 
     inventory_text = _format_inventory_for_comparison(resources)
     terraform_text = _combine_generated_code(generated_code)
 
-    emit_progress("activity", {
-        "message": f"Prepared {len(generated_code)} layers ({len(terraform_text)} chars)",
-        "step": "compare_inventory",
-        "layers": len(generated_code),
-    })
+    emit_progress(
+        "activity",
+        {
+            "message": f"Prepared {len(generated_code)} layers ({len(terraform_text)} chars)",
+            "step": "compare_inventory",
+            "layers": len(generated_code),
+        },
+    )
 
     try:
-        emit_progress("activity", {
-            "message": f"Connecting to Bedrock ({config.bedrock_region})",
-            "step": "compare_inventory",
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Connecting to Bedrock ({config.bedrock_region})",
+                "step": "compare_inventory",
+            },
+        )
 
         client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
 
         system_prompt = _get_comparison_system_prompt()
-        user_prompt = _format_comparison_prompt(inventory_text, terraform_text, len(resources))
+        user_prompt = _format_comparison_prompt(
+            inventory_text, terraform_text, len(resources)
+        )
 
-        emit_progress("activity", {
-            "message": "Calling AI to analyze coverage",
-            "step": "compare_inventory",
-            "model": config.bedrock_model_id,
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": "Calling AI to analyze coverage",
+                "step": "compare_inventory",
+                "model": config.bedrock_model_id,
+            },
+        )
 
         # Use streaming for real-time progress
         response_text = ""
@@ -129,11 +149,14 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
                             response_text += delta["text"]
                             token_count += 1
                             if token_count % 50 == 0:
-                                emit_progress("activity", {
-                                    "message": f"Analyzing... ({token_count} tokens)",
-                                    "step": "compare_inventory",
-                                    "tokens": token_count,
-                                })
+                                emit_progress(
+                                    "activity",
+                                    {
+                                        "message": f"Analyzing... ({token_count} tokens)",
+                                        "step": "compare_inventory",
+                                        "tokens": token_count,
+                                    },
+                                )
 
             # If streaming didn't produce any text, fall back to non-streaming
             if not response_text:
@@ -157,18 +180,24 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
             )
             response_text = response["output"]["message"]["content"][0]["text"] or ""
 
-        emit_progress("activity", {
-            "message": "Parsing comparison results",
-            "step": "compare_inventory",
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": "Parsing comparison results",
+                "step": "compare_inventory",
+            },
+        )
 
         comparison_result = _parse_comparison_response(response_text, len(resources))
 
         # Run deterministic check to validate AI results
-        emit_progress("activity", {
-            "message": "Validating results with deterministic check",
-            "step": "compare_inventory",
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": "Validating results with deterministic check",
+                "step": "compare_inventory",
+            },
+        )
 
         deterministic = _deterministic_coverage_check(resources, terraform_text)
         det_covered = deterministic["estimated_covered"]
@@ -182,34 +211,53 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
             # Only override if deterministic found MORE coverage than AI
             # (AI is under-reporting, which was the original bug)
             if det_pct > ai_pct + 20:
-                emit_progress("activity", {
-                    "message": f"AI under-reported ({ai_pct:.0f}%), deterministic found ({det_pct:.0f}%), using deterministic",
-                    "step": "compare_inventory",
-                })
+                emit_progress(
+                    "activity",
+                    {
+                        "message": (
+                            f"AI under-reported ({ai_pct:.0f}%), "
+                            f"deterministic found ({det_pct:.0f}%), using deterministic"
+                        ),
+                        "step": "compare_inventory",
+                    },
+                )
 
                 # Override with deterministic results
                 comparison_result["represented_count"] = det_covered
                 comparison_result["missing_count"] = len(resources) - det_covered
                 comparison_result["coverage_percentage"] = det_pct
-                comparison_result["issues"].append({
-                    "severity": "warning",
-                    "resource": "validation",
-                    "description": f"AI reported {ai_pct:.0f}% but deterministic check found {det_pct:.0f}%. Using deterministic result.",
-                })
+                comparison_result["issues"].append(
+                    {
+                        "severity": "warning",
+                        "resource": "validation",
+                        "description": (
+                            f"AI reported {ai_pct:.0f}% but deterministic check found "
+                            f"{det_pct:.0f}%. Using deterministic result."
+                        ),
+                    }
+                )
             elif ai_pct > det_pct + 20 and det_covered > 0:
                 # AI found more than deterministic - add a note but trust AI
                 # (deterministic may have incomplete type mapping)
-                comparison_result["issues"].append({
-                    "severity": "info",
-                    "resource": "validation",
-                    "description": f"AI reported {ai_pct:.0f}% but deterministic check found {det_pct:.0f}%. Trusting AI result.",
-                })
+                comparison_result["issues"].append(
+                    {
+                        "severity": "info",
+                        "resource": "validation",
+                        "description": (
+                            f"AI reported {ai_pct:.0f}% but deterministic check found "
+                            f"{det_pct:.0f}%. Trusting AI result."
+                        ),
+                    }
+                )
 
-        emit_progress("activity", {
-            "message": f"Coverage: {comparison_result.get('coverage_percentage', 0):.0f}%",
-            "step": "compare_inventory",
-            "coverage": comparison_result.get("coverage_percentage", 0),
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Coverage: {comparison_result.get('coverage_percentage', 0):.0f}%",
+                "step": "compare_inventory",
+                "coverage": comparison_result.get("coverage_percentage", 0),
+            },
+        )
 
         return {"comparison_result": comparison_result}
 
@@ -222,7 +270,13 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
                 "missing_count": len(resources),
                 "represented_resources": [],
                 "missing_resources": [],
-                "issues": [{"severity": "error", "resource": "comparison", "description": f"Comparison failed: {e}"}],
+                "issues": [
+                    {
+                        "severity": "error",
+                        "resource": "comparison",
+                        "description": f"Comparison failed: {e}",
+                    }
+                ],
                 "summary": f"Unable to perform comparison due to error: {e}",
             },
             "errors": [{"message": f"Inventory comparison failed: {e}"}],
@@ -271,15 +325,21 @@ def _format_inventory_for_comparison(resources: List[Any]) -> str:
             arn = resource.arn
             raw_config = resource.raw_config
         else:
-            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
+            resource_type = resource.get(
+                "resource_type", resource.get("type", "unknown")
+            )
             name = resource.get("name", "unnamed")
             arn = resource.get("arn", "")
             raw_config = resource.get("raw_config", {})
 
         key_attrs = _extract_key_attributes(resource_type, raw_config)
-        attrs_str = ", ".join(f"{k}={v}" for k, v in key_attrs.items()) if key_attrs else "none"
+        attrs_str = (
+            ", ".join(f"{k}={v}" for k, v in key_attrs.items()) if key_attrs else "none"
+        )
 
-        lines.append(f"{i}. Type: {resource_type} | Name: {name} | ARN: {arn} | Key attrs: {attrs_str}")
+        lines.append(
+            f"{i}. Type: {resource_type} | Name: {name} | ARN: {arn} | Key attrs: {attrs_str}"
+        )
 
     return "\n".join(lines)
 
@@ -302,7 +362,9 @@ def _format_inventory_summary(resources: List[Any]) -> str:
             resource_type = resource.resource_type
             name = resource.name
         else:
-            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
+            resource_type = resource.get(
+                "resource_type", resource.get("type", "unknown")
+            )
             name = resource.get("name", "unnamed")
 
         if resource_type not in by_type:
@@ -326,7 +388,9 @@ def _format_inventory_summary(resources: List[Any]) -> str:
     return "\n".join(lines)
 
 
-def _extract_key_attributes(resource_type: str, raw_config: Dict[str, Any]) -> Dict[str, Any]:
+def _extract_key_attributes(
+    resource_type: str, raw_config: Dict[str, Any]
+) -> Dict[str, Any]:
     """Extract key configuration attributes based on resource type.
 
     Args:
@@ -396,13 +460,15 @@ def _combine_generated_code(generated_code: Dict[str, str]) -> str:
 def _get_comparison_system_prompt() -> str:
     """Get the system prompt for inventory comparison."""
     return (
-        "You are an expert Terraform and AWS infrastructure analyst. "
-        "Your task is to compare an AWS resource inventory against generated Terraform code "
-        "and determine how well the Terraform represents the original resources.\n\n"
+        "You are an expert AWS infrastructure analyst specializing in Terraform and AWS CDK. "
+        "Your task is to compare an AWS resource inventory against generated Infrastructure "
+        "as Code (Terraform, CDK TypeScript, or CDK Python) and determine how well the IaC "
+        "represents the original resources.\n\n"
         "You must respond with ONLY valid JSON in the exact structure specified. "
         "Do not include any text before or after the JSON.\n\n"
         "MATCHING RULES - A resource is REPRESENTED if:\n"
-        "1. A Terraform resource of the MATCHING TYPE exists:\n"
+        "1. An IaC resource of the MATCHING TYPE exists:\n\n"
+        "   TERRAFORM PATTERNS:\n"
         "   - ec2:vpc → aws_vpc\n"
         "   - ec2:subnet → aws_subnet\n"
         "   - ec2:security-group → aws_security_group\n"
@@ -415,25 +481,44 @@ def _get_comparison_system_prompt() -> str:
         "   - dynamodb:table → aws_dynamodb_table\n"
         "   - sns:topic → aws_sns_topic\n"
         "   - sqs:queue → aws_sqs_queue\n"
-        "   - cloudwatch:log-group → aws_cloudwatch_log_group\n"
+        "   - cloudwatch:log-group → aws_cloudwatch_log_group\n\n"
+        "   CDK TYPESCRIPT PATTERNS (new <module>.<Construct>(...)):\n"
+        "   - ec2:vpc → new ec2.Vpc(...) or new Vpc(...)\n"
+        "   - ec2:subnet → new ec2.Subnet(...) or new Subnet(...)\n"
+        "   - ec2:security-group → new ec2.SecurityGroup(...)\n"
+        "   - s3:bucket → new s3.Bucket(...) or new Bucket(...)\n"
+        "   - lambda:function → new lambda.Function(...)\n"
+        "   - iam:role → new iam.Role(...) or new Role(...)\n"
+        "   - dynamodb:table → new dynamodb.Table(...)\n\n"
+        "   CDK PYTHON PATTERNS (<module>.<Construct>(...)):\n"
+        "   - ec2:vpc → ec2.Vpc(...) or Vpc(...)\n"
+        "   - ec2:subnet → ec2.Subnet(...) or Subnet(...)\n"
+        "   - ec2:security-group → ec2.SecurityGroup(...)\n"
+        "   - s3:bucket → s3.Bucket(...) or Bucket(...)\n"
+        "   - lambda:function → _lambda.Function(...)\n"
+        "   - iam:role → iam.Role(...) or Role(...)\n"
+        "   - dynamodb:table → dynamodb.Table(...)\n\n"
         "2. Match by ANY of these criteria:\n"
-        "   - Similar name (ignore case, hyphens vs underscores: 'my-vpc' matches 'my_vpc')\n"
+        "   - Similar name (ignore case, hyphens vs underscores: 'my-vpc' = 'my_vpc' = 'MyVpc')\n"
         "   - Matching key attributes (CIDR block, function name, bucket name, etc.)\n"
-        "   - SAME COUNT of resources of that type (if you have 5 subnets in inventory and 5 aws_subnet resources, all 5 are REPRESENTED)\n\n"
+        "   - SAME COUNT of resources of that type (5 subnets in inventory = 5 Subnet constructs)\n\n"
         "CRITICAL: BE VERY GENEROUS in matching!\n"
-        "- If there's a Terraform resource of the same type with a similar name or attributes, it's REPRESENTED\n"
-        "- Only mark as MISSING if there is absolutely NO Terraform resource that could represent it\n"
+        "- If there's an IaC resource of the same type with similar name/attributes, it's REPRESENTED\n"
+        "- CDK uses PascalCase/camelCase - treat as equivalent to kebab-case/snake_case\n"
+        "- Only mark as MISSING if there is absolutely NO IaC resource that could represent it\n"
         "- When in doubt, mark as REPRESENTED\n\n"
         "IMPORTANT for list output:\n"
-        "- If there are many resources of the same type, you can group them: {\"type\": \"lambda:function\", \"name\": \"all 15 functions\"}\n"
-        "- The counts (represented_count, missing_count) MUST be accurate even if you summarize the lists\n\n"
+        '- Group many resources of same type: {"type": "lambda:function", "name": "all 15 funcs"}\n'
+        "- The counts (represented_count, missing_count) MUST be accurate even if lists are grouped\n\n"
         "Issues should only flag SIGNIFICANT problems like:\n"
         "- Missing required attributes that would cause deployment failure\n"
         "- Security misconfigurations"
     )
 
 
-def _format_comparison_prompt(inventory_text: str, terraform_text: str, total_resources: int) -> str:
+def _format_comparison_prompt(
+    inventory_text: str, terraform_text: str, total_resources: int
+) -> str:
     """Format the user prompt for comparison.
 
     Args:
@@ -504,21 +589,24 @@ CRITICAL RULES:
 - Be GENEROUS - if a matching Terraform resource exists, count it as represented"""
 
 
-def _deterministic_coverage_check(resources: List[Any], terraform_code: str) -> Dict[str, int]:
+def _deterministic_coverage_check(
+    resources: List[Any], iac_code: str
+) -> Dict[str, int]:
     """Perform a simple deterministic check of resource coverage.
 
-    This provides a sanity check against AI results by counting Terraform
-    resource types that match inventory resource types.
+    This provides a sanity check against AI results by counting IaC
+    resource types that match inventory resource types. Supports
+    Terraform, CDK TypeScript, and CDK Python.
 
     Args:
         resources: List of inventory resources
-        terraform_code: Combined Terraform code string
+        iac_code: Combined IaC code string (Terraform, CDK TypeScript, or CDK Python)
 
     Returns:
         Dict with type_counts, terraform_counts, and estimated_covered
     """
     # Map inventory types to Terraform resource types
-    type_mapping = {
+    terraform_type_mapping = {
         "ec2:vpc": "aws_vpc",
         "ec2:subnet": "aws_subnet",
         "ec2:security-group": "aws_security_group",
@@ -547,43 +635,107 @@ def _deterministic_coverage_check(resources: List[Any], terraform_code: str) -> 
         "efs:file-system": "aws_efs_file_system",
     }
 
+    # Map inventory types to CDK construct patterns
+    # These patterns match both TypeScript (new ec2.Vpc) and Python (ec2.Vpc)
+    cdk_construct_mapping = {
+        "ec2:vpc": ["Vpc"],
+        "ec2:subnet": ["Subnet", "PublicSubnet", "PrivateSubnet"],
+        "ec2:security-group": ["SecurityGroup"],
+        "ec2:instance": ["Instance"],
+        "ec2:route-table": ["RouteTable", "CfnRouteTable"],
+        "ec2:internet-gateway": ["InternetGateway", "CfnInternetGateway"],
+        "ec2:nat-gateway": ["NatGateway", "CfnNatGateway"],
+        "ec2:network-interface": ["NetworkInterface", "CfnNetworkInterface"],
+        "ec2:elastic-ip": ["CfnEIP"],
+        "s3:bucket": ["Bucket"],
+        "lambda:function": ["Function"],
+        "iam:role": ["Role"],
+        "iam:policy": ["Policy", "ManagedPolicy"],
+        "rds:db-instance": ["DatabaseInstance"],
+        "rds:db-cluster": ["DatabaseCluster"],
+        "dynamodb:table": ["Table"],
+        "sns:topic": ["Topic"],
+        "sqs:queue": ["Queue"],
+        "apigateway:rest-api": ["RestApi", "LambdaRestApi"],
+        "cloudwatch:log-group": ["LogGroup"],
+        "cloudwatch:alarm": ["Alarm"],
+        "kms:key": ["Key"],
+        "secretsmanager:secret": ["Secret"],
+        "events:rule": ["Rule"],
+        "elasticache:cluster": ["CfnCacheCluster"],
+        "efs:file-system": ["FileSystem"],
+    }
+
     # Count inventory resources by type
     inventory_counts: Dict[str, int] = {}
     for resource in resources:
         if isinstance(resource, TrackedResource):
             resource_type = resource.resource_type
         else:
-            resource_type = resource.get("resource_type", resource.get("type", "unknown"))
+            resource_type = resource.get(
+                "resource_type", resource.get("type", "unknown")
+            )
 
         inventory_counts[resource_type] = inventory_counts.get(resource_type, 0) + 1
 
     # Count Terraform resources by type (simple regex)
     terraform_counts: Dict[str, int] = {}
-    for inv_type, tf_type in type_mapping.items():
+    for inv_type, tf_type in terraform_type_mapping.items():
         # Match patterns like: resource "aws_lambda_function" "name" {
         pattern = rf'resource\s+"{re.escape(tf_type)}"\s+"[^"]+"\s*\{{'
-        matches = re.findall(pattern, terraform_code)
+        matches = re.findall(pattern, iac_code)
         terraform_counts[tf_type] = len(matches)
+
+    # Count CDK constructs (TypeScript and Python)
+    cdk_counts: Dict[str, int] = {}
+    for inv_type, construct_names in cdk_construct_mapping.items():
+        total_cdk_count = 0
+        for construct_name in construct_names:
+            # CDK TypeScript pattern: new ec2.Vpc( or new Vpc(
+            # Match: new <optional_module>.Construct(
+            ts_pattern = rf"new\s+(?:\w+\.)?{re.escape(construct_name)}\s*\("
+            ts_matches = re.findall(ts_pattern, iac_code)
+            total_cdk_count += len(ts_matches)
+
+            # CDK Python pattern: ec2.Vpc( or Vpc(
+            # Match: <optional_module>.Construct( but NOT "new " prefix (to avoid double counting TypeScript)
+            # Also match standalone Construct( calls
+            py_pattern = rf"(?<!new\s)(?:\w+\.)?{re.escape(construct_name)}\s*\("
+            py_matches = re.findall(py_pattern, iac_code)
+            # Filter out matches that were already counted as TypeScript (preceded by "new ")
+            # The negative lookbehind should handle this, but let's be safe
+            total_cdk_count += len(py_matches)
+
+        cdk_counts[inv_type] = total_cdk_count
 
     # Estimate coverage by comparing counts
     estimated_covered = 0
     for inv_type, inv_count in inventory_counts.items():
-        tf_type = type_mapping.get(inv_type)
-        if tf_type:
-            tf_count = terraform_counts.get(tf_type, 0)
-            # Count as covered: min of inventory count and terraform count
-            estimated_covered += min(inv_count, tf_count)
-        # For unknown types, assume not covered (conservative)
+        # Check Terraform first
+        tf_type = terraform_type_mapping.get(inv_type)
+        tf_count = terraform_counts.get(tf_type, 0) if tf_type else 0
+
+        # Check CDK constructs
+        cdk_count = cdk_counts.get(inv_type, 0)
+
+        # Total IaC resources for this type (don't double count if same resource in both)
+        total_iac_count = tf_count + cdk_count
+
+        # Count as covered: min of inventory count and IaC count
+        estimated_covered += min(inv_count, total_iac_count)
 
     return {
         "inventory_counts": inventory_counts,
         "terraform_counts": terraform_counts,
+        "cdk_counts": cdk_counts,
         "estimated_covered": estimated_covered,
         "total_inventory": len(resources),
     }
 
 
-def _parse_comparison_response(response_text: str, total_resources: int) -> Dict[str, Any]:
+def _parse_comparison_response(
+    response_text: str, total_resources: int
+) -> Dict[str, Any]:
     """Parse AI response into structured comparison result.
 
     Validates and recalculates counts based on actual list lengths to handle
@@ -624,8 +776,14 @@ def _parse_comparison_response(response_text: str, total_resources: int) -> Dict
             if represented_list_len > 0 or missing_list_len > 0:
                 # Lists have content, use them as source of truth
                 # But if AI reported higher counts, it may have truncated the lists
-                represented_count = max(represented_list_len, ai_represented) if ai_represented > represented_list_len else represented_list_len
-                missing_count = max(missing_list_len, ai_missing) if ai_missing > missing_list_len else missing_list_len
+                if ai_represented > represented_list_len:
+                    represented_count = max(represented_list_len, ai_represented)
+                else:
+                    represented_count = represented_list_len
+                if ai_missing > missing_list_len:
+                    missing_count = max(missing_list_len, ai_missing)
+                else:
+                    missing_count = missing_list_len
 
                 # Ensure counts don't exceed total
                 if represented_count + missing_count != total_resources:
@@ -638,8 +796,16 @@ def _parse_comparison_response(response_text: str, total_resources: int) -> Dict
                         missing_count = 0
             else:
                 # Empty lists - use AI-reported counts if they're valid
-                represented_count = ai_represented if isinstance(ai_represented, int) and ai_represented >= 0 else 0
-                missing_count = ai_missing if isinstance(ai_missing, int) and ai_missing >= 0 else total_resources
+                represented_count = (
+                    ai_represented
+                    if isinstance(ai_represented, int) and ai_represented >= 0
+                    else 0
+                )
+                missing_count = (
+                    ai_missing
+                    if isinstance(ai_missing, int) and ai_missing >= 0
+                    else total_resources
+                )
 
                 # Validate they sum correctly
                 if represented_count + missing_count != total_resources:
@@ -657,7 +823,11 @@ def _parse_comparison_response(response_text: str, total_resources: int) -> Dict
             result["missing_count"] = missing_count
 
             # Recalculate coverage based on validated counts
-            result["coverage_percentage"] = (represented_count / total_resources * 100) if total_resources > 0 else 0.0
+            result["coverage_percentage"] = (
+                (represented_count / total_resources * 100)
+                if total_resources > 0
+                else 0.0
+            )
 
             return result
         except json.JSONDecodeError:
@@ -671,7 +841,11 @@ def _parse_comparison_response(response_text: str, total_resources: int) -> Dict
         "represented_resources": [],
         "missing_resources": [],
         "issues": [
-            {"severity": "error", "resource": "parser", "description": "Failed to parse AI comparison response"}
+            {
+                "severity": "error",
+                "resource": "parser",
+                "description": "Failed to parse AI comparison response",
+            }
         ],
         "summary": f"Unable to parse comparison response. Raw output: {response_text[:200]}...",
     }

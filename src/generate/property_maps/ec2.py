@@ -126,7 +126,9 @@ EC2_SECURITY_GROUP_CONFIGURABLE: Dict[str, str] = {
 }
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter EC2 properties for Terraform generation.
 
     Uses the appropriate configurable dict based on resource type.

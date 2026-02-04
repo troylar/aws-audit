@@ -55,7 +55,9 @@ RECORD_SET_COMPUTED: set = {
 }
 
 
-def _extract_private_zone_config(raw_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _extract_private_zone_config(
+    raw_config: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """Extract private zone configuration into Terraform block format.
 
     Args:
@@ -127,7 +129,9 @@ def _extract_alias_target_block(raw_config: Dict[str, Any]) -> Optional[Dict[str
     return alias_block if alias_block else None
 
 
-def _extract_weighted_routing_policy(raw_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _extract_weighted_routing_policy(
+    raw_config: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """Extract weighted routing policy configuration.
 
     Args:
@@ -149,7 +153,9 @@ def _extract_weighted_routing_policy(raw_config: Dict[str, Any]) -> Optional[Dic
     }
 
 
-def _extract_latency_routing_policy(raw_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _extract_latency_routing_policy(
+    raw_config: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """Extract latency-based routing policy configuration.
 
     Args:
@@ -171,7 +177,9 @@ def _extract_latency_routing_policy(raw_config: Dict[str, Any]) -> Optional[Dict
     }
 
 
-def _extract_geolocation_routing_policy(raw_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _extract_geolocation_routing_policy(
+    raw_config: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """Extract geolocation-based routing policy configuration.
 
     Args:
@@ -203,7 +211,9 @@ def _extract_geolocation_routing_policy(raw_config: Dict[str, Any]) -> Optional[
     return geolocation_policy if geolocation_policy else None
 
 
-def _extract_geoproximity_routing_policy(raw_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _extract_geoproximity_routing_policy(
+    raw_config: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """Extract geoproximity-based routing policy configuration.
 
     Args:
@@ -323,7 +333,9 @@ def get_record_set_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Extract multivalue answer routing
     if "MultiValueAnswer" in raw_config:
-        terraform_config["multivalue_answer_routing_policy"] = {"enabled": raw_config["MultiValueAnswer"]}
+        terraform_config["multivalue_answer_routing_policy"] = {
+            "enabled": raw_config["MultiValueAnswer"]
+        }
 
     # Extract failover routing policy
     if "FailoverRoutingPolicy" in raw_config:
@@ -383,15 +395,16 @@ def _register_maps() -> None:
 _register_maps()
 
 
-
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Route53 properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "zone" in resource_type_lower:
         configurable = HOSTED_ZONE_CONFIGURABLE
     else:
         configurable = RECORD_SET_CONFIGURABLE
-    
+
     filtered = {}
     for aws_field in configurable.keys():
         if aws_field in raw_config:
@@ -400,6 +413,7 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
+
 
 __all__ = [
     "HOSTED_ZONE_CONFIGURABLE",

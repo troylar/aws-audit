@@ -309,7 +309,9 @@ def get_rds_cluster_properties(
     return configurable, computed, sensitive
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter RDS properties for Terraform generation.
 
     Args:

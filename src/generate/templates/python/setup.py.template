@@ -1,0 +1,24 @@
+import setuptools
+
+setuptools.setup(
+    name="${PROJECT_NAME}",
+    version="0.1.0",
+    description="CDK infrastructure generated from AWS inventory",
+    author="AWS Inventory Manager",
+    packages=setuptools.find_packages(),
+    install_requires=[
+        "aws-cdk-lib>=2.170.0",
+        "constructs>=10.0.0",
+    ],
+    python_requires=">=3.8",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+    ],
+)

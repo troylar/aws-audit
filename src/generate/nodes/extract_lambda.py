@@ -43,20 +43,26 @@ def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:
 
     # Count Lambda functions first
     lambda_functions = [
-        r for r in inventory
+        r
+        for r in inventory
         if r.get("type", r.get("resource_type", "")).startswith("lambda:function")
     ]
 
     if lambda_functions:
-        emit_progress("activity", {
-            "message": f"Found {len(lambda_functions)} Lambda functions",
-            "step": "extract_lambda",
-            "count": len(lambda_functions),
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Found {len(lambda_functions)} Lambda functions",
+                "step": "extract_lambda",
+                "count": len(lambda_functions),
+            },
+        )
 
     extracted_count = 0
     for i, resource_dict in enumerate(lambda_functions):
-        resource_type = resource_dict.get("type", resource_dict.get("resource_type", ""))
+        resource_type = resource_dict.get(
+            "type", resource_dict.get("resource_type", "")
+        )
 
         resource = TrackedResource.from_inventory(resource_dict)
         lambda_code = LambdaCode.from_resource(resource)
@@ -64,13 +70,16 @@ def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:
         if not lambda_code.code_stored or not lambda_code.code_base64:
             continue
 
-        emit_progress("activity", {
-            "message": f"Extracting {lambda_code.function_name}",
-            "step": "extract_lambda",
-            "function": lambda_code.function_name,
-            "index": i + 1,
-            "total": len(lambda_functions),
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Extracting {lambda_code.function_name}",
+                "step": "extract_lambda",
+                "function": lambda_code.function_name,
+                "index": i + 1,
+                "total": len(lambda_functions),
+            },
+        )
 
         try:
             zip_path = lambda_code.extract_to(lambda_dir)
@@ -87,11 +96,14 @@ def extract_lambda_code(state: GenerationState) -> Dict[str, Any]:
             )
 
     if extracted_count > 0:
-        emit_progress("activity", {
-            "message": f"Extracted {extracted_count} Lambda packages",
-            "step": "extract_lambda",
-            "extracted": extracted_count,
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Extracted {extracted_count} Lambda packages",
+                "step": "extract_lambda",
+                "extracted": extracted_count,
+            },
+        )
 
     return {
         "lambda_code_paths": lambda_code_paths,

@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+import aws_cdk as cdk
+${STACK_IMPORTS}
+
+app = cdk.App()
+
+${STACK_INSTANTIATIONS}
+
+app.synth()

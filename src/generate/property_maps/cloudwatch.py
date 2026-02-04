@@ -145,7 +145,9 @@ def get_log_group_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter CloudWatch properties for Terraform generation.
 
     Uses ALARM_CONFIGURABLE or LOG_GROUP_CONFIGURABLE as whitelist

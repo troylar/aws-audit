@@ -58,7 +58,9 @@ LAMBDA_COMPUTED = {
 }
 
 
-def _transform_vpc_config(vpc_config: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _transform_vpc_config(
+    vpc_config: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
     """Transform VPC configuration to Terraform format.
 
     Args:

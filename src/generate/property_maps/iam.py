@@ -171,7 +171,9 @@ def get_iam_instance_profile_properties(raw_config: Dict[str, Any]) -> Dict[str,
     return terraform_config
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter IAM properties for Terraform generation.
 
     Uses the appropriate CONFIGURABLE dict as whitelist based on resource type.
@@ -188,7 +190,10 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
 
     if "policy" in resource_type_lower and "role" not in resource_type_lower:
         configurable = IAM_POLICY_CONFIGURABLE
-    elif "instanceprofile" in resource_type_lower or "instance_profile" in resource_type_lower:
+    elif (
+        "instanceprofile" in resource_type_lower
+        or "instance_profile" in resource_type_lower
+    ):
         configurable = IAM_INSTANCE_PROFILE_CONFIGURABLE
     else:
         # Default to role

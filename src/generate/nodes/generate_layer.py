@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Tuple
 
 import boto3
 
 from ...models.generation import Layer, ResourceMap
 from ..layers import LayerStatus
+from ..prompts.cdk_python import (
+    format_layer_prompt_python,
+    get_cdk_python_system_prompt,
+)
+from ..prompts.cdk_typescript import (
+    format_layer_prompt_typescript,
+    get_cdk_typescript_system_prompt,
+)
 from ..prompts.terraform import (
     format_layer_prompt,
     get_terraform_system_prompt,
@@ -16,10 +24,100 @@ from ..prompts.terraform import (
 from ..state import GenerationConfig, GenerationState, emit_progress
 
 
-def generate_layer(state: GenerationState) -> Dict[str, Any]:
-    """Generate Terraform for the current layer using AI.
+def get_prompts_for_format(
+    output_format: str,
+) -> Tuple[Callable[[], str], Callable[..., str]]:
+    """Get the appropriate prompt functions for the output format.
 
-    Calls AWS Bedrock to generate Terraform HCL for resources in the current layer.
+    Args:
+        output_format: One of 'terraform', 'cdk-typescript', 'cdk-python'
+
+    Returns:
+        Tuple of (system_prompt_fn, layer_prompt_fn)
+    """
+    if output_format == "cdk-typescript":
+        return (get_cdk_typescript_system_prompt, format_layer_prompt_typescript)
+    elif output_format == "cdk-python":
+        return (get_cdk_python_system_prompt, format_layer_prompt_python)
+    else:
+        # Default to terraform
+        return (get_terraform_system_prompt, format_layer_prompt)
+
+
+def _get_file_extension(output_format: str) -> str:
+    """Get the file extension for the output format.
+
+    Args:
+        output_format: One of 'terraform', 'cdk-typescript', 'cdk-python'
+
+    Returns:
+        File extension including the dot (e.g., '.tf', '.ts', '.py')
+    """
+    if output_format == "cdk-typescript":
+        return ".ts"
+    elif output_format == "cdk-python":
+        return ".py"
+    else:
+        return ".tf"
+
+
+def _get_format_label(output_format: str) -> str:
+    """Get a human-readable label for the output format.
+
+    Args:
+        output_format: One of 'terraform', 'cdk-typescript', 'cdk-python'
+
+    Returns:
+        Human-readable label (e.g., 'Terraform', 'CDK TypeScript')
+    """
+    if output_format == "cdk-typescript":
+        return "CDK TypeScript"
+    elif output_format == "cdk-python":
+        return "CDK Python"
+    else:
+        return "Terraform"
+
+
+def _clean_code(code: str, output_format: str) -> str:
+    """Remove markdown code blocks based on output format.
+
+    Args:
+        code: Raw code potentially wrapped in markdown
+        output_format: One of 'terraform', 'cdk-typescript', 'cdk-python'
+
+    Returns:
+        Cleaned code without markdown formatting
+    """
+    code = code.strip()
+
+    # Define possible markdown prefixes for each format
+    prefixes = {
+        "terraform": ["```hcl", "```terraform", "```tf"],
+        "cdk-typescript": ["```typescript", "```ts", "```tsx"],
+        "cdk-python": ["```python", "```py"],
+    }
+
+    format_prefixes = prefixes.get(output_format, prefixes["terraform"])
+
+    for prefix in format_prefixes:
+        if code.startswith(prefix):
+            code = code[len(prefix) :]
+            break
+    else:
+        # Generic markdown block
+        if code.startswith("```"):
+            code = code[3:]
+
+    if code.endswith("```"):
+        code = code[:-3]
+
+    return code.strip()
+
+
+def generate_layer(state: GenerationState) -> Dict[str, Any]:
+    """Generate IaC code for the current layer using AI.
+
+    Calls AWS Bedrock to generate Terraform/CDK code for resources in the current layer.
 
     Args:
         state: Current state with layers, resource_map, and config
@@ -33,11 +131,14 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     layers: Dict[str, List[Dict[str, Any]]] = state.get("layers", {})
     layer_order: List[str] = state.get("layer_order", [])
     raw_resource_map = state.get("resource_map")
-    resource_map = raw_resource_map if isinstance(raw_resource_map, ResourceMap) else ResourceMap()
+    resource_map = (
+        raw_resource_map if isinstance(raw_resource_map, ResourceMap) else ResourceMap()
+    )
     current_layer_index: int = state.get("current_layer_index", 0)
     generated_files: List[str] = list(state.get("generated_files", []))
     output_dir: str = state.get("output_dir", "./terraform")
     lambda_code_paths: Dict[str, str] = state.get("lambda_code_paths", {})
+    output_format: str = state.get("output_format", "terraform")
 
     config = GenerationConfig.from_env()
 
@@ -54,11 +155,14 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
         }
 
     # Emit progress: starting layer generation
-    emit_progress("activity", {
-        "message": f"Preparing {layer_name} layer ({len(layer_resources)} resources)",
-        "layer": layer_name,
-        "resource_count": len(layer_resources),
-    })
+    emit_progress(
+        "activity",
+        {
+            "message": f"Preparing {layer_name} layer ({len(layer_resources)} resources)",
+            "layer": layer_name,
+            "resource_count": len(layer_resources),
+        },
+    )
 
     layer = Layer(
         name=layer_name,
@@ -69,21 +173,30 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
 
     try:
         # Emit progress: creating Bedrock client
-        emit_progress("activity", {
-            "message": f"Connecting to Bedrock ({config.bedrock_region})",
-            "layer": layer_name,
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Connecting to Bedrock ({config.bedrock_region})",
+                "layer": layer_name,
+            },
+        )
 
         client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
 
         # Emit progress: building prompt
-        emit_progress("activity", {
-            "message": f"Building prompt for {len(layer_resources)} resources",
-            "layer": layer_name,
-        })
+        format_label = _get_format_label(output_format)
+        emit_progress(
+            "activity",
+            {
+                "message": f"Building {format_label} prompt for {len(layer_resources)} resources",
+                "layer": layer_name,
+            },
+        )
 
-        system_prompt = get_terraform_system_prompt()
-        user_prompt = format_layer_prompt(
+        # Get appropriate prompts for the output format
+        get_system_prompt, format_layer = get_prompts_for_format(output_format)
+        system_prompt = get_system_prompt()
+        user_prompt = format_layer(
             layer=layer,
             resource_map=resource_map,
             previous_layers=generated_files,
@@ -91,14 +204,17 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
         )
 
         # Emit progress: calling AI
-        emit_progress("activity", {
-            "message": f"Calling AI to generate Terraform ({config.bedrock_model_id.split('/')[-1]})",
-            "layer": layer_name,
-            "model": config.bedrock_model_id,
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Calling AI to generate {format_label} ({config.bedrock_model_id.split('/')[-1]})",
+                "layer": layer_name,
+                "model": config.bedrock_model_id,
+            },
+        )
 
         # Use streaming API for real-time progress
-        terraform_code = ""
+        generated_code = ""
         token_count = 0
 
         try:
@@ -124,18 +240,21 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
                     if "contentBlockDelta" in event:
                         delta = event["contentBlockDelta"].get("delta", {})
                         if "text" in delta:
-                            terraform_code += delta["text"]
+                            generated_code += delta["text"]
                             token_count += 1
                             # Emit progress every 50 tokens
                             if token_count % 50 == 0:
-                                emit_progress("activity", {
-                                    "message": f"Generating code... ({token_count} tokens)",
-                                    "layer": layer_name,
-                                    "tokens": token_count,
-                                })
+                                emit_progress(
+                                    "activity",
+                                    {
+                                        "message": f"Generating code... ({token_count} tokens)",
+                                        "layer": layer_name,
+                                        "tokens": token_count,
+                                    },
+                                )
 
             # If streaming didn't produce any code, fall back to non-streaming
-            if not terraform_code:
+            if not generated_code:
                 raise ValueError("Streaming produced no output")
 
         except Exception:
@@ -154,64 +273,80 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
                     "maxTokens": config.max_tokens,
                 },
             )
-            terraform_code = response["output"]["message"]["content"][0]["text"] or ""
+            generated_code = response["output"]["message"]["content"][0]["text"] or ""
 
         # Emit progress: processing response
-        emit_progress("activity", {
-            "message": f"Processing AI response ({len(terraform_code)} chars)",
-            "layer": layer_name,
-            "code_length": len(terraform_code),
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Processing AI response ({len(generated_code)} chars)",
+                "layer": layer_name,
+                "code_length": len(generated_code),
+            },
+        )
 
-        terraform_code = _clean_terraform_code(terraform_code)
+        generated_code = _clean_code(generated_code, output_format)
 
         # Emit progress: replacing IDs
-        emit_progress("activity", {
-            "message": "Replacing AWS IDs with Terraform references",
-            "layer": layer_name,
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Replacing AWS IDs with {format_label} references",
+                "layer": layer_name,
+            },
+        )
 
-        terraform_code = resource_map.replace_ids_in_code(terraform_code)
+        generated_code = resource_map.replace_ids_in_code(generated_code)
 
         # Emit progress: saving file
-        emit_progress("activity", {
-            "message": f"Saving {layer_name} Terraform file",
-            "layer": layer_name,
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Saving {layer_name} {format_label} file",
+                "layer": layer_name,
+            },
+        )
 
         output_file = _save_layer_file(
             layer=layer,
-            code=terraform_code,
+            code=generated_code,
             output_dir=output_dir,
+            output_format=output_format,
         )
 
         layer.status = LayerStatus.COMPLETED.value
-        layer.generated_code = terraform_code
+        layer.generated_code = generated_code
 
         layers[layer_name] = layer_resources
 
         # Emit progress: layer complete
-        emit_progress("activity", {
-            "message": f"Completed {layer_name} layer",
-            "layer": layer_name,
-            "file": output_file,
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Completed {layer_name} layer",
+                "layer": layer_name,
+                "file": output_file,
+            },
+        )
 
         return {
             "layers": layers,
             "generated_files": [output_file],
-            "generated_code": {layer_name: terraform_code},
+            "generated_code": {layer_name: generated_code},
             "current_layer_index": current_layer_index + 1,
             "current_layer_status": LayerStatus.COMPLETED.value,
         }
 
     except Exception as e:
         layer.status = LayerStatus.FAILED.value
-        emit_progress("activity", {
-            "message": f"Failed: {str(e)[:50]}",
-            "layer": layer_name,
-            "error": str(e),
-        })
+        emit_progress(
+            "activity",
+            {
+                "message": f"Failed: {str(e)[:50]}",
+                "layer": layer_name,
+                "error": str(e),
+            },
+        )
         return {
             "layers": layers,
             "errors": [{"message": f"Failed to generate {layer_name}: {e}"}],
@@ -237,23 +372,65 @@ def _clean_terraform_code(code: str) -> str:
     return code.strip()
 
 
-def _save_layer_file(layer: Layer, code: str, output_dir: str) -> str:
-    """Save generated Terraform to a file.
+def _save_layer_file(
+    layer: Layer, code: str, output_dir: str, output_format: str = "terraform"
+) -> str:
+    """Save generated IaC code to a file.
 
-    File naming: layer_{order}_{name}.tf
-    Example: layer_01_network.tf
+    File naming varies by format:
+    - Terraform: layer_{order}_{name}.tf (e.g., layer_01_network.tf)
+    - CDK TypeScript: {name}_stack.ts (e.g., network_stack.ts)
+    - CDK Python: {name}_stack.py (e.g., network_stack.py)
+
+    Args:
+        layer: The layer being saved
+        code: Generated code to save
+        output_dir: Directory to save the file in
+        output_format: Output format (terraform, cdk-typescript, cdk-python)
+
+    Returns:
+        Path to the saved file
     """
     os.makedirs(output_dir, exist_ok=True)
 
     safe_name = layer.name.lower().replace(" ", "_").replace("-", "_")
-    filename = f"layer_{layer.order:02d}_{safe_name}.tf"
+    extension = _get_file_extension(output_format)
+
+    if output_format == "terraform":
+        filename = f"layer_{layer.order:02d}_{safe_name}{extension}"
+    else:
+        # CDK uses stack naming convention
+        # Put stacks in a stacks/ subdirectory for CDK projects
+        stacks_dir = os.path.join(
+            output_dir, "stacks" if output_format == "cdk-python" else "lib"
+        )
+        os.makedirs(stacks_dir, exist_ok=True)
+        filename = f"{safe_name}_stack{extension}"
+        output_dir = stacks_dir
+
     filepath = os.path.join(output_dir, filename)
 
-    header = f"""# {layer.name}
+    # Generate appropriate header based on format
+    if output_format == "terraform":
+        header = f"""# {layer.name}
 # Generated by aws-inventory-manager
 # Resources: {len(layer.resources)}
 
 """
+    elif output_format == "cdk-typescript":
+        header = f"""// {layer.name} Stack
+// Generated by aws-inventory-manager
+// Resources: {len(layer.resources)}
+
+"""
+    else:  # cdk-python
+        header = f'''"""
+{layer.name} Stack
+Generated by aws-inventory-manager
+Resources: {len(layer.resources)}
+"""
+
+'''
 
     with open(filepath, "w") as f:
         f.write(header + code)

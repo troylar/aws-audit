@@ -153,7 +153,9 @@ def _extract_stickiness_block(raw_config: Dict[str, Any]) -> Optional[Dict[str, 
             value = attr.get("Value")
 
             if key == "stickiness.enabled":
-                stickiness_config["enabled"] = value.lower() == "true" if value else False
+                stickiness_config["enabled"] = (
+                    value.lower() == "true" if value else False
+                )
             elif key == "stickiness.type":
                 stickiness_config["type"] = value
             elif key == "stickiness.lb_cookie.duration_seconds":
@@ -373,8 +375,9 @@ def _register_maps() -> None:
 _register_maps()
 
 
-
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Elb properties for Terraform generation."""
     resource_type_lower = resource_type.lower()
     if "nlb" in resource_type_lower:
@@ -383,7 +386,7 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
         configurable = TARGET_GROUP_CONFIGURABLE
     else:
         configurable = LISTENER_CONFIGURABLE
-    
+
     filtered = {}
     for aws_field in configurable.keys():
         if aws_field in raw_config:
@@ -392,6 +395,7 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
+
 
 __all__ = [
     "ALB_NLB_CONFIGURABLE",

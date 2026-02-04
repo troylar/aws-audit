@@ -35,7 +35,9 @@ EFS_FILESYSTEM_COMPUTED: Dict[str, str] = {
 }
 
 
-def process_lifecycle_policies(raw_policies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def process_lifecycle_policies(
+    raw_policies: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """Transform AWS lifecycle policies to Terraform format.
 
     AWS LifecyclePolicies format:
@@ -67,7 +69,9 @@ def process_lifecycle_policies(raw_policies: List[Dict[str, Any]]) -> List[Dict[
             tf_policy["transition_to_ia"] = policy["TransitionToIA"]
 
         if "TransitionToPrimaryStorageClass" in policy:
-            tf_policy["transition_to_primary_storage_class"] = policy["TransitionToPrimaryStorageClass"]
+            tf_policy["transition_to_primary_storage_class"] = policy[
+                "TransitionToPrimaryStorageClass"
+            ]
 
         if tf_policy:
             terraform_policies.append(tf_policy)
@@ -102,7 +106,9 @@ def get_efs_filesystem_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Handle lifecycle policies if present
     if "LifecyclePolicies" in raw_config:
-        lifecycle_policies = process_lifecycle_policies(raw_config.get("LifecyclePolicies", []))
+        lifecycle_policies = process_lifecycle_policies(
+            raw_config.get("LifecyclePolicies", [])
+        )
         if lifecycle_policies:
             properties["lifecycle_policy"] = lifecycle_policies
 
@@ -152,8 +158,9 @@ register_property_map(
 )
 
 
-
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Efs properties for Terraform generation."""
     configurable = EFS_FILESYSTEM_CONFIGURABLE
     filtered = {}
@@ -164,6 +171,7 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
+
 
 __all__ = [
     "EFS_FILESYSTEM_CONFIGURABLE",

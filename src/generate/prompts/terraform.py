@@ -88,7 +88,9 @@ def format_layer_prompt(
     context_text = ""
     if previous_layers:
         context_text = "\n\n## Previously Generated Layers\n\n"
-        context_text += "These resources are already defined and available for reference:\n"
+        context_text += (
+            "These resources are already defined and available for reference:\n"
+        )
         for layer_file in previous_layers:
             context_text += f"- {layer_file}\n"
 
@@ -135,7 +137,9 @@ def format_resource_for_prompt(
     """
     property_map = get_property_map(resource.resource_type)
 
-    props = _filter_properties(resource.raw_config, property_map, resource.resource_type)
+    props = _filter_properties(
+        resource.raw_config, property_map, resource.resource_type
+    )
 
     lines = [
         f"### {resource.resource_type}: {resource.resource_id if hasattr(resource, 'resource_id') else resource.name}",
@@ -153,7 +157,9 @@ def format_resource_for_prompt(
     if lambda_code_paths and resource.name in lambda_code_paths:
         code_path = lambda_code_paths[resource.name]
         lines.append(f"\n**Lambda Code File:** `{code_path}`")
-        lines.append("(Use `filename = \"{code_path}\"` in the aws_lambda_function resource)")
+        lines.append(
+            '(Use `filename = "{code_path}"` in the aws_lambda_function resource)'
+        )
 
     lines.append("\n**Properties:**")
     lines.append("```json")

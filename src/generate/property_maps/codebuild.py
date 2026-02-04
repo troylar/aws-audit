@@ -63,7 +63,9 @@ def _transform_source(source: Optional[Dict[str, Any]]) -> Optional[Dict[str, An
     return result if result else None
 
 
-def _transform_artifacts(artifacts: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _transform_artifacts(
+    artifacts: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
     """Transform Artifacts configuration to Terraform format.
 
     Args:
@@ -107,7 +109,9 @@ def _transform_artifacts(artifacts: Optional[Dict[str, Any]]) -> Optional[Dict[s
     return result if result else None
 
 
-def _transform_environment(environment: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _transform_environment(
+    environment: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
     """Transform Environment configuration to Terraform format.
 
     Args:
@@ -160,7 +164,9 @@ def _transform_environment(environment: Optional[Dict[str, Any]]) -> Optional[Di
     return result if result else None
 
 
-def _transform_vpc_config(vpc_config: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _transform_vpc_config(
+    vpc_config: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
     """Transform VPC configuration to Terraform format.
 
     Args:
@@ -244,8 +250,9 @@ register_property_map("codebuild:project", __name__)
 register_property_map("codebuild", __name__)
 
 
-
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Codebuild properties for Terraform generation."""
     configurable = CODEBUILD_PROJECT_CONFIGURABLE
     filtered = {}
@@ -256,6 +263,7 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
+
 
 __all__ = [
     "CODEBUILD_PROJECT_CONFIGURABLE",

@@ -6,8 +6,6 @@ for ECS Clusters, Services, and Task Definitions.
 
 from typing import Any, Dict
 
-from . import register_property_map
-
 # ECS Cluster configurable properties
 ECS_CLUSTER_CONFIGURABLE: Dict[str, str] = {
     "ClusterName": "name",
@@ -189,7 +187,9 @@ def get_ecs_task_definition_properties(raw_config: Dict[str, Any]) -> Dict[str, 
     return terraform_config
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter ECS properties for Terraform generation.
 
     Args:

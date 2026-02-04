@@ -38,7 +38,9 @@ def _transform_policy(policy: Optional[str]) -> Optional[Dict[str, str]]:
     return {"policy": policy}
 
 
-def _transform_delivery_policy(delivery_policy: Optional[str]) -> Optional[Dict[str, str]]:
+def _transform_delivery_policy(
+    delivery_policy: Optional[str],
+) -> Optional[Dict[str, str]]:
     """Transform delivery policy to Terraform format.
 
     Args:
@@ -100,7 +102,9 @@ def get_sns_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
     return properties
 
 
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter SNS properties for Terraform generation.
 
     Uses SNS_CONFIGURABLE as whitelist.

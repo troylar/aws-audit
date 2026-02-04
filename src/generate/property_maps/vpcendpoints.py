@@ -210,7 +210,11 @@ def get_vpc_endpoint_properties(raw_config: Dict[str, Any]) -> Dict[str, Any]:
                     parsed_value = _parse_policy_document(value)
                     if parsed_value is not None:
                         terraform_config[tf_key] = parsed_value
-                elif tf_key not in ["subnet_ids", "security_group_ids", "route_table_ids"]:
+                elif tf_key not in [
+                    "subnet_ids",
+                    "security_group_ids",
+                    "route_table_ids",
+                ]:
                     terraform_config[tf_key] = value
 
     # Extract security group IDs with special handling
@@ -267,8 +271,9 @@ def _register_maps() -> None:
 _register_maps()
 
 
-
-def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Dict[str, Any]:
+def filter_properties(
+    raw_config: Dict[str, Any], resource_type: str = ""
+) -> Dict[str, Any]:
     """Filter Vpcendpoints properties for Terraform generation."""
     configurable = VPC_ENDPOINT_CONFIGURABLE
     filtered = {}
@@ -279,6 +284,7 @@ def filter_properties(raw_config: Dict[str, Any], resource_type: str = "") -> Di
                 if not (isinstance(value, (list, dict)) and not value):
                     filtered[aws_field] = value
     return filtered
+
 
 __all__ = [
     "VPC_ENDPOINT_CONFIGURABLE",

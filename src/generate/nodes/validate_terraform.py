@@ -33,7 +33,11 @@ def terraform_init(state: GenerationState) -> Dict[str, Any]:
     # Skip if no files were generated
     if not generated_files:
         logger.warning("No generated files to validate")
-        return {"init_success": False, "validation_errors": [], "validation_skipped": True}
+        return {
+            "init_success": False,
+            "validation_errors": [],
+            "validation_skipped": True,
+        }
 
     # Check if terraform CLI is available
     terraform_path = shutil.which("terraform")
@@ -127,7 +131,9 @@ def terraform_validate(state: GenerationState) -> Dict[str, Any]:
                             error_msg += f" - {detail}"
                         validation_errors.append(error_msg)
             except json.JSONDecodeError:
-                validation_errors.append(f"terraform validate failed: {validate_result.stderr.strip()}")
+                validation_errors.append(
+                    f"terraform validate failed: {validate_result.stderr.strip()}"
+                )
 
             logger.warning(f"terraform validate found {len(validation_errors)} errors")
         else:
