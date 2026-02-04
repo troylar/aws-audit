@@ -89,7 +89,7 @@ class GenerationProgressDisplay:
         },
         WorkflowStep.BUILD_RESOURCE_MAP: {
             "name": "Build Resource Map",
-            "icon": "🗺",
+            "icon": "🔗",
             "description": "Creating AWS ID to reference mapping",
         },
         WorkflowStep.CATEGORIZE_LAYERS: {
