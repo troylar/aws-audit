@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-02-04
+
+### Fixed
+- **CDK Progress Display**: Show format-specific UI during generation
+  - Header shows "CDK TypeScript Generation" or "CDK Python Generation" instead of "Terraform"
+  - Step names update: "Generate CDK", "NPM Build", "CDK Synth" for CDK formats
+  - Fixed icon spacing inconsistencies in progress display
+
+- **Coverage Detection**: Expanded resource type mappings from 27 to 102 types
+  - Added IAM: instance-profile, user, group
+  - Added ECS: cluster, service, task-definition
+  - Added EKS: cluster, nodegroup, fargate-profile
+  - Added Load Balancing: ALB, NLB, target-group, listener
+  - Added API Gateway v1/v2: resource, method, stage, route, integration
+  - Added Glue: database, table, crawler, job, trigger, workflow
+  - Added Route53: hosted-zone, record-set, health-check
+  - Added 60+ additional resource types for accurate coverage reporting
+
 ## [1.0.1] - 2026-02-04
 
 ### Fixed
