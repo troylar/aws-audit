@@ -1058,6 +1058,41 @@ overrides:
       action: BLOCK
 ```
 
+**Complete Schema Reference:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Policy Level** | | |
+| `name` | Yes | Policy name |
+| `version` | Yes | Policy version (e.g., "1.0") |
+| `description` | No | Policy description |
+| `context` | No | Variables for `env()` function |
+| `context_overrides` | No | Per-environment context overrides |
+| `guardrails` | Yes | List of guardrail definitions |
+| `overrides` | No | Per-environment guardrail overrides |
+| **Guardrail Level** | | |
+| `id` | Yes | Unique ID (format: `PREFIX-CAT-NNN`, e.g., `GR-ENC-001`) |
+| `short_description` | Yes | Brief description (max 100 chars) |
+| `severity` | Yes | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` |
+| `action` | Yes | `BLOCK`, `AUTO-FIX`, or `WARN` |
+| `applies_to` | Yes | Resource patterns: `["s3:bucket"]`, `["ec2:*"]`, `["*"]` |
+| `condition` | * | Formula expression (mutually exclusive with AI rules) |
+| `ai_fail_if` | * | AI evaluates - fails if true (for BLOCK) |
+| `ai_warn_if` | * | AI evaluates - warns if true (for WARN) |
+| `ai_notify_if` | * | AI evaluates - notifies if true (for INFO) |
+| `auto_fix` | No | Config to merge when fixing (for AUTO-FIX action) |
+| `ai_context` | No | Context for AI evaluation/fixing |
+| `long_description` | No | Detailed explanation |
+| `enabled` | No | Enable/disable guardrail (default: true) |
+| `tags` | No | Categorization tags (e.g., `["security", "encryption"]`) |
+| **Override Level** | | |
+| `guardrail_id` | Yes | ID of guardrail to override |
+| `severity` | No | Override severity |
+| `action` | No | Override action |
+| `enabled` | No | Enable/disable for this environment |
+
+\* Must have either `condition` OR one of the AI rules (`ai_fail_if`/`ai_warn_if`/`ai_notify_if`), not both.
+
 **Formula Syntax:**
 
 Conditions use a Python-like expression language:
