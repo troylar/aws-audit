@@ -958,6 +958,9 @@ awsinv generate terraform my-snapshot --guardrails --guardrails-report report.js
 # Disable AI auto-fix (default: enabled)
 awsinv generate terraform my-snapshot --guardrails --no-guardrails-auto-fix
 
+# Dry-run to preview guardrails evaluation
+awsinv generate terraform my-snapshot --guardrails --dry-run
+
 # ─────────────────────────────────────────────────────────────
 # STANDALONE COMPLIANCE CHECK (for CI/CD)
 # ─────────────────────────────────────────────────────────────
@@ -977,11 +980,22 @@ awsinv guardrails check my-snapshot --format json
 awsinv guardrails list
 awsinv guardrails list --severity CRITICAL
 awsinv guardrails list --category ENC
+
+# ─────────────────────────────────────────────────────────────
+# POLICY MANAGEMENT
+# ─────────────────────────────────────────────────────────────
+# Validate a policy file before using it
+awsinv guardrails validate ./policy.yaml
+awsinv guardrails validate ./policy.yaml --verbose
+
+# Generate guardrails from natural language (requires Bedrock)
+awsinv guardrails create "S3 buckets must have encryption"
+awsinv guardrails generate "production security baseline" --count 10
 ```
 
 **Custom Policy File:**
 
-Create a YAML policy with your organization's guardrails:
+Create a YAML policy with formula-based conditions:
 
 ```yaml
 # policy.yaml
@@ -989,66 +1003,130 @@ name: acme-security-policy
 version: "1.0"
 description: ACME Corp security standards
 
+# Context variables for cross-resource references
+context:
+  APPROVED_VPC: "vpc-12345678"
+  REQUIRED_KMS_KEY: "alias/enterprise-key"
+
+# Per-environment context overrides
+context_overrides:
+  production:
+    APPROVED_VPC: "vpc-prod-abcd"
+
 guardrails:
-  - id: ACME-SEC-001
+  - id: ACME-ENC-001
     short_description: S3 buckets must have encryption enabled
     severity: CRITICAL
     action: AUTO-FIX
-    applies_to:
-      - s3:bucket
-    condition:
-      attribute: ServerSideEncryptionConfiguration
-      operator: exists
-    ai_context: |
-      WHY: All data at rest must be encrypted per ACME security policy.
-      HOW TO FIX: Add server_side_encryption_configuration with AES256 or aws:kms.
+    applies_to: ["s3:bucket"]
+    condition: "Encryption exists"
+    auto_fix:
+      Encryption:
+        SSEAlgorithm: "aws:kms"
 
-  - id: ACME-SEC-002
+  - id: ACME-NET-001
+    short_description: EC2 must use approved VPC
+    severity: HIGH
+    action: BLOCK
+    applies_to: ["ec2:instance"]
+    condition: "get('VpcId') == env('APPROVED_VPC')"
+
+  - id: ACME-TAG-001
     short_description: Resources must have Owner tag
     severity: HIGH
     action: WARN
-    applies_to:
-      - "*"
-    condition:
-      attribute: Tags.Owner
-      operator: exists
+    applies_to: ["*"]
+    condition: "Tags exists and exists(get('Tags.Owner'))"
+
+  # AI-evaluated guardrails (for complex checks)
+  - id: ACME-SEC-001
+    short_description: No secrets in Lambda environment
+    severity: CRITICAL
+    action: BLOCK
+    applies_to: ["lambda:function"]
+    ai_fail_if: "Lambda environment variables contain hardcoded secrets"
+    ai_context: "Check for AWS keys, database passwords, API tokens"
 
 # Environment-specific overrides
 overrides:
   development:
-    - guardrail_id: ACME-SEC-001
+    - guardrail_id: ACME-ENC-001
       severity: MEDIUM
       action: WARN
   production:
-    - guardrail_id: ACME-SEC-002
+    - guardrail_id: ACME-TAG-001
       action: BLOCK
 ```
 
-**Condition Operators:**
+**Formula Syntax:**
 
-| Operator | Description | Example |
+Conditions use a Python-like expression language:
+
+```yaml
+# Check if attribute exists
+condition: "Encryption exists"
+condition: "PublicIp not exists"
+
+# Compare values
+condition: "get('InstanceType') == 't3.micro'"
+condition: "get('Engine') in ['mysql', 'postgres']"
+condition: "get('AllocatedStorage') >= 100"
+
+# Nested attributes
+condition: "get('Encryption.SSEAlgorithm') == 'aws:kms'"
+
+# Boolean logic
+condition: "Encryption exists and get('Encryption.SSEAlgorithm') == 'aws:kms'"
+
+# Cross-resource context with env()
+condition: "get('VpcId') == env('ACCOUNT_VPC')"
+condition: "get('KmsKeyId') == env('REQUIRED_KMS_KEY')"
+```
+
+| Function | Description | Example |
 |----------|-------------|---------|
-| `exists` | Attribute must exist | `Encryption exists` |
-| `not_exists` | Attribute must not exist | `PublicAccess not_exists` |
-| `equals` | Exact value match | `StorageEncrypted equals true` |
-| `not_equals` | Value must differ | `InstanceType not_equals t2.micro` |
-| `contains` | String/list contains value | `Tags contains "prod"` |
-| `matches` | Regex pattern match | `Name matches "^prod-.*"` |
-| `in` | Value in allowed list | `Region in ["us-east-1", "us-west-2"]` |
-| `greater_than` | Numeric comparison | `VolumeSize greater_than 100` |
+| `get(path)` | Get nested attribute | `get('Tags.Environment')` |
+| `exists(val)` | Check if value exists | `exists(get('Encryption'))` |
+| `env(key)` | Get context variable | `env('APPROVED_VPC')` |
+| `count(val)` | Count items | `count(get('Subnets')) >= 2` |
+| `matches(val, pattern)` | Regex match | `matches(get('Name'), '^prod-')` |
+
+See [docs/guardrails/formula-syntax.md](docs/guardrails/formula-syntax.md) for complete reference.
 
 **AI Auto-Fix:**
 
-When a guardrail has `action: AUTO-FIX` and includes `ai_context`, the tool uses AWS Bedrock to automatically generate configuration fixes:
+When a guardrail has `action: AUTO-FIX`, the tool automatically applies the fix configuration:
 
-1. Guardrail fails → AI analyzes the violation
-2. AI generates configuration changes
-3. Fix is applied to generated IaC
-4. Evaluation marked as `AUTO_FIXED`
+```yaml
+- id: GR-ENC-001
+  action: AUTO-FIX
+  condition: "Encryption exists"
+  auto_fix:
+    Encryption:
+      SSEAlgorithm: "aws:kms"
+      KMSMasterKeyID: "alias/my-key"
+```
 
-Requirements:
-- Bedrock access configured in AWS
-- Guardrail must have `ai_context` with remediation guidance
+For AI-powered fixes (complex scenarios), add `ai_context`:
+
+```yaml
+- id: GR-SEC-001
+  action: AUTO-FIX
+  ai_fail_if: "Security group allows SSH from 0.0.0.0/0"
+  ai_context: |
+    WHY: Open SSH access is a security risk.
+    HOW TO FIX: Restrict to specific CIDR blocks or remove the rule.
+```
+
+**Conflict Detection:**
+
+When auto-fixes are applied, the system detects if a fix violates another guardrail:
+
+```
+Conflict detected:
+  Original: GR-ENC-001 (add encryption)
+  Conflicts with: GR-KMS-001 (must use specific KMS key)
+```
 
 **CI/CD Integration:**
 
