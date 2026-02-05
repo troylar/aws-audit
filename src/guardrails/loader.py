@@ -9,7 +9,6 @@ import yaml
 
 from .models import (
     Action,
-    Condition,
     Guardrail,
     GuardrailLoadError,
     GuardrailPolicy,
@@ -111,22 +110,28 @@ def _process_includes(includes: List[str]) -> List[Dict[str, Any]]:
 
 def _guardrail_to_dict(guardrail: Guardrail) -> Dict[str, Any]:
     """Convert a Guardrail object back to a dictionary."""
-    return {
+    result: Dict[str, Any] = {
         "id": guardrail.id,
         "short_description": guardrail.short_description,
         "severity": guardrail.severity.value,
         "action": guardrail.action.value,
         "applies_to": guardrail.applies_to,
-        "condition": {
-            "attribute": guardrail.condition.attribute,
-            "operator": guardrail.condition.operator,
-            "value": guardrail.condition.value,
-            "type": guardrail.condition.type,
-        },
         "ai_context": guardrail.ai_context,
         "enabled": guardrail.enabled,
         "tags": guardrail.tags,
     }
+
+    # Add condition or AI rule (mutually exclusive)
+    if guardrail.condition:
+        result["condition"] = guardrail.condition
+    elif guardrail.ai_fail_if:
+        result["ai_fail_if"] = guardrail.ai_fail_if
+    elif guardrail.ai_warn_if:
+        result["ai_warn_if"] = guardrail.ai_warn_if
+    elif guardrail.ai_notify_if:
+        result["ai_notify_if"] = guardrail.ai_notify_if
+
+    return result
 
 
 def load_builtin_guardrails() -> List[Guardrail]:
@@ -170,12 +175,18 @@ def _parse_policy(policy_dict: Dict[str, Any]) -> GuardrailPolicy:
         if isinstance(env_overrides, list):
             overrides[env] = [_parse_override(o_dict) for o_dict in env_overrides if isinstance(o_dict, dict)]
 
+    # Parse context and context_overrides
+    context: Dict[str, Any] = policy_dict.get("context", {})
+    context_overrides: Dict[str, Dict[str, Any]] = policy_dict.get("context_overrides", {})
+
     return GuardrailPolicy(
         name=policy_dict["name"],
         version=str(policy_dict["version"]),
         description=policy_dict.get("description", ""),
         guardrails=guardrails,
         overrides=overrides,
+        context=context,
+        context_overrides=context_overrides,
     )
 
 
@@ -187,14 +198,40 @@ def _parse_guardrail(g_dict: Dict[str, Any]) -> Guardrail:
 
     Returns:
         Guardrail object.
+
+    Condition can be:
+        - A string formula: "Encryption exists and Tags.Environment == 'prod'"
+        - A dict (legacy format): {"attribute": "Encryption", "operator": "exists"}
     """
-    condition_dict = g_dict.get("condition", {})
-    condition = Condition(
-        attribute=condition_dict.get("attribute", ""),
-        operator=condition_dict.get("operator", "exists"),
-        value=condition_dict.get("value"),
-        type=condition_dict.get("type", "attribute_check"),
-    )
+    # Handle condition - can be string formula or legacy dict
+    condition = g_dict.get("condition")
+    if isinstance(condition, dict):
+        # Convert legacy dict format to formula string
+        attr = condition.get("attribute", "")
+        op = condition.get("operator", "exists")
+        val = condition.get("value")
+
+        if op == "exists":
+            condition = f"{attr} exists"
+        elif op == "not_exists":
+            condition = f"{attr} not exists"
+        elif op == "equals":
+            condition = f"get('{attr}') == {repr(val)}"
+        elif op == "not_equals":
+            condition = f"get('{attr}') != {repr(val)}"
+        elif op == "contains":
+            condition = f"contains(get('{attr}'), {repr(val)})"
+        elif op == "matches":
+            condition = f"matches(get('{attr}'), {repr(val)})"
+        elif op == "in":
+            condition = f"get('{attr}') in {repr(val)}"
+        elif op == "greater_than":
+            condition = f"get('{attr}') > {repr(val)}"
+        elif op == "less_than":
+            condition = f"get('{attr}') < {repr(val)}"
+        else:
+            # Default: just use exists
+            condition = f"{attr} exists"
 
     return Guardrail(
         id=g_dict["id"],
@@ -202,7 +239,10 @@ def _parse_guardrail(g_dict: Dict[str, Any]) -> Guardrail:
         severity=Severity(g_dict["severity"]),
         action=Action(g_dict["action"]),
         applies_to=g_dict.get("applies_to", []),
-        condition=condition,
+        condition=condition if isinstance(condition, str) else None,
+        ai_fail_if=g_dict.get("ai_fail_if"),
+        ai_warn_if=g_dict.get("ai_warn_if"),
+        ai_notify_if=g_dict.get("ai_notify_if"),
         ai_context=g_dict.get("ai_context", ""),
         enabled=g_dict.get("enabled", True),
         tags=g_dict.get("tags", []),

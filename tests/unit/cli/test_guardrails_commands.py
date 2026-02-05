@@ -259,7 +259,7 @@ class TestGuardrailsListCommand:
     @patch("src.cli.guardrails.load_builtin_guardrails")
     def test_list_builtin_guardrails(self, mock_load_builtin: MagicMock) -> None:
         """List command shows built-in guardrails."""
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
         mock_load_builtin.return_value = [
             Guardrail(
@@ -268,7 +268,7 @@ class TestGuardrailsListCommand:
                 severity=Severity.CRITICAL,
                 action=Action.BLOCK,
                 applies_to=["s3:bucket"],
-                condition=Condition(attribute="Encryption", operator="exists"),
+                condition="Encryption exists",
             ),
         ]
 
@@ -281,7 +281,6 @@ class TestGuardrailsListCommand:
         """List command shows guardrails from custom policy."""
         from src.guardrails.models import (
             Action,
-            Condition,
             Guardrail,
             GuardrailPolicy,
             Severity,
@@ -300,7 +299,7 @@ class TestGuardrailsListCommand:
                     severity=Severity.HIGH,
                     action=Action.WARN,
                     applies_to=["*"],
-                    condition=Condition(attribute="Tags.Owner", operator="exists"),
+                    condition="Tags.Owner exists",
                 ),
             ],
         )
@@ -313,7 +312,7 @@ class TestGuardrailsListCommand:
     @patch("src.cli.guardrails.load_builtin_guardrails")
     def test_list_filter_by_severity(self, mock_load_builtin: MagicMock) -> None:
         """List command filters by --severity."""
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
         mock_load_builtin.return_value = [
             Guardrail(
@@ -322,7 +321,7 @@ class TestGuardrailsListCommand:
                 severity=Severity.CRITICAL,
                 action=Action.BLOCK,
                 applies_to=["s3:bucket"],
-                condition=Condition(attribute="Encryption", operator="exists"),
+                condition="Encryption exists",
             ),
             Guardrail(
                 id="GR-TAG-001",
@@ -330,7 +329,7 @@ class TestGuardrailsListCommand:
                 severity=Severity.LOW,
                 action=Action.WARN,
                 applies_to=["*"],
-                condition=Condition(attribute="Tags", operator="exists"),
+                condition="Tags exists",
             ),
         ]
 
@@ -342,7 +341,7 @@ class TestGuardrailsListCommand:
     @patch("src.cli.guardrails.load_builtin_guardrails")
     def test_list_filter_by_category(self, mock_load_builtin: MagicMock) -> None:
         """List command filters by --category."""
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
         mock_load_builtin.return_value = [
             Guardrail(
@@ -351,7 +350,7 @@ class TestGuardrailsListCommand:
                 severity=Severity.CRITICAL,
                 action=Action.BLOCK,
                 applies_to=["s3:bucket"],
-                condition=Condition(attribute="Encryption", operator="exists"),
+                condition="Encryption exists",
             ),
             Guardrail(
                 id="GR-NET-001",
@@ -359,7 +358,7 @@ class TestGuardrailsListCommand:
                 severity=Severity.HIGH,
                 action=Action.BLOCK,
                 applies_to=["ec2:security-group"],
-                condition=Condition(attribute="IpPermissions", operator="exists"),
+                condition="IpPermissions exists",
             ),
         ]
 
@@ -371,7 +370,7 @@ class TestGuardrailsListCommand:
     @patch("src.cli.guardrails.load_builtin_guardrails")
     def test_list_json_format(self, mock_load_builtin: MagicMock) -> None:
         """List command outputs JSON with --format json."""
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
         mock_load_builtin.return_value = [
             Guardrail(
@@ -380,7 +379,7 @@ class TestGuardrailsListCommand:
                 severity=Severity.CRITICAL,
                 action=Action.BLOCK,
                 applies_to=["s3:bucket"],
-                condition=Condition(attribute="Encryption", operator="exists"),
+                condition="Encryption exists",
             ),
         ]
 

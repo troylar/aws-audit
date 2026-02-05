@@ -6059,7 +6059,131 @@ def generate(
         raise typer.Exit(1)
 
     if dry_run:
-        console.print("[yellow]Dry run mode - no files will be created[/yellow]\n")
+        console.print("[yellow]Dry run mode - showing what would happen[/yellow]\n")
+
+        # Load resources for analysis
+        resources = []
+        if from_file:
+            import json
+            import yaml
+
+            file_path = Path(from_file)
+            if not file_path.exists():
+                console.print(f"[red]Error:[/red] File not found: {from_file}")
+                raise typer.Exit(1)
+
+            with open(file_path) as f:
+                if file_path.suffix in (".yaml", ".yml"):
+                    data = yaml.safe_load(f)
+                else:
+                    data = json.load(f)
+
+            if isinstance(data, dict):
+                resources = data.get("resources", [])
+            elif isinstance(data, list):
+                resources = data
+        else:
+            from ..snapshot.storage import SnapshotStorage
+
+            storage = SnapshotStorage()
+            snapshot_obj = storage.load_snapshot(snapshot_name)
+            if not snapshot_obj:
+                console.print(f"[red]Error:[/red] Snapshot not found: {snapshot_name}")
+                raise typer.Exit(1)
+            resources = snapshot_obj.resources or []
+
+        # Show resource summary
+        console.print(f"[cyan]Resources:[/cyan] {len(resources)}")
+
+        # Group by type
+        type_counts: dict = {}
+        for r in resources:
+            rtype = r.get("resource_type", "unknown") if isinstance(r, dict) else getattr(r, "resource_type", "unknown")
+            type_counts[rtype] = type_counts.get(rtype, 0) + 1
+
+        for rtype, count in sorted(type_counts.items(), key=lambda x: -x[1])[:10]:
+            console.print(f"  {rtype}: {count}")
+
+        # Run guardrails evaluation if enabled
+        if guardrails:
+            from ..guardrails import GuardrailEvaluator, GuardrailPolicy, load_builtin_guardrails, load_policy
+            from ..guardrails.models import EvaluationResult
+
+            console.print()
+            console.print("[cyan]Guardrails Evaluation:[/cyan]")
+
+            # Load policy
+            if guardrails_policy:
+                policy = load_policy(guardrails_policy, environment=guardrails_env)
+            else:
+                builtin = load_builtin_guardrails()
+                policy = GuardrailPolicy(
+                    name="builtin",
+                    version="1.0",
+                    description="Built-in guardrails",
+                    guardrails=builtin,
+                )
+
+            console.print(f"  Policy: {policy.name} v{policy.version}")
+            console.print(f"  Guardrails: {len(policy.guardrails)}")
+            console.print(f"  Environment: {guardrails_env}")
+
+            # Create resource wrappers for evaluation
+            class ResourceWrapper:
+                def __init__(self, data: dict):
+                    self.resource_type = data.get("resource_type", "unknown")
+                    self.name = data.get("name", "unknown")
+                    self.arn = data.get("arn", "")
+                    self.config = data.get("config", {})
+
+            resource_objects = [ResourceWrapper(r) if isinstance(r, dict) else r for r in resources]
+
+            # Evaluate
+            evaluator = GuardrailEvaluator(
+                policy=policy,
+                auto_fix_enabled=guardrails_auto_fix,
+                environment=guardrails_env,
+                output_format=format,
+            )
+
+            report = evaluator.evaluate_all(resource_objects, validate_fixes=True)
+
+            # Show results
+            console.print()
+            console.print(f"  [green]Passed:[/green] {report.summary.passed}")
+            console.print(f"  [red]Failed:[/red] {report.summary.failed}")
+            console.print(f"  [yellow]Auto-fixed:[/yellow] {report.summary.auto_fixed}")
+
+            # Show auto-fixes that would be applied
+            auto_fixes = evaluator.get_auto_fixes()
+            if auto_fixes:
+                console.print()
+                console.print("[cyan]Auto-fixes that would be applied:[/cyan]")
+                for resource_id, fixes in list(auto_fixes.items())[:5]:
+                    console.print(f"  {resource_id}:")
+                    for gr_id in fixes.keys():
+                        console.print(f"    - {gr_id}")
+                if len(auto_fixes) > 5:
+                    console.print(f"  ... and {len(auto_fixes) - 5} more")
+
+            # Show conflicts if any
+            if report.fix_conflicts:
+                console.print()
+                console.print("[red]Fix Conflicts Detected:[/red]")
+                for conflict in report.fix_conflicts[:5]:
+                    console.print(f"  {conflict.original_guardrail_id} -> {conflict.conflicting_guardrail_id}")
+                    console.print(f"    {conflict.description[:80]}...")
+
+            # Show blocking status
+            if report.blocked:
+                console.print()
+                console.print(f"[red]Would be BLOCKED:[/red] {report.block_reason}")
+
+        console.print()
+        console.print(f"[cyan]Output directory:[/cyan] {output}")
+        console.print(f"[cyan]Format:[/cyan] {format}")
+        console.print()
+        console.print("[dim]Run without --dry-run to generate files[/dim]")
         raise typer.Exit(0)
 
     # Set up progress display

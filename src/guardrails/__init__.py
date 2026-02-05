@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
-from .evaluator import GuardrailEvaluator, evaluate_condition
+from .evaluator import GuardrailEvaluator
+from .formula import FormulaError, evaluate_formula, validate_formula
+from .generator import (
+    generate_guardrail,
+    generate_guardrail_from_violation,
+    generate_guardrails_batch,
+    guardrail_to_yaml,
+)
 from .loader import load_builtin_guardrails, load_policy
 from .models import (
     Action,
     AutoFixError,
-    Condition,
     EvaluationResult,
+    FixConflictInfo,
     Guardrail,
     GuardrailError,
     GuardrailEvaluation,
@@ -34,24 +41,32 @@ __all__ = [
     "Action",
     "EvaluationResult",
     # Models
-    "Condition",
     "Guardrail",
     "PolicyOverride",
     "GuardrailPolicy",
     "GuardrailEvaluation",
     "ReportSummary",
     "GuardrailReport",
+    "FixConflictInfo",
     # Exceptions
     "GuardrailError",
     "GuardrailValidationError",
     "GuardrailLoadError",
     "GuardrailEvaluationError",
     "AutoFixError",
+    "FormulaError",
     # Loader functions
     "load_policy",
     "load_builtin_guardrails",
+    # Formula evaluation
+    "evaluate_formula",
+    "validate_formula",
+    # Guardrail generation
+    "generate_guardrail",
+    "generate_guardrails_batch",
+    "generate_guardrail_from_violation",
+    "guardrail_to_yaml",
     # Evaluator
-    "evaluate_condition",
     "GuardrailEvaluator",
     # Reporter functions
     "format_terminal_report",

@@ -2,162 +2,138 @@
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import logging
-import re
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .auto_fix import attempt_auto_fix
+from .formula import FormulaError, evaluate_formula
 from .models import (
     Action,
-    Condition,
     EvaluationResult,
+    FixConflictInfo,
     Guardrail,
     GuardrailEvaluation,
     GuardrailPolicy,
     GuardrailReport,
     ReportSummary,
+    Severity,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def evaluate_condition(
-    condition: Condition,
+@dataclass
+class FixConflict:
+    """Represents a conflict where an auto-fix caused a new violation.
+
+    Attributes:
+        resource_id: The resource that was fixed.
+        original_guardrail_id: The guardrail that triggered the auto-fix.
+        conflicting_guardrail_id: The guardrail that now fails after the fix.
+        description: Explanation of the conflict.
+    """
+
+    resource_id: str
+    original_guardrail_id: str
+    conflicting_guardrail_id: str
+    description: str
+
+# AI evaluation prompt template
+AI_EVAL_PROMPT = """You are a cloud security compliance evaluator. Evaluate if the given AWS resource configuration matches the rule condition.
+
+RULE TO EVALUATE:
+{rule}
+
+RESOURCE:
+Type: {resource_type}
+Name: {resource_name}
+ARN: {resource_arn}
+
+CONFIGURATION:
+{config}
+
+Respond ONLY with JSON (no markdown, no explanation):
+{{"matches": true or false, "reason": "brief explanation"}}"""
+
+
+def _truncate_config(config: Dict[str, Any], max_size: int = 8000) -> str:
+    """Truncate config JSON to max size."""
+    config_str = json.dumps(config, indent=2, default=str)
+    if len(config_str) <= max_size:
+        return config_str
+    return config_str[:max_size] + "\n... (truncated)"
+
+
+def evaluate_ai_rule(
+    rule_text: str,
+    resource_type: str,
+    resource_name: str,
+    resource_arn: str,
     resource_config: Dict[str, Any],
+    bedrock_client: Optional[Any] = None,
 ) -> Tuple[bool, str]:
-    """Evaluate a condition against resource configuration.
+    """Evaluate an AI rule against a resource using Bedrock.
 
     Args:
-        condition: Condition to evaluate.
-        resource_config: Resource's configuration dictionary.
+        rule_text: The AI rule text describing what to check.
+        resource_type: Type of the resource.
+        resource_name: Name of the resource.
+        resource_arn: ARN of the resource.
+        resource_config: Resource configuration dictionary.
+        bedrock_client: Bedrock client for AI evaluation.
 
     Returns:
-        Tuple of (passed: bool, reason: str).
+        Tuple of (matches: bool, reason: str).
+        matches=True means the rule condition matched (potential violation).
     """
-    # Get the attribute value from config (supports nested paths like "Tags.Environment")
-    value = _get_nested_value(resource_config, condition.attribute)
+    if bedrock_client is None:
+        logger.warning("No Bedrock client provided for AI rule evaluation")
+        return False, "AI evaluation skipped - no Bedrock client"
 
-    operator = condition.operator
-    expected = condition.value
+    try:
+        prompt = AI_EVAL_PROMPT.format(
+            rule=rule_text,
+            resource_type=resource_type,
+            resource_name=resource_name,
+            resource_arn=resource_arn,
+            config=_truncate_config(resource_config),
+        )
 
-    # Handle each operator
-    if operator == "exists":
-        if value is None:
-            return False, f"Attribute '{condition.attribute}' does not exist"
-        return True, ""
+        response = bedrock_client.invoke_model(
+            modelId="anthropic.claude-3-haiku-20240307-v1:0",
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 256,
+                "messages": [{"role": "user", "content": prompt}],
+            }),
+        )
 
-    if operator == "not_exists":
-        if value is not None:
-            return False, f"Attribute '{condition.attribute}' exists but should not"
-        return True, ""
+        response_body = json.loads(response["body"].read())
+        content = response_body.get("content", [{}])[0].get("text", "{}")
 
-    if operator == "equals":
-        if value == expected:
-            return True, ""
-        return False, f"Attribute '{condition.attribute}' equals {value}, expected {expected}"
-
-    if operator == "not_equals":
-        if value != expected:
-            return True, ""
-        return False, f"Attribute '{condition.attribute}' equals {value}, should not equal {expected}"
-
-    if operator == "contains":
-        if isinstance(value, str) and isinstance(expected, str):
-            if expected in value:
-                return True, ""
-            return False, f"Attribute '{condition.attribute}' ({value}) does not contain '{expected}'"
-        if isinstance(value, (list, tuple)):
-            if expected in value:
-                return True, ""
-            return False, f"Attribute '{condition.attribute}' list does not contain '{expected}'"
-        return False, f"Attribute '{condition.attribute}' is not a string or list"
-
-    if operator == "not_contains":
-        if isinstance(value, str) and isinstance(expected, str):
-            if expected not in value:
-                return True, ""
-            return False, f"Attribute '{condition.attribute}' ({value}) contains '{expected}'"
-        if isinstance(value, (list, tuple)):
-            if expected not in value:
-                return True, ""
-            return False, f"Attribute '{condition.attribute}' list contains '{expected}'"
-        return True, ""  # If not string/list, not_contains passes
-
-    if operator == "matches":
-        if value is None:
-            return False, f"Attribute '{condition.attribute}' not found for regex match"
+        # Parse JSON response
         try:
-            pattern = re.compile(str(expected))
-            if pattern.match(str(value)):
-                return True, ""
-            return False, f"Attribute '{condition.attribute}' ({value}) does not match pattern '{expected}'"
-        except re.error as e:
-            return False, f"Invalid regex pattern: {e}"
+            result = json.loads(content)
+            matches = result.get("matches", False)
+            reason = result.get("reason", "")
+            return bool(matches), reason
+        except json.JSONDecodeError:
+            # Try to extract boolean from text
+            content_lower = content.lower()
+            if "true" in content_lower or "matches" in content_lower:
+                return True, content
+            return False, content
 
-    if operator == "in":
-        if not isinstance(expected, list):
-            return False, f"Operator 'in' requires list value, got {type(expected)}"
-        if value in expected:
-            return True, ""
-        return False, f"Attribute '{condition.attribute}' ({value}) not in allowed values: {expected}"
-
-    if operator == "not_in":
-        if not isinstance(expected, list):
-            return False, f"Operator 'not_in' requires list value, got {type(expected)}"
-        if value not in expected:
-            return True, ""
-        return False, f"Attribute '{condition.attribute}' ({value}) is in forbidden values: {expected}"
-
-    if operator == "greater_than":
-        if value is None:
-            return False, f"Attribute '{condition.attribute}' not found for comparison"
-        if expected is None:
-            return False, "Expected value not specified for greater_than comparison"
-        try:
-            if float(value) > float(expected):
-                return True, ""
-            return False, f"Attribute '{condition.attribute}' ({value}) is not greater than {expected}"
-        except (TypeError, ValueError) as e:
-            return False, f"Cannot compare values: {e}"
-
-    if operator == "less_than":
-        if value is None:
-            return False, f"Attribute '{condition.attribute}' not found for comparison"
-        if expected is None:
-            return False, "Expected value not specified for less_than comparison"
-        try:
-            if float(value) < float(expected):
-                return True, ""
-            return False, f"Attribute '{condition.attribute}' ({value}) is not less than {expected}"
-        except (TypeError, ValueError) as e:
-            return False, f"Cannot compare values: {e}"
-
-    return False, f"Unknown operator: {operator}"
-
-
-def _get_nested_value(config: Dict[str, Any], path: str) -> Any:
-    """Get a nested value from a config dictionary using dot notation.
-
-    Args:
-        config: Configuration dictionary.
-        path: Dot-separated path (e.g., "Tags.Environment").
-
-    Returns:
-        The value at the path, or None if not found.
-    """
-    parts = path.split(".")
-    current = config
-
-    for part in parts:
-        if not isinstance(current, dict):
-            return None
-        if part not in current:
-            return None
-        current = current[part]
-
-    return current
+    except Exception as e:
+        logger.error(f"AI rule evaluation failed: {e}")
+        return False, f"AI evaluation error: {e}"
 
 
 class GuardrailEvaluator:
@@ -176,7 +152,7 @@ class GuardrailEvaluator:
         Args:
             policy: GuardrailPolicy to evaluate against.
             auto_fix_enabled: Whether to attempt AI auto-fixes.
-            bedrock_client: Optional Bedrock client for auto-fix.
+            bedrock_client: Optional Bedrock client for AI rules and auto-fix.
             environment: Environment name for policy overrides.
             output_format: Target IaC format (terraform, cdk-typescript, cdk-python).
         """
@@ -189,6 +165,9 @@ class GuardrailEvaluator:
 
         # Get guardrails with environment overrides applied
         self._guardrails = policy.get_guardrails_for_env(environment)
+
+        # Get context with environment overrides applied
+        self._context = policy.get_context_for_env(environment)
 
     def evaluate_resource(
         self,
@@ -218,37 +197,100 @@ class GuardrailEvaluator:
             if not guardrail.matches_resource_type(resource_type):
                 continue
 
-            # Evaluate the condition
-            passed, failure_reason = evaluate_condition(guardrail.condition, resource_config)
+            # Evaluate based on guardrail type
+            if guardrail.condition:
+                # Formula-based condition
+                evaluation = self._evaluate_formula(
+                    guardrail, resource_type, resource_name, resource_arn, resource_config
+                )
+            elif guardrail.is_ai_rule():
+                # AI-based rule
+                evaluation = self._evaluate_ai_rule(
+                    guardrail, resource_type, resource_name, resource_arn, resource_config
+                )
+            else:
+                # No condition or AI rule - skip
+                continue
 
-            result = EvaluationResult.PASS
-            auto_fix_description = ""
+            evaluations.append(evaluation)
+
+        return evaluations
+
+    def _evaluate_formula(
+        self,
+        guardrail: Guardrail,
+        resource_type: str,
+        resource_name: str,
+        resource_arn: str,
+        resource_config: Dict[str, Any],
+    ) -> GuardrailEvaluation:
+        """Evaluate a formula-based condition."""
+        result = EvaluationResult.PASS
+        failure_reason = ""
+        auto_fix_description = ""
+
+        try:
+            passed, reason = evaluate_formula(
+                guardrail.condition or "",
+                resource_config,
+                context=self._context,
+            )
 
             if not passed:
-                # Determine result based on action
+                failure_reason = reason
+                # Handle auto-fix
                 if guardrail.action == Action.AUTO_FIX and self._auto_fix_enabled:
-                    # Attempt auto-fix with Bedrock AI
                     fix_success, fix_config, fix_description = self._attempt_auto_fix(
                         guardrail=guardrail,
-                        resource=resource,
+                        resource_type=resource_type,
+                        resource_name=resource_name,
+                        resource_arn=resource_arn,
+                        resource_config=resource_config,
                     )
                     if fix_success:
                         result = EvaluationResult.AUTO_FIXED
                         auto_fix_description = fix_description
-                        # Store the fix for later application
                         resource_id = resource_arn or f"{resource_type}/{resource_name}"
                         if resource_id not in self._auto_fixes:
                             self._auto_fixes[resource_id] = {}
                         self._auto_fixes[resource_id][guardrail.id] = fix_config
                         logger.info(f"Auto-fix applied for {guardrail.id} on {resource_name}: {fix_description}")
                     else:
-                        # Auto-fix failed, mark as FAIL
                         result = EvaluationResult.FAIL
                         logger.warning(f"Auto-fix failed for {guardrail.id} on {resource_name}: {fix_description}")
                 else:
                     result = EvaluationResult.FAIL
 
-            evaluation = GuardrailEvaluation(
+        except FormulaError as e:
+            result = EvaluationResult.FAIL
+            failure_reason = str(e)
+            logger.error(f"Formula evaluation error for {guardrail.id}: {e}")
+
+        return GuardrailEvaluation(
+            guardrail_id=guardrail.id,
+            guardrail_short_description=guardrail.short_description,
+            severity=guardrail.severity,
+            action=guardrail.action,
+            resource_type=resource_type,
+            resource_name=resource_name,
+            resource_arn=resource_arn,
+            result=result,
+            failure_reason=failure_reason if result == EvaluationResult.FAIL else "",
+            auto_fix_applied=auto_fix_description,
+        )
+
+    def _evaluate_ai_rule(
+        self,
+        guardrail: Guardrail,
+        resource_type: str,
+        resource_name: str,
+        resource_arn: str,
+        resource_config: Dict[str, Any],
+    ) -> GuardrailEvaluation:
+        """Evaluate an AI-based rule."""
+        ai_rule = guardrail.get_ai_rule()
+        if not ai_rule:
+            return GuardrailEvaluation(
                 guardrail_id=guardrail.id,
                 guardrail_short_description=guardrail.short_description,
                 severity=guardrail.severity,
@@ -256,31 +298,77 @@ class GuardrailEvaluator:
                 resource_type=resource_type,
                 resource_name=resource_name,
                 resource_arn=resource_arn,
-                result=result,
-                failure_reason=failure_reason if result == EvaluationResult.FAIL else "",
-                auto_fix_applied=auto_fix_description,
+                result=EvaluationResult.SKIPPED,
+                failure_reason="No AI rule defined",
             )
-            evaluations.append(evaluation)
 
-        return evaluations
+        rule_text, rule_type = ai_rule
+
+        # Evaluate with AI
+        matches, reason = evaluate_ai_rule(
+            rule_text=rule_text,
+            resource_type=resource_type,
+            resource_name=resource_name,
+            resource_arn=resource_arn,
+            resource_config=resource_config,
+            bedrock_client=self._bedrock_client,
+        )
+
+        # Determine result based on rule type
+        # For ai_fail_if/ai_warn_if/ai_notify_if, matches=True means violation
+        if matches:
+            result = EvaluationResult.FAIL
+            failure_reason = reason
+        else:
+            result = EvaluationResult.PASS
+            failure_reason = ""
+
+        # Override severity based on rule type
+        severity = guardrail.severity
+        if rule_type == "fail":
+            # ai_fail_if -> CRITICAL/HIGH severity
+            if severity not in (Severity.CRITICAL, Severity.HIGH):
+                severity = Severity.HIGH
+        elif rule_type == "warn":
+            # ai_warn_if -> MEDIUM severity
+            severity = Severity.MEDIUM
+        elif rule_type == "notify":
+            # ai_notify_if -> LOW/INFO severity
+            if severity not in (Severity.LOW, Severity.INFO):
+                severity = Severity.LOW
+
+        return GuardrailEvaluation(
+            guardrail_id=guardrail.id,
+            guardrail_short_description=guardrail.short_description,
+            severity=severity,
+            action=guardrail.action,
+            resource_type=resource_type,
+            resource_name=resource_name,
+            resource_arn=resource_arn,
+            result=result,
+            failure_reason=failure_reason if result == EvaluationResult.FAIL else "",
+        )
 
     def _attempt_auto_fix(
         self,
         guardrail: Guardrail,
-        resource: Any,
+        resource_type: str,
+        resource_name: str,
+        resource_arn: str,
+        resource_config: Dict[str, Any],
     ) -> Tuple[bool, Dict[str, Any], str]:
-        """Attempt to auto-fix a guardrail violation.
+        """Attempt to auto-fix a guardrail violation."""
+        # Create a simple resource-like object for the auto_fix function
+        class ResourceProxy:
+            def __init__(self) -> None:
+                self.resource_type = resource_type
+                self.name = resource_name
+                self.arn = resource_arn
+                self.config = resource_config
 
-        Args:
-            guardrail: The violated guardrail.
-            resource: The resource that violated.
-
-        Returns:
-            Tuple of (success, fix_config, description).
-        """
         return attempt_auto_fix(
             guardrail=guardrail,
-            resource=resource,
+            resource=ResourceProxy(),
             output_format=self._output_format,
             bedrock_client=self._bedrock_client,
         )
@@ -290,6 +378,7 @@ class GuardrailEvaluator:
         resources: List[Any],
         snapshot_name: str = "",
         progress_callback: Optional[Callable[[int, int], None]] = None,
+        validate_fixes: bool = True,
     ) -> GuardrailReport:
         """Evaluate all resources against the policy.
 
@@ -297,6 +386,7 @@ class GuardrailEvaluator:
             resources: List of TrackedResource objects.
             snapshot_name: Name of the source snapshot.
             progress_callback: Optional callback(current, total) for progress.
+            validate_fixes: Whether to validate that fixes don't cause conflicts.
 
         Returns:
             Complete GuardrailReport with all evaluations.
@@ -315,11 +405,13 @@ class GuardrailEvaluator:
             ),
         )
 
+        all_evaluations: List[GuardrailEvaluation] = []
         total = len(resources)
         for i, resource in enumerate(resources):
             evaluations = self.evaluate_resource(resource)
             for evaluation in evaluations:
                 report.add_evaluation(evaluation)
+                all_evaluations.append(evaluation)
 
             if progress_callback:
                 progress_callback(i + 1, total)
@@ -329,6 +421,29 @@ class GuardrailEvaluator:
         if blocking_violations:
             report.blocked = True
             report.block_reason = f"{len(blocking_violations)} CRITICAL/HIGH violations with BLOCK action"
+
+        # Post-fix validation: detect conflicts
+        if validate_fixes and self._auto_fixes:
+            conflicts = self.validate_fixes(resources, all_evaluations)
+            for conflict in conflicts:
+                report.fix_conflicts.append(
+                    FixConflictInfo(
+                        resource_id=conflict.resource_id,
+                        original_guardrail_id=conflict.original_guardrail_id,
+                        conflicting_guardrail_id=conflict.conflicting_guardrail_id,
+                        description=conflict.description,
+                    )
+                )
+            if conflicts:
+                logger.warning(
+                    f"Post-fix validation found {len(conflicts)} conflict(s) where auto-fixes caused new violations"
+                )
+                # Add to block reason if conflicts found
+                if report.blocked:
+                    report.block_reason += f"; {len(conflicts)} fix conflict(s) detected"
+                else:
+                    report.blocked = True
+                    report.block_reason = f"{len(conflicts)} fix conflict(s) detected - auto-fixes caused new violations"
 
         report.completed_at = datetime.now(timezone.utc)
         return report
@@ -340,3 +455,146 @@ class GuardrailEvaluator:
             Dict mapping resource_id to configuration changes.
         """
         return self._auto_fixes.copy()
+
+    def validate_fixes(
+        self,
+        resources: List[Any],
+        original_evaluations: List[GuardrailEvaluation],
+    ) -> List[FixConflict]:
+        """Validate that auto-fixes don't cause new guardrail violations.
+
+        This performs post-fix validation by:
+        1. Identifying resources that had auto-fixes applied
+        2. Merging fix configs into original resource configs
+        3. Re-evaluating against all guardrails
+        4. Flagging any NEW violations as conflicts
+
+        Args:
+            resources: Original list of resources.
+            original_evaluations: Evaluations from first pass.
+
+        Returns:
+            List of FixConflict objects describing conflicts found.
+        """
+        conflicts: List[FixConflict] = []
+
+        if not self._auto_fixes:
+            return conflicts
+
+        # Build lookup maps
+        resource_map: Dict[str, Any] = {}
+        for resource in resources:
+            resource_arn = getattr(resource, "arn", "")
+            resource_type = getattr(resource, "resource_type", "")
+            resource_name = getattr(resource, "name", "")
+            resource_id = resource_arn or f"{resource_type}/{resource_name}"
+            resource_map[resource_id] = resource
+
+        # Track which guardrails triggered fixes for each resource
+        fix_sources: Dict[str, List[str]] = {}
+        for evaluation in original_evaluations:
+            if evaluation.result == EvaluationResult.AUTO_FIXED:
+                resource_id = evaluation.resource_arn or f"{evaluation.resource_type}/{evaluation.resource_name}"
+                if resource_id not in fix_sources:
+                    fix_sources[resource_id] = []
+                fix_sources[resource_id].append(evaluation.guardrail_id)
+
+        # Track original failures to distinguish from new violations
+        original_failures: Dict[str, set] = {}
+        for evaluation in original_evaluations:
+            if evaluation.result == EvaluationResult.FAIL:
+                resource_id = evaluation.resource_arn or f"{evaluation.resource_type}/{evaluation.resource_name}"
+                if resource_id not in original_failures:
+                    original_failures[resource_id] = set()
+                original_failures[resource_id].add(evaluation.guardrail_id)
+
+        # Re-evaluate each fixed resource
+        for resource_id, fix_configs in self._auto_fixes.items():
+            if resource_id not in resource_map:
+                continue
+
+            resource = resource_map[resource_id]
+            original_config = getattr(resource, "config", {}) or {}
+
+            # Merge all fixes into the config
+            fixed_config = self._merge_configs(original_config, fix_configs)
+
+            # Create a proxy resource with the fixed config
+            resource_type = getattr(resource, "resource_type", "")
+            resource_name = getattr(resource, "name", "")
+            resource_arn = getattr(resource, "arn", "")
+
+            class FixedResourceProxy:
+                def __init__(self, rtype: str, rname: str, rarn: str, config: Dict) -> None:
+                    self.resource_type = rtype
+                    self.name = rname
+                    self.arn = rarn
+                    self.config = config
+
+            fixed_resource = FixedResourceProxy(
+                resource_type, resource_name, resource_arn, fixed_config
+            )
+
+            # Re-evaluate with fixed config
+            new_evaluations = self.evaluate_resource(fixed_resource)
+
+            # Check for new failures
+            original_fail_ids = original_failures.get(resource_id, set())
+            source_guardrails = fix_sources.get(resource_id, [])
+
+            for evaluation in new_evaluations:
+                if evaluation.result == EvaluationResult.FAIL:
+                    # Is this a NEW failure (not from original evaluation)?
+                    if evaluation.guardrail_id not in original_fail_ids:
+                        # This is a conflict - the fix caused a new violation
+                        for source_id in source_guardrails:
+                            conflicts.append(
+                                FixConflict(
+                                    resource_id=resource_id,
+                                    original_guardrail_id=source_id,
+                                    conflicting_guardrail_id=evaluation.guardrail_id,
+                                    description=(
+                                        f"Auto-fix for {source_id} caused {evaluation.guardrail_id} to fail: "
+                                        f"{evaluation.failure_reason}"
+                                    ),
+                                )
+                            )
+
+        return conflicts
+
+    def _merge_configs(
+        self,
+        original: Dict[str, Any],
+        fixes: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Deep merge fix configs into original config.
+
+        Args:
+            original: Original resource configuration.
+            fixes: Dict of guardrail_id -> fix_config.
+
+        Returns:
+            Merged configuration with all fixes applied.
+        """
+        import copy
+
+        result = copy.deepcopy(original)
+
+        for guardrail_id, fix_config in fixes.items():
+            result = self._deep_merge(result, fix_config)
+
+        return result
+
+    def _deep_merge(self, base: Dict, overlay: Dict) -> Dict:
+        """Recursively merge overlay dict into base dict."""
+        import copy
+
+        result = copy.deepcopy(base)
+
+        for key, value in overlay.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                result[key] = copy.deepcopy(value)
+
+        return result

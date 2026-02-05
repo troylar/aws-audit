@@ -9,7 +9,7 @@ class TestAttemptAutoFix:
     """Tests for attempt_auto_fix() (T046)."""
 
     def _create_mock_guardrail(self, ai_context: str = ""):
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
         return Guardrail(
             id="GR-ENC-001",
@@ -17,7 +17,7 @@ class TestAttemptAutoFix:
             severity=Severity.CRITICAL,
             action=Action.AUTO_FIX,
             applies_to=["s3:bucket"],
-            condition=Condition(attribute="ServerSideEncryption", operator="exists"),
+            condition="ServerSideEncryption exists",
             ai_context=ai_context,
         )
 

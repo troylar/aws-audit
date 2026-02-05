@@ -60,59 +60,19 @@ class TestEvaluationResultEnum:
         assert EvaluationResult.SKIPPED.value == "SKIPPED"
 
 
-class TestConditionDataclass:
-    """Tests for Condition dataclass (T007)."""
-
-    def test_condition_creation(self) -> None:
-        from src.guardrails.models import Condition
-
-        condition = Condition(
-            attribute="ServerSideEncryptionConfiguration",
-            operator="exists",
-        )
-        assert condition.attribute == "ServerSideEncryptionConfiguration"
-        assert condition.operator == "exists"
-        assert condition.value is None
-        assert condition.type == "attribute_check"
-
-    def test_condition_with_value(self) -> None:
-        from src.guardrails.models import Condition
-
-        condition = Condition(
-            attribute="StorageEncrypted",
-            operator="equals",
-            value=True,
-        )
-        assert condition.attribute == "StorageEncrypted"
-        assert condition.operator == "equals"
-        assert condition.value is True
-
-    def test_condition_with_list_value(self) -> None:
-        from src.guardrails.models import Condition
-
-        condition = Condition(
-            attribute="InstanceType",
-            operator="in",
-            value=["t3.micro", "t3.small", "t3.medium"],
-        )
-        assert condition.operator == "in"
-        assert "t3.micro" in condition.value
-
-
 class TestGuardrailDataclass:
     """Tests for Guardrail dataclass and matches_resource_type() (T008)."""
 
     def test_guardrail_creation(self) -> None:
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
-        condition = Condition(attribute="StorageEncrypted", operator="equals", value=True)
         guardrail = Guardrail(
             id="GR-ENC-001",
             short_description="S3 bucket must have encryption at rest",
             severity=Severity.CRITICAL,
             action=Action.AUTO_FIX,
             applies_to=["s3:bucket"],
-            condition=condition,
+            condition="StorageEncrypted == True",
             ai_context="WHY: Compliance requires encryption.",
         )
         assert guardrail.id == "GR-ENC-001"
@@ -121,49 +81,75 @@ class TestGuardrailDataclass:
         assert guardrail.enabled is True
         assert guardrail.tags == []
 
-    def test_matches_resource_type_exact(self) -> None:
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+    def test_guardrail_with_formula(self) -> None:
+        from src.guardrails.models import Action, Guardrail, Severity
 
-        condition = Condition(attribute="test", operator="exists")
+        guardrail = Guardrail(
+            id="GR-ENC-002",
+            short_description="S3 bucket must have versioning and encryption",
+            severity=Severity.HIGH,
+            action=Action.BLOCK,
+            applies_to=["s3:bucket"],
+            condition="Encryption exists and get('Versioning.Status') == 'Enabled'",
+        )
+        assert guardrail.condition == "Encryption exists and get('Versioning.Status') == 'Enabled'"
+        assert guardrail.is_ai_rule() is False
+
+    def test_guardrail_with_ai_rule(self) -> None:
+        from src.guardrails.models import Action, Guardrail, Severity
+
+        guardrail = Guardrail(
+            id="GR-SEC-001",
+            short_description="Security group allows unrestricted access",
+            severity=Severity.CRITICAL,
+            action=Action.BLOCK,
+            applies_to=["ec2:security-group"],
+            ai_fail_if="The security group allows unrestricted inbound access from 0.0.0.0/0",
+            ai_context="WHY: Open security groups are a security risk",
+        )
+        assert guardrail.is_ai_rule() is True
+        assert guardrail.get_ai_rule() == ("The security group allows unrestricted inbound access from 0.0.0.0/0", "fail")
+
+    def test_matches_resource_type_exact(self) -> None:
+        from src.guardrails.models import Action, Guardrail, Severity
+
         guardrail = Guardrail(
             id="GR-TEST-001",
             short_description="Test guardrail",
             severity=Severity.HIGH,
             action=Action.BLOCK,
             applies_to=["s3:bucket", "rds:db"],
-            condition=condition,
+            condition="test exists",
         )
         assert guardrail.matches_resource_type("s3:bucket") is True
         assert guardrail.matches_resource_type("rds:db") is True
         assert guardrail.matches_resource_type("ec2:instance") is False
 
     def test_matches_resource_type_wildcard(self) -> None:
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
-        condition = Condition(attribute="test", operator="exists")
         guardrail = Guardrail(
             id="GR-TAG-001",
             short_description="All resources must have tags",
             severity=Severity.HIGH,
             action=Action.WARN,
             applies_to=["*"],
-            condition=condition,
+            condition="Tags exists",
         )
         assert guardrail.matches_resource_type("s3:bucket") is True
         assert guardrail.matches_resource_type("ec2:instance") is True
         assert guardrail.matches_resource_type("anything") is True
 
     def test_matches_resource_type_prefix_wildcard(self) -> None:
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
 
-        condition = Condition(attribute="test", operator="exists")
         guardrail = Guardrail(
             id="GR-EC2-001",
             short_description="EC2 resources check",
             severity=Severity.MEDIUM,
             action=Action.WARN,
             applies_to=["ec2:*"],
-            condition=condition,
+            condition="InstanceType exists",
         )
         assert guardrail.matches_resource_type("ec2:instance") is True
         assert guardrail.matches_resource_type("ec2:security-group") is True
@@ -215,16 +201,15 @@ class TestGuardrailPolicyDataclass:
         assert policy.overrides == {}
 
     def test_get_guardrails_for_env_no_overrides(self) -> None:
-        from src.guardrails.models import Action, Condition, Guardrail, GuardrailPolicy, Severity
+        from src.guardrails.models import Action, Guardrail, GuardrailPolicy, Severity
 
-        condition = Condition(attribute="test", operator="exists")
         guardrail = Guardrail(
             id="GR-TEST-001",
             short_description="Test",
             severity=Severity.HIGH,
             action=Action.BLOCK,
             applies_to=["*"],
-            condition=condition,
+            condition="test exists",
         )
         policy = GuardrailPolicy(
             name="test",
@@ -238,21 +223,19 @@ class TestGuardrailPolicyDataclass:
     def test_get_guardrails_for_env_with_severity_override(self) -> None:
         from src.guardrails.models import (
             Action,
-            Condition,
             Guardrail,
             GuardrailPolicy,
             PolicyOverride,
             Severity,
         )
 
-        condition = Condition(attribute="test", operator="exists")
         guardrail = Guardrail(
             id="GR-TAG-001",
             short_description="Tags required",
             severity=Severity.HIGH,
             action=Action.WARN,
             applies_to=["*"],
-            condition=condition,
+            condition="Tags exists",
         )
         override = PolicyOverride(
             guardrail_id="GR-TAG-001",
@@ -279,21 +262,19 @@ class TestGuardrailPolicyDataclass:
     def test_get_guardrails_for_env_with_disabled_override(self) -> None:
         from src.guardrails.models import (
             Action,
-            Condition,
             Guardrail,
             GuardrailPolicy,
             PolicyOverride,
             Severity,
         )
 
-        condition = Condition(attribute="test", operator="exists")
         guardrail = Guardrail(
             id="GR-TEST-001",
             short_description="Test",
             severity=Severity.HIGH,
             action=Action.BLOCK,
             applies_to=["*"],
-            condition=condition,
+            condition="test exists",
         )
         override = PolicyOverride(guardrail_id="GR-TEST-001", enabled=False)
         policy = GuardrailPolicy(

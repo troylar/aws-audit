@@ -6,7 +6,51 @@ import dataclasses
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+
+def normalize_resource_type(resource_type: str) -> str:
+    """Normalize resource type to service:resource format.
+
+    Converts CloudFormation-style types (AWS::S3::Bucket) to
+    service:resource format (s3:bucket) for consistent matching.
+
+    Args:
+        resource_type: Resource type in any format.
+
+    Returns:
+        Normalized type in service:resource format.
+    """
+    if not resource_type:
+        return ""
+
+    # Already in service:resource format
+    if "::" not in resource_type and ":" in resource_type:
+        return resource_type.lower()
+
+    # CloudFormation format: AWS::Service::Resource
+    if resource_type.startswith("AWS::"):
+        parts = resource_type.split("::")
+        if len(parts) >= 3:
+            service = parts[1].lower()
+            resource = parts[2].lower()
+            # Handle special mappings
+            mappings = {
+                ("elasticloadbalancingv2", "loadbalancer"): "elbv2:loadbalancer",
+                ("elasticloadbalancing", "loadbalancer"): "elb:loadbalancer",
+                ("rds", "dbinstance"): "rds:instance",
+                ("rds", "dbcluster"): "rds:cluster",
+                ("ec2", "vpcendpoint"): "ec2:vpc-endpoint",
+                ("secretsmanager", "secret"): "secretsmanager:secret",
+                ("logs", "loggroup"): "logs:log-group",
+            }
+            key = (service, resource.split("::")[0] if "::" in resource else resource)
+            if key in mappings:
+                return mappings[key]
+            return f"{service}:{resource}"
+
+    # Already lowercase or unknown format
+    return resource_type.lower()
 
 
 class Severity(str, Enum):
@@ -37,23 +81,6 @@ class EvaluationResult(str, Enum):
 
 
 @dataclass
-class Condition:
-    """Evaluation condition for a guardrail.
-
-    Attributes:
-        attribute: JSON path to the attribute to check in resource config.
-        operator: The comparison operator (equals, exists, contains, matches, etc.).
-        value: Expected value (None for exists/not_exists checks).
-        type: Type of condition check (attribute_check, nested_check, compound).
-    """
-
-    attribute: str
-    operator: str
-    value: Optional[Any] = None
-    type: str = "attribute_check"
-
-
-@dataclass
 class Guardrail:
     """A single guardrail control definition.
 
@@ -63,10 +90,24 @@ class Guardrail:
         severity: CRITICAL, HIGH, MEDIUM, LOW, or INFO.
         action: BLOCK, AUTO-FIX, or WARN.
         applies_to: List of resource type patterns this guardrail applies to.
-        condition: The evaluation condition.
+        condition: Formula string for evaluation (e.g., "Encryption exists").
+        ai_fail_if: AI rule - fail (BLOCK) if AI determines this is true.
+        ai_warn_if: AI rule - warn if AI determines this is true.
+        ai_notify_if: AI rule - notify (INFO) if AI determines this is true.
         ai_context: Context for AI-assisted auto-fix (WHY + HOW TO FIX).
         enabled: Whether this guardrail is active (default True).
         tags: Categorization tags (e.g., compliance, security, encryption).
+
+    Formula Syntax (condition field):
+        - Simple checks: "Encryption exists", "Tags.Environment == 'prod'"
+        - Boolean logic: "Encryption exists and Versioning.Status == 'Enabled'"
+        - If/then: "if PublicAccess then Encryption exists"
+        - Array iteration: "all(rule.Description exists for rule in IpPermissions)"
+        - Counts: "count(AvailabilityZones) >= 2"
+        - Skip logic: "Tags.test exists or Encryption exists"
+
+    Note:
+        Guardrails must have exactly ONE of: condition OR ai_* rule.
     """
 
     id: str
@@ -74,27 +115,60 @@ class Guardrail:
     severity: Severity
     action: Action
     applies_to: List[str]
-    condition: Condition
-    ai_context: str = ""
+    condition: Optional[str] = None  # Formula string
+    ai_fail_if: Optional[str] = None  # AI rule - BLOCK if true (CRITICAL/HIGH)
+    ai_warn_if: Optional[str] = None  # AI rule - WARN if true (MEDIUM)
+    ai_notify_if: Optional[str] = None  # AI rule - INFO if true (LOW/INFO)
+    ai_context: str = ""  # Context for AI auto-fix
     enabled: bool = True
     tags: List[str] = field(default_factory=list)
+
+    def is_ai_rule(self) -> bool:
+        """Check if this guardrail uses AI evaluation."""
+        return any([self.ai_fail_if, self.ai_warn_if, self.ai_notify_if])
+
+    def get_ai_rule(self) -> Optional[Tuple[str, str]]:
+        """Get the AI rule and its type.
+
+        Returns:
+            Tuple of (rule_text, rule_type) or None if not an AI rule.
+            rule_type is one of: "fail", "warn", "notify"
+        """
+        if self.ai_fail_if:
+            return (self.ai_fail_if, "fail")
+        if self.ai_warn_if:
+            return (self.ai_warn_if, "warn")
+        if self.ai_notify_if:
+            return (self.ai_notify_if, "notify")
+        return None
 
     def matches_resource_type(self, resource_type: str) -> bool:
         """Check if this guardrail applies to a resource type.
 
+        Handles both CloudFormation format (AWS::S3::Bucket) and
+        service:resource format (s3:bucket).
+
         Args:
-            resource_type: The resource type to check (e.g., "s3:bucket").
+            resource_type: The resource type to check.
 
         Returns:
             True if the guardrail applies to this resource type.
         """
+        # Normalize the resource type for comparison
+        normalized = normalize_resource_type(resource_type)
+
         for pattern in self.applies_to:
             if pattern == "*":
                 return True
-            if pattern == resource_type:
+            # Normalize the pattern too
+            normalized_pattern = pattern.lower()
+            if normalized_pattern == normalized:
                 return True
             # Support wildcard patterns like "ec2:*"
-            if pattern.endswith("*") and resource_type.startswith(pattern[:-1]):
+            if normalized_pattern.endswith("*") and normalized.startswith(normalized_pattern[:-1]):
+                return True
+            # Also check original for backwards compatibility
+            if pattern == resource_type:
                 return True
         return False
 
@@ -120,7 +194,7 @@ class PolicyOverride:
 
 @dataclass
 class GuardrailPolicy:
-    """A guardrail policy with optional environment overrides.
+    """A guardrail policy with optional environment overrides and context.
 
     Attributes:
         name: Policy name (e.g., "production", "development").
@@ -128,6 +202,27 @@ class GuardrailPolicy:
         description: Human-readable policy description.
         guardrails: List of guardrail definitions.
         overrides: Environment-specific overrides keyed by environment name.
+        context: Cross-resource context variables (e.g., VPC IDs, shared roles).
+        context_overrides: Environment-specific context overrides.
+
+    Example YAML:
+        name: multi-account-policy
+        version: "1.0"
+
+        context:
+          SHARED_IAM_ROLE: "arn:aws:iam::123456789012:role/SharedRole"
+
+        context_overrides:
+          production:
+            ACCOUNT_VPC: "vpc-prod123"
+            ACCOUNT_SUBNET: "subnet-prod456"
+          staging:
+            ACCOUNT_VPC: "vpc-stag789"
+            ACCOUNT_SUBNET: "subnet-stag012"
+
+        guardrails:
+          - id: GR-NET-001
+            condition: "VpcId == env('ACCOUNT_VPC')"
     """
 
     name: str
@@ -135,6 +230,8 @@ class GuardrailPolicy:
     description: str = ""
     guardrails: List[Guardrail] = field(default_factory=list)
     overrides: Dict[str, List[PolicyOverride]] = field(default_factory=dict)
+    context: Dict[str, Any] = field(default_factory=dict)
+    context_overrides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     def get_guardrails_for_env(self, environment: str = "default") -> List[Guardrail]:
         """Get guardrails with environment-specific overrides applied.
@@ -160,6 +257,24 @@ class GuardrailPolicy:
                     action=override.action or gr.action,
                 )
             result.append(gr)
+        return result
+
+    def get_context_for_env(self, environment: str = "default") -> Dict[str, Any]:
+        """Get context variables with environment-specific overrides applied.
+
+        Args:
+            environment: Environment name (e.g., "production", "development").
+
+        Returns:
+            Context dict with environment overrides merged in.
+        """
+        # Start with base context
+        result = dict(self.context)
+
+        # Merge environment-specific overrides
+        if environment in self.context_overrides:
+            result.update(self.context_overrides[environment])
+
         return result
 
 
@@ -236,6 +351,23 @@ class ReportSummary:
 
 
 @dataclass
+class FixConflictInfo:
+    """Information about a conflict caused by an auto-fix.
+
+    Attributes:
+        resource_id: The resource that was fixed.
+        original_guardrail_id: The guardrail that triggered the auto-fix.
+        conflicting_guardrail_id: The guardrail that now fails after the fix.
+        description: Explanation of the conflict.
+    """
+
+    resource_id: str
+    original_guardrail_id: str
+    conflicting_guardrail_id: str
+    description: str
+
+
+@dataclass
 class GuardrailReport:
     """Complete guardrail evaluation report for a generation run.
 
@@ -250,6 +382,7 @@ class GuardrailReport:
         evaluations: List of all individual evaluations.
         blocked: Whether generation was blocked.
         block_reason: Why generation was blocked (if blocked).
+        fix_conflicts: List of conflicts where auto-fixes caused new violations.
     """
 
     run_id: str
@@ -262,6 +395,7 @@ class GuardrailReport:
     evaluations: List[GuardrailEvaluation] = field(default_factory=list)
     blocked: bool = False
     block_reason: str = ""
+    fix_conflicts: List[FixConflictInfo] = field(default_factory=list)
 
     def add_evaluation(self, evaluation: GuardrailEvaluation) -> None:
         """Add an evaluation and update summary statistics.
@@ -339,6 +473,15 @@ class GuardrailReport:
                     "timestamp": e.timestamp.isoformat(),
                 }
                 for e in self.evaluations
+            ],
+            "fix_conflicts": [
+                {
+                    "resource_id": c.resource_id,
+                    "original_guardrail_id": c.original_guardrail_id,
+                    "conflicting_guardrail_id": c.conflicting_guardrail_id,
+                    "description": c.description,
+                }
+                for c in self.fix_conflicts
             ],
         }
 

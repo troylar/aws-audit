@@ -26,8 +26,9 @@ VALID_SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
 # Valid actions
 VALID_ACTIONS = ["BLOCK", "AUTO-FIX", "WARN"]
 
-# Guardrail ID pattern: PREFIX-CATEGORY-NUMBER (e.g., GR-ENC-001, ACME-SEC-001)
-ID_PATTERN = re.compile(r"^[A-Z]+-[A-Z]+-\d{3}$")
+# Guardrail ID pattern: PREFIX-CATEGORY-NUMBER (e.g., GR-ENC-001, ACME-SEC-001, GR-S3-001)
+# Allow 1-4 letters for prefix, 2-4 letters for category
+ID_PATTERN = re.compile(r"^[A-Z]{1,4}-[A-Z0-9]{2,4}-\d{3}$")
 
 
 def validate_guardrail(guardrail_dict: Dict[str, Any]) -> List[str]:
@@ -81,46 +82,64 @@ def validate_guardrail(guardrail_dict: Dict[str, Any]) -> List[str]:
         if not applies_to or not isinstance(applies_to, list) or len(applies_to) == 0:
             errors.append("applies_to must be a non-empty list of resource type patterns")
 
-    # Required field: condition
-    if "condition" not in guardrail_dict:
-        errors.append("condition is required")
-    else:
-        condition_errors = _validate_condition(guardrail_dict["condition"])
+    # Must have either condition OR an AI rule (mutually exclusive)
+    has_condition = "condition" in guardrail_dict and guardrail_dict["condition"]
+    has_ai_rule = any(
+        guardrail_dict.get(key)
+        for key in ["ai_fail_if", "ai_warn_if", "ai_notify_if"]
+    )
+
+    if not has_condition and not has_ai_rule:
+        errors.append("Must have either 'condition' (formula) or an AI rule (ai_fail_if/ai_warn_if/ai_notify_if)")
+    elif has_condition and has_ai_rule:
+        errors.append("Cannot have both 'condition' and AI rules - they are mutually exclusive")
+
+    # Validate condition formula if present
+    if has_condition:
+        condition = guardrail_dict["condition"]
+        condition_errors = _validate_condition(condition)
         errors.extend(condition_errors)
 
-    # Warning: AUTO-FIX without ai_context
-    if guardrail_dict.get("action") == "AUTO-FIX" and not guardrail_dict.get("ai_context"):
-        errors.append("ai_context is recommended for AUTO-FIX guardrails to enable AI remediation")
+    # Note: ai_context is optional but helpful for AUTO-FIX guardrails
+    # We don't error on this, but could add a warning mode later
 
     return errors
 
 
-def _validate_condition(condition_dict: Dict[str, Any]) -> List[str]:
-    """Validate a condition definition.
+def _validate_condition(condition: Any) -> List[str]:
+    """Validate a condition (formula string or legacy dict).
 
     Args:
-        condition_dict: Condition dictionary from YAML.
+        condition: Condition from YAML - can be string formula or dict (legacy).
 
     Returns:
         List of validation error messages.
     """
     errors: List[str] = []
 
-    if not isinstance(condition_dict, dict):
-        return ["condition must be a dictionary"]
+    # Handle formula strings (new format)
+    if isinstance(condition, str):
+        from .formula import validate_formula
+        formula_errors = validate_formula(condition)
+        errors.extend(formula_errors)
+        return errors
 
-    # Required: attribute
-    if "attribute" not in condition_dict:
-        errors.append("condition.attribute is required")
+    # Handle legacy dict format
+    if isinstance(condition, dict):
+        # Required: attribute
+        if "attribute" not in condition:
+            errors.append("condition.attribute is required")
 
-    # Required: operator
-    if "operator" not in condition_dict:
-        errors.append("condition.operator is required")
-    else:
-        operator = condition_dict["operator"]
-        if operator not in VALID_OPERATORS:
-            errors.append(f"condition.operator '{operator}' is invalid. Must be one of: {', '.join(VALID_OPERATORS)}")
+        # Required: operator
+        if "operator" not in condition:
+            errors.append("condition.operator is required")
+        else:
+            operator = condition["operator"]
+            if operator not in VALID_OPERATORS:
+                errors.append(f"condition.operator '{operator}' is invalid. Must be one of: {', '.join(VALID_OPERATORS)}")
+        return errors
 
+    errors.append("condition must be a formula string or dictionary")
     return errors
 
 

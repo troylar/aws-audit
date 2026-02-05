@@ -114,10 +114,70 @@ def _clean_code(code: str, output_format: str) -> str:
     return code.strip()
 
 
+def _apply_auto_fixes(
+    resources: List[Dict[str, Any]],
+    auto_fixes: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Apply guardrail auto-fixes to resource configurations.
+
+    Args:
+        resources: List of resource dictionaries
+        auto_fixes: Dict mapping resource_id -> {guardrail_id -> fix_config}
+
+    Returns:
+        Resources with auto-fixes merged into their configs
+    """
+    import copy
+
+    if not auto_fixes:
+        return resources
+
+    fixed_resources = []
+    for resource in resources:
+        resource = copy.deepcopy(resource)
+
+        # Build resource_id (same logic as in evaluator)
+        resource_arn = resource.get("arn", "")
+        resource_type = resource.get("resource_type", "")
+        resource_name = resource.get("name", "")
+        resource_id = resource_arn or f"{resource_type}/{resource_name}"
+
+        # Check if there are fixes for this resource
+        if resource_id in auto_fixes:
+            fixes = auto_fixes[resource_id]
+            config = resource.get("config", {})
+
+            # Merge all fixes into the config
+            for guardrail_id, fix_config in fixes.items():
+                config = _deep_merge(config, fix_config)
+
+            resource["config"] = config
+
+        fixed_resources.append(resource)
+
+    return fixed_resources
+
+
+def _deep_merge(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge overlay dict into base dict."""
+    import copy
+
+    result = copy.deepcopy(base)
+
+    for key, value in overlay.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = copy.deepcopy(value)
+
+    return result
+
+
 def generate_layer(state: GenerationState) -> Dict[str, Any]:
     """Generate IaC code for the current layer using AI.
 
     Calls AWS Bedrock to generate Terraform/CDK code for resources in the current layer.
+    Applies any guardrail auto-fixes to resource configs before generating.
 
     Args:
         state: Current state with layers, resource_map, and config
@@ -137,6 +197,7 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     output_dir: str = state.get("output_dir", "./terraform")
     lambda_code_paths: Dict[str, str] = state.get("lambda_code_paths", {})
     output_format: str = state.get("output_format", "terraform")
+    guardrails_auto_fixes: Dict[str, Dict[str, Any]] = state.get("guardrails_auto_fixes", {})
 
     config = GenerationConfig.from_env()
 
@@ -145,6 +206,10 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
 
     layer_name = layer_order[current_layer_index]
     layer_resources = layers.get(layer_name, [])
+
+    # Apply guardrail auto-fixes to resources before generating
+    if guardrails_auto_fixes:
+        layer_resources = _apply_auto_fixes(layer_resources, guardrails_auto_fixes)
 
     if not layer_resources:
         return {

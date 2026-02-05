@@ -184,7 +184,7 @@ class TestFormatGuardrailsTable:
     """Tests for format_guardrails_table() (T064/US6)."""
 
     def test_format_guardrails_table_runs(self) -> None:
-        from src.guardrails.models import Action, Condition, Guardrail, Severity
+        from src.guardrails.models import Action, Guardrail, Severity
         from src.guardrails.reporter import format_guardrails_table
 
         guardrails = [
@@ -194,7 +194,7 @@ class TestFormatGuardrailsTable:
                 severity=Severity.CRITICAL,
                 action=Action.AUTO_FIX,
                 applies_to=["s3:bucket"],
-                condition=Condition(attribute="test", operator="exists"),
+                condition="Encryption exists",
             ),
             Guardrail(
                 id="GR-NET-001",
@@ -202,7 +202,7 @@ class TestFormatGuardrailsTable:
                 severity=Severity.CRITICAL,
                 action=Action.BLOCK,
                 applies_to=["ec2:security-group"],
-                condition=Condition(attribute="test", operator="exists"),
+                condition="IpPermissions exists",
             ),
         ]
 

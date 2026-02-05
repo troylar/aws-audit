@@ -365,3 +365,306 @@ def list_guardrails(
         console.print(f"\nTotal: {len(filtered)} guardrails")
 
     raise typer.Exit(0)
+
+
+def _get_bedrock_client():
+    """Get Bedrock client for AI operations."""
+    try:
+        import boto3
+
+        return boto3.client("bedrock-runtime")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] Failed to create Bedrock client: {e}")
+        console.print("Make sure you have AWS credentials configured.")
+        return None
+
+
+@guardrails_app.command("validate")
+def validate_policy_file(
+    policy: str = typer.Argument(..., help="Path to policy YAML file to validate"),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed error context and suggestions",
+    ),
+) -> None:
+    """Validate a guardrails policy file.
+
+    Checks for syntax errors, invalid values, and common issues
+    before using the policy.
+
+    Examples:
+        awsinv guardrails validate ./policy.yaml
+        awsinv guardrails validate ~/.awsinv/policies/production.yaml
+        awsinv guardrails validate ./policy.yaml --verbose
+    """
+    import yaml
+
+    policy_path = Path(policy)
+    if not policy_path.exists():
+        console.print(f"[red]Error:[/red] Policy file not found: {policy}")
+        raise typer.Exit(1)
+
+    try:
+        with open(policy_path) as f:
+            policy_dict = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        console.print(f"[red]Error:[/red] Invalid YAML syntax")
+        console.print(f"  {e}")
+        console.print()
+        console.print("[dim]Tip: Check for proper indentation and special characters.[/dim]")
+        raise typer.Exit(1)
+
+    if not policy_dict:
+        console.print(f"[red]Error:[/red] Empty policy file")
+        raise typer.Exit(1)
+
+    # Import validator
+    from ..guardrails.validator import validate_policy
+
+    errors = validate_policy(policy_dict)
+
+    if errors:
+        console.print(f"[red]Validation failed with {len(errors)} error(s):[/red]")
+        console.print()
+
+        # Group errors by guardrail
+        guardrail_errors: dict = {}
+        other_errors: list = []
+        for error in errors:
+            if error.startswith("guardrails["):
+                # Extract guardrail index and error
+                import re
+                match = re.match(r"guardrails\[(\d+)\]: (.+)", error)
+                if match:
+                    idx = int(match.group(1))
+                    err_msg = match.group(2)
+                    guardrail = policy_dict.get("guardrails", [])[idx] if idx < len(policy_dict.get("guardrails", [])) else {}
+                    gid = guardrail.get("id", f"guardrails[{idx}]")
+                    if gid not in guardrail_errors:
+                        guardrail_errors[gid] = []
+                    guardrail_errors[gid].append(err_msg)
+                else:
+                    other_errors.append(error)
+            else:
+                other_errors.append(error)
+
+        # Show other errors first
+        for error in other_errors:
+            console.print(f"  [yellow]•[/yellow] {error}")
+
+        # Show guardrail errors grouped
+        for gid, errs in guardrail_errors.items():
+            console.print(f"  [cyan]{gid}[/cyan]:")
+            for err in errs:
+                console.print(f"    [yellow]•[/yellow] {err}")
+                # Show helpful tips for common errors
+                if verbose:
+                    _print_error_tip(err, console)
+
+        console.print()
+
+        # Show helpful summary
+        if any("condition" in e.lower() or "formula" in e.lower() for e in errors):
+            console.print("[dim]Tip: See formula syntax docs at docs/guardrails/formula-syntax.md[/dim]")
+        if any("id" in e.lower() and "pattern" in e.lower() for e in errors):
+            console.print("[dim]Tip: IDs must match PREFIX-CATEGORY-NNN (e.g., GR-ENC-001)[/dim]")
+
+        raise typer.Exit(1)
+    else:
+        # Show summary of what was validated
+        guardrails = policy_dict.get("guardrails", [])
+        envs = list(policy_dict.get("overrides", {}).keys())
+        context_vars = list(policy_dict.get("context", {}).keys())
+
+        console.print(f"[green]✓ Policy is valid[/green]")
+        console.print()
+        console.print(f"  Name: {policy_dict.get('name', 'unnamed')}")
+        console.print(f"  Version: {policy_dict.get('version', 'unspecified')}")
+        console.print(f"  Guardrails: {len(guardrails)}")
+        if envs:
+            console.print(f"  Environments with overrides: {', '.join(envs)}")
+        if context_vars:
+            console.print(f"  Context variables: {', '.join(context_vars)}")
+
+        # Show action breakdown
+        if guardrails:
+            action_counts = {}
+            for g in guardrails:
+                action = g.get("action", "UNKNOWN")
+                action_counts[action] = action_counts.get(action, 0) + 1
+            console.print(f"  Actions: {', '.join(f'{k}={v}' for k, v in action_counts.items())}")
+
+    raise typer.Exit(0)
+
+
+def _print_error_tip(error: str, console: Console) -> None:
+    """Print a helpful tip for common errors."""
+    error_lower = error.lower()
+
+    tips = {
+        "severity": "      [dim]Valid severities: CRITICAL, HIGH, MEDIUM, LOW, INFO[/dim]",
+        "action": "      [dim]Valid actions: BLOCK, AUTO-FIX, WARN[/dim]",
+        "applies_to": "      [dim]Format: [\"service:resource\"] e.g., [\"s3:bucket\", \"ec2:instance\"][/dim]",
+        "ai_context is recommended": "      [dim]Add ai_context with fix instructions for better auto-fix results[/dim]",
+        "not exists": "      [dim]Use: 'Attribute not exists' (with space before 'not')[/dim]",
+        "unbalanced": "      [dim]Check for matching opening/closing parentheses and quotes[/dim]",
+        "unknown function": "      [dim]Available functions: get(), exists(), count(), env(), matches()[/dim]",
+    }
+
+    for key, tip in tips.items():
+        if key in error_lower:
+            console.print(tip)
+            return
+
+
+@guardrails_app.command("create")
+def create_guardrail(
+    requirement: str = typer.Argument(..., help="Natural language requirement for the guardrail"),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Append to policy file instead of stdout",
+    ),
+) -> None:
+    """Generate a guardrail from a natural language requirement.
+
+    Uses AI to create a guardrail definition from your description.
+    Outputs YAML that can be added to your policy file.
+
+    Examples:
+        awsinv guardrails create "S3 buckets must have encryption enabled"
+        awsinv guardrails create "No public security groups" >> policy.yaml
+        awsinv guardrails create "RDS instances need backups" -o policy.yaml
+    """
+    from ..guardrails.generator import generate_guardrail, guardrail_to_yaml
+
+    bedrock = _get_bedrock_client()
+    if not bedrock:
+        raise typer.Exit(1)
+
+    console.print(f"[dim]Generating guardrail for: {requirement}[/dim]")
+    console.print()
+
+    guardrail = generate_guardrail(requirement, bedrock_client=bedrock)
+
+    if not guardrail:
+        console.print("[red]Error:[/red] Failed to generate guardrail")
+        raise typer.Exit(1)
+
+    yaml_output = guardrail_to_yaml(guardrail)
+
+    if output:
+        # Append to file
+        output_path = Path(output)
+        mode = "a" if output_path.exists() else "w"
+
+        with open(output_path, mode) as f:
+            if mode == "a":
+                f.write("\n")
+            f.write(yaml_output)
+            f.write("\n")
+
+        console.print(f"[green]Guardrail appended to {output}[/green]")
+        console.print()
+        console.print(yaml_output)
+    else:
+        # Output to stdout
+        console.print(yaml_output)
+
+    raise typer.Exit(0)
+
+
+@guardrails_app.command("generate")
+def generate_guardrails(
+    description: str = typer.Argument(..., help="High-level policy description"),
+    count: int = typer.Option(
+        5,
+        "--count",
+        "-n",
+        help="Number of guardrails to generate",
+    ),
+    types: Optional[str] = typer.Option(
+        None,
+        "--types",
+        "-t",
+        help="Comma-separated resource types to focus on (e.g., s3,ec2,rds)",
+    ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Save to policy file",
+    ),
+) -> None:
+    """Generate multiple guardrails from a policy description.
+
+    Uses AI to create a set of guardrails based on your high-level
+    security or compliance requirements.
+
+    Examples:
+        awsinv guardrails generate "production security baseline"
+        awsinv guardrails generate "HIPAA compliance" --count 10
+        awsinv guardrails generate "secure S3 and RDS" --types s3,rds
+        awsinv guardrails generate "PCI-DSS requirements" -o pci-policy.yaml
+    """
+    from ..guardrails.generator import generate_guardrails_batch, guardrail_to_yaml
+
+    bedrock = _get_bedrock_client()
+    if not bedrock:
+        raise typer.Exit(1)
+
+    resource_types = None
+    if types:
+        resource_types = [t.strip() for t in types.split(",")]
+
+    console.print(f"[dim]Generating {count} guardrails for: {description}[/dim]")
+    if resource_types:
+        console.print(f"[dim]Focusing on: {', '.join(resource_types)}[/dim]")
+    console.print()
+
+    guardrails = generate_guardrails_batch(
+        description=description,
+        count=count,
+        resource_types=resource_types,
+        bedrock_client=bedrock,
+    )
+
+    if not guardrails:
+        console.print("[red]Error:[/red] Failed to generate guardrails")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Generated {len(guardrails)} guardrails:[/green]")
+    console.print()
+
+    yaml_parts = []
+    for g in guardrails:
+        yaml_output = guardrail_to_yaml(g)
+        yaml_parts.append(yaml_output)
+        console.print(yaml_output)
+        console.print()
+
+    if output:
+        output_path = Path(output)
+
+        # Create policy structure if new file
+        if not output_path.exists():
+            header = """name: generated-policy
+version: "1.0"
+description: AI-generated guardrails policy
+
+guardrails:
+"""
+            content = header + "\n".join(yaml_parts)
+        else:
+            # Append to existing
+            content = "\n" + "\n".join(yaml_parts)
+
+        with open(output_path, "a" if output_path.exists() else "w") as f:
+            f.write(content)
+
+        console.print(f"[green]Guardrails saved to {output}[/green]")
+
+    raise typer.Exit(0)

@@ -230,7 +230,8 @@ class TestValidateGuardrail:
             errors = validate_guardrail(guardrail_dict)
             assert errors == [], f"Operator {operator} should be valid"
 
-    def test_auto_fix_without_ai_context_warning(self) -> None:
+    def test_auto_fix_without_ai_context_is_valid(self) -> None:
+        """AUTO-FIX guardrails are valid without ai_context (it's optional)."""
         from src.guardrails.validator import validate_guardrail
 
         guardrail_dict = {
@@ -240,11 +241,11 @@ class TestValidateGuardrail:
             "action": "AUTO-FIX",
             "applies_to": ["*"],
             "condition": {"attribute": "test", "operator": "exists"},
-            # Missing ai_context
+            # ai_context is optional, so this should be valid
         }
         errors = validate_guardrail(guardrail_dict)
-        # Should have a warning about missing ai_context
-        assert any("ai_context" in e.lower() for e in errors)
+        # Should be valid - ai_context is helpful but not required
+        assert errors == []
 
 
 class TestValidatePolicy:
