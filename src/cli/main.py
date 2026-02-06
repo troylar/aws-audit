@@ -6164,10 +6164,10 @@ def generate(
             # Create resource wrappers for evaluation
             class ResourceWrapper:
                 def __init__(self, data: dict):
-                    self.resource_type = data.get("resource_type", "unknown")
+                    self.resource_type = data.get("resource_type", data.get("type", "unknown"))
                     self.name = data.get("name", "unknown")
                     self.arn = data.get("arn", "")
-                    self.config = data.get("config", {})
+                    self.config = data.get("config", data.get("raw_config", {}))
 
             resource_objects = [ResourceWrapper(r) if isinstance(r, dict) else r for r in resources]
 
