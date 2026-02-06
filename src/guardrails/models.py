@@ -122,6 +122,7 @@ class Guardrail:
     ai_context: str = ""  # Context for AI auto-fix
     enabled: bool = True
     tags: List[str] = field(default_factory=list)
+    best_practice: bool = False
 
     def is_ai_rule(self) -> bool:
         """Check if this guardrail uses AI evaluation."""

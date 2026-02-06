@@ -27,6 +27,7 @@ class TestEvaluateGuardrailsNode:
 
         state = {
             "guardrails_enabled": False,
+            "best_practices_enabled": False,
             "resources": [self._create_mock_resource()],
             "snapshot_name": "test-snapshot",
         }
@@ -36,6 +37,32 @@ class TestEvaluateGuardrailsNode:
         # Should skip guardrails and return unchanged state
         assert result.get("guardrails_blocked") is False
         assert result.get("guardrails_report") is None
+
+    def test_evaluate_best_practices_mode(self) -> None:
+        """Best-practice mode runs advisory checks (WARN only, never blocks)."""
+        from src.generate.nodes.evaluate_guardrails import evaluate_guardrails
+
+        # Resource without encryption - would be BLOCK in enforcement mode
+        resource = self._create_mock_resource(config={})
+
+        state = {
+            "guardrails_enabled": False,
+            "best_practices_enabled": True,
+            "resources": [resource],
+            "snapshot_name": "test-snapshot",
+            "output_format": "terraform",
+        }
+
+        result = evaluate_guardrails(state)
+
+        # Should NOT be blocked (best practices never block)
+        assert result.get("guardrails_blocked") is False
+        # But should have a report with evaluations
+        assert result.get("guardrails_report") is not None
+        report = result["guardrails_report"]
+        # All actions should be WARN in best-practice mode
+        for evaluation in report.get("evaluations", []):
+            assert evaluation["action"] == "WARN"
 
     def test_evaluate_guardrails_no_resources(self) -> None:
         from src.generate.nodes.evaluate_guardrails import evaluate_guardrails

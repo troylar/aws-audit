@@ -4,6 +4,7 @@ guardrails:
     short_description: "All resources must have required tags"
     severity: HIGH
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - "*"
     condition:
@@ -32,6 +33,7 @@ guardrails:
     short_description: "Resource must have Environment tag"
     severity: HIGH
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - "*"
     condition:
@@ -53,6 +55,7 @@ guardrails:
     short_description: "Resource must have Owner tag"
     severity: MEDIUM
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - "*"
     condition:

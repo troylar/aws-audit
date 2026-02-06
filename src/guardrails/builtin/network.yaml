@@ -4,6 +4,7 @@ guardrails:
     short_description: "Security group must not allow SSH from 0.0.0.0/0"
     severity: CRITICAL
     action: BLOCK
+    best_practice: true
     applies_to:
       - ec2:security-group
     condition:
@@ -29,6 +30,7 @@ guardrails:
     short_description: "Security group must not allow RDP from 0.0.0.0/0"
     severity: CRITICAL
     action: BLOCK
+    best_practice: true
     applies_to:
       - ec2:security-group
     condition:
@@ -49,6 +51,7 @@ guardrails:
     short_description: "Security group must not allow all traffic from 0.0.0.0/0"
     severity: CRITICAL
     action: BLOCK
+    best_practice: true
     applies_to:
       - ec2:security-group
     condition:
@@ -68,6 +71,7 @@ guardrails:
     short_description: "VPC must have flow logs enabled"
     severity: HIGH
     action: WARN
+    best_practice: true
     applies_to:
       - ec2:vpc
     condition:
@@ -88,6 +92,7 @@ guardrails:
     short_description: "Load balancer must have deletion protection"
     severity: MEDIUM
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - elasticloadbalancing:loadbalancer
     condition:

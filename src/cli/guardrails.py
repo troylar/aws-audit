@@ -7,12 +7,15 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.table import Table
+from rich.text import Text
 
 from ..guardrails import (
     GuardrailEvaluator,
     GuardrailPolicy,
+    export_builtin_policy_yaml,
     load_builtin_guardrails,
     load_policy,
 )
@@ -21,6 +24,109 @@ from ..guardrails.reporter import format_terminal_report
 from ..snapshot.storage import SnapshotStorage
 
 console = Console()
+
+
+class GuardrailsProgressDisplay:
+    """Simple progress display for guardrails evaluation."""
+
+    def __init__(self, con: Console, total_resources: int, total_guardrails: int) -> None:
+        self.console = con
+        self.total_resources = total_resources
+        self.total_guardrails = total_guardrails
+        self.current_resource = 0
+        self.current_resource_name = ""
+        self.current_guardrail = ""
+        self.passed = 0
+        self.failed = 0
+        self.auto_fixed = 0
+        self.warnings = 0
+        self.live: Optional[Live] = None
+
+    def _build_display(self) -> Group:
+        """Build the Rich display."""
+        elements = []
+
+        # Header line
+        header = Text()
+        header.append("\n🛡️  ", style="bold")
+        header.append("Guardrails Evaluation", style="bold cyan")
+        elements.append(header)
+
+        # Progress line
+        progress_line = Text()
+        progress_line.append("  Resources: ", style="dim")
+        progress_line.append(f"{self.current_resource}/{self.total_resources}", style="cyan")
+        progress_line.append("  Guardrails: ", style="dim")
+        progress_line.append(f"{self.total_guardrails}", style="cyan")
+        elements.append(progress_line)
+        elements.append(Text("\n"))
+
+        # Current evaluation
+        if self.current_resource_name or self.current_guardrail:
+            current_line = Text()
+            current_line.append("  ● ", style="yellow")
+            if self.current_guardrail:
+                current_line.append(self.current_guardrail, style="yellow")
+            if self.current_resource_name:
+                current_line.append(f" → {self.current_resource_name}", style="dim")
+            elements.append(current_line)
+            elements.append(Text("\n"))
+
+        # Counts table
+        counts_line = Text()
+        counts_line.append("  ")
+        counts_line.append(f"✓ {self.passed} passed", style="green")
+        counts_line.append("  ")
+        counts_line.append(f"✗ {self.failed} failed", style="red")
+        if self.auto_fixed > 0:
+            counts_line.append("  ")
+            counts_line.append(f"🔧 {self.auto_fixed} fixed", style="cyan")
+        if self.warnings > 0:
+            counts_line.append("  ")
+            counts_line.append(f"⚠ {self.warnings} warnings", style="yellow")
+        elements.append(counts_line)
+        elements.append(Text("\n"))
+
+        return Group(*elements)
+
+    def update(
+        self,
+        current: int,
+        total: int,
+        guardrail_id: str = "",
+        resource_name: str = "",
+        passed: int = 0,
+        failed: int = 0,
+        auto_fixed: int = 0,
+        warnings: int = 0,
+    ) -> None:
+        """Update progress."""
+        self.current_resource = current
+        self.current_guardrail = guardrail_id
+        self.current_resource_name = resource_name
+        self.passed = passed
+        self.failed = failed
+        self.auto_fixed = auto_fixed
+        self.warnings = warnings
+        if self.live:
+            self.live.update(self._build_display())
+
+    def start(self) -> None:
+        """Start live display."""
+        self.live = Live(
+            self._build_display(),
+            console=self.console,
+            refresh_per_second=4,
+            transient=True,
+        )
+        self.live.start()
+
+    def stop(self) -> None:
+        """Stop live display."""
+        if self.live:
+            self.live.stop()
+            self.live = None
+
 
 # Create the guardrails command group
 guardrails_app = typer.Typer(
@@ -172,15 +278,41 @@ def check(
 
     num_resources = len(resource_objects)
     num_guardrails = len(loaded_policy.guardrails)
-    console.print(
-        f"Evaluating [cyan]{num_resources}[/cyan] resources against [cyan]{num_guardrails}[/cyan] guardrails..."
-    )
-    console.print()
 
-    report = evaluator.evaluate_all(
-        resources=resource_objects,
-        snapshot_name=snapshot_display_name,
-    )
+    # Create progress display
+    progress_display = GuardrailsProgressDisplay(console, num_resources, num_guardrails)
+
+    def progress_callback(
+        current: int,
+        total: int,
+        guardrail_id: str = "",
+        resource_name: str = "",
+        passed: int = 0,
+        failed: int = 0,
+        auto_fixed: int = 0,
+        warnings: int = 0,
+    ) -> None:
+        progress_display.update(
+            current=current,
+            total=total,
+            guardrail_id=guardrail_id,
+            resource_name=resource_name,
+            passed=passed,
+            failed=failed,
+            auto_fixed=auto_fixed,
+            warnings=warnings,
+        )
+
+    # Run evaluation with progress
+    progress_display.start()
+    try:
+        report = evaluator.evaluate_all(
+            resources=resource_objects,
+            snapshot_name=snapshot_display_name,
+            progress_callback=progress_callback,
+        )
+    finally:
+        progress_display.stop()
 
     # Determine exit status
     has_blocking_violations = report.blocked
@@ -495,6 +627,48 @@ def validate_policy_file(
                 action = g.get("action", "UNKNOWN")
                 action_counts[action] = action_counts.get(action, 0) + 1
             console.print(f"  Actions: {', '.join(f'{k}={v}' for k, v in action_counts.items())}")
+
+    raise typer.Exit(0)
+
+
+@guardrails_app.command("export")
+def export_guardrails(
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Save to file instead of stdout",
+    ),
+    category: Optional[str] = typer.Option(
+        None,
+        "--category",
+        "-c",
+        help="Filter by category: encryption, network, tagging, logging",
+    ),
+) -> None:
+    """Export built-in guardrails as a standard YAML policy file.
+
+    Outputs the built-in best-practice guardrails in the standard policy
+    format so you can customize them.
+
+    Examples:
+        awsinv guardrails export > my-policy.yaml
+        awsinv guardrails export --output my-policy.yaml
+        awsinv guardrails export --category encryption --output enc-policy.yaml
+    """
+    yaml_content = export_builtin_policy_yaml(category=category)
+
+    if output:
+        output_path = Path(output)
+        try:
+            with open(output_path, "w") as f:
+                f.write(yaml_content)
+            console.print(f"[green]Exported to {output_path}[/green]")
+        except Exception as e:
+            console.print(f"[red]Error:[/red] Failed to write file: {e}")
+            raise typer.Exit(1)
+    else:
+        console.print(yaml_content, highlight=False)
 
     raise typer.Exit(0)
 

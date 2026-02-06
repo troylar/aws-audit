@@ -10,7 +10,7 @@ from .generator import (
     generate_guardrails_batch,
     guardrail_to_yaml,
 )
-from .loader import load_builtin_guardrails, load_policy
+from .loader import export_builtin_policy_yaml, load_best_practice_guardrails, load_builtin_guardrails, load_policy
 from .models import (
     Action,
     AutoFixError,
@@ -58,6 +58,8 @@ __all__ = [
     # Loader functions
     "load_policy",
     "load_builtin_guardrails",
+    "load_best_practice_guardrails",
+    "export_builtin_policy_yaml",
     # Formula evaluation
     "evaluate_formula",
     "validate_formula",

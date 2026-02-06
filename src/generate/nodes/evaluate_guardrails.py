@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from typing import Any, Dict, Optional
 
@@ -30,7 +31,8 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
 
     Reads from state:
         - resources: List[TrackedResource] - Parsed resources
-        - guardrails_enabled: bool - Whether guardrails are enabled
+        - best_practices_enabled: bool - Whether best-practice advisory mode is on
+        - guardrails_enabled: bool - Whether full guardrails enforcement is enabled
         - guardrails_policy_path: str - Path to policy file
         - guardrails_environment: str - Environment for overrides
         - guardrails_strict: bool - Fail on any violation
@@ -45,9 +47,11 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
     Returns:
         State updates dictionary.
     """
-    # Check if guardrails are enabled
     guardrails_enabled = state.get("guardrails_enabled", False)
-    if not guardrails_enabled:
+    best_practices_enabled = state.get("best_practices_enabled", True)
+
+    # Skip entirely if both are disabled
+    if not guardrails_enabled and not best_practices_enabled:
         return {
             "guardrails_blocked": False,
             "guardrails_report": None,
@@ -55,8 +59,8 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
         }
 
     # Import here to avoid circular imports and loading if not needed
-    from src.guardrails import GuardrailEvaluator, load_builtin_guardrails, load_policy
-    from src.guardrails.models import EvaluationResult, GuardrailPolicy
+    from src.guardrails import GuardrailEvaluator, load_best_practice_guardrails, load_builtin_guardrails, load_policy
+    from src.guardrails.models import Action, EvaluationResult, GuardrailPolicy
 
     resources = state.get("resources", [])
     policy_path = state.get("guardrails_policy_path")
@@ -66,42 +70,81 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
     snapshot_name = state.get("snapshot_name", "")
     output_format = state.get("output_format", "terraform")
 
-    emit_progress("guardrails_start", {"total_resources": len(resources)})
+    emit_progress("guardrails_start", {
+        "total_resources": len(resources),
+        "mode": "enforcement" if guardrails_enabled else "best_practices",
+    })
 
-    # Load policy
-    if policy_path:
-        policy = load_policy(policy_path, environment=environment)
+    if guardrails_enabled:
+        # Full enforcement mode (existing behavior)
+        if policy_path:
+            policy = load_policy(policy_path, environment=environment)
+        else:
+            builtin = load_builtin_guardrails()
+            policy = GuardrailPolicy(
+                name="builtin",
+                version="1.0",
+                description="Built-in guardrails",
+                guardrails=builtin,
+            )
+
+        # Get Bedrock client for auto-fix if enabled
+        bedrock_client = None
+        if auto_fix_enabled:
+            bedrock_client = _get_bedrock_client()
+            if bedrock_client:
+                logger.info("Auto-fix enabled with Bedrock AI")
+            else:
+                logger.warning("Auto-fix requested but Bedrock client unavailable")
+
+        evaluator = GuardrailEvaluator(
+            policy=policy,
+            auto_fix_enabled=auto_fix_enabled and bedrock_client is not None,
+            bedrock_client=bedrock_client,
+            environment=environment,
+            output_format=output_format,
+        )
     else:
-        # Use built-in guardrails
-        builtin = load_builtin_guardrails()
+        # Best-practice advisory mode: load only best-practice guardrails,
+        # downgrade all actions to WARN, disable auto-fix
+        bp_guardrails = load_best_practice_guardrails()
+        advisory_guardrails = [
+            dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails
+        ]
         policy = GuardrailPolicy(
-            name="builtin",
+            name="best-practices",
             version="1.0",
-            description="Built-in guardrails",
-            guardrails=builtin,
+            description="Built-in best-practice guardrails (advisory)",
+            guardrails=advisory_guardrails,
+        )
+        evaluator = GuardrailEvaluator(
+            policy=policy,
+            auto_fix_enabled=False,
+            environment=environment,
+            output_format=output_format,
         )
 
-    # Get Bedrock client for auto-fix if enabled
-    bedrock_client = None
-    if auto_fix_enabled:
-        bedrock_client = _get_bedrock_client()
-        if bedrock_client:
-            logger.info("Auto-fix enabled with Bedrock AI")
-        else:
-            logger.warning("Auto-fix requested but Bedrock client unavailable")
-
-    # Create evaluator
-    evaluator = GuardrailEvaluator(
-        policy=policy,
-        auto_fix_enabled=auto_fix_enabled and bedrock_client is not None,
-        bedrock_client=bedrock_client,
-        environment=environment,
-        output_format=output_format,
-    )
-
-    # Progress callback
-    def progress_callback(current: int, total: int) -> None:
-        emit_progress("guardrails_progress", {"current": current, "total": total})
+    # Progress callback with rich data
+    def progress_callback(
+        current: int,
+        total: int,
+        guardrail_id: str = "",
+        resource_name: str = "",
+        passed: int = 0,
+        failed: int = 0,
+        auto_fixed: int = 0,
+        warnings: int = 0,
+    ) -> None:
+        emit_progress("guardrails_progress", {
+            "current": current,
+            "total": total,
+            "guardrail_id": guardrail_id,
+            "resource_name": resource_name,
+            "passed": passed,
+            "failed": failed,
+            "auto_fixed": auto_fixed,
+            "warnings": warnings,
+        })
 
     # Evaluate all resources
     report = evaluator.evaluate_all(
@@ -113,18 +156,18 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
     # Determine if blocked
     blocked = False
 
-    if strict_mode:
-        # In strict mode, any failure blocks
-        failed_evals = [e for e in report.evaluations if e.result == EvaluationResult.FAIL]
-        if failed_evals:
-            blocked = True
-            report.blocked = True
-            report.block_reason = f"Strict mode: {len(failed_evals)} violations found"
-    else:
-        # Normal mode: only CRITICAL/HIGH with BLOCK action blocks
-        blocked = report.blocked
+    if guardrails_enabled:
+        # Full enforcement: check blocking logic
+        if strict_mode:
+            failed_evals = [e for e in report.evaluations if e.result == EvaluationResult.FAIL]
+            if failed_evals:
+                blocked = True
+                report.blocked = True
+                report.block_reason = f"Strict mode: {len(failed_evals)} violations found"
+        else:
+            blocked = report.blocked
+    # Best-practice mode never blocks
 
-    # Get auto-fixes (placeholder for future implementation)
     auto_fixes = evaluator.get_auto_fixes()
 
     emit_progress(
@@ -133,7 +176,10 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
             "passed": report.summary.passed,
             "failed": report.summary.failed,
             "auto_fixed": report.summary.auto_fixed,
+            "warnings": report.summary.warnings,
             "blocked": blocked,
+            "block_reason": report.block_reason if blocked else "",
+            "mode": "enforcement" if guardrails_enabled else "best_practices",
         },
     )
 

@@ -4,6 +4,7 @@ guardrails:
     short_description: "S3 bucket must have encryption at rest"
     severity: CRITICAL
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - s3:bucket
     condition:
@@ -29,6 +30,7 @@ guardrails:
     short_description: "RDS instance must have encryption at rest"
     severity: CRITICAL
     action: BLOCK
+    best_practice: true
     applies_to:
       - rds:db
       - rds:cluster
@@ -52,6 +54,7 @@ guardrails:
     short_description: "EBS volume must have encryption"
     severity: CRITICAL
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - ec2:volume
     condition:
@@ -74,6 +77,7 @@ guardrails:
     short_description: "DynamoDB table must have encryption"
     severity: HIGH
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - dynamodb:table
     condition:
@@ -93,6 +97,7 @@ guardrails:
     short_description: "Secrets Manager secret must use encryption"
     severity: HIGH
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - secretsmanager:secret
     condition:
