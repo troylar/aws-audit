@@ -128,6 +128,43 @@ class GuardrailsProgressDisplay:
             self.live = None
 
 
+def _warn_missing_config(resources: list, con: Console) -> int:
+    """Check resources for missing config data and warn/error accordingly.
+
+    Returns count of resources missing config.
+    """
+    total = len(resources)
+    if total == 0:
+        return 0
+
+    missing = 0
+    for r in resources:
+        config = getattr(r, "config", None)
+        raw_config = getattr(r, "raw_config", None)
+        has_config = (config is not None and config != {}) or (raw_config is not None and raw_config != {})
+        if not has_config:
+            missing += 1
+
+    if missing == 0:
+        return 0
+
+    if missing == total:
+        con.print(
+            f"[red]Error:[/red] {missing} of {total} resources have no configuration data (config/raw_config).\n"
+            "Guardrails cannot evaluate resources without configuration data.\n"
+            "\nIf using a snapshot, re-take it with the latest version:\n"
+            "  awsinv snapshot <name>\n"
+            "\nIf using --from-file, ensure resources include a \"config\" or \"raw_config\" key."
+        )
+        raise typer.Exit(1)
+
+    con.print(
+        f"[yellow]Warning:[/yellow] {missing} of {total} resources have no configuration data "
+        "and will be skipped by guardrails."
+    )
+    return missing
+
+
 # Create the guardrails command group
 guardrails_app = typer.Typer(
     name="guardrails",
@@ -251,6 +288,8 @@ def check(
             resource_objects.append(ResourceWrapper(r))
         else:
             resource_objects.append(r)
+
+    _warn_missing_config(resource_objects, console)
 
     # Load policy
     if policy:

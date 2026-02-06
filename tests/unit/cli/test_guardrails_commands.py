@@ -5,8 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import click
+import pytest
+from rich.console import Console
 from typer.testing import CliRunner
 
+from src.cli.guardrails import _warn_missing_config
 from src.cli.main import app
 
 runner = CliRunner()
@@ -40,7 +44,7 @@ class TestGuardrailsCheckCommand:
         """Check command returns 0 when no violations found."""
         # Setup mocks - return object with resources attribute
         mock_snapshot = MagicMock()
-        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {}}]
+        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {"BucketName": "test"}}]
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_class.return_value = mock_storage
@@ -81,7 +85,7 @@ class TestGuardrailsCheckCommand:
 
         # Setup mocks - return object with resources attribute
         mock_snapshot = MagicMock()
-        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {}}]
+        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {"BucketName": "test"}}]
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_class.return_value = mock_storage
@@ -183,7 +187,7 @@ guardrails: []
 
         # Setup mocks - return object with resources attribute
         mock_snapshot = MagicMock()
-        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {}}]
+        mock_snapshot.resources = [{"resource_type": "s3:bucket", "name": "test", "config": {"BucketName": "test"}}]
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_class.return_value = mock_storage
@@ -228,7 +232,8 @@ guardrails: []
 resources:
   - resource_type: s3:bucket
     name: test-bucket
-    config: {}
+    config:
+      BucketName: test-bucket
 """
         )
 
@@ -415,3 +420,68 @@ class TestGuardrailsCommandHelp:
         assert "--severity" in result.stdout
         assert "--category" in result.stdout
         assert "--format" in result.stdout
+
+
+class TestWarnMissingConfig:
+    """Tests for _warn_missing_config validation helper."""
+
+    def _make_resource(self, config: object = None, raw_config: object = None) -> MagicMock:
+        r = MagicMock()
+        r.config = config
+        r.raw_config = raw_config
+        return r
+
+    def test_empty_list_returns_zero(self) -> None:
+        assert _warn_missing_config([], Console()) == 0
+
+    def test_all_have_config_returns_zero(self) -> None:
+        resources = [self._make_resource(config={"BucketName": "x"})]
+        assert _warn_missing_config(resources, Console()) == 0
+
+    def test_all_have_raw_config_returns_zero(self) -> None:
+        resources = [self._make_resource(raw_config={"BucketName": "x"})]
+        assert _warn_missing_config(resources, Console()) == 0
+
+    def test_all_missing_config_exits_1(self) -> None:
+        resources = [
+            self._make_resource(config=None, raw_config=None),
+            self._make_resource(config={}, raw_config={}),
+        ]
+        with pytest.raises(click.exceptions.Exit):
+            _warn_missing_config(resources, Console())
+
+    def test_some_missing_config_returns_count(self) -> None:
+        resources = [
+            self._make_resource(config={"BucketName": "x"}),
+            self._make_resource(config=None, raw_config=None),
+        ]
+        assert _warn_missing_config(resources, Console()) == 1
+
+    def test_all_missing_error_message(self, capsys: pytest.CaptureFixture[str]) -> None:
+        resources = [self._make_resource(config=None, raw_config=None)]
+        con = Console()
+        with pytest.raises(click.exceptions.Exit):
+            _warn_missing_config(resources, con)
+
+    @patch("src.cli.guardrails.load_builtin_guardrails")
+    @patch("src.cli.guardrails.GuardrailEvaluator")
+    def test_check_from_file_all_missing_config_exits_1(
+        self,
+        mock_evaluator_class: MagicMock,
+        mock_load_builtin: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Check command exits 1 when all resources lack config data."""
+        inventory_file = tmp_path / "inventory.yaml"
+        inventory_file.write_text(
+            """
+resources:
+  - resource_type: s3:bucket
+    name: test-bucket
+"""
+        )
+        mock_load_builtin.return_value = []
+
+        result = runner.invoke(app, ["guardrails", "check", "--from-file", str(inventory_file)])
+        assert result.exit_code == 1
+        assert "no configuration data" in result.stdout

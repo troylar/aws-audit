@@ -6171,6 +6171,10 @@ def generate(
 
             resource_objects = [ResourceWrapper(r) if isinstance(r, dict) else r for r in resources]
 
+            from .guardrails import _warn_missing_config
+
+            _warn_missing_config(resource_objects, console)
+
             # Evaluate
             evaluator = GuardrailEvaluator(
                 policy=policy,
