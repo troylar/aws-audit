@@ -186,7 +186,11 @@ class GuardrailEvaluator:
         resource_type = getattr(resource, "resource_type", "")
         resource_name = getattr(resource, "name", "")
         resource_arn = getattr(resource, "arn", "")
-        resource_config = getattr(resource, "config", {}) or {}
+        # Support .config (TrackedResource, test mocks) and .raw_config (snapshot Resource)
+        resource_config = getattr(resource, "config", None)
+        if resource_config is None:
+            resource_config = getattr(resource, "raw_config", None) or {}
+
 
         for guardrail in self._guardrails:
             # Skip disabled guardrails

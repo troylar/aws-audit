@@ -243,10 +243,10 @@ def check(
             # Create a simple object with required attributes
             class ResourceWrapper:
                 def __init__(self, data: dict):
-                    self.resource_type = data.get("resource_type", "unknown")
+                    self.resource_type = data.get("resource_type", data.get("type", "unknown"))
                     self.name = data.get("name", "unknown")
                     self.arn = data.get("arn", "")
-                    self.config = data.get("config", {})
+                    self.config = data.get("config", data.get("raw_config", {}))
 
             resource_objects.append(ResourceWrapper(r))
         else:
