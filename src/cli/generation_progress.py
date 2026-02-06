@@ -78,6 +78,21 @@ class ComparisonResult:
     summary: str = ""
 
 
+@dataclass
+class GuardrailsResult:
+    """Track guardrails evaluation results."""
+
+    total_evaluations: int = 0
+    passed: int = 0
+    failed: int = 0
+    auto_fixed: int = 0
+    warnings: int = 0
+    blocked: bool = False
+    block_reason: str = ""
+    current_guardrail: str = ""
+    current_resource: str = ""
+
+
 class GenerationProgressDisplay:
     """Manages real-time generation progress display with detailed workflow view."""
 
@@ -92,6 +107,11 @@ class GenerationProgressDisplay:
             "name": "Build Resource Map",
             "icon": "🔗",
             "description": "Creating AWS ID to reference mapping",
+        },
+        WorkflowStep.EVALUATE_GUARDRAILS: {
+            "name": "Evaluate Guardrails",
+            "icon": "🛡️",
+            "description": "Checking compliance policies",
         },
         WorkflowStep.CATEGORIZE_LAYERS: {
             "name": "Categorize Layers",
@@ -165,6 +185,9 @@ class GenerationProgressDisplay:
         self.lambda_functions_extracted: int = 0
         self.activity_history: List[str] = []  # Recent activity messages
         self.max_activity_history: int = 3  # Show last N activities
+        self.guardrails: Optional[GuardrailsResult] = None
+        self.guardrails_enabled: bool = False
+        self.best_practices_mode: bool = False
 
         # Initialize all steps
         for step in WorkflowStep:
@@ -285,6 +308,59 @@ class GenerationProgressDisplay:
         self.validation_errors = errors
         self._refresh()
 
+    def enable_guardrails(self, best_practices_mode: bool = False) -> None:
+        """Enable guardrails tracking.
+
+        Args:
+            best_practices_mode: If True, show "Best Practices" label instead of "Evaluate Guardrails".
+        """
+        self.guardrails_enabled = True
+        self.best_practices_mode = best_practices_mode
+        self.guardrails = GuardrailsResult()
+        self._refresh()
+
+    def update_guardrails_progress(
+        self,
+        current_guardrail: str = "",
+        current_resource: str = "",
+        passed: int = 0,
+        failed: int = 0,
+        auto_fixed: int = 0,
+        warnings: int = 0,
+        total: int = 0,
+    ) -> None:
+        """Update guardrails evaluation progress."""
+        if self.guardrails:
+            self.guardrails.current_guardrail = current_guardrail
+            self.guardrails.current_resource = current_resource
+            self.guardrails.passed = passed
+            self.guardrails.failed = failed
+            self.guardrails.auto_fixed = auto_fixed
+            self.guardrails.warnings = warnings
+            self.guardrails.total_evaluations = total
+        self._refresh()
+
+    def set_guardrails_result(
+        self,
+        passed: int,
+        failed: int,
+        auto_fixed: int,
+        warnings: int,
+        blocked: bool = False,
+        block_reason: str = "",
+    ) -> None:
+        """Set final guardrails result."""
+        if self.guardrails:
+            self.guardrails.passed = passed
+            self.guardrails.failed = failed
+            self.guardrails.auto_fixed = auto_fixed
+            self.guardrails.warnings = warnings
+            self.guardrails.blocked = blocked
+            self.guardrails.block_reason = block_reason
+            self.guardrails.current_guardrail = ""
+            self.guardrails.current_resource = ""
+        self._refresh()
+
     def _get_layer_icon(self, layer_name: str) -> str:
         """Get icon for a layer name."""
         for key, icon in self.LAYER_ICONS.items():
@@ -318,6 +394,11 @@ class GenerationProgressDisplay:
     def _get_step_config(self, step: WorkflowStep) -> Dict[str, str]:
         """Get step configuration with format-specific overrides."""
         config = dict(self.STEP_CONFIG_BASE[step])
+
+        # Best-practice mode label override
+        if step == WorkflowStep.EVALUATE_GUARDRAILS and self.best_practices_mode:
+            config["name"] = "Best Practices"
+            config["description"] = "Advisory best-practice checks"
 
         # Format-specific overrides
         if self._is_cdk_format():
@@ -385,16 +466,21 @@ class GenerationProgressDisplay:
         steps_table.add_column("Time", width=8)
         steps_table.add_column("Details", style="dim")
 
+        # Build workflow order - include guardrails only if enabled
         workflow_order = [
             WorkflowStep.PARSE_INVENTORY,
             WorkflowStep.BUILD_RESOURCE_MAP,
+        ]
+        if self.guardrails_enabled:
+            workflow_order.append(WorkflowStep.EVALUATE_GUARDRAILS)
+        workflow_order.extend([
             WorkflowStep.CATEGORIZE_LAYERS,
             WorkflowStep.EXTRACT_LAMBDA,
             WorkflowStep.GENERATE_LAYERS,
             WorkflowStep.COMPARE_INVENTORY,
             WorkflowStep.TERRAFORM_INIT,
             WorkflowStep.TERRAFORM_VALIDATE,
-        ]
+        ])
 
         for step in workflow_order:
             config = self._get_step_config(step)
@@ -448,6 +534,23 @@ class GenerationProgressDisplay:
                 details = f"{self.comparison.coverage_percentage:.0f}% coverage"
             elif step == WorkflowStep.TERRAFORM_VALIDATE and self.validation_errors:
                 details = f"{len(self.validation_errors)} warnings"
+            elif step == WorkflowStep.EVALUATE_GUARDRAILS and self.guardrails:
+                gr = self.guardrails
+                if tracked and tracked.status == "running":
+                    if gr.current_guardrail:
+                        details = f"Checking {gr.current_guardrail}..."
+                    else:
+                        total = gr.passed + gr.failed + gr.auto_fixed + gr.warnings
+                        details = f"Evaluated {total} checks..."
+                elif tracked and tracked.status == "completed":
+                    if gr.blocked:
+                        details = f"[red]BLOCKED[/red] - {gr.failed} violations"
+                    elif gr.auto_fixed > 0:
+                        details = f"✓ {gr.passed} passed, {gr.auto_fixed} auto-fixed"
+                    elif gr.failed > 0:
+                        details = f"⚠ {gr.passed} passed, {gr.failed} failed"
+                    else:
+                        details = f"✓ {gr.passed} passed"
 
             steps_table.add_row(
                 status_icon,
@@ -515,6 +618,84 @@ class GenerationProgressDisplay:
                     layer_line.append(f" ({layer.resource_count})", style="dim")
 
                 elements.append(layer_line)
+
+        # Guardrails details (show during evaluation)
+        if self.guardrails and self.current_step == WorkflowStep.EVALUATE_GUARDRAILS:
+            gr = self.guardrails
+            elements.append(Text("\n"))
+            gr_header = Text()
+            gr_header.append("  ", style="")
+            gr_header.append("Guardrails: ", style="bold")
+            total = gr.passed + gr.failed + gr.auto_fixed + gr.warnings
+            gr_header.append(f"{total} evaluated", style="cyan")
+            elements.append(gr_header)
+
+            # Show current evaluation
+            if gr.current_guardrail or gr.current_resource:
+                current_line = Text()
+                current_line.append("    ", style="")
+                current_line.append("● ", style="yellow")
+                if gr.current_guardrail:
+                    current_line.append(gr.current_guardrail, style="yellow")
+                if gr.current_resource:
+                    current_line.append(f" → {gr.current_resource}", style="dim")
+                elements.append(current_line)
+
+            # Show running totals
+            if gr.passed > 0:
+                passed_line = Text()
+                passed_line.append("    ", style="")
+                passed_line.append("✓ ", style="green")
+                passed_line.append(f"{gr.passed} passed", style="green")
+                elements.append(passed_line)
+            if gr.auto_fixed > 0:
+                fixed_line = Text()
+                fixed_line.append("    ", style="")
+                fixed_line.append("🔧 ", style="cyan")
+                fixed_line.append(f"{gr.auto_fixed} auto-fixed", style="cyan")
+                elements.append(fixed_line)
+            if gr.failed > 0:
+                failed_line = Text()
+                failed_line.append("    ", style="")
+                failed_line.append("✗ ", style="red")
+                failed_line.append(f"{gr.failed} failed", style="red")
+                elements.append(failed_line)
+            if gr.warnings > 0:
+                warn_line = Text()
+                warn_line.append("    ", style="")
+                warn_line.append("⚠ ", style="yellow")
+                warn_line.append(f"{gr.warnings} warnings", style="yellow")
+                elements.append(warn_line)
+
+        # Guardrails summary (show after evaluation)
+        if self.guardrails and self.guardrails_enabled and self.current_step not in [
+            WorkflowStep.PARSE_INVENTORY,
+            WorkflowStep.BUILD_RESOURCE_MAP,
+            WorkflowStep.EVALUATE_GUARDRAILS,
+        ]:
+            gr = self.guardrails
+            if gr.blocked:
+                elements.append(Text("\n"))
+                block_line = Text()
+                block_line.append("  ", style="")
+                block_line.append("🛡️ Guardrails: ", style="bold")
+                block_line.append("BLOCKED", style="bold red")
+                block_line.append(f" - {gr.block_reason}", style="red")
+                elements.append(block_line)
+            elif gr.passed > 0 or gr.auto_fixed > 0:
+                elements.append(Text("\n"))
+                summary_line = Text()
+                summary_line.append("  ", style="")
+                summary_line.append("🛡️ Guardrails: ", style="bold")
+                parts = []
+                if gr.passed > 0:
+                    parts.append(f"[green]{gr.passed} passed[/green]")
+                if gr.auto_fixed > 0:
+                    parts.append(f"[cyan]{gr.auto_fixed} auto-fixed[/cyan]")
+                if gr.warnings > 0:
+                    parts.append(f"[yellow]{gr.warnings} warnings[/yellow]")
+                summary_line.append(", ".join(parts))
+                elements.append(summary_line)
 
         # Comparison result
         if self.comparison and self.current_step in [
@@ -609,6 +790,23 @@ class GenerationProgressDisplay:
             coverage = self.comparison.coverage_percentage
             color = "green" if coverage >= 90 else "yellow" if coverage >= 70 else "red"
             table.add_row("Coverage", f"[{color}]{coverage:.1f}%[/{color}]")
+
+        if self.guardrails and self.guardrails_enabled:
+            gr = self.guardrails
+            label = "Best Practices" if self.best_practices_mode else "Guardrails"
+            if gr.blocked:
+                table.add_row(label, f"[red]BLOCKED ({gr.failed} violations)[/red]")
+            else:
+                parts = []
+                if gr.passed > 0:
+                    parts.append(f"[green]{gr.passed} passed[/green]")
+                if gr.auto_fixed > 0:
+                    parts.append(f"[cyan]{gr.auto_fixed} fixed[/cyan]")
+                if gr.warnings > 0:
+                    parts.append(f"[yellow]{gr.warnings} warn[/yellow]")
+                if gr.failed > 0:
+                    parts.append(f"[red]{gr.failed} failed[/red]")
+                table.add_row(label, ", ".join(parts) if parts else "[green]✓[/green]")
 
         self.console.print(table)
         self.console.print()

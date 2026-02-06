@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import yaml
+
+import io
 
 from .models import (
     Action,
@@ -119,6 +121,7 @@ def _guardrail_to_dict(guardrail: Guardrail) -> Dict[str, Any]:
         "ai_context": guardrail.ai_context,
         "enabled": guardrail.enabled,
         "tags": guardrail.tags,
+        "best_practice": guardrail.best_practice,
     }
 
     # Add condition or AI rule (mutually exclusive)
@@ -246,6 +249,7 @@ def _parse_guardrail(g_dict: Dict[str, Any]) -> Guardrail:
         ai_context=g_dict.get("ai_context", ""),
         enabled=g_dict.get("enabled", True),
         tags=g_dict.get("tags", []),
+        best_practice=g_dict.get("best_practice", False),
     )
 
 
@@ -272,3 +276,47 @@ def _parse_override(o_dict: Dict[str, Any]) -> PolicyOverride:
         action=action,
         enabled=o_dict.get("enabled"),
     )
+
+
+def load_best_practice_guardrails() -> List[Guardrail]:
+    """Load only built-in guardrails marked as best_practice.
+
+    Returns:
+        List of Guardrail objects where best_practice=True.
+    """
+    return [g for g in load_builtin_guardrails() if g.best_practice]
+
+
+def export_builtin_policy_yaml(category: Optional[str] = None) -> str:
+    """Export built-in guardrails as a standard policy YAML string.
+
+    Args:
+        category: Optional category filter (e.g., "encryption", "network").
+
+    Returns:
+        YAML string in standard policy format.
+    """
+    guardrails = load_builtin_guardrails()
+
+    if category:
+        cat_upper = category.upper()
+        # Match category abbreviation in ID (e.g., GR-ENC-001 -> ENC matches "encryption")
+        category_map: Dict[str, str] = {
+            "encryption": "ENC",
+            "network": "NET",
+            "tagging": "TAG",
+            "logging": "LOG",
+        }
+        abbrev = category_map.get(category.lower(), cat_upper)
+        guardrails = [g for g in guardrails if f"-{abbrev}-" in g.id]
+
+    policy_dict: Dict[str, Any] = {
+        "name": "builtin-best-practices",
+        "version": "1.0",
+        "description": "Built-in best-practice guardrails exported for customization",
+        "guardrails": [_guardrail_to_dict(g) for g in guardrails],
+    }
+
+    stream = io.StringIO()
+    yaml.dump(policy_dict, stream, default_flow_style=False, sort_keys=False)
+    return stream.getvalue()

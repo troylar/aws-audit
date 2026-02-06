@@ -377,7 +377,7 @@ class GuardrailEvaluator:
         self,
         resources: List[Any],
         snapshot_name: str = "",
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Optional[Callable[..., None]] = None,
         validate_fixes: bool = True,
     ) -> GuardrailReport:
         """Evaluate all resources against the policy.
@@ -385,7 +385,11 @@ class GuardrailEvaluator:
         Args:
             resources: List of TrackedResource objects.
             snapshot_name: Name of the source snapshot.
-            progress_callback: Optional callback(current, total) for progress.
+            progress_callback: Optional callback for progress updates.
+                Supports two signatures:
+                - Simple: callback(current, total)
+                - Rich: callback(current, total, **kwargs) with guardrail_id, resource_name,
+                        passed, failed, auto_fixed, warnings
             validate_fixes: Whether to validate that fixes don't cause conflicts.
 
         Returns:
@@ -407,14 +411,48 @@ class GuardrailEvaluator:
 
         all_evaluations: List[GuardrailEvaluation] = []
         total = len(resources)
+        passed_count = 0
+        failed_count = 0
+        auto_fixed_count = 0
+        warnings_count = 0
+
         for i, resource in enumerate(resources):
+            resource_name = getattr(resource, "name", str(i))
             evaluations = self.evaluate_resource(resource)
+
+            # Track last guardrail evaluated for this resource
+            last_guardrail_id = ""
             for evaluation in evaluations:
                 report.add_evaluation(evaluation)
                 all_evaluations.append(evaluation)
+                last_guardrail_id = evaluation.guardrail_id
+
+                # Track counts
+                if evaluation.result == EvaluationResult.PASS:
+                    passed_count += 1
+                elif evaluation.result == EvaluationResult.FAIL:
+                    if evaluation.severity in (Severity.LOW, Severity.INFO):
+                        warnings_count += 1
+                    else:
+                        failed_count += 1
+                elif evaluation.result == EvaluationResult.AUTO_FIXED:
+                    auto_fixed_count += 1
 
             if progress_callback:
-                progress_callback(i + 1, total)
+                try:
+                    # Try rich callback signature first
+                    progress_callback(
+                        i + 1, total,
+                        guardrail_id=last_guardrail_id,
+                        resource_name=resource_name,
+                        passed=passed_count,
+                        failed=failed_count,
+                        auto_fixed=auto_fixed_count,
+                        warnings=warnings_count,
+                    )
+                except TypeError:
+                    # Fall back to simple signature
+                    progress_callback(i + 1, total)
 
         # Check for blocking violations
         blocking_violations = report.get_blocking_violations()

@@ -68,6 +68,7 @@ class CDKGenerator:
         guardrails_environment: str = "default",
         guardrails_strict: bool = False,
         guardrails_auto_fix: bool = True,
+        best_practices_enabled: bool = True,
     ):
         """Initialize generator.
 
@@ -83,6 +84,7 @@ class CDKGenerator:
             guardrails_environment: Environment for policy overrides
             guardrails_strict: Enable strict mode (any violation blocks)
             guardrails_auto_fix: Enable AI auto-fix for AUTO-FIX guardrails
+            best_practices_enabled: Enable advisory best-practice guardrails
         """
         self.output_dir = output_dir
         self.output_format = output_format
@@ -93,6 +95,7 @@ class CDKGenerator:
         self.guardrails_environment = guardrails_environment
         self.guardrails_strict = guardrails_strict
         self.guardrails_auto_fix = guardrails_auto_fix
+        self.best_practices_enabled = best_practices_enabled
 
         base_config = GenerationConfig.from_env()
 
@@ -153,6 +156,7 @@ class CDKGenerator:
             "errors": [],
             "messages": [],
             # Guardrails fields
+            "best_practices_enabled": self.best_practices_enabled,
             "guardrails_enabled": self.guardrails_enabled,
             "guardrails_policy_path": self.guardrails_policy_path,
             "guardrails_environment": self.guardrails_environment,
@@ -524,6 +528,7 @@ def generate_cdk(
     guardrails_environment: str = "default",
     guardrails_strict: bool = False,
     guardrails_auto_fix: bool = True,
+    best_practices_enabled: bool = True,
 ) -> GenerationResult:
     """Generate CDK from a snapshot or export file.
 
@@ -541,6 +546,7 @@ def generate_cdk(
         guardrails_environment: Environment for policy overrides
         guardrails_strict: Enable strict mode (any violation blocks)
         guardrails_auto_fix: Enable AI auto-fix for AUTO-FIX guardrails
+        best_practices_enabled: Enable advisory best-practice guardrails
 
     Returns:
         GenerationResult
@@ -557,5 +563,6 @@ def generate_cdk(
         guardrails_environment=guardrails_environment,
         guardrails_strict=guardrails_strict,
         guardrails_auto_fix=guardrails_auto_fix,
+        best_practices_enabled=best_practices_enabled,
     )
     return generator.run(snapshot_name=snapshot_name, input_file=input_file)

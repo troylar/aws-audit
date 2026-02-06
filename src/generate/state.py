@@ -68,6 +68,7 @@ class GenerationState(TypedDict, total=False):
     messages: Annotated[List[Dict[str, Any]], add]
 
     # Guardrails fields
+    best_practices_enabled: bool  # Whether best-practice advisory guardrails are enabled
     guardrails_enabled: bool  # Whether guardrail evaluation is enabled
     guardrails_policy_path: Optional[str]  # Path to guardrail policy file
     guardrails_environment: str  # Environment name for policy overrides (default: "default")

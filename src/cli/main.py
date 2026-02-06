@@ -5986,6 +5986,11 @@ def generate(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
+    no_best_practices: bool = typer.Option(
+        False,
+        "--no-best-practices",
+        help="Disable built-in best-practice guardrails (advisory warnings)",
+    ),
     guardrails: bool = typer.Option(False, "--guardrails", "-g", help="Enable guardrails policy evaluation"),
     guardrails_policy: Optional[str] = typer.Option(
         None,
@@ -6104,29 +6109,57 @@ def generate(
         for rtype, count in sorted(type_counts.items(), key=lambda x: -x[1])[:10]:
             console.print(f"  {rtype}: {count}")
 
-        # Run guardrails evaluation if enabled
-        if guardrails:
-            from ..guardrails import GuardrailEvaluator, GuardrailPolicy, load_builtin_guardrails, load_policy
-            from ..guardrails.models import EvaluationResult
+        # Determine best-practice mode
+        best_practices_enabled = not no_best_practices
+
+        # Run guardrails evaluation if enabled (enforcement or best-practice)
+        if guardrails or best_practices_enabled:
+            import dataclasses
+
+            from ..guardrails import (
+                GuardrailEvaluator,
+                GuardrailPolicy,
+                load_best_practice_guardrails,
+                load_builtin_guardrails,
+                load_policy,
+            )
+            from ..guardrails.models import Action, EvaluationResult
 
             console.print()
-            console.print("[cyan]Guardrails Evaluation:[/cyan]")
+            if guardrails:
+                console.print("[cyan]Guardrails Evaluation:[/cyan]")
+            else:
+                console.print("[cyan]Best Practices (advisory):[/cyan]")
 
             # Load policy
-            if guardrails_policy:
-                policy = load_policy(guardrails_policy, environment=guardrails_env)
+            if guardrails:
+                if guardrails_policy:
+                    policy = load_policy(guardrails_policy, environment=guardrails_env)
+                else:
+                    builtin = load_builtin_guardrails()
+                    policy = GuardrailPolicy(
+                        name="builtin",
+                        version="1.0",
+                        description="Built-in guardrails",
+                        guardrails=builtin,
+                    )
             else:
-                builtin = load_builtin_guardrails()
+                # Best-practice advisory mode
+                bp_guardrails = load_best_practice_guardrails()
+                advisory_guardrails = [
+                    dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails
+                ]
                 policy = GuardrailPolicy(
-                    name="builtin",
+                    name="best-practices",
                     version="1.0",
-                    description="Built-in guardrails",
-                    guardrails=builtin,
+                    description="Built-in best-practice guardrails (advisory)",
+                    guardrails=advisory_guardrails,
                 )
 
             console.print(f"  Policy: {policy.name} v{policy.version}")
             console.print(f"  Guardrails: {len(policy.guardrails)}")
-            console.print(f"  Environment: {guardrails_env}")
+            if guardrails:
+                console.print(f"  Environment: {guardrails_env}")
 
             # Create resource wrappers for evaluation
             class ResourceWrapper:
@@ -6141,43 +6174,45 @@ def generate(
             # Evaluate
             evaluator = GuardrailEvaluator(
                 policy=policy,
-                auto_fix_enabled=guardrails_auto_fix,
+                auto_fix_enabled=guardrails_auto_fix if guardrails else False,
                 environment=guardrails_env,
                 output_format=format,
             )
 
-            report = evaluator.evaluate_all(resource_objects, validate_fixes=True)
+            report = evaluator.evaluate_all(resource_objects, validate_fixes=guardrails)
 
             # Show results
             console.print()
             console.print(f"  [green]Passed:[/green] {report.summary.passed}")
             console.print(f"  [red]Failed:[/red] {report.summary.failed}")
-            console.print(f"  [yellow]Auto-fixed:[/yellow] {report.summary.auto_fixed}")
+            if guardrails:
+                console.print(f"  [yellow]Auto-fixed:[/yellow] {report.summary.auto_fixed}")
 
-            # Show auto-fixes that would be applied
-            auto_fixes = evaluator.get_auto_fixes()
-            if auto_fixes:
-                console.print()
-                console.print("[cyan]Auto-fixes that would be applied:[/cyan]")
-                for resource_id, fixes in list(auto_fixes.items())[:5]:
-                    console.print(f"  {resource_id}:")
-                    for gr_id in fixes.keys():
-                        console.print(f"    - {gr_id}")
-                if len(auto_fixes) > 5:
-                    console.print(f"  ... and {len(auto_fixes) - 5} more")
+            # Show auto-fixes that would be applied (enforcement mode only)
+            if guardrails:
+                auto_fixes = evaluator.get_auto_fixes()
+                if auto_fixes:
+                    console.print()
+                    console.print("[cyan]Auto-fixes that would be applied:[/cyan]")
+                    for resource_id, fixes in list(auto_fixes.items())[:5]:
+                        console.print(f"  {resource_id}:")
+                        for gr_id in fixes.keys():
+                            console.print(f"    - {gr_id}")
+                    if len(auto_fixes) > 5:
+                        console.print(f"  ... and {len(auto_fixes) - 5} more")
 
-            # Show conflicts if any
-            if report.fix_conflicts:
-                console.print()
-                console.print("[red]Fix Conflicts Detected:[/red]")
-                for conflict in report.fix_conflicts[:5]:
-                    console.print(f"  {conflict.original_guardrail_id} -> {conflict.conflicting_guardrail_id}")
-                    console.print(f"    {conflict.description[:80]}...")
+                # Show conflicts if any
+                if report.fix_conflicts:
+                    console.print()
+                    console.print("[red]Fix Conflicts Detected:[/red]")
+                    for conflict in report.fix_conflicts[:5]:
+                        console.print(f"  {conflict.original_guardrail_id} -> {conflict.conflicting_guardrail_id}")
+                        console.print(f"    {conflict.description[:80]}...")
 
-            # Show blocking status
-            if report.blocked:
-                console.print()
-                console.print(f"[red]Would be BLOCKED:[/red] {report.block_reason}")
+                # Show blocking status
+                if report.blocked:
+                    console.print()
+                    console.print(f"[red]Would be BLOCKED:[/red] {report.block_reason}")
 
         console.print()
         console.print(f"[cyan]Output directory:[/cyan] {output}")
@@ -6191,6 +6226,11 @@ def generate(
     source_name = from_file if from_file else snapshot_name or ""
     progress.set_source(source_name, output)
     progress.set_output_format(format)
+
+    # Enable guardrails tracking if any guardrails mode is active
+    best_practices_enabled = not no_best_practices
+    if guardrails or best_practices_enabled:
+        progress.enable_guardrails(best_practices_mode=not guardrails and best_practices_enabled)
 
     # Map node names to workflow steps (common nodes + format-specific)
     node_to_step = {
@@ -6285,14 +6325,39 @@ def generate(
         elif event == "guardrails_progress":
             current = data.get("current", 0)
             total = data.get("total", 0)
-            progress.set_activity(f"Evaluating guardrails: {current}/{total}")
+            guardrail_id = data.get("guardrail_id", "")
+            resource_name = data.get("resource_name", "")
+            passed = data.get("passed", 0)
+            failed = data.get("failed", 0)
+            auto_fixed = data.get("auto_fixed", 0)
+            warnings = data.get("warnings", 0)
+            progress.update_guardrails_progress(
+                current_guardrail=guardrail_id,
+                current_resource=resource_name,
+                passed=passed,
+                failed=failed,
+                auto_fixed=auto_fixed,
+                warnings=warnings,
+                total=total,
+            )
 
         elif event == "guardrails_complete":
             passed = data.get("passed", 0)
             failed = data.get("failed", 0)
+            auto_fixed = data.get("auto_fixed", 0)
+            warnings = data.get("warnings", 0)
             blocked = data.get("blocked", False)
+            block_reason = data.get("block_reason", "")
+            progress.set_guardrails_result(
+                passed=passed,
+                failed=failed,
+                auto_fixed=auto_fixed,
+                warnings=warnings,
+                blocked=blocked,
+                block_reason=block_reason,
+            )
             if blocked:
-                progress.set_activity(f"Guardrails: {failed} violations (blocked)")
+                progress.set_activity(f"Guardrails blocked: {block_reason}")
             else:
                 progress.set_activity(f"Guardrails: {passed} passed, {failed} failed")
 
@@ -6312,6 +6377,7 @@ def generate(
                 guardrails_environment=guardrails_env,
                 guardrails_strict=guardrails_strict,
                 guardrails_auto_fix=guardrails_auto_fix,
+                best_practices_enabled=best_practices_enabled,
             )
         else:
             # CDK generation (cdk-typescript or cdk-python)
@@ -6328,6 +6394,7 @@ def generate(
                 guardrails_environment=guardrails_env,
                 guardrails_strict=guardrails_strict,
                 guardrails_auto_fix=guardrails_auto_fix,
+                best_practices_enabled=best_practices_enabled,
             )
 
         if result.success:
@@ -6339,12 +6406,18 @@ def generate(
     # Print final summary
     progress.print_final_summary(result.success)
 
-    # Display guardrails report if enabled and blocked
-    if result.guardrails_blocked and result.guardrails_report:
-        from src.guardrails.reporter import format_terminal_report
+    # Display guardrails report if blocked (enforcement) or if best practices had findings
+    if result.guardrails_report:
+        report_data = result.guardrails_report
+        has_findings = (
+            report_data.get("summary", {}).get("failed", 0) > 0
+            or report_data.get("summary", {}).get("warnings", 0) > 0
+        )
+        if result.guardrails_blocked or has_findings:
+            from src.guardrails.reporter import format_terminal_report
 
-        console.print()
-        format_terminal_report(result.guardrails_report, console)
+            console.print()
+            format_terminal_report(report_data, console)
 
     # Save guardrails report to file if requested
     if guardrails_report and result.guardrails_report:

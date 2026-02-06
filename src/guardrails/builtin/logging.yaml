@@ -4,6 +4,7 @@ guardrails:
     short_description: "S3 bucket must have access logging enabled"
     severity: HIGH
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - s3:bucket
     condition:
@@ -26,6 +27,7 @@ guardrails:
     short_description: "CloudTrail must be enabled for API logging"
     severity: CRITICAL
     action: WARN
+    best_practice: true
     applies_to:
       - cloudtrail:trail
     condition:
@@ -46,6 +48,7 @@ guardrails:
     short_description: "Lambda function must have logging configured"
     severity: MEDIUM
     action: AUTO-FIX
+    best_practice: true
     applies_to:
       - lambda:function
     condition:
