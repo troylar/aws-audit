@@ -1,0 +1,124 @@
+site_name: AWS Inventory Manager
+site_url: https://troylar.github.io/aws-inventory-manager/
+site_description: Snapshot, Track, Secure, and Clean Up Your AWS Environment
+site_author: Troy Larson
+repo_url: https://github.com/troylar/aws-inventory-manager
+repo_name: troylar/aws-inventory-manager
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+markdown_extensions:
+  - mkdocs-click
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Your First Snapshot: getting-started/first-snapshot.md
+    - Common Workflows: getting-started/common-workflows.md
+  - Configuration:
+    - Environment Variables: configuration/environment-variables.md
+    - AWS Config Integration: configuration/aws-config-integration.md
+    - Data Storage: configuration/data-storage.md
+    - Multi-Account Support: configuration/multi-account.md
+  - Guides:
+    - Snapshots: guides/snapshots.md
+    - Change Tracking: guides/change-tracking.md
+    - Security Scanning: guides/security-scanning.md
+    - Cost Analysis: guides/cost-analysis.md
+    - Resource Cleanup: guides/resource-cleanup.md
+    - Lambda Code: guides/lambda-code.md
+    - Creator Tracking: guides/creator-tracking.md
+    - IaC Generation: guides/iac-generation.md
+    - Query & Analysis: guides/query-analysis.md
+    - Web UI: guides/web-ui.md
+  - Guardrails:
+    - Overview: guardrails/index.md
+    - Policy Reference: guardrails/policy-reference.md
+    - Formula Syntax: guardrails/formula-syntax.md
+    - CI/CD Integration: guardrails/ci-cd-integration.md
+  - Reference:
+    - CLI Reference: reference/cli.md
+    - Supported Resources: reference/supported-resources.md
+    - IAM Permissions: reference/iam-permissions.md
+    - Database Schema: reference/database.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Testing: development/testing.md
+    - Publishing: development/publishing.md
+    - Architecture: development/architecture.md
+  - FAQ: faq.md
+  - Changelog: changelog.md
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/troylar/aws-inventory-manager
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/aws-inventory-manager/

@@ -1,3 +1,5 @@
+> **This document has moved.** See the [Testing docs](https://troylar.github.io/aws-inventory-manager/development/testing/) on the documentation site.
+
 # Testing Strategy & Results
 
 ## ✅ All Tests Passing

@@ -54,13 +54,20 @@ web = [
 generate = [
     "langgraph>=0.2.0",
 ]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocs-click>=0.8.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mike>=2.0.0",
+]
 
 [project.scripts]
 awsinv = "src.cli:cli_main"
 
 [project.urls]
 Homepage = "https://github.com/troylar/aws-inventory-manager"
-Documentation = "https://github.com/troylar/aws-inventory-manager#readme"
+Documentation = "https://troylar.github.io/aws-inventory-manager/"
 Repository = "https://github.com/troylar/aws-inventory-manager"
 Issues = "https://github.com/troylar/aws-inventory-manager/issues"
 
