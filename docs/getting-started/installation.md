@@ -4,14 +4,14 @@
 
 Before installing, ensure you have:
 
-- **Python 3.8+** (3.8, 3.9, 3.10, 3.11, 3.12, or 3.13)
+- **Python 3.11+** (3.11, 3.12, 3.13, or 3.14)
 - **AWS CLI configured** with credentials (`aws configure` or environment variables)
 - **Sufficient IAM permissions** (see [IAM Permissions](../reference/iam-permissions.md))
 
 To verify your setup:
 
 ```bash
-python3 --version            # Should be 3.8+ (use 'python' on some systems)
+python3 --version            # Should be 3.11+ (use 'python' on some systems)
 aws sts get-caller-identity  # Should return your account info
 ```
 

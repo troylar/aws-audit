@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple
+
+if TYPE_CHECKING:
+    from src.models.resource import Resource
 
 
 @dataclass
@@ -194,6 +197,8 @@ class FilterCriteria:
 
     resource_types: Optional[List[str]] = None
     regions: Optional[List[str]] = None
+    tags: Optional[Dict[str, str]] = None
+    search: Optional[str] = None
     match_mode: Literal["flexible", "exact"] = "flexible"
 
     def __post_init__(self) -> None:
@@ -206,7 +211,7 @@ class FilterCriteria:
     @property
     def has_filters(self) -> bool:
         """Check if any filters are applied."""
-        return bool(self.resource_types or self.regions)
+        return bool(self.resource_types or self.regions or self.tags or self.search)
 
     @property
     def filter_count(self) -> int:
@@ -216,6 +221,10 @@ class FilterCriteria:
             count += len(self.resource_types)
         if self.regions:
             count += len(self.regions)
+        if self.tags:
+            count += len(self.tags)
+        if self.search:
+            count += 1
         return count
 
     def matches_resource(self, resource: FilteredResource) -> bool:
@@ -258,6 +267,35 @@ class FilterCriteria:
             return True
 
         return False
+
+    def matches_resource_full(self, resource: Resource) -> bool:
+        """Check if a full Resource object matches filter criteria.
+
+        Uses flexible matching for resource types, exact case-insensitive
+        matching for regions, AND logic for tags, and case-insensitive
+        substring matching for ARN search.
+        """
+        if self.regions and resource.region.lower() not in self.regions:
+            return False
+
+        if self.resource_types:
+            type_match = any(
+                self._match_resource_type(resource.resource_type, filter_type) for filter_type in self.resource_types
+            )
+            if not type_match:
+                return False
+
+        if self.tags:
+            resource_tags = resource.tags or {}
+            for key, value in self.tags.items():
+                if resource_tags.get(key) != value:
+                    return False
+
+        if self.search:
+            if self.search.lower() not in resource.arn.lower():
+                return False
+
+        return True
 
 
 @dataclass

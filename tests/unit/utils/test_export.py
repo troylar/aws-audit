@@ -14,6 +14,7 @@ from src.utils.export import (
     export_to_csv,
     export_to_json,
     flatten_dict,
+    resource_to_export_dict,
 )
 
 
@@ -267,6 +268,86 @@ class TestDetectFormat:
         """Test that file without extension raises ValueError."""
         with pytest.raises(ValueError):
             detect_format("noextension")
+
+    def test_detect_yaml(self):
+        """Test detecting YAML format."""
+        assert detect_format("file.yaml") == "yaml"
+        assert detect_format("path/to/file.YAML") == "yaml"
+
+    def test_detect_yml(self):
+        """Test detecting YML format."""
+        assert detect_format("file.yml") == "yaml"
+        assert detect_format("path/to/file.YML") == "yaml"
+
+
+class TestResourceToExportDict:
+    """Tests for resource_to_export_dict function."""
+
+    def test_full_export(self):
+        """Test full resource export with config."""
+        from unittest.mock import MagicMock
+
+        resource = MagicMock()
+        resource.arn = "arn:aws:ec2:us-east-1:123456789012:instance/i-123"
+        resource.resource_type = "AWS::EC2::Instance"
+        resource.name = "my-instance"
+        resource.region = "us-east-1"
+        resource.tags = {"Name": "my-instance"}
+        resource.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        resource.config_hash = "abc123"
+        resource.source = "direct_api"
+        resource.raw_config = {"InstanceId": "i-123"}
+
+        result = resource_to_export_dict(resource)
+
+        assert result["arn"] == resource.arn
+        assert result["resource_type"] == "AWS::EC2::Instance"
+        assert result["name"] == "my-instance"
+        assert result["region"] == "us-east-1"
+        assert result["tags"] == {"Name": "my-instance"}
+        assert result["created_at"] == "2025-01-01T00:00:00+00:00"
+        assert result["config_hash"] == "abc123"
+        assert result["source"] == "direct_api"
+        assert result["config"] == {"InstanceId": "i-123"}
+
+    def test_export_without_config(self):
+        """Test export with include_config=False."""
+        from unittest.mock import MagicMock
+
+        resource = MagicMock()
+        resource.arn = "arn:aws:s3:::my-bucket"
+        resource.resource_type = "AWS::S3::Bucket"
+        resource.name = "my-bucket"
+        resource.region = "us-east-1"
+        resource.tags = {}
+        resource.created_at = None
+        resource.config_hash = "def456"
+        resource.source = "config"
+        resource.raw_config = {"BucketName": "my-bucket"}
+
+        result = resource_to_export_dict(resource, include_config=False)
+
+        assert "config" not in result
+        assert result["created_at"] is None
+
+    def test_export_none_tags(self):
+        """Test export when tags is None."""
+        from unittest.mock import MagicMock
+
+        resource = MagicMock()
+        resource.arn = "arn:aws:s3:::bucket"
+        resource.resource_type = "AWS::S3::Bucket"
+        resource.name = "bucket"
+        resource.region = "us-east-1"
+        resource.tags = None
+        resource.created_at = None
+        resource.config_hash = "hash"
+        resource.source = "direct_api"
+        resource.raw_config = None
+
+        result = resource_to_export_dict(resource)
+
+        assert result["tags"] == {}
 
 
 class TestExportReportJson:

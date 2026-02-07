@@ -426,6 +426,137 @@ class TestFilterCriteria:
         assert criteria.matches_resource(wrong_region) is False
         assert criteria.matches_resource(wrong_type) is False
 
+    def test_has_filters_with_tags(self):
+        """Test has_filters with tags."""
+        criteria = FilterCriteria(tags={"Environment": "prod"})
+        assert criteria.has_filters is True
+
+    def test_has_filters_with_search(self):
+        """Test has_filters with search."""
+        criteria = FilterCriteria(search="my-bucket")
+        assert criteria.has_filters is True
+
+    def test_filter_count_with_tags_and_search(self):
+        """Test filter_count includes tags and search."""
+        criteria = FilterCriteria(
+            resource_types=["ec2"],
+            tags={"Env": "prod", "Team": "platform"},
+            search="bucket",
+        )
+        assert criteria.filter_count == 4  # 1 type + 2 tags + 1 search
+
+    def test_matches_resource_full_type_filter(self):
+        """Test matches_resource_full with type filter."""
+        from unittest.mock import MagicMock
+
+        criteria = FilterCriteria(resource_types=["ec2"])
+
+        resource = MagicMock()
+        resource.resource_type = "AWS::EC2::Instance"
+        resource.region = "us-east-1"
+        resource.arn = "arn:aws:ec2:us-east-1:123:instance/i-1"
+        resource.tags = {}
+
+        assert criteria.matches_resource_full(resource) is True
+
+    def test_matches_resource_full_region_filter(self):
+        """Test matches_resource_full with region filter."""
+        from unittest.mock import MagicMock
+
+        criteria = FilterCriteria(regions=["us-west-2"])
+
+        resource = MagicMock()
+        resource.resource_type = "AWS::EC2::Instance"
+        resource.region = "us-east-1"
+        resource.arn = "arn:aws:ec2:us-east-1:123:instance/i-1"
+        resource.tags = {}
+
+        assert criteria.matches_resource_full(resource) is False
+
+    def test_matches_resource_full_tag_filter(self):
+        """Test matches_resource_full with tag filter (AND logic)."""
+        from unittest.mock import MagicMock
+
+        criteria = FilterCriteria(tags={"Environment": "prod", "Team": "platform"})
+
+        matching = MagicMock()
+        matching.resource_type = "AWS::EC2::Instance"
+        matching.region = "us-east-1"
+        matching.arn = "arn:aws:ec2:us-east-1:123:instance/i-1"
+        matching.tags = {"Environment": "prod", "Team": "platform", "Name": "test"}
+
+        partial = MagicMock()
+        partial.resource_type = "AWS::EC2::Instance"
+        partial.region = "us-east-1"
+        partial.arn = "arn:aws:ec2:us-east-1:123:instance/i-2"
+        partial.tags = {"Environment": "prod"}
+
+        assert criteria.matches_resource_full(matching) is True
+        assert criteria.matches_resource_full(partial) is False
+
+    def test_matches_resource_full_search_filter(self):
+        """Test matches_resource_full with ARN search."""
+        from unittest.mock import MagicMock
+
+        criteria = FilterCriteria(search="my-bucket")
+
+        matching = MagicMock()
+        matching.resource_type = "AWS::S3::Bucket"
+        matching.region = "us-east-1"
+        matching.arn = "arn:aws:s3:::my-bucket"
+        matching.tags = {}
+
+        non_matching = MagicMock()
+        non_matching.resource_type = "AWS::EC2::Instance"
+        non_matching.region = "us-east-1"
+        non_matching.arn = "arn:aws:ec2:us-east-1:123:instance/i-1"
+        non_matching.tags = {}
+
+        assert criteria.matches_resource_full(matching) is True
+        assert criteria.matches_resource_full(non_matching) is False
+
+    def test_matches_resource_full_search_case_insensitive(self):
+        """Test that search is case-insensitive."""
+        from unittest.mock import MagicMock
+
+        criteria = FilterCriteria(search="MY-BUCKET")
+
+        resource = MagicMock()
+        resource.resource_type = "AWS::S3::Bucket"
+        resource.region = "us-east-1"
+        resource.arn = "arn:aws:s3:::my-bucket"
+        resource.tags = {}
+
+        assert criteria.matches_resource_full(resource) is True
+
+    def test_matches_resource_full_no_filters(self):
+        """Test matches_resource_full with no filters returns True."""
+        from unittest.mock import MagicMock
+
+        criteria = FilterCriteria()
+
+        resource = MagicMock()
+        resource.resource_type = "AWS::EC2::Instance"
+        resource.region = "us-east-1"
+        resource.arn = "arn:aws:ec2:us-east-1:123:instance/i-1"
+        resource.tags = {}
+
+        assert criteria.matches_resource_full(resource) is True
+
+    def test_matches_resource_full_none_tags(self):
+        """Test matches_resource_full when resource tags is None."""
+        from unittest.mock import MagicMock
+
+        criteria = FilterCriteria(tags={"Environment": "prod"})
+
+        resource = MagicMock()
+        resource.resource_type = "AWS::EC2::Instance"
+        resource.region = "us-east-1"
+        resource.arn = "arn:aws:ec2:us-east-1:123:instance/i-1"
+        resource.tags = None
+
+        assert criteria.matches_resource_full(resource) is False
+
 
 class TestResourceReport:
     """Tests for ResourceReport dataclass."""
