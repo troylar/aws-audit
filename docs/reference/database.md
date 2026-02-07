@@ -1,5 +1,3 @@
-> **This document has moved.** See the [Database Reference](https://troylar.github.io/aws-inventory-manager/reference/database/) on the documentation site.
-
 # Database Schema & Power User Queries
 
 ## Database Schema

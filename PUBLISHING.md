@@ -1,3 +1,5 @@
+> **This document has moved.** See the [Publishing docs](https://troylar.github.io/aws-inventory-manager/development/publishing/) on the documentation site.
+
 # Publishing to PyPI
 
 This document describes how to publish the `aws-audit` package to PyPI.
