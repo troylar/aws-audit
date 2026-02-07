@@ -487,7 +487,10 @@ def _get_error_suggestion(error_str: str, formula: str) -> Optional[str]:
             ]
             suggestions = [f for f in valid_funcs if f.startswith(func_name[0].lower())]
             if suggestions:
-                return f"Unknown function '{func_name}'. Did you mean: {', '.join(suggestions)}? Available functions: {', '.join(valid_funcs)}"
+                return (
+                    f"Unknown function '{func_name}'. Did you mean: {', '.join(suggestions)}? "
+                    f"Available functions: {', '.join(valid_funcs)}"
+                )
             return f"Unknown function '{func_name}'. Available functions: {', '.join(valid_funcs)}"
 
     # Syntax error

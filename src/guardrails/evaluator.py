@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import dataclasses
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -45,7 +44,8 @@ class FixConflict:
 
 
 # AI evaluation prompt template
-AI_EVAL_PROMPT = """You are a cloud security compliance evaluator. Evaluate if the given AWS resource configuration matches the rule condition.
+AI_EVAL_PROMPT = """You are a cloud security compliance evaluator. \
+Evaluate if the given AWS resource configuration matches the rule condition.
 
 RULE TO EVALUATE:
 {rule}

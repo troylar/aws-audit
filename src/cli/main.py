@@ -6292,6 +6292,8 @@ def generate(
         resources = []
         if from_file:
             import json
+            from pathlib import Path
+
             import yaml
 
             file_path = Path(from_file)
@@ -6345,7 +6347,7 @@ def generate(
                 load_builtin_guardrails,
                 load_policy,
             )
-            from ..guardrails.models import Action, EvaluationResult
+            from ..guardrails.models import Action
 
             console.print()
             if guardrails:
@@ -6547,7 +6549,6 @@ def generate(
             progress.set_activity(f"Evaluating guardrails on {total} resources...")
 
         elif event == "guardrails_progress":
-            current = data.get("current", 0)
             total = data.get("total", 0)
             guardrail_id = data.get("guardrail_id", "")
             resource_name = data.get("resource_name", "")

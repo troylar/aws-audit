@@ -581,14 +581,14 @@ def validate_policy_file(
         with open(policy_path) as f:
             policy_dict = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        console.print(f"[red]Error:[/red] Invalid YAML syntax")
+        console.print("[red]Error:[/red] Invalid YAML syntax")
         console.print(f"  {e}")
         console.print()
         console.print("[dim]Tip: Check for proper indentation and special characters.[/dim]")
         raise typer.Exit(1)
 
     if not policy_dict:
-        console.print(f"[red]Error:[/red] Empty policy file")
+        console.print("[red]Error:[/red] Empty policy file")
         raise typer.Exit(1)
 
     # Import validator
@@ -652,7 +652,7 @@ def validate_policy_file(
         envs = list(policy_dict.get("overrides", {}).keys())
         context_vars = list(policy_dict.get("context", {}).keys())
 
-        console.print(f"[green]✓ Policy is valid[/green]")
+        console.print("[green]✓ Policy is valid[/green]")
         console.print()
         console.print(f"  Name: {policy_dict.get('name', 'unnamed')}")
         console.print(f"  Version: {policy_dict.get('version', 'unspecified')}")
@@ -723,7 +723,9 @@ def _print_error_tip(error: str, console: Console) -> None:
         "severity": "      [dim]Valid severities: CRITICAL, HIGH, MEDIUM, LOW, INFO[/dim]",
         "action": "      [dim]Valid actions: BLOCK, AUTO-FIX, WARN[/dim]",
         "applies_to": '      [dim]Format: ["service:resource"] e.g., ["s3:bucket", "ec2:instance"][/dim]',
-        "ai_context is recommended": "      [dim]Add ai_context with fix instructions for better auto-fix results[/dim]",
+        "ai_context is recommended": (
+            "      [dim]Add ai_context with fix instructions for better auto-fix results[/dim]"
+        ),
         "not exists": "      [dim]Use: 'Attribute not exists' (with space before 'not')[/dim]",
         "unbalanced": "      [dim]Check for matching opening/closing parentheses and quotes[/dim]",
         "unknown function": "      [dim]Available functions: get(), exists(), count(), env(), matches()[/dim]",
