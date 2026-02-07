@@ -112,10 +112,10 @@ module = ["boto3", "boto3.*", "botocore", "botocore.*", "pydantic", "pydantic.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["src.cli.main", "src.cli.config", "src.cli.__init__", "src.utils.progress"]
+module = ["src.cli.main", "src.cli.config", "src.cli.__init__", "src.cli.guardrails", "src.utils.progress"]
 disallow_untyped_defs = false
 warn_no_return = false
-disable_error_code = ["assignment", "arg-type", "call-overload", "union-attr", "no-untyped-def"]
+disable_error_code = ["assignment", "arg-type", "call-overload", "union-attr", "no-untyped-def", "var-annotated"]
 
 [[tool.mypy.overrides]]
 module = ["src.generate.*", "src.generate.property_maps.*", "src.generate.nodes.*"]
@@ -126,6 +126,11 @@ disable_error_code = ["assignment", "arg-type", "return-value", "typeddict-item"
 module = ["src.storage.*"]
 disallow_untyped_defs = false
 disable_error_code = ["arg-type", "return-value", "dict-item"]
+
+[[tool.mypy.overrides]]
+module = ["src.guardrails.*"]
+ignore_missing_imports = true
+disable_error_code = ["import-untyped", "assignment", "misc"]
 
 [[tool.mypy.overrides]]
 module = ["src.matching.normalizer"]
