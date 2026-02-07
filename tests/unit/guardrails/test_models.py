@@ -108,7 +108,10 @@ class TestGuardrailDataclass:
             ai_context="WHY: Open security groups are a security risk",
         )
         assert guardrail.is_ai_rule() is True
-        assert guardrail.get_ai_rule() == ("The security group allows unrestricted inbound access from 0.0.0.0/0", "fail")
+        assert guardrail.get_ai_rule() == (
+            "The security group allows unrestricted inbound access from 0.0.0.0/0",
+            "fail",
+        )
 
     def test_matches_resource_type_exact(self) -> None:
         from src.guardrails.models import Action, Guardrail, Severity

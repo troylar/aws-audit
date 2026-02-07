@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +15,10 @@ from src.cli.guardrails import _warn_missing_config
 from src.cli.main import app
 
 runner = CliRunner()
+
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
 class TestGuardrailsCheckCommand:
@@ -407,19 +412,21 @@ class TestGuardrailsCommandHelp:
         """Check command shows help with all options."""
         result = runner.invoke(app, ["guardrails", "check", "--help"])
         assert result.exit_code == 0
-        assert "--policy" in result.stdout
-        assert "--env" in result.stdout
-        assert "--strict" in result.stdout
-        assert "--format" in result.stdout
+        output = _strip_ansi(result.stdout)
+        assert "--policy" in output
+        assert "--env" in output
+        assert "--strict" in output
+        assert "--format" in output
 
     def test_guardrails_list_help(self) -> None:
         """List command shows help with all options."""
         result = runner.invoke(app, ["guardrails", "list", "--help"])
         assert result.exit_code == 0
-        assert "--policy" in result.stdout
-        assert "--severity" in result.stdout
-        assert "--category" in result.stdout
-        assert "--format" in result.stdout
+        output = _strip_ansi(result.stdout)
+        assert "--policy" in output
+        assert "--severity" in output
+        assert "--category" in output
+        assert "--format" in output
 
 
 class TestWarnMissingConfig:

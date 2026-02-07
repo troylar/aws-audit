@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 if TYPE_CHECKING:
     from src.models.report import DetailedResource, ResourceSummary, SnapshotMetadata
+    from src.models.resource import Resource
 
 logger = logging.getLogger(__name__)
 
@@ -108,12 +109,14 @@ def detect_format(filepath: str) -> str:
 
     if extension == ".json":
         return "json"
+    elif extension in (".yaml", ".yml"):
+        return "yaml"
     elif extension == ".csv":
         return "csv"
     elif extension == ".txt":
         return "txt"
     else:
-        raise ValueError(f"Unsupported export format '{extension}'. Supported formats: .json, .csv, .txt")
+        raise ValueError(f"Unsupported export format '{extension}'. Supported formats: .json, .yaml, .yml, .csv, .txt")
 
 
 def export_report_json(
@@ -303,3 +306,28 @@ def export_report_txt(
 
     logger.info(f"Exported report to TXT: {path}")
     return path
+
+
+def resource_to_export_dict(resource: "Resource", include_config: bool = True) -> Dict[str, Any]:
+    """Convert a Resource object to a dictionary for export.
+
+    Args:
+        resource: Resource object to convert
+        include_config: Whether to include raw_config (default True)
+
+    Returns:
+        Dictionary with resource data suitable for YAML/JSON export
+    """
+    result: Dict[str, Any] = {
+        "arn": resource.arn,
+        "resource_type": resource.resource_type,
+        "name": resource.name,
+        "region": resource.region,
+        "tags": resource.tags or {},
+        "created_at": resource.created_at.isoformat() if resource.created_at else None,
+        "config_hash": resource.config_hash,
+        "source": resource.source,
+    }
+    if include_config:
+        result["config"] = resource.raw_config
+    return result

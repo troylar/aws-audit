@@ -473,14 +473,16 @@ class GenerationProgressDisplay:
         ]
         if self.guardrails_enabled:
             workflow_order.append(WorkflowStep.EVALUATE_GUARDRAILS)
-        workflow_order.extend([
-            WorkflowStep.CATEGORIZE_LAYERS,
-            WorkflowStep.EXTRACT_LAMBDA,
-            WorkflowStep.GENERATE_LAYERS,
-            WorkflowStep.COMPARE_INVENTORY,
-            WorkflowStep.TERRAFORM_INIT,
-            WorkflowStep.TERRAFORM_VALIDATE,
-        ])
+        workflow_order.extend(
+            [
+                WorkflowStep.CATEGORIZE_LAYERS,
+                WorkflowStep.EXTRACT_LAMBDA,
+                WorkflowStep.GENERATE_LAYERS,
+                WorkflowStep.COMPARE_INVENTORY,
+                WorkflowStep.TERRAFORM_INIT,
+                WorkflowStep.TERRAFORM_VALIDATE,
+            ]
+        )
 
         for step in workflow_order:
             config = self._get_step_config(step)
@@ -668,11 +670,16 @@ class GenerationProgressDisplay:
                 elements.append(warn_line)
 
         # Guardrails summary (show after evaluation)
-        if self.guardrails and self.guardrails_enabled and self.current_step not in [
-            WorkflowStep.PARSE_INVENTORY,
-            WorkflowStep.BUILD_RESOURCE_MAP,
-            WorkflowStep.EVALUATE_GUARDRAILS,
-        ]:
+        if (
+            self.guardrails
+            and self.guardrails_enabled
+            and self.current_step
+            not in [
+                WorkflowStep.PARSE_INVENTORY,
+                WorkflowStep.BUILD_RESOURCE_MAP,
+                WorkflowStep.EVALUATE_GUARDRAILS,
+            ]
+        ):
             gr = self.guardrails
             if gr.blocked:
                 elements.append(Text("\n"))

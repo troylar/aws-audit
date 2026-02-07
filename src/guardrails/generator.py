@@ -116,11 +116,13 @@ def generate_guardrail(
             modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1024,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
+            body=json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 1024,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            ),
         )
 
         response_body = json.loads(response["body"].read())
@@ -171,11 +173,13 @@ def generate_guardrails_batch(
             modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 4096,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
+            body=json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 4096,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            ),
         )
 
         response_body = json.loads(response["body"].read())
@@ -240,11 +244,13 @@ Respond ONLY with valid JSON:
             modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1024,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
+            body=json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 1024,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            ),
         )
 
         response_body = json.loads(response["body"].read())
@@ -294,7 +300,7 @@ def guardrail_to_yaml(guardrail: Guardrail) -> str:
         f"  short_description: {guardrail.short_description}",
         f"  severity: {guardrail.severity.value}",
         f"  action: {guardrail.action.value}",
-        f"  applies_to:",
+        "  applies_to:",
     ]
 
     for resource_type in guardrail.applies_to:
@@ -307,20 +313,20 @@ def guardrail_to_yaml(guardrail: Guardrail) -> str:
         else:
             lines.append(f"  condition: {guardrail.condition}")
     elif guardrail.ai_fail_if:
-        lines.append(f"  ai_fail_if: |")
+        lines.append("  ai_fail_if: |")
         for line in guardrail.ai_fail_if.split("\n"):
             lines.append(f"    {line}")
     elif guardrail.ai_warn_if:
-        lines.append(f"  ai_warn_if: |")
+        lines.append("  ai_warn_if: |")
         for line in guardrail.ai_warn_if.split("\n"):
             lines.append(f"    {line}")
     elif guardrail.ai_notify_if:
-        lines.append(f"  ai_notify_if: |")
+        lines.append("  ai_notify_if: |")
         for line in guardrail.ai_notify_if.split("\n"):
             lines.append(f"    {line}")
 
     if guardrail.ai_context:
-        lines.append(f"  ai_context: |")
+        lines.append("  ai_context: |")
         for line in guardrail.ai_context.split("\n"):
             lines.append(f"    {line}")
 

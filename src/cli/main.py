@@ -2141,6 +2141,228 @@ def snapshot_report(
         raise typer.Exit(code=2)
 
 
+@snapshot_app.command("export")
+def snapshot_export(
+    snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
+    inventory: Optional[str] = typer.Option(None, "--inventory", help="Use most recent snapshot from inventory"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path (stdout if omitted)"),
+    format: Optional[str] = typer.Option(None, "--format", "-f", help="Output format: yaml, json, csv"),
+    type: Optional[List[str]] = typer.Option(None, "--type", "-t", help="Filter by resource type (repeatable)"),
+    region: Optional[List[str]] = typer.Option(None, "--region", "-r", help="Filter by region (repeatable)"),
+    tag: Optional[List[str]] = typer.Option(None, "--tag", help="Filter by tag Key=Value (repeatable)"),
+    search: Optional[str] = typer.Option(None, "--search", "-s", help="Filter by ARN substring"),
+    no_config: bool = typer.Option(False, "--no-config", help="Exclude raw config from output"),
+    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location"),
+    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+):
+    """Export snapshot resources to YAML, JSON, or CSV.
+
+    Exports full resource data including raw_config, tags, and metadata.
+    Supports filtering by type, region, tag, and ARN search.
+
+    Output format is auto-detected from file extension, or defaults to YAML
+    for stdout.
+
+    Examples:
+        awsinv snapshot export                                    # YAML to stdout
+        awsinv snapshot export -o resources.yaml                  # YAML to file
+        awsinv snapshot export -o resources.json                  # JSON (auto-detected)
+        awsinv snapshot export --format csv -o resources.csv      # CSV
+        awsinv snapshot export --type ec2 --type s3               # Filter by type
+        awsinv snapshot export --region us-east-1                 # Filter by region
+        awsinv snapshot export --tag Environment=production       # Filter by tag
+        awsinv snapshot export --search "my-bucket"               # Filter by ARN pattern
+        awsinv snapshot export --no-config -o slim.yaml           # Exclude raw config
+    """
+    import json as json_mod
+    from pathlib import Path
+
+    import yaml
+
+    from ..models.report import FilterCriteria
+    from ..utils.export import detect_format, resource_to_export_dict
+
+    try:
+        storage = SnapshotStorage(storage_path or config.storage_path)
+
+        # --- Resolve snapshot (same pattern as snapshot_report) ---
+        target_snapshot_name: str
+        if snapshot_name:
+            target_snapshot_name = snapshot_name
+        elif inventory:
+            from datetime import datetime as dt
+            from typing import TypedDict
+
+            class InventorySnapshot(TypedDict):
+                name: str
+                created_at: dt
+
+            all_snapshots = storage.list_snapshots()
+            inventory_snapshots: List[InventorySnapshot] = []
+
+            for snap_meta in all_snapshots:
+                try:
+                    snap = storage.load_snapshot(snap_meta["name"])
+                    if snap.inventory_name == inventory:
+                        inventory_snapshots.append(InventorySnapshot(name=snap.name, created_at=snap.created_at))
+                except Exception:
+                    continue
+
+            if not inventory_snapshots:
+                console.print(
+                    f"No snapshots found for inventory '{inventory}'",
+                    style="bold red",
+                )
+                raise typer.Exit(code=1)
+
+            inventory_snapshots.sort(key=lambda x: x["created_at"], reverse=True)
+            target_snapshot_name = inventory_snapshots[0]["name"]
+            console.print(
+                f"Using most recent snapshot from inventory '{inventory}': {target_snapshot_name}",
+                style="dim",
+            )
+        else:
+            active_name = storage.get_active_snapshot_name()
+            if not active_name:
+                console.print("No active snapshot found", style="bold red")
+                console.print("\nSet an active snapshot with:")
+                console.print("  awsinv snapshot set-active <name>")
+                raise typer.Exit(code=1)
+            target_snapshot_name = active_name
+
+        # --- Load snapshot ---
+        try:
+            snapshot = storage.load_snapshot(target_snapshot_name)
+        except FileNotFoundError:
+            console.print(f"Snapshot '{target_snapshot_name}' not found", style="bold red")
+            raise typer.Exit(code=1)
+
+        # --- Resolve output format ---
+        output_format: str
+        if format:
+            output_format = format.lower()
+            if output_format not in ("yaml", "json", "csv"):
+                console.print(
+                    f"Unsupported format '{format}'. Use yaml, json, or csv.",
+                    style="bold red",
+                )
+                raise typer.Exit(code=1)
+        elif output:
+            try:
+                output_format = detect_format(output)
+            except ValueError as e:
+                console.print(f"{e}", style="bold red")
+                raise typer.Exit(code=1)
+        else:
+            output_format = "yaml"
+
+        # --- Parse --tag filters ---
+        tag_filters: Optional[Dict[str, str]] = None
+        if tag:
+            tag_filters = {}
+            for t in tag:
+                if "=" not in t:
+                    console.print(
+                        f"Invalid tag filter '{t}'. Use Key=Value format.",
+                        style="bold red",
+                    )
+                    raise typer.Exit(code=1)
+                key, value = t.split("=", 1)
+                tag_filters[key] = value
+
+        # --- Build FilterCriteria ---
+        criteria = FilterCriteria(
+            resource_types=type if type else None,
+            regions=region if region else None,
+            tags=tag_filters,
+            search=search,
+        )
+
+        # --- Filter and convert resources ---
+        export_resources = []
+        for resource in snapshot.resources:
+            if criteria.has_filters and not criteria.matches_resource_full(resource):
+                continue
+            export_resources.append(resource_to_export_dict(resource, include_config=not no_config))
+
+        # --- Check output file doesn't already exist ---
+        if output:
+            output_path = Path(output)
+            if output_path.exists():
+                console.print(
+                    f"Export file '{output}' already exists",
+                    style="bold red",
+                )
+                console.print(
+                    "\nUse a different filename or delete the existing file.",
+                    style="yellow",
+                )
+                raise typer.Exit(code=1)
+            if not output_path.parent.exists():
+                console.print(
+                    f"Parent directory '{output_path.parent}' does not exist",
+                    style="bold red",
+                )
+                raise typer.Exit(code=1)
+
+        # --- Serialize ---
+        if output_format == "yaml":
+            content = yaml.dump(
+                {"resources": export_resources, "count": len(export_resources)},
+                default_flow_style=False,
+                sort_keys=False,
+            )
+        elif output_format == "json":
+            content = json_mod.dumps(
+                {"resources": export_resources, "count": len(export_resources)},
+                indent=2,
+                default=str,
+            )
+        elif output_format == "csv":
+            import csv
+            import io
+
+            csv_buffer = io.StringIO()
+            fieldnames = ["ARN", "ResourceType", "Name", "Region", "Tags", "CreatedAt", "ConfigHash", "Source"]
+            writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in export_resources:
+                tags_str = "; ".join(f"{k}={v}" for k, v in r.get("tags", {}).items())
+                writer.writerow(
+                    {
+                        "ARN": r["arn"],
+                        "ResourceType": r["resource_type"],
+                        "Name": r["name"],
+                        "Region": r["region"],
+                        "Tags": tags_str,
+                        "CreatedAt": r.get("created_at", ""),
+                        "ConfigHash": r.get("config_hash", ""),
+                        "Source": r.get("source", ""),
+                    }
+                )
+            content = csv_buffer.getvalue()
+        else:
+            content = ""
+
+        # --- Output ---
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(content)
+            console.print(
+                f"Exported {len(export_resources):,} resources to {output}",
+                style="bold green",
+            )
+        else:
+            sys.stdout.write(content)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"Error exporting snapshot: {e}", style="bold red")
+        logger.exception("Error in snapshot export command")
+        raise typer.Exit(code=2)
+
+
 @snapshot_app.command("creators")
 def snapshot_creators(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
@@ -6070,6 +6292,8 @@ def generate(
         resources = []
         if from_file:
             import json
+            from pathlib import Path
+
             import yaml
 
             file_path = Path(from_file)
@@ -6123,7 +6347,7 @@ def generate(
                 load_builtin_guardrails,
                 load_policy,
             )
-            from ..guardrails.models import Action, EvaluationResult
+            from ..guardrails.models import Action
 
             console.print()
             if guardrails:
@@ -6146,9 +6370,7 @@ def generate(
             else:
                 # Best-practice advisory mode
                 bp_guardrails = load_best_practice_guardrails()
-                advisory_guardrails = [
-                    dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails
-                ]
+                advisory_guardrails = [dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails]
                 policy = GuardrailPolicy(
                     name="best-practices",
                     version="1.0",
@@ -6327,7 +6549,6 @@ def generate(
             progress.set_activity(f"Evaluating guardrails on {total} resources...")
 
         elif event == "guardrails_progress":
-            current = data.get("current", 0)
             total = data.get("total", 0)
             guardrail_id = data.get("guardrail_id", "")
             resource_name = data.get("resource_name", "")
@@ -6414,8 +6635,7 @@ def generate(
     if result.guardrails_report:
         report_data = result.guardrails_report
         has_findings = (
-            report_data.get("summary", {}).get("failed", 0) > 0
-            or report_data.get("summary", {}).get("warnings", 0) > 0
+            report_data.get("summary", {}).get("failed", 0) > 0 or report_data.get("summary", {}).get("warnings", 0) > 0
         )
         if result.guardrails_blocked or has_findings:
             from src.guardrails.reporter import format_terminal_report
