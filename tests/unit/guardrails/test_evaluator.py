@@ -561,9 +561,10 @@ class TestCrossResourceContext:
 
     def test_evaluator_with_context(self) -> None:
         """Test that GuardrailEvaluator passes context to formulas."""
+        from unittest.mock import MagicMock
+
         from src.guardrails.evaluator import GuardrailEvaluator
         from src.guardrails.models import Action, EvaluationResult, Guardrail, GuardrailPolicy, Severity
-        from unittest.mock import MagicMock
 
         guardrail = Guardrail(
             id="GR-NET-001",
@@ -637,7 +638,7 @@ class TestFixConflictDetection:
     def test_validate_fixes_detects_conflict(self, mock_auto_fix: MagicMock) -> None:
         """Test that validate_fixes detects when a fix causes a new violation."""
         from src.guardrails.evaluator import GuardrailEvaluator
-        from src.guardrails.models import Action, EvaluationResult, Guardrail, GuardrailPolicy, Severity
+        from src.guardrails.models import Action, Guardrail, GuardrailPolicy, Severity
 
         # Guardrail 1: Requires encryption (will be auto-fixed)
         guardrail1 = Guardrail(

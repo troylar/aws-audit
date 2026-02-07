@@ -300,7 +300,7 @@ def guardrail_to_yaml(guardrail: Guardrail) -> str:
         f"  short_description: {guardrail.short_description}",
         f"  severity: {guardrail.severity.value}",
         f"  action: {guardrail.action.value}",
-        f"  applies_to:",
+        "  applies_to:",
     ]
 
     for resource_type in guardrail.applies_to:
@@ -313,20 +313,20 @@ def guardrail_to_yaml(guardrail: Guardrail) -> str:
         else:
             lines.append(f"  condition: {guardrail.condition}")
     elif guardrail.ai_fail_if:
-        lines.append(f"  ai_fail_if: |")
+        lines.append("  ai_fail_if: |")
         for line in guardrail.ai_fail_if.split("\n"):
             lines.append(f"    {line}")
     elif guardrail.ai_warn_if:
-        lines.append(f"  ai_warn_if: |")
+        lines.append("  ai_warn_if: |")
         for line in guardrail.ai_warn_if.split("\n"):
             lines.append(f"    {line}")
     elif guardrail.ai_notify_if:
-        lines.append(f"  ai_notify_if: |")
+        lines.append("  ai_notify_if: |")
         for line in guardrail.ai_notify_if.split("\n"):
             lines.append(f"    {line}")
 
     if guardrail.ai_context:
-        lines.append(f"  ai_context: |")
+        lines.append("  ai_context: |")
         for line in guardrail.ai_context.split("\n"):
             lines.append(f"    {line}")
 
