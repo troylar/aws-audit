@@ -2,7 +2,7 @@
 
 # AWS Inventory Manager
 
-### *Snapshot, Track, Secure, and Clean Up Your AWS Environment*
+### *Know Everything About Your AWS Environment*
 
 [![CI](https://github.com/troylar/aws-inventory-manager/actions/workflows/test.yml/badge.svg)](https://github.com/troylar/aws-inventory-manager/actions/workflows/test.yml)
 [![Coverage](https://codecov.io/gh/troylar/aws-inventory-manager/branch/main/graph/badge.svg)](https://codecov.io/gh/troylar/aws-inventory-manager)
@@ -20,17 +20,20 @@
 
 ## What It Does
 
-AWS Inventory Manager captures a **point-in-time inventory** of your AWS resources, then helps you track changes, find security issues, and clean up unwanted resources.
+One CLI that inventories **27 AWS services and 80+ resource types**, then lets you track drift, enforce compliance, generate Terraform and CDK, scan for security issues, manage Lambda code, query resources with SQL, and clean up what shouldn't be there. 60+ commands. Zero agents running in your account.
 
 > **Note:** "Snapshot" in this tool means an *inventory snapshot* (a catalog of what exists), not an AWS EBS or RDS snapshot. No AWS snapshots are created.
 
 | Problem | Solution |
 |---------|----------|
-| "What changed in our account?" | Field-level configuration drift detection |
-| "Are we following security best practices?" | Automated CIS Benchmark scanning |
+| "What's actually running in our account?" | Snapshot 80+ resource types across all regions in one command |
+| "What changed since last week?" | Field-level configuration drift detection between snapshots |
+| "Are we following security best practices?" | 12+ CIS-aligned checks with severity filtering |
 | "Someone spun up a bunch of test resources" | Delete everything created after a baseline snapshot |
-| "How much is each team spending?" | Per-inventory cost tracking with tag filtering |
-| "I need to clean up a sandbox account" | Purge all resources except those with specific tags |
+| "I need Terraform for existing resources" | Generate Terraform or CDK from live inventory with guardrails |
+| "What's in that Lambda function?" | Extract, view, and diff deployment packages across snapshots |
+| "Are our guardrails being followed?" | YAML-based compliance policies with BLOCK/WARN/AUTO-FIX |
+| "I need a resource explorer for the team" | Launch a web UI with `awsinv serve` |
 
 ---
 
