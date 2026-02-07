@@ -1,19 +1,16 @@
 name: Deploy Docs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - 'mkdocs.yml'
-      - 'src/cli/**'
-      - '.github/workflows/docs.yml'
+  workflow_run:
+    workflows: ["Publish to PyPI"]
+    types: [completed]
   pull_request:
     branches: [main]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'src/cli/**'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,6 +19,10 @@ jobs:
   build:
     name: Build docs
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +45,7 @@ jobs:
   deploy:
     name: Deploy docs
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request'
     needs: build
 
     steps:
