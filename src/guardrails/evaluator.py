@@ -43,6 +43,7 @@ class FixConflict:
     conflicting_guardrail_id: str
     description: str
 
+
 # AI evaluation prompt template
 AI_EVAL_PROMPT = """You are a cloud security compliance evaluator. Evaluate if the given AWS resource configuration matches the rule condition.
 
@@ -108,11 +109,13 @@ def evaluate_ai_rule(
             modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 256,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
+            body=json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 256,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            ),
         )
 
         response_body = json.loads(response["body"].read())
@@ -190,7 +193,6 @@ class GuardrailEvaluator:
         resource_config = getattr(resource, "config", None)
         if resource_config is None:
             resource_config = getattr(resource, "raw_config", None) or {}
-
 
         for guardrail in self._guardrails:
             # Skip disabled guardrails
@@ -362,6 +364,7 @@ class GuardrailEvaluator:
         resource_config: Dict[str, Any],
     ) -> Tuple[bool, Dict[str, Any], str]:
         """Attempt to auto-fix a guardrail violation."""
+
         # Create a simple resource-like object for the auto_fix function
         class ResourceProxy:
             def __init__(self) -> None:
@@ -446,7 +449,8 @@ class GuardrailEvaluator:
                 try:
                     # Try rich callback signature first
                     progress_callback(
-                        i + 1, total,
+                        i + 1,
+                        total,
                         guardrail_id=last_guardrail_id,
                         resource_name=resource_name,
                         passed=passed_count,
@@ -485,7 +489,9 @@ class GuardrailEvaluator:
                     report.block_reason += f"; {len(conflicts)} fix conflict(s) detected"
                 else:
                     report.blocked = True
-                    report.block_reason = f"{len(conflicts)} fix conflict(s) detected - auto-fixes caused new violations"
+                    report.block_reason = (
+                        f"{len(conflicts)} fix conflict(s) detected - auto-fixes caused new violations"
+                    )
 
         report.completed_at = datetime.now(timezone.utc)
         return report
@@ -573,9 +579,7 @@ class GuardrailEvaluator:
                     self.arn = rarn
                     self.config = config
 
-            fixed_resource = FixedResourceProxy(
-                resource_type, resource_name, resource_arn, fixed_config
-            )
+            fixed_resource = FixedResourceProxy(resource_type, resource_name, resource_arn, fixed_config)
 
             # Re-evaluate with fixed config
             new_evaluations = self.evaluate_resource(fixed_resource)

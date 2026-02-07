@@ -126,9 +126,7 @@ class TestEvaluateFormula:
         from src.guardrails.formula import evaluate_formula
 
         config = {"Environment": "production"}
-        passed, reason = evaluate_formula(
-            "get('Environment') in ['production', 'staging', 'development']", config
-        )
+        passed, reason = evaluate_formula("get('Environment') in ['production', 'staging', 'development']", config)
 
         assert passed is True
 
@@ -136,9 +134,7 @@ class TestEvaluateFormula:
         from src.guardrails.formula import evaluate_formula
 
         config = {"Environment": "test"}
-        passed, reason = evaluate_formula(
-            "get('Environment') in ['production', 'staging', 'development']", config
-        )
+        passed, reason = evaluate_formula("get('Environment') in ['production', 'staging', 'development']", config)
 
         assert passed is False
 
@@ -186,9 +182,7 @@ class TestEvaluateFormula:
         from src.guardrails.formula import evaluate_formula
 
         config = {"Encryption": {"Type": "AES256"}, "Versioning": {"Status": "Enabled"}}
-        passed, reason = evaluate_formula(
-            "Encryption exists and get('Versioning.Status') == 'Enabled'", config
-        )
+        passed, reason = evaluate_formula("Encryption exists and get('Versioning.Status') == 'Enabled'", config)
 
         assert passed is True
 
@@ -196,9 +190,7 @@ class TestEvaluateFormula:
         from src.guardrails.formula import evaluate_formula
 
         config = {"Encryption": {"Type": "AES256"}, "Versioning": {"Status": "Suspended"}}
-        passed, reason = evaluate_formula(
-            "Encryption exists and get('Versioning.Status') == 'Enabled'", config
-        )
+        passed, reason = evaluate_formula("Encryption exists and get('Versioning.Status') == 'Enabled'", config)
 
         assert passed is False
 
@@ -206,9 +198,7 @@ class TestEvaluateFormula:
         from src.guardrails.formula import evaluate_formula
 
         config = {"PublicAccess": False}
-        passed, reason = evaluate_formula(
-            "get('PublicAccess') == False or Encryption exists", config
-        )
+        passed, reason = evaluate_formula("get('PublicAccess') == False or Encryption exists", config)
 
         assert passed is True
 
@@ -218,9 +208,7 @@ class TestEvaluateFormula:
 
         # If PublicAccess is false, we don't need to check encryption
         config = {"PublicAccess": False}
-        passed, reason = evaluate_formula(
-            "not get('PublicAccess') or Encryption exists", config
-        )
+        passed, reason = evaluate_formula("not get('PublicAccess') or Encryption exists", config)
 
         assert passed is True
 
@@ -230,9 +218,7 @@ class TestEvaluateFormula:
 
         # If PublicAccess is true, encryption must exist
         config = {"PublicAccess": True, "Encryption": {"Type": "AES256"}}
-        passed, reason = evaluate_formula(
-            "not get('PublicAccess') or Encryption exists", config
-        )
+        passed, reason = evaluate_formula("not get('PublicAccess') or Encryption exists", config)
 
         assert passed is True
 
@@ -242,9 +228,7 @@ class TestEvaluateFormula:
 
         # If PublicAccess is true, encryption must exist - but it doesn't
         config = {"PublicAccess": True}
-        passed, reason = evaluate_formula(
-            "not get('PublicAccess') or Encryption exists", config
-        )
+        passed, reason = evaluate_formula("not get('PublicAccess') or Encryption exists", config)
 
         assert passed is False
 
@@ -728,7 +712,14 @@ class TestFixConflictDetection:
     def test_report_blocked_on_conflict(self) -> None:
         """Test that conflicts are detected when fix causes new violation."""
         from src.guardrails.evaluator import GuardrailEvaluator
-        from src.guardrails.models import Action, EvaluationResult, Guardrail, GuardrailEvaluation, GuardrailPolicy, Severity
+        from src.guardrails.models import (
+            Action,
+            EvaluationResult,
+            Guardrail,
+            GuardrailEvaluation,
+            GuardrailPolicy,
+            Severity,
+        )
 
         # Create two conflicting guardrails
         guardrail1 = Guardrail(

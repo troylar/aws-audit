@@ -70,10 +70,13 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
     snapshot_name = state.get("snapshot_name", "")
     output_format = state.get("output_format", "terraform")
 
-    emit_progress("guardrails_start", {
-        "total_resources": len(resources),
-        "mode": "enforcement" if guardrails_enabled else "best_practices",
-    })
+    emit_progress(
+        "guardrails_start",
+        {
+            "total_resources": len(resources),
+            "mode": "enforcement" if guardrails_enabled else "best_practices",
+        },
+    )
 
     if guardrails_enabled:
         # Full enforcement mode (existing behavior)
@@ -108,9 +111,7 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
         # Best-practice advisory mode: load only best-practice guardrails,
         # downgrade all actions to WARN, disable auto-fix
         bp_guardrails = load_best_practice_guardrails()
-        advisory_guardrails = [
-            dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails
-        ]
+        advisory_guardrails = [dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails]
         policy = GuardrailPolicy(
             name="best-practices",
             version="1.0",
@@ -135,16 +136,19 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
         auto_fixed: int = 0,
         warnings: int = 0,
     ) -> None:
-        emit_progress("guardrails_progress", {
-            "current": current,
-            "total": total,
-            "guardrail_id": guardrail_id,
-            "resource_name": resource_name,
-            "passed": passed,
-            "failed": failed,
-            "auto_fixed": auto_fixed,
-            "warnings": warnings,
-        })
+        emit_progress(
+            "guardrails_progress",
+            {
+                "current": current,
+                "total": total,
+                "guardrail_id": guardrail_id,
+                "resource_name": resource_name,
+                "passed": passed,
+                "failed": failed,
+                "auto_fixed": auto_fixed,
+                "warnings": warnings,
+            },
+        )
 
     # Evaluate all resources
     report = evaluator.evaluate_all(

@@ -116,11 +116,13 @@ def generate_guardrail(
             modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1024,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
+            body=json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 1024,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            ),
         )
 
         response_body = json.loads(response["body"].read())
@@ -171,11 +173,13 @@ def generate_guardrails_batch(
             modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 4096,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
+            body=json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 4096,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            ),
         )
 
         response_body = json.loads(response["body"].read())
@@ -240,11 +244,13 @@ Respond ONLY with valid JSON:
             modelId="anthropic.claude-3-haiku-20240307-v1:0",
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 1024,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
+            body=json.dumps(
+                {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 1024,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+            ),
         )
 
         response_body = json.loads(response["body"].read())

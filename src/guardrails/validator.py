@@ -84,10 +84,7 @@ def validate_guardrail(guardrail_dict: Dict[str, Any]) -> List[str]:
 
     # Must have either condition OR an AI rule (mutually exclusive)
     has_condition = "condition" in guardrail_dict and guardrail_dict["condition"]
-    has_ai_rule = any(
-        guardrail_dict.get(key)
-        for key in ["ai_fail_if", "ai_warn_if", "ai_notify_if"]
-    )
+    has_ai_rule = any(guardrail_dict.get(key) for key in ["ai_fail_if", "ai_warn_if", "ai_notify_if"])
 
     if not has_condition and not has_ai_rule:
         errors.append("Must have either 'condition' (formula) or an AI rule (ai_fail_if/ai_warn_if/ai_notify_if)")
@@ -120,6 +117,7 @@ def _validate_condition(condition: Any) -> List[str]:
     # Handle formula strings (new format)
     if isinstance(condition, str):
         from .formula import validate_formula
+
         formula_errors = validate_formula(condition)
         errors.extend(formula_errors)
         return errors
@@ -136,7 +134,9 @@ def _validate_condition(condition: Any) -> List[str]:
         else:
             operator = condition["operator"]
             if operator not in VALID_OPERATORS:
-                errors.append(f"condition.operator '{operator}' is invalid. Must be one of: {', '.join(VALID_OPERATORS)}")
+                errors.append(
+                    f"condition.operator '{operator}' is invalid. Must be one of: {', '.join(VALID_OPERATORS)}"
+                )
         return errors
 
     errors.append("condition must be a formula string or dictionary")

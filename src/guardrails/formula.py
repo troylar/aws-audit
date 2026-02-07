@@ -33,15 +33,15 @@ class FormulaError(Exception):
 # Use regex patterns for word boundary matching
 COMMON_MISTAKES_PATTERNS = [
     # Typos in function names - use word boundaries to avoid false positives
-    (r'\bexist\b(?!s)', "exists", "Did you mean 'exists'? Use: 'Attribute exists'"),
-    (r'\bexsits\b', "exists", "Did you mean 'exists'? Use: 'Attribute exists'"),
-    (r'\bexsist\b', "exists", "Did you mean 'exists'? Use: 'Attribute exists'"),
-    (r'\bcnt\b', "count", "Did you mean 'count'? Use: count(list)"),
-    (r'\blength\b', "len", "Use 'len()' or 'count()' for length"),
-    (r'\bmatch\b(?!es)', "matches", "Did you mean 'matches'? Use: matches(value, pattern)"),
-    (r'\bcontain\b(?!s)', "contains", "Did you mean 'contains'? Use: contains(container, item)"),
-    (r'\benviron\b', "env", "Use 'env()' to access context variables: env('KEY')"),
-    (r'\bgetenv\b', "env", "Use 'env()' to access context variables: env('KEY')"),
+    (r"\bexist\b(?!s)", "exists", "Did you mean 'exists'? Use: 'Attribute exists'"),
+    (r"\bexsits\b", "exists", "Did you mean 'exists'? Use: 'Attribute exists'"),
+    (r"\bexsist\b", "exists", "Did you mean 'exists'? Use: 'Attribute exists'"),
+    (r"\bcnt\b", "count", "Did you mean 'count'? Use: count(list)"),
+    (r"\blength\b", "len", "Use 'len()' or 'count()' for length"),
+    (r"\bmatch\b(?!es)", "matches", "Did you mean 'matches'? Use: matches(value, pattern)"),
+    (r"\bcontain\b(?!s)", "contains", "Did you mean 'contains'? Use: contains(container, item)"),
+    (r"\benviron\b", "env", "Use 'env()' to access context variables: env('KEY')"),
+    (r"\bgetenv\b", "env", "Use 'env()' to access context variables: env('KEY')"),
 ]
 
 # Simple string-based mistakes (operators)
@@ -56,14 +56,14 @@ COMMON_MISTAKES = {
 # Patterns that indicate common mistakes
 MISTAKE_PATTERNS = [
     # Missing quotes around string values
-    (r"==\s+[a-z][a-z0-9_-]+\s*(?:and|or|$)",
-     "String values need quotes. Use: get('attr') == 'value'"),
+    (r"==\s+[a-z][a-z0-9_-]+\s*(?:and|or|$)", "String values need quotes. Use: get('attr') == 'value'"),
     # Using = instead of ==
-    (r"(?<![=!<>])=(?!=)",
-     "Use '==' for comparison, not '='"),
+    (r"(?<![=!<>])=(?!=)", "Use '==' for comparison, not '='"),
     # Using dot notation without get()
-    (r"(?<!['\"])\b([A-Z][a-z]+(?:\.[A-Z][a-z]+)+)\s*(?:==|!=|>|<|>=|<=|in\b)",
-     "Wrap attribute paths in get(): get('Path.To.Attr')"),
+    (
+        r"(?<!['\"])\b([A-Z][a-z]+(?:\.[A-Z][a-z]+)+)\s*(?:==|!=|>|<|>=|<=|in\b)",
+        "Wrap attribute paths in get(): get('Path.To.Attr')",
+    ),
 ]
 
 
@@ -150,8 +150,7 @@ def _preprocess_formula(formula: str, config: Dict[str, Any]) -> Tuple[str, Dict
     variables: Dict[str, Any] = {}
 
     # Keywords that should not be treated as attribute names
-    keywords = {'and', 'or', 'not', 'in', 'is', 'if', 'then', 'else', 'for',
-                'true', 'false', 'none', 'null'}
+    keywords = {"and", "or", "not", "in", "is", "if", "then", "else", "for", "true", "false", "none", "null"}
 
     def replace_exists(match: re.Match) -> str:
         """Replace X exists pattern, but skip keywords."""
@@ -169,7 +168,7 @@ def _preprocess_formula(formula: str, config: Dict[str, Any]) -> Tuple[str, Dict
 
     # Handle "X not exists" pattern -> "not __EXISTS__(get('X'))"
     # Use placeholder to prevent double-processing, then restore
-    not_exists_pattern = r'\b([\w.]+)\s+not\s+exists\b'
+    not_exists_pattern = r"\b([\w.]+)\s+not\s+exists\b"
     processed = re.sub(
         not_exists_pattern,
         replace_not_exists,
@@ -179,7 +178,7 @@ def _preprocess_formula(formula: str, config: Dict[str, Any]) -> Tuple[str, Dict
 
     # Handle "X exists" pattern -> "__EXISTS__(get('X'))"
     # Match: word.path exists (but not inside function calls)
-    exists_pattern = r'\b([\w.]+)\s+exists\b'
+    exists_pattern = r"\b([\w.]+)\s+exists\b"
     processed = re.sub(
         exists_pattern,
         replace_exists,
@@ -192,7 +191,7 @@ def _preprocess_formula(formula: str, config: Dict[str, Any]) -> Tuple[str, Dict
 
     # Handle "if X then Y" pattern -> "(not (X) or (Y))"
     # This implements logical implication: if A then B ≡ ¬A ∨ B
-    if_then_pattern = r'\bif\s+(.+?)\s+then\s+(.+?)(?:\s*$|\s+else\s+)'
+    if_then_pattern = r"\bif\s+(.+?)\s+then\s+(.+?)(?:\s*$|\s+else\s+)"
     match = re.search(if_then_pattern, processed, re.IGNORECASE)
     if match:
         condition = match.group(1)
@@ -211,10 +210,36 @@ def _preprocess_formula(formula: str, config: Dict[str, Any]) -> Tuple[str, Dict
     def replace_attr(match: re.Match) -> str:
         attr = match.group(0)
         # Skip if it's a known function or keyword
-        known = {'and', 'or', 'not', 'in', 'is', 'if', 'then', 'else', 'for',
-                 'True', 'False', 'None', 'true', 'false', 'null',
-                 'exists', 'count', 'matches', 'contains', 'get',
-                 'all', 'any', 'none', 'len', 'str', 'int', 'float', 'bool'}
+        known = {
+            "and",
+            "or",
+            "not",
+            "in",
+            "is",
+            "if",
+            "then",
+            "else",
+            "for",
+            "True",
+            "False",
+            "None",
+            "true",
+            "false",
+            "null",
+            "exists",
+            "count",
+            "matches",
+            "contains",
+            "get",
+            "all",
+            "any",
+            "none",
+            "len",
+            "str",
+            "int",
+            "float",
+            "bool",
+        }
         if attr.lower() in {k.lower() for k in known}:
             return attr
         # Skip if it looks like a function call (followed by parenthesis)
@@ -224,8 +249,8 @@ def _preprocess_formula(formula: str, config: Dict[str, Any]) -> Tuple[str, Dict
     def get_value(path: str) -> Any:
         return _get_nested_value(config, path)
 
-    variables['get'] = get_value
-    variables['config'] = config
+    variables["get"] = get_value
+    variables["config"] = config
 
     return processed, variables
 
@@ -279,20 +304,20 @@ def evaluate_formula(
 
         # Add custom functions
         evaluator.functions = {
-            'exists': _exists,
-            'count': _count,
-            'matches': _matches,
-            'contains': _contains,
-            'len': len,
-            'str': str,
-            'int': int,
-            'float': float,
-            'bool': bool,
-            'all': all,
-            'any': any,
-            'abs': abs,
-            'min': min,
-            'max': max,
+            "exists": _exists,
+            "count": _count,
+            "matches": _matches,
+            "contains": _contains,
+            "len": len,
+            "str": str,
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "all": all,
+            "any": any,
+            "abs": abs,
+            "min": min,
+            "max": max,
         }
 
         # Add variables
@@ -302,7 +327,7 @@ def evaluate_formula(
         def get_config_value(path: str) -> Any:
             return _get_nested_value(config, path)
 
-        evaluator.functions['get'] = get_config_value
+        evaluator.functions["get"] = get_config_value
 
         # Add env() function for cross-resource context
         def get_env_value(key: str, default: Any = None) -> Any:
@@ -315,9 +340,10 @@ def evaluate_formula(
                 return context[key]
             # Fall back to OS environment variable
             import os
+
             return os.environ.get(key, default)
 
-        evaluator.functions['env'] = get_env_value
+        evaluator.functions["env"] = get_env_value
 
         # Evaluate
         result = evaluator.eval(processed)
@@ -372,10 +398,10 @@ def validate_formula(formula: str) -> List[str]:
     depth = 0
     paren_positions: List[int] = []
     for i, char in enumerate(formula):
-        if char == '(':
+        if char == "(":
             depth += 1
             paren_positions.append(i)
-        elif char == ')':
+        elif char == ")":
             depth -= 1
             if paren_positions:
                 paren_positions.pop()
@@ -441,7 +467,24 @@ def _get_error_suggestion(error_str: str, formula: str) -> Optional[str]:
         match = re.search(r"function['\"]?\s*['\"]?(\w+)", error_lower)
         if match:
             func_name = match.group(1)
-            valid_funcs = ["get", "exists", "count", "matches", "contains", "env", "len", "str", "int", "float", "bool", "all", "any", "abs", "min", "max"]
+            valid_funcs = [
+                "get",
+                "exists",
+                "count",
+                "matches",
+                "contains",
+                "env",
+                "len",
+                "str",
+                "int",
+                "float",
+                "bool",
+                "all",
+                "any",
+                "abs",
+                "min",
+                "max",
+            ]
             suggestions = [f for f in valid_funcs if f.startswith(func_name[0].lower())]
             if suggestions:
                 return f"Unknown function '{func_name}'. Did you mean: {', '.join(suggestions)}? Available functions: {', '.join(valid_funcs)}"

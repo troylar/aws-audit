@@ -2204,9 +2204,7 @@ def snapshot_export(
                 try:
                     snap = storage.load_snapshot(snap_meta["name"])
                     if snap.inventory_name == inventory:
-                        inventory_snapshots.append(
-                            InventorySnapshot(name=snap.name, created_at=snap.created_at)
-                        )
+                        inventory_snapshots.append(InventorySnapshot(name=snap.name, created_at=snap.created_at))
                 except Exception:
                     continue
 
@@ -2330,16 +2328,18 @@ def snapshot_export(
             writer.writeheader()
             for r in export_resources:
                 tags_str = "; ".join(f"{k}={v}" for k, v in r.get("tags", {}).items())
-                writer.writerow({
-                    "ARN": r["arn"],
-                    "ResourceType": r["resource_type"],
-                    "Name": r["name"],
-                    "Region": r["region"],
-                    "Tags": tags_str,
-                    "CreatedAt": r.get("created_at", ""),
-                    "ConfigHash": r.get("config_hash", ""),
-                    "Source": r.get("source", ""),
-                })
+                writer.writerow(
+                    {
+                        "ARN": r["arn"],
+                        "ResourceType": r["resource_type"],
+                        "Name": r["name"],
+                        "Region": r["region"],
+                        "Tags": tags_str,
+                        "CreatedAt": r.get("created_at", ""),
+                        "ConfigHash": r.get("config_hash", ""),
+                        "Source": r.get("source", ""),
+                    }
+                )
             content = csv_buffer.getvalue()
         else:
             content = ""
@@ -6368,9 +6368,7 @@ def generate(
             else:
                 # Best-practice advisory mode
                 bp_guardrails = load_best_practice_guardrails()
-                advisory_guardrails = [
-                    dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails
-                ]
+                advisory_guardrails = [dataclasses.replace(g, action=Action.WARN) for g in bp_guardrails]
                 policy = GuardrailPolicy(
                     name="best-practices",
                     version="1.0",
@@ -6636,8 +6634,7 @@ def generate(
     if result.guardrails_report:
         report_data = result.guardrails_report
         has_findings = (
-            report_data.get("summary", {}).get("failed", 0) > 0
-            or report_data.get("summary", {}).get("warnings", 0) > 0
+            report_data.get("summary", {}).get("failed", 0) > 0 or report_data.get("summary", {}).get("warnings", 0) > 0
         )
         if result.guardrails_blocked or has_findings:
             from src.guardrails.reporter import format_terminal_report
