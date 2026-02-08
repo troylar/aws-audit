@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-02-08
+
+### Changed
+- **BREAKING**: Renamed "Inventory" container concept to "Collection" throughout the entire codebase
+  - CLI command group: `awsinv inventory` -> `awsinv collection`
+  - CLI option: `--inventory` / `-i` -> `--collection` / `-i`
+  - Environment variable: `AWSINV_INVENTORY_ID` -> `AWSINV_COLLECTION_ID`
+  - Database tables: `inventories` -> `collections`, `inventory_snapshots` -> `collection_snapshots`
+  - Python classes: `Inventory` -> `Collection`, `InventoryStore` -> `CollectionStore`, `InventoryStorage` -> `CollectionStorage`
+  - Web API routes: `/inventories` -> `/collections`
+  - Schema version bumped to 1.3.0 with automatic migration for existing databases
+
+### Added
+- **Collections Guide**: New documentation page explaining collections and their use cases (`docs/guides/collections.md`)
+
+### Migration
+- Update any scripts using `awsinv inventory` to use `awsinv collection`
+- Update any scripts using `--inventory` to use `--collection`
+- Replace `AWSINV_INVENTORY_ID` with `AWSINV_COLLECTION_ID` in environment configs
+- Existing databases will be automatically migrated on first access
+
 ## [1.1.0] - 2026-02-04
 
 ### Added
