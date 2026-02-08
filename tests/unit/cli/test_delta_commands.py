@@ -9,7 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
-from src.models.delta_report import DeltaReport, ResourceChange
+from src.models.delta_report import DeltaReport
 from src.models.resource import Resource
 from src.models.snapshot import Snapshot
 
