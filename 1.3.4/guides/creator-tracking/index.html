@@ -18,7 +18,7 @@
         <link rel="prev" href="../lambda-code/">
       
       
-        <link rel="next" href="../iac-generation/">
+        <link rel="next" href="../query-analysis/">
       
       
         
@@ -886,6 +886,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../change-tracking/" class="md-nav__link">
         
   
@@ -1155,34 +1183,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1939,7 +1939,7 @@
 <h1 id="creator-tracking">Creator Tracking<a class="headerlink" href="#creator-tracking" title="Permanent link">&para;</a></h1>
 <p>Track who created each resource in your AWS account using CloudTrail.</p>
 <h2 id="tracking-during-snapshot-creation">Tracking During Snapshot Creation<a class="headerlink" href="#tracking-during-snapshot-creation" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snapshot<span class="w"> </span>--regions<span class="w"> </span>us-east-1<span class="w"> </span>--track-creators
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snapshot<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w"> </span>--track-creators
 </span></code></pre></div>
 <h2 id="enriching-existing-snapshots">Enriching Existing Snapshots<a class="headerlink" href="#enriching-existing-snapshots" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>enrich-creators<span class="w"> </span>my-snapshot<span class="w"> </span>--days-back<span class="w"> </span><span class="m">90</span>
@@ -1966,8 +1966,8 @@
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>creators<span class="w"> </span>--detailed
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Export to JSON or CSV</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>creators<span class="w"> </span>--export<span class="w"> </span>creators.json
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>creators<span class="w"> </span>--export<span class="w"> </span>creators.csv
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>creators<span class="w"> </span>--output<span class="w"> </span>creators.json
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>creators<span class="w"> </span>--output<span class="w"> </span>creators.csv
 </span></code></pre></div>
 <p>Output includes:</p>
 <ul>

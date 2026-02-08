@@ -883,6 +883,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../guides/iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../guides/change-tracking/" class="md-nav__link">
         
   
@@ -1031,34 +1059,6 @@
     
   
     Creator Tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../guides/iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
   
 
     
@@ -2215,11 +2215,11 @@
 <p><strong>Solutions:</strong></p>
 <ol>
 <li><strong>Enable AWS Config</strong> for faster collection (up to 5x faster). The tool detects it automatically.</li>
-<li><strong>Limit regions:</strong> Only scan regions you use with <code>--regions us-east-1,us-west-2</code></li>
-<li><strong>Limit resource types:</strong> Filter to specific services with <code>--resource-types ec2,s3,lambda</code></li>
+<li><strong>Limit regions:</strong> Only scan regions you use with <code>--region us-east-1,us-west-2</code></li>
+<li><strong>Limit resource types:</strong> Filter to specific services with <code>--type ec2,s3,lambda</code></li>
 </ol>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Faster: Only scan what you need</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>quick-snap<span class="w"> </span>--regions<span class="w"> </span>us-east-1<span class="w"> </span>--resource-types<span class="w"> </span>ec2,lambda
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>quick-snap<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w"> </span>--type<span class="w"> </span>ec2,lambda
 </span></code></pre></div>
 <h3 id="no-resources-found-in-snapshot">"No resources found" in snapshot<a class="headerlink" href="#no-resources-found-in-snapshot" title="Permanent link">&para;</a></h3>
 <p><strong>Problem:</strong> Snapshot completes but shows 0 resources.</p>
@@ -2252,8 +2252,8 @@
 <p>The tool includes built-in retry logic with exponential backoff. If you still see issues:</p>
 <ol>
 <li>Use <code>--no-config</code> to skip Config detection (reduces API calls)</li>
-<li>Limit regions with <code>--regions</code></li>
-<li>Limit resource types with <code>--resource-types</code></li>
+<li>Limit regions with <code>--region</code></li>
+<li>Limit resource types with <code>--type</code></li>
 <li>For very large accounts, consider running during off-peak hours</li>
 </ol>
 <h3 id="large-accounts-50k-resources">Large accounts (50k+ resources)<a class="headerlink" href="#large-accounts-50k-resources" title="Permanent link">&para;</a></h3>
@@ -2297,7 +2297,7 @@
 <h3 id="can-i-schedule-automatic-snapshots">Can I schedule automatic snapshots?<a class="headerlink" href="#can-i-schedule-automatic-snapshots" title="Permanent link">&para;</a></h3>
 <p>The tool doesn't include scheduling, but you can add it:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Cron example (daily at midnight)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/usr/local/bin/awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>daily-<span class="k">$(</span>date<span class="w"> </span>+<span class="se">\%</span>Y<span class="se">\%</span>m<span class="se">\%</span>d<span class="k">)</span><span class="w"> </span>--regions<span class="w"> </span>us-east-1
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="m">0</span><span class="w"> </span><span class="m">0</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/usr/local/bin/awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>daily-<span class="k">$(</span>date<span class="w"> </span>+<span class="se">\%</span>Y<span class="se">\%</span>m<span class="se">\%</span>d<span class="k">)</span><span class="w"> </span>--region<span class="w"> </span>us-east-1
 </span></code></pre></div>
 <p>Or use AWS EventBridge + Lambda to trigger from within AWS.</p>
 <h3 id="where-should-i-run-this-tool">Where should I run this tool?<a class="headerlink" href="#where-should-i-run-this-tool" title="Permanent link">&para;</a></h3>
@@ -2336,7 +2336,7 @@
 <h3 id="why-does-cleanup-delete-my-vpc">Why does cleanup delete my VPC?<a class="headerlink" href="#why-does-cleanup-delete-my-vpc" title="Permanent link">&para;</a></h3>
 <p>When you run cleanup execute against a baseline, the tool deletes resources created after that baseline. If the VPC was created after your snapshot, it will be marked for deletion.</p>
 <p><strong>Best practice:</strong> Always include networking infrastructure in your baseline snapshot, or protect it with tags:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>execute<span class="w"> </span>my-baseline<span class="w"> </span>--protect-tag<span class="w"> </span><span class="s2">&quot;layer=network&quot;</span><span class="w"> </span>--confirm
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>execute<span class="w"> </span>my-baseline<span class="w"> </span>--protect-tag<span class="w"> </span><span class="s2">&quot;layer=network&quot;</span><span class="w"> </span>--yes
 </span></code></pre></div>
 
 

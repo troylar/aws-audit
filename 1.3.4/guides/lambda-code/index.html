@@ -886,6 +886,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../change-tracking/" class="md-nav__link">
         
   
@@ -1147,34 +1175,6 @@
     
   
     Creator Tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
   
 
     
@@ -1980,16 +1980,16 @@
 <h2 id="code-storage-options">Code Storage Options<a class="headerlink" href="#code-storage-options" title="Permanent link">&para;</a></h2>
 <p>When creating snapshots, control how Lambda code is stored:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Default: Store code inline up to 10MB, hash-only for larger</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--regions<span class="w"> </span>us-east-1
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--region<span class="w"> </span>us-east-1
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Store code inline up to 50MB</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--regions<span class="w"> </span>us-east-1<span class="w"> </span>--lambda-code-max-size<span class="w"> </span><span class="m">50</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w"> </span>--lambda-code-max-size<span class="w"> </span><span class="m">50</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Store all code externally (none inline)</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--regions<span class="w"> </span>us-east-1<span class="w"> </span>--lambda-code-max-size<span class="w"> </span><span class="m">0</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w"> </span>--lambda-code-max-size<span class="w"> </span><span class="m">0</span>
 </span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># Store all code inline regardless of size</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--regions<span class="w"> </span>us-east-1<span class="w"> </span>--lambda-code-max-size<span class="w"> </span>-1
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-snap<span class="w"> </span>--region<span class="w"> </span>us-east-1<span class="w"> </span>--lambda-code-max-size<span class="w"> </span>-1
 </span></code></pre></div>
 <p>Large packages are stored to <code>~/.snapshots/lambda-code/&lt;snapshot&gt;/</code> and automatically loaded when needed.</p>
 

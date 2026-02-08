@@ -883,6 +883,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/change-tracking/" class="md-nav__link">
         
   
@@ -1031,34 +1059,6 @@
     
   
     Creator Tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guides/iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
   
 
     
@@ -2119,6 +2119,17 @@
     <span class="md-ellipsis">
       
         enrich-creators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export
       
     </span>
   </a>
@@ -3249,6 +3260,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#export_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#list_5" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3401,7 +3423,7 @@
 </tbody>
 </table>
 <h4 id="cleanup">cleanup<a class="headerlink" href="#cleanup" title="Permanent link">&para;</a></h4>
-<p>Delete resources - returns environment to baseline or removes unprotected resources</p>
+<p>Revert environment to baseline by removing resources added after a baseline snapshot</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>awsinv cleanup [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -3426,20 +3448,23 @@
 </table>
 <h5 id="execute">execute<a class="headerlink" href="#execute" title="Permanent link">&para;</a></h5>
 <p>DELETE resources created after a baseline snapshot.</p>
+<p>Reverts environment to baseline by removing resources added after the baseline snapshot.</p>
 <p>⚠️  DESTRUCTIVE OPERATION: This will permanently delete AWS resources!</p>
 <p>Deletes resources that were created after the snapshot, returning
 your AWS environment to that baseline state. Protected resources are skipped.</p>
+<p>See also: 'cleanup preview' for a safe dry-run, 'cleanup purge' to delete all
+unprotected resources regardless of snapshot baseline.</p>
 <p>Examples:
     # Delete resources created after baseline, protecting tagged resources
-    awsinv cleanup execute my-snapshot --protect-tag "project=baseline" --confirm</p>
+    awsinv cleanup execute my-snapshot --protect-tag "project=baseline" --yes</p>
 <div class="language-text highlight"><pre><span></span><code># Use config file for protection rules
-awsinv cleanup execute my-snapshot --config .awsinv-cleanup.yaml --confirm
+awsinv cleanup execute my-snapshot --config .awsinv-cleanup.yaml --yes
 
 # Delete only EC2 instances, skip prompt
-awsinv cleanup execute my-snapshot --confirm --yes --type AWS::EC2::Instance
+awsinv cleanup execute my-snapshot --yes --type AWS::EC2::Instance
 
 # Delete in specific region with profile
-awsinv cleanup execute my-snapshot --confirm --region us-east-1 --profile prod
+awsinv cleanup execute my-snapshot --yes --region us-east-1 --profile prod
 </code></pre></div>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>awsinv cleanup execute [OPTIONS] BASELINE_SNAPSHOT
@@ -3492,15 +3517,9 @@ awsinv cleanup execute my-snapshot --confirm --region us-east-1 --profile prod
 <td>None</td>
 </tr>
 <tr>
-<td><code>--confirm</code></td>
-<td>boolean</td>
-<td>Confirm deletion (REQUIRED for execution)</td>
-<td><code>False</code></td>
-</tr>
-<tr>
 <td><code>--yes</code>, <code>-y</code></td>
 <td>boolean</td>
-<td>Skip interactive confirmation prompt</td>
+<td>Skip confirmation prompt (REQUIRED for execution)</td>
 <td><code>False</code></td>
 </tr>
 <tr>
@@ -3515,6 +3534,8 @@ awsinv cleanup execute my-snapshot --confirm --region us-east-1 --profile prod
 <p>Preview resources that would be DELETED to return to a baseline snapshot.</p>
 <p>Shows what resources have been created since the snapshot without
 performing any deletions. This is a safe dry-run operation.</p>
+<p>See also: 'cleanup execute' to actually perform the deletion, 'cleanup purge' to delete
+all unprotected resources regardless of snapshot baseline.</p>
 <p>Examples:
     # Preview resources created since a baseline snapshot
     awsinv cleanup preview prod-baseline</p>
@@ -3600,6 +3621,8 @@ awsinv cleanup preview my-snapshot --type AWS::EC2::Instance --region us-east-1
 <p>Unlike 'cleanup execute', this does NOT compare to a snapshot. It deletes
 ALL resources that don't match protection rules (tags, types, etc.).</p>
 <p>Use this for lab/sandbox cleanup where baseline resources are tagged.</p>
+<p>See also: 'cleanup preview' for a safe dry-run, 'cleanup execute' to delete only
+resources added since a baseline snapshot.</p>
 <p>Exclusion Filters:
     Use --exclude-name and --exclude-tag to protect specific resources from deletion.
     Supports wildcards: * (any characters) and ? (single character).
@@ -3611,10 +3634,10 @@ ALL resources that don't match protection rules (tags, types, etc.).</p>
     # Preview what would be deleted (safe)
     awsinv cleanup purge --protect-tag "project=baseline" --preview</p>
 <div class="language-text highlight"><pre><span></span><code># Delete everything except baseline-tagged resources
-awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --confirm
+awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --yes
 
 # Multiple protection tags (OR logic - protected if ANY match)
-awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --protect-tag &quot;env=prod&quot; --confirm
+awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --protect-tag &quot;env=prod&quot; --yes
 
 # Exclude specific resources by name pattern (wildcards supported)
 awsinv cleanup purge --protect-tag &quot;env=dev&quot; --exclude-name &quot;*-prod-*&quot; --preview
@@ -3634,19 +3657,19 @@ awsinv cleanup purge --protect-tag &quot;env=dev&quot; --exclude-tag &quot;do-no
 awsinv cleanup purge --protect-tag &quot;env=dev&quot; --exclude-name &quot;*-prod-*&quot; --exclude-tag &quot;protected=yes&quot; --preview
 
 # Use config file for protection rules
-awsinv cleanup purge --config .awsinv-cleanup.yaml --confirm
+awsinv cleanup purge --config .awsinv-cleanup.yaml --yes
 
 # Purge only specific resource types
-awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --type AWS::EC2::Instance --confirm
+awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --type AWS::EC2::Instance --yes
 
 # Purge in specific region
-awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --region us-east-1 --confirm
+awsinv cleanup purge --protect-tag &quot;project=baseline&quot; --region us-east-1 --yes
 
 # Delete resources created by a specific user (requires enriched snapshot)
 awsinv cleanup purge --from-snapshot my-snapshot --created-by &quot;john.doe&quot; --preview
 
 # Delete resources created by a specific role
-awsinv cleanup purge --from-snapshot my-snapshot --created-by &quot;AWSReservedSSO_Developer&quot; --confirm
+awsinv cleanup purge --from-snapshot my-snapshot --created-by &quot;AWSReservedSSO_Developer&quot; --yes
 
 # Delete resources created after a specific date
 awsinv cleanup purge --from-snapshot my-snapshot --created-after &quot;2025-01-01&quot; --preview
@@ -3722,7 +3745,7 @@ awsinv cleanup purge --from-snapshot my-snapshot \
 <td>None</td>
 </tr>
 <tr>
-<td><code>--from-snapshot</code>, <code>-s</code></td>
+<td><code>--from-snapshot</code></td>
 <td>text</td>
 <td>Use resources from an enriched snapshot (required for --created-by filters)</td>
 <td>None</td>
@@ -3752,15 +3775,9 @@ awsinv cleanup purge --from-snapshot my-snapshot \
 <td><code>False</code></td>
 </tr>
 <tr>
-<td><code>--confirm</code></td>
-<td>boolean</td>
-<td>Confirm deletion (REQUIRED for execution)</td>
-<td><code>False</code></td>
-</tr>
-<tr>
 <td><code>--yes</code>, <code>-y</code></td>
 <td>boolean</td>
-<td>Skip interactive confirmation prompt</td>
+<td>Skip confirmation prompt (REQUIRED for execution)</td>
 <td><code>False</code></td>
 </tr>
 <tr>
@@ -3799,13 +3816,13 @@ inventory snapshot or export file. Useful for:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--iac-dir</code>, <code>-d</code></td>
+<td><code>--iac-dir</code></td>
 <td>text</td>
 <td>Directory containing IaC files</td>
 <td><code>./terraform</code></td>
 </tr>
 <tr>
-<td><code>--from-file</code>, <code>-f</code></td>
+<td><code>--from-file</code></td>
 <td>text</td>
 <td>Path to JSON/YAML inventory file (alternative to snapshot)</td>
 <td>None</td>
@@ -3837,7 +3854,7 @@ inventory snapshot or export file. Useful for:</p>
 </tbody>
 </table>
 <h4 id="config">config<a class="headerlink" href="#config" title="Permanent link">&para;</a></h4>
-<p>AWS Config integration commands</p>
+<p>AWS Config integration (uses AWS Config service for resource collection)</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>awsinv config [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -3883,9 +3900,9 @@ are being recorded. This helps understand which collection method will be used.<
 </thead>
 <tbody>
 <tr>
-<td><code>--regions</code></td>
+<td><code>--region</code>, <code>-r</code></td>
 <td>text</td>
-<td>Comma-separated list of regions (default: us-east-1)</td>
+<td>Region to check (repeatable, e.g. --region us-east-1 --region us-west-2)</td>
 <td>None</td>
 </tr>
 <tr>
@@ -3964,7 +3981,7 @@ Custom org instructions in copilot-custom.md are never touched.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--path</code>, <code>-p</code></td>
+<td><code>--path</code></td>
 <td>text</td>
 <td>Target project directory (defaults to current directory)</td>
 <td>None</td>
@@ -4008,7 +4025,7 @@ Custom org instructions in copilot-custom.md are never touched.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--path</code>, <code>-p</code></td>
+<td><code>--path</code></td>
 <td>text</td>
 <td>Target project directory (defaults to current directory)</td>
 <td>None</td>
@@ -4050,7 +4067,7 @@ Custom org instructions in copilot-custom.md are never touched.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--path</code>, <code>-p</code></td>
+<td><code>--path</code></td>
 <td>text</td>
 <td>Target project directory (defaults to current directory)</td>
 <td>None</td>
@@ -4124,7 +4141,7 @@ enabling per-team, per-environment, or per-project cost tracking.</p>
 <td><code>True</code></td>
 </tr>
 <tr>
-<td><code>--export</code></td>
+<td><code>--output</code>, <code>-o</code></td>
 <td>text</td>
 <td>Export to file (JSON or CSV based on extension)</td>
 <td>None</td>
@@ -4147,6 +4164,7 @@ enabling per-team, per-environment, or per-project cost tracking.</p>
 <p>View resource changes since snapshot.</p>
 <p>Compares current AWS state to the snapshot and shows added, deleted,
 and modified resources. Use --show-diff to see field-level configuration changes.</p>
+<p>See also: 'query compare' to compare two snapshots against each other.</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>awsinv delta [OPTIONS]
 </span></code></pre></div>
@@ -4174,7 +4192,7 @@ and modified resources. Use --show-diff to see field-level configuration changes
 <td>None</td>
 </tr>
 <tr>
-<td><code>--resource-type</code></td>
+<td><code>--type</code>, <code>-t</code></td>
 <td>text</td>
 <td>Filter by resource type</td>
 <td>None</td>
@@ -4198,7 +4216,7 @@ and modified resources. Use --show-diff to see field-level configuration changes
 <td><code>False</code></td>
 </tr>
 <tr>
-<td><code>--export</code></td>
+<td><code>--output</code>, <code>-o</code></td>
 <td>text</td>
 <td>Export to file (JSON or CSV based on extension)</td>
 <td>None</td>
@@ -4260,7 +4278,7 @@ awsinv generate cdk-typescript --from-file export.yaml --output ./cdk-app
 <td><code>./terraform</code></td>
 </tr>
 <tr>
-<td><code>--from-file</code>, <code>-f</code></td>
+<td><code>--from-file</code></td>
 <td>text</td>
 <td>Path to JSON/YAML export file (alternative to snapshot)</td>
 <td>None</td>
@@ -4296,7 +4314,7 @@ awsinv generate cdk-typescript --from-file export.yaml --output ./cdk-app
 <td><code>False</code></td>
 </tr>
 <tr>
-<td><code>--guardrails</code>, <code>-g</code></td>
+<td><code>--guardrails</code></td>
 <td>boolean</td>
 <td>Enable guardrails policy evaluation</td>
 <td><code>False</code></td>
@@ -4340,7 +4358,7 @@ awsinv generate cdk-typescript --from-file export.yaml --output ./cdk-app
 </tbody>
 </table>
 <h4 id="group">group<a class="headerlink" href="#group" title="Permanent link">&para;</a></h4>
-<p>Manage resource groups for baseline comparison</p>
+<p>Resource groups (user-defined collections for tracking, not IAM or Security Groups)</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>awsinv group [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -4384,7 +4402,7 @@ awsinv generate cdk-typescript --from-file export.yaml --output ./cdk-app
 </thead>
 <tbody>
 <tr>
-<td><code>--resource</code>, <code>-r</code></td>
+<td><code>--resource</code></td>
 <td>text</td>
 <td>Resource to add as 'name:type' (e.g., 'my-bucket:s3:bucket')</td>
 <td>_required</td>
@@ -4432,7 +4450,7 @@ which are missing, and which resources in the snapshot are not in the group.</p>
 <td><code>summary</code></td>
 </tr>
 <tr>
-<td><code>--details</code>, <code>-d</code></td>
+<td><code>--details</code></td>
 <td>boolean</td>
 <td>Show individual resource details</td>
 <td><code>False</code></td>
@@ -4473,7 +4491,7 @@ awsinv group create iam-baseline --from-snapshot snap1 --type iam
 </thead>
 <tbody>
 <tr>
-<td><code>--from-snapshot</code>, <code>-s</code></td>
+<td><code>--from-snapshot</code></td>
 <td>text</td>
 <td>Create group from resources in this snapshot</td>
 <td>None</td>
@@ -4628,7 +4646,7 @@ awsinv group create iam-baseline --from-snapshot snap1 --type iam
 </thead>
 <tbody>
 <tr>
-<td><code>--resource</code>, <code>-r</code></td>
+<td><code>--resource</code></td>
 <td>text</td>
 <td>Resource to remove as 'name:type'</td>
 <td>_required</td>
@@ -4675,7 +4693,7 @@ awsinv group create iam-baseline --from-snapshot snap1 --type iam
 </tbody>
 </table>
 <h4 id="guardrails">guardrails<a class="headerlink" href="#guardrails" title="Permanent link">&para;</a></h4>
-<p>Evaluate compliance guardrails against inventory snapshots.</p>
+<p>IaC guardrails (policy checks for generated code, not AWS Control Tower guardrails)</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>awsinv guardrails [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -4700,8 +4718,9 @@ awsinv group create iam-baseline --from-snapshot snap1 --type iam
 </table>
 <h5 id="check_1">check<a class="headerlink" href="#check_1" title="Permanent link">&para;</a></h5>
 <p>Evaluate guardrails against an inventory snapshot.</p>
-<p>Checks resources for compliance without generating IaC.
+<p>Checks resources for compliance with IaC policy guardrails without generating code.
 Useful for CI/CD gates and compliance audits.</p>
+<p>See also: 'security scan' for runtime security configuration checks against AWS best practices.</p>
 <p>Examples:
     awsinv guardrails check my-snapshot
     awsinv guardrails check my-snapshot --policy ./policy.yaml
@@ -4722,7 +4741,7 @@ Useful for CI/CD gates and compliance audits.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--policy</code>, <code>-p</code></td>
+<td><code>--policy</code></td>
 <td>text</td>
 <td>Path to custom guardrails policy file (YAML)</td>
 <td>None</td>
@@ -4734,7 +4753,7 @@ Useful for CI/CD gates and compliance audits.</p>
 <td><code>default</code></td>
 </tr>
 <tr>
-<td><code>--from-file</code>, <code>-f</code></td>
+<td><code>--from-file</code></td>
 <td>text</td>
 <td>Path to JSON/YAML inventory file (alternative to snapshot)</td>
 <td>None</td>
@@ -4873,7 +4892,7 @@ security or compliance requirements.</p>
 <td><code>5</code></td>
 </tr>
 <tr>
-<td><code>--types</code>, <code>-t</code></td>
+<td><code>--types</code></td>
 <td>text</td>
 <td>Comma-separated resource types to focus on (e.g., s3,ec2,rds)</td>
 <td>None</td>
@@ -4916,7 +4935,7 @@ security or compliance requirements.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--policy</code>, <code>-p</code></td>
+<td><code>--policy</code></td>
 <td>text</td>
 <td>Path to custom guardrails policy file (YAML)</td>
 <td>None</td>
@@ -4928,7 +4947,7 @@ security or compliance requirements.</p>
 <td><code>default</code></td>
 </tr>
 <tr>
-<td><code>--severity</code>, <code>-s</code></td>
+<td><code>--severity</code></td>
 <td>text</td>
 <td>Filter by severity: CRITICAL, HIGH, MEDIUM, LOW, INFO</td>
 <td>None</td>
@@ -4990,7 +5009,7 @@ before using the policy.</p>
 </tbody>
 </table>
 <h4 id="inventory">inventory<a class="headerlink" href="#inventory" title="Permanent link">&para;</a></h4>
-<p>Inventory management commands</p>
+<p>Manage resource inventories (named collections of snapshots, not AWS SSM Inventory)</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>awsinv inventory [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -5090,7 +5109,7 @@ aws-baseline inventory create team-a-resources \
 </thead>
 <tbody>
 <tr>
-<td><code>--force</code>, <code>-f</code></td>
+<td><code>--yes</code>, <code>-y</code></td>
 <td>boolean</td>
 <td>Skip confirmation prompts</td>
 <td><code>False</code></td>
@@ -5248,7 +5267,7 @@ filter settings, and descriptions.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--file</code>, <code>-f</code></td>
+<td><code>--file</code></td>
 <td>text</td>
 <td>Diff specific file</td>
 <td>None</td>
@@ -5295,7 +5314,7 @@ filter settings, and descriptions.</p>
 <td><code>./lambda_code</code></td>
 </tr>
 <tr>
-<td><code>--flatten</code>, <code>-f</code></td>
+<td><code>--flatten</code></td>
 <td>boolean</td>
 <td>Extract all to single directory (no subdirs)</td>
 <td><code>False</code></td>
@@ -5335,13 +5354,13 @@ if specified in the function ARN.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--function</code>, <code>-f</code></td>
+<td><code>--function</code></td>
 <td>text</td>
 <td>Specific function name (default: all without code)</td>
 <td>None</td>
 </tr>
 <tr>
-<td><code>--max-size</code>, <code>-m</code></td>
+<td><code>--max-size</code></td>
 <td>integer</td>
 <td>Max code size (MB) to store inline. Larger stored to files. -1 for unlimited.</td>
 <td><code>50</code></td>
@@ -5434,13 +5453,13 @@ if specified in the function ARN.</p>
 <td>None</td>
 </tr>
 <tr>
-<td><code>--file</code>, <code>-f</code></td>
+<td><code>--file</code></td>
 <td>text</td>
 <td>Show specific file from package</td>
 <td>None</td>
 </tr>
 <tr>
-<td><code>--list</code>, <code>-l</code></td>
+<td><code>--list</code></td>
 <td>boolean</td>
 <td>List files in package</td>
 <td><code>False</code></td>
@@ -5775,7 +5794,7 @@ in the specified snapshot using AI-based name normalization.</p>
 </tbody>
 </table>
 <h4 id="security">security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h4>
-<p>Security scanning and compliance checking commands</p>
+<p>Security scanning (checks resource configurations against best practices, not AWS Security Hub)</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-50-1"><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>awsinv security [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -5800,6 +5819,7 @@ in the specified snapshot using AI-based name normalization.</p>
 </table>
 <h5 id="scan">scan<a class="headerlink" href="#scan" title="Permanent link">&para;</a></h5>
 <p>Scan a snapshot for security misconfigurations and compliance issues.</p>
+<p>See also: 'guardrails check' for IaC policy compliance checks on generated code.</p>
 <p>Performs comprehensive security checks including:
 - Public S3 buckets
 - Open security groups (SSH, RDP, databases)
@@ -5861,7 +5881,7 @@ awsinv security scan --snapshot my-snapshot --cis-only
 <td>None</td>
 </tr>
 <tr>
-<td><code>--export</code></td>
+<td><code>--output</code>, <code>-o</code></td>
 <td>text</td>
 <td>Export findings to file</td>
 <td>None</td>
@@ -5917,7 +5937,7 @@ exploring resources, running queries, and managing cleanup operations.</p>
 <td><code>127.0.0.1</code></td>
 </tr>
 <tr>
-<td><code>--port</code>, <code>-p</code></td>
+<td><code>--port</code></td>
 <td>integer</td>
 <td>Port to bind to</td>
 <td><code>8080</code></td>
@@ -5943,7 +5963,7 @@ exploring resources, running queries, and managing cleanup operations.</p>
 </tbody>
 </table>
 <h4 id="snapshot">snapshot<a class="headerlink" href="#snapshot" title="Permanent link">&para;</a></h4>
-<p>Snapshot management commands</p>
+<p>Manage inventory snapshots (point-in-time captures of AWS resource metadata, not EBS/RDS snapshots)</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-53-1"><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>awsinv snapshot [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -6017,9 +6037,9 @@ specific characteristics.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--regions</code></td>
+<td><code>--region</code>, <code>-r</code></td>
 <td>text</td>
-<td>Comma-separated list of regions (default: us-east-1)</td>
+<td>Region to snapshot (repeatable, e.g. --region us-east-1 --region us-west-2)</td>
 <td>None</td>
 </tr>
 <tr>
@@ -6158,13 +6178,13 @@ creator information (use --track-creators when creating or enrich-creators).</p>
 <td>None</td>
 </tr>
 <tr>
-<td><code>--detailed</code>, <code>-d</code></td>
+<td><code>--detailed</code></td>
 <td>boolean</td>
 <td>Show individual resources for each creator</td>
 <td><code>False</code></td>
 </tr>
 <tr>
-<td><code>--export</code></td>
+<td><code>--output</code>, <code>-o</code></td>
 <td>text</td>
 <td>Export to file (format detected from extension: .json, .csv)</td>
 <td>None</td>
@@ -6238,9 +6258,9 @@ creator information (use --track-creators when creating or enrich-creators).</p>
 </thead>
 <tbody>
 <tr>
-<td><code>--regions</code></td>
+<td><code>--region</code>, <code>-r</code></td>
 <td>text</td>
-<td>Comma-separated list of regions to query CloudTrail</td>
+<td>Region to query CloudTrail (repeatable)</td>
 <td>None</td>
 </tr>
 <tr>
@@ -6250,7 +6270,7 @@ creator information (use --track-creators when creating or enrich-creators).</p>
 <td>None</td>
 </tr>
 <tr>
-<td><code>--days</code>, <code>-d</code></td>
+<td><code>--days</code></td>
 <td>integer</td>
 <td>Days to look back in CloudTrail (max 90)</td>
 <td><code>90</code></td>
@@ -6263,10 +6283,110 @@ creator information (use --track-creators when creating or enrich-creators).</p>
 </tr>
 </tbody>
 </table>
+<h5 id="export_2">export<a class="headerlink" href="#export_2" title="Permanent link">&para;</a></h5>
+<p>Export snapshot resources to YAML, JSON, or CSV.</p>
+<p>Exports full resource data including raw_config, tags, and metadata.
+Supports filtering by type, region, tag, and ARN search.</p>
+<p>See also: 'snapshot report' for an aggregated summary view (counts by service/region/type).</p>
+<p>Output format is auto-detected from file extension, or defaults to YAML
+for stdout.</p>
+<p>Examples:
+    awsinv snapshot export                                    # YAML to stdout
+    awsinv snapshot export -o resources.yaml                  # YAML to file
+    awsinv snapshot export -o resources.json                  # JSON (auto-detected)
+    awsinv snapshot export --format csv -o resources.csv      # CSV
+    awsinv snapshot export --type ec2 --type s3               # Filter by type
+    awsinv snapshot export --region us-east-1                 # Filter by region
+    awsinv snapshot export --tag Environment=production       # Filter by tag
+    awsinv snapshot export --search "my-bucket"               # Filter by ARN pattern
+    awsinv snapshot export --no-config -o slim.yaml           # Exclude raw config</p>
+<p><strong>Usage:</strong></p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-58-1"><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>awsinv snapshot export [OPTIONS] [SNAPSHOT_NAME]
+</span></code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--inventory</code></td>
+<td>text</td>
+<td>Use most recent snapshot from inventory</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--output</code>, <code>-o</code></td>
+<td>text</td>
+<td>Output file path (stdout if omitted)</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--format</code>, <code>-f</code></td>
+<td>text</td>
+<td>Output format: yaml, json, csv</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--type</code>, <code>-t</code></td>
+<td>text</td>
+<td>Filter by resource type (repeatable)</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--region</code>, <code>-r</code></td>
+<td>text</td>
+<td>Filter by region (repeatable)</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--tag</code></td>
+<td>text</td>
+<td>Filter by tag Key=Value (repeatable)</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--search</code></td>
+<td>text</td>
+<td>Filter by ARN substring</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--no-config</code></td>
+<td>boolean</td>
+<td>Exclude raw config from output</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--storage-path</code></td>
+<td>text</td>
+<td>Override storage location</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--profile</code></td>
+<td>text</td>
+<td>AWS profile name</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
 <h5 id="list_5">list<a class="headerlink" href="#list_5" title="Permanent link">&para;</a></h5>
 <p>List all available snapshots.</p>
+<p>See also: 'snapshot show' for detailed resource contents, 'snapshot report' for aggregated summary.</p>
 <p><strong>Usage:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-58-1"><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>awsinv snapshot list [OPTIONS]
+<div class="language-text highlight"><pre><span></span><code><span id="__span-59-1"><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>awsinv snapshot list [OPTIONS]
 </span></code></pre></div>
 <p><strong>Options:</strong></p>
 <table>
@@ -6298,7 +6418,7 @@ creator information (use --track-creators when creating or enrich-creators).</p>
 <p>Example:
     awsinv snapshot rename old-snapshot-name new-snapshot-name</p>
 <p><strong>Usage:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-59-1"><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>awsinv snapshot rename [OPTIONS] OLD_NAME NEW_NAME
+<div class="language-text highlight"><pre><span></span><code><span id="__span-60-1"><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>awsinv snapshot rename [OPTIONS] OLD_NAME NEW_NAME
 </span></code></pre></div>
 <p><strong>Options:</strong></p>
 <table>
@@ -6329,6 +6449,7 @@ creator information (use --track-creators when creating or enrich-creators).</p>
 <p>Display resource summary report for a snapshot.</p>
 <p>Shows aggregated resource counts by service, region, and type with
 visual progress bars and formatted output. Can export to JSON, CSV, or TXT formats.</p>
+<p>See also: 'snapshot export' for full resource data export (including raw_config and tags).</p>
 <p>Snapshot Selection (in order of precedence):
   1. Explicit snapshot name argument
   2. Most recent snapshot from specified --inventory
@@ -6337,15 +6458,15 @@ visual progress bars and formatted output. Can export to JSON, CSV, or TXT forma
     awsinv snapshot report                          # Report on active snapshot
     awsinv snapshot report baseline-2025-01         # Report on specific snapshot
     awsinv snapshot report --inventory prod         # Most recent snapshot from 'prod' inventory
-    awsinv snapshot report --resource-type ec2      # Filter by resource type
+    awsinv snapshot report --type ec2               # Filter by resource type
     awsinv snapshot report --region us-east-1       # Filter by region
-    awsinv snapshot report --resource-type ec2 --resource-type lambda  # Multiple filters
-    awsinv snapshot report --export report.json     # Export full report to JSON
-    awsinv snapshot report --export resources.csv   # Export resources to CSV
+    awsinv snapshot report --type ec2 --type lambda # Multiple filters
+    awsinv snapshot report --output report.json     # Export full report to JSON
+    awsinv snapshot report --output resources.csv   # Export resources to CSV
     awsinv snapshot report --export summary.txt     # Export summary to TXT
     awsinv snapshot report --detailed --export details.json  # Export detailed view</p>
 <p><strong>Usage:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-60-1"><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>awsinv snapshot report [OPTIONS] [SNAPSHOT_NAME]
+<div class="language-text highlight"><pre><span></span><code><span id="__span-61-1"><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>awsinv snapshot report [OPTIONS] [SNAPSHOT_NAME]
 </span></code></pre></div>
 <p><strong>Options:</strong></p>
 <table>
@@ -6377,9 +6498,9 @@ visual progress bars and formatted output. Can export to JSON, CSV, or TXT forma
 <td>None</td>
 </tr>
 <tr>
-<td><code>--resource-type</code></td>
+<td><code>--type</code>, <code>-t</code></td>
 <td>text</td>
-<td>Filter by resource type (can specify multiple)</td>
+<td>Filter by resource type (repeatable)</td>
 <td>None</td>
 </tr>
 <tr>
@@ -6401,7 +6522,7 @@ visual progress bars and formatted output. Can export to JSON, CSV, or TXT forma
 <td><code>100</code></td>
 </tr>
 <tr>
-<td><code>--export</code></td>
+<td><code>--output</code>, <code>-o</code></td>
 <td>text</td>
 <td>Export report to file (format detected from extension: .json, .csv, .txt)</td>
 <td>None</td>
@@ -6418,7 +6539,7 @@ visual progress bars and formatted output. Can export to JSON, CSV, or TXT forma
 <p>Set a snapshot as the active snapshot.</p>
 <p>The active snapshot is used by default for delta and cost analysis.</p>
 <p><strong>Usage:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-61-1"><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>awsinv snapshot set-active [OPTIONS] NAME
+<div class="language-text highlight"><pre><span></span><code><span id="__span-62-1"><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>awsinv snapshot set-active [OPTIONS] NAME
 </span></code></pre></div>
 <p><strong>Options:</strong></p>
 <table>
@@ -6447,8 +6568,9 @@ visual progress bars and formatted output. Can export to JSON, CSV, or TXT forma
 </table>
 <h5 id="show_3">show<a class="headerlink" href="#show_3" title="Permanent link">&para;</a></h5>
 <p>Display detailed information about a snapshot.</p>
+<p>See also: 'snapshot list' for all snapshots, 'snapshot report' for aggregated summary.</p>
 <p><strong>Usage:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-62-1"><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>awsinv snapshot show [OPTIONS] NAME
+<div class="language-text highlight"><pre><span></span><code><span id="__span-63-1"><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>awsinv snapshot show [OPTIONS] NAME
 </span></code></pre></div>
 <p><strong>Options:</strong></p>
 <table>
@@ -6478,7 +6600,7 @@ visual progress bars and formatted output. Can export to JSON, CSV, or TXT forma
 <h4 id="version">version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h4>
 <p>Show version information.</p>
 <p><strong>Usage:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-63-1"><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>awsinv version [OPTIONS]
+<div class="language-text highlight"><pre><span></span><code><span id="__span-64-1"><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>awsinv version [OPTIONS]
 </span></code></pre></div>
 <p><strong>Options:</strong></p>
 <table>

@@ -961,6 +961,34 @@
   
   
     <li class="md-nav__item">
+      <a href="guides/iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="guides/change-tracking/" class="md-nav__link">
         
   
@@ -1109,34 +1137,6 @@
     
   
     Creator Tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="guides/iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
   
 
     
@@ -1866,94 +1866,143 @@
 
 
 <h1 id="aws-inventory-manager">AWS Inventory Manager<a class="headerlink" href="#aws-inventory-manager" title="Permanent link">&para;</a></h1>
-<p><strong>Snapshot, Track, Secure, and Clean Up Your AWS Environment</strong></p>
+<p><strong>Know Your AWS Environment. Generate Its Infrastructure as Code.</strong></p>
 <p><a href="https://github.com/troylar/aws-inventory-manager/actions/workflows/test.yml"><img alt="CI" src="https://github.com/troylar/aws-inventory-manager/actions/workflows/test.yml/badge.svg" /></a>
 <a href="https://codecov.io/gh/troylar/aws-inventory-manager"><img alt="Coverage" src="https://codecov.io/gh/troylar/aws-inventory-manager/branch/main/graph/badge.svg" /></a>
 <a href="https://pypi.org/project/aws-inventory-manager/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/aws-inventory-manager.svg" /></a>
 <a href="https://www.python.org/downloads/"><img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11+-blue.svg" /></a>
 <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" /></a></p>
 <hr />
-<p>AWS Inventory Manager captures a <strong>point-in-time inventory</strong> of your AWS resources, then helps you track changes, find security issues, and clean up unwanted resources.</p>
+<p>One CLI that inventories <strong>27 AWS services and 80+ resource types</strong>, then generates
+production-ready <strong>Terraform, CDK TypeScript, and CDK Python</strong> from what it finds.
+Also: drift detection, security scanning, compliance guardrails, resource cleanup,
+Lambda code management, SQL queries, and more. 60+ commands. Zero agents running
+in your account.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>"Snapshot" in this tool means an <em>inventory snapshot</em> (a catalog of what exists), not an AWS EBS or RDS snapshot. No AWS snapshots are created.</p>
 </div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Capture your current resource inventory</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--regions<span class="w"> </span>us-east-1,us-west-2
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Track what changed since the baseline</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>awsinv<span class="w"> </span>delta<span class="w"> </span>--snapshot<span class="w"> </span>my-baseline<span class="w"> </span>--show-diff
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Find security issues</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>awsinv<span class="w"> </span>security<span class="w"> </span>scan<span class="w"> </span>--severity<span class="w"> </span>HIGH
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Remove resources created after the baseline</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>preview<span class="w"> </span>my-baseline<span class="w">      </span><span class="c1"># See what would be deleted</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>execute<span class="w"> </span>my-baseline<span class="w"> </span>--confirm<span class="w">  </span><span class="c1"># Execute cleanup</span>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:5"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Inventory</label><label for="__tabbed_1_2">Generate IaC</label><label for="__tabbed_1_3">Drift &amp; Security</label><label for="__tabbed_1_4">Cleanup</label><label for="__tabbed_1_5">Explore</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--region<span class="w"> </span>us-east-1,us-west-2
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>report<span class="w"> </span>--detailed
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.yaml<span class="w"> </span>--type<span class="w"> </span>s3<span class="w"> </span>--tag<span class="w"> </span><span class="nv">env</span><span class="o">=</span>prod
 </span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>awsinv<span class="w"> </span>generate<span class="w"> </span>--snapshot<span class="w"> </span>my-baseline<span class="w"> </span>--output<span class="w"> </span>terraform/
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>awsinv<span class="w"> </span>generate<span class="w"> </span>--snapshot<span class="w"> </span>my-baseline<span class="w"> </span>--output<span class="w"> </span>cdk/<span class="w"> </span>--format<span class="w"> </span>cdk-typescript
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>awsinv<span class="w"> </span>guardrails<span class="w"> </span>check<span class="w"> </span>--policy<span class="w"> </span>security.yaml<span class="w"> </span>--strict
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>awsinv<span class="w"> </span>delta<span class="w"> </span>--snapshot<span class="w"> </span>my-baseline<span class="w"> </span>--show-diff
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>awsinv<span class="w"> </span>security<span class="w"> </span>scan<span class="w"> </span>--severity<span class="w"> </span>HIGH<span class="w"> </span>--output<span class="w"> </span>report.json
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>preview<span class="w"> </span>my-baseline<span class="w">        </span><span class="c1"># See what would be deleted</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>execute<span class="w"> </span>my-baseline<span class="w"> </span>--yes
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--exclude-tag<span class="w"> </span><span class="nv">env</span><span class="o">=</span>prod<span class="w"> </span>--yes
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>awsinv<span class="w"> </span>query<span class="w"> </span>resources<span class="w"> </span>--type<span class="w"> </span>ec2<span class="w"> </span>--region<span class="w"> </span>us-east-1
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>awsinv<span class="w"> </span>query<span class="w"> </span>sql<span class="w"> </span><span class="s2">&quot;SELECT resource_type, COUNT(*) FROM resources GROUP BY 1&quot;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>awsinv<span class="w"> </span>lambda<span class="w"> </span>show<span class="w"> </span>my-function<span class="w"> </span>--file<span class="w"> </span>handler.py
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>awsinv<span class="w"> </span>serve<span class="w">  </span><span class="c1"># Launch web UI</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
 <hr />
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
 <div class="grid cards">
 <ul>
 <li>
-<p>:material-camera:{ .lg .middle } <strong>Inventory Snapshots</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 4h3l2-2h6l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2m8 3a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 2a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3"/></svg></span> <strong>Inventory Snapshots</strong></p>
 <hr />
-<p>27 AWS services, 80+ resource types. Multi-region collection, tag-based filtering, Lambda code collection, export to JSON/CSV/YAML, SQLite storage with SQL queries.</p>
-<p><a href="guides/snapshots/">:octicons-arrow-right-24: Snapshots guide</a></p>
+<p>Capture everything across 27 services and 80+ resource types. Multi-region, tag filtering, Lambda code collection, creator tracking, YAML/JSON/CSV export.</p>
+<p><a href="guides/snapshots/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Snapshots guide</a></p>
 </li>
 <li>
-<p>:material-swap-horizontal:{ .lg .middle } <strong>Change Tracking</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 3a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2H3v2h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2v-2H8v-5a2 2 0 0 0-2-2 2 2 0 0 0 2-2V5h2V3m6 0a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1v2h-1a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2v-2h2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5h-2V3z"/></svg></span> <strong>IaC Generation</strong></p>
 <hr />
-<p>Field-level drift detection with before/after comparison. Configuration and security change tracking with color-coded terminal output and JSON export for CI/CD.</p>
-<p><a href="guides/change-tracking/">:octicons-arrow-right-24: Change tracking guide</a></p>
+<p>Generate Terraform, CDK TypeScript, or CDK Python from live resources. AI-powered, layer-based chunking, automatic validation, guardrails integration.</p>
+<p><a href="guides/iac-generation/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> IaC generation guide</a></p>
 </li>
 <li>
-<p>:material-shield-check:{ .lg .middle } <strong>Security Scanning</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5zm0 6c1.4 0 2.8 1.1 2.8 2.5V11c.6 0 1.2.6 1.2 1.3v3.5c0 .6-.6 1.2-1.3 1.2H9.2c-.6 0-1.2-.6-1.2-1.3v-3.5c0-.6.6-1.2 1.2-1.2V9.5C9.2 8.1 10.6 7 12 7m0 1.2c-.8 0-1.5.5-1.5 1.3V11h3V9.5c0-.8-.7-1.3-1.5-1.3"/></svg></span> <strong>Guardrails &amp; Compliance</strong></p>
 <hr />
-<p>12+ CIS-aligned checks across severity levels. Detect public S3 buckets, open ports, IAM credential age issues. Includes remediation guidance.</p>
-<p><a href="guides/security-scanning/">:octicons-arrow-right-24: Security scanning guide</a></p>
+<p>Custom YAML policy rules with BLOCK, AUTO-FIX, and WARN actions. AI-powered auto-fix, severity levels, environment overrides, CI/CD exit codes.</p>
+<p><a href="guardrails/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Guardrails overview</a></p>
 </li>
 <li>
-<p>:material-currency-usd:{ .lg .middle } <strong>Cost Analysis</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21 9-4-4v3h-7v2h7v3M7 11l-4 4 4 4v-3h7v-2H7z"/></svg></span> <strong>Change Tracking</strong></p>
 <hr />
-<p>Per-inventory cost tracking with date range filtering, service-level breakdown, tag-based attribution, and AWS Cost Explorer integration.</p>
-<p><a href="guides/cost-analysis/">:octicons-arrow-right-24: Cost analysis guide</a></p>
+<p>Field-level drift detection between any two snapshots. Before/after comparison, color-coded terminal output, JSON export for CI/CD pipelines.</p>
+<p><a href="guides/change-tracking/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Change tracking guide</a></p>
 </li>
 <li>
-<p>:material-delete-sweep:{ .lg .middle } <strong>Resource Cleanup</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m10 17-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9m-6-8L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5z"/></svg></span> <strong>Security Scanning</strong></p>
 <hr />
-<p>Return to a snapshot baseline or purge all except protected resources. Exclusion filters, preview mode, dependency-aware deletion. 43 deletable resource types.</p>
-<p><a href="guides/resource-cleanup/">:octicons-arrow-right-24: Resource cleanup guide</a></p>
+<p>12+ CIS-aligned checks: public S3 buckets, open security groups, stale IAM credentials, unencrypted RDS, IMDSv1. Severity filtering and remediation guidance.</p>
+<p><a href="guides/security-scanning/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Security scanning guide</a></p>
 </li>
 <li>
-<p>:material-cloud-sync:{ .lg .middle } <strong>AWS Config Integration</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M15 16h4v2h-4zm0-8h7v2h-7zm0 4h6v2h-6zM3 18a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V8H3zM14 5h-3l-1-1H6L5 5H2v2h12z"/></svg></span> <strong>Resource Cleanup</strong></p>
 <hr />
-<p>Automatic detection, up to 5x faster collection, hybrid fallback to direct API, per-resource source tracking, multi-account via Aggregators.</p>
-<p><a href="configuration/aws-config-integration/">:octicons-arrow-right-24: AWS Config setup</a></p>
+<p>Return to a snapshot baseline or purge everything except protected resources. Tag-based exclusions, preview mode, dependency-aware deletion across 43 resource types.</p>
+<p><a href="guides/resource-cleanup/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Resource cleanup guide</a></p>
 </li>
 <li>
-<p>:material-database-search:{ .lg .middle } <strong>Query &amp; Analysis</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m6 20 4.16-12.09L9.34 6H8V4h2c.42 0 .78.26.93.63L16.66 18H18v2h-2c-.43 0-.79-.27-.93-.64l-3.74-8.71L8.12 20z"/></svg></span> <strong>Lambda Code Management</strong></p>
 <hr />
-<p>Raw SQL queries on resources, search by type/region/tags, tag coverage analysis, cross-snapshot history, export to JSON/CSV.</p>
-<p><a href="guides/query-analysis/">:octicons-arrow-right-24: Query guide</a></p>
+<p>List, extract, view, and diff Lambda deployment packages across snapshots. Syntax-highlighted code viewer, cross-snapshot comparison, selective fetching.</p>
+<p><a href="guides/lambda-code/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Lambda code guide</a></p>
 </li>
 <li>
-<p>:material-account-search:{ .lg .middle } <strong>Resource Provenance</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 15h2c0 1.08 1.37 2 3 2s3-.92 3-2c0-1.1-1.04-1.5-3.24-2.03C9.64 12.44 7 11.78 7 9c0-1.79 1.47-3.31 3.5-3.82V3h3v2.18C15.53 5.69 17 7.21 17 9h-2c0-1.08-1.37-2-3-2s-3 .92-3 2c0 1.1 1.04 1.5 3.24 2.03C14.36 11.56 17 12.22 17 15c0 1.79-1.47 3.31-3.5 3.82V21h-3v-2.18C8.47 18.31 7 16.79 7 15"/></svg></span> <strong>Cost Analysis</strong></p>
 <hr />
-<p>CloudTrail creator tracking, <code>--track-creators</code> flag, enrich existing snapshots, list creators by snapshot, Web UI creator columns.</p>
-<p><a href="guides/creator-tracking/">:octicons-arrow-right-24: Creator tracking guide</a></p>
+<p>Per-inventory cost tracking via AWS Cost Explorer. Date range filtering, service-level breakdown, tag-based attribution, forecast data.</p>
+<p><a href="guides/cost-analysis/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Cost analysis guide</a></p>
 </li>
 <li>
-<p>:material-code-braces:{ .lg .middle } <strong>IaC Generation</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.68 12.32a4.49 4.49 0 0 0-6.36.01 4.49 4.49 0 0 0 0 6.36 4.51 4.51 0 0 0 5.57.63L21 22.39 22.39 21l-3.09-3.11c1.13-1.77.87-4.09-.62-5.57m-1.41 4.95c-.98.98-2.56.97-3.54 0-.97-.98-.97-2.56.01-3.54.97-.97 2.55-.97 3.53 0 .97.98.97 2.56 0 3.54M10.9 20.1a6.5 6.5 0 0 1-1.48-2.32C6.27 17.25 4 15.76 4 14v3c0 2.21 3.58 4 8 4-.4-.26-.77-.56-1.1-.9M4 9v3c0 1.68 2.07 3.12 5 3.7v-.2c0-.93.2-1.85.58-2.69C6.34 12.3 4 10.79 4 9m8-6C7.58 3 4 4.79 4 7c0 2 3 3.68 6.85 4h.05c1.2-1.26 2.86-2 4.6-2 .91 0 1.81.19 2.64.56A3.22 3.22 0 0 0 20 7c0-2.21-3.58-4-8-4"/></svg></span> <strong>Query &amp; Analysis</strong></p>
 <hr />
-<p>Generate Terraform, CDK TypeScript, or CDK Python. AI-powered code generation with layer-based chunking and automatic validation.</p>
-<p><a href="guides/iac-generation/">:octicons-arrow-right-24: IaC generation guide</a></p>
+<p>Raw SQL against the resource database, search by type/region/tags/ARN, cross-snapshot history, tag coverage stats, diff between any two snapshots.</p>
+<p><a href="guides/query-analysis/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Query guide</a></p>
 </li>
 <li>
-<p>:material-shield-lock:{ .lg .middle } <strong>Guardrails</strong></p>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2s.06-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.92 7.92 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8 8 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.7 15.7 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2"/></svg></span> <strong>Web UI</strong></p>
 <hr />
-<p>Policy-based compliance checking with custom YAML guardrails. Severity levels, BLOCK/AUTO-FIX/WARN actions, AI-powered auto-fix, CI/CD integration.</p>
-<p><a href="guardrails/">:octicons-arrow-right-24: Guardrails overview</a></p>
+<p>Browser-based resource explorer with filtering, sorting, and creator columns. Launch with <code>awsinv serve</code> -- no infrastructure required.</p>
+<p><a href="guides/web-ui/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Web UI guide</a></p>
+</li>
+<li>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M15.5 12c2.5 0 4.5 2 4.5 4.5 0 .88-.25 1.71-.69 2.4l3.08 3.1L21 23.39l-3.12-3.07c-.69.43-1.51.68-2.38.68-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5m0 2a2.5 2.5 0 0 0-2.5 2.5 2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5M10 4a4 4 0 0 1 4 4c0 .91-.31 1.75-.82 2.43-.86.32-1.63.83-2.27 1.47L10 12a4 4 0 0 1-4-4 4 4 0 0 1 4-4M2 20v-2c0-2.12 3.31-3.86 7.5-4-.32.78-.5 1.62-.5 2.5 0 1.29.38 2.5 1 3.5z"/></svg></span> <strong>Resource Provenance</strong></p>
+<hr />
+<p>Track who created each resource via CloudTrail. Enrich existing snapshots, list creators per snapshot, attribute resources to IAM identities.</p>
+<p><a href="guides/creator-tracking/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Creator tracking guide</a></p>
+</li>
+<li>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 17.5c0 .89.18 1.73.5 2.5h-7c-1.5 0-2.81-.5-3.89-1.57C1.54 17.38 1 16.09 1 14.58q0-1.95 1.17-3.48C3.34 9.57 4 9.43 5.25 9.15c.42-1.53 1.25-2.77 2.5-3.72S10.42 4 12 4c1.95 0 3.6.68 4.96 2.04S19 9.05 19 11h.1c-3.4.23-6.1 3.05-6.1 6.5m6-4V12l-2.25 2.25L19 16.5V15a2.5 2.5 0 0 1 2.5 2.5c0 .4-.09.78-.26 1.12l1.09 1.09c.42-.63.67-1.39.67-2.21 0-2.21-1.79-4-4-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5c0-.4.09-.78.26-1.12l-1.09-1.09c-.42.63-.67 1.39-.67 2.21 0 2.21 1.79 4 4 4V23l2.25-2.25L19 18.5z"/></svg></span> <strong>AWS Config Integration</strong></p>
+<hr />
+<p>Automatic detection, up to 5x faster collection, hybrid fallback to direct API, per-resource source tracking, multi-account via Config Aggregators.</p>
+<p><a href="configuration/aws-config-integration/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> AWS Config setup</a></p>
+</li>
+<li>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M1 1v4h1v14H1v4h4v-1h14v1h4v-4h-1V5h1V1h-4v1H5V1m0 3h14v1h1v14h-1v1H5v-1H4V5h1m1 1v8h3v4h9V9h-4V6M8 8h4v4H8m6-1h2v5h-5v-2h3"/></svg></span> <strong>Resource Groups</strong></p>
+<hr />
+<p>Define baseline resource groups from snapshots, then compare future snapshots against the baseline. Track coverage, detect extra resources, export definitions.</p>
+<p><a href="guides/query-analysis/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Query guide</a></p>
+</li>
+<li>
+<p><span class="twemoji lg middle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2"/></svg></span> <strong>GitHub Copilot Integration</strong></p>
+<hr />
+<p>Install IaC generation prompts and instructions for Copilot. Pre-built prompt templates for Terraform, CDK TypeScript, and CDK Python generation.</p>
+<p><a href="guides/iac-generation/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> IaC generation guide</a></p>
 </li>
 </ul>
 </div>
@@ -1968,34 +2017,62 @@
 </thead>
 <tbody>
 <tr>
-<td>"What changed in our account?"</td>
-<td>Field-level configuration drift detection</td>
+<td>"What's actually running in our account?"</td>
+<td>Snapshot 80+ resource types across all regions in one command</td>
+</tr>
+<tr>
+<td>"I need Terraform for existing resources"</td>
+<td>Generate Terraform or CDK from live inventory with guardrails</td>
+</tr>
+<tr>
+<td>"Our generated IaC must meet security standards"</td>
+<td>Built-in guardrails auto-fix encryption, tagging, and network policies</td>
+</tr>
+<tr>
+<td>"What changed since last week?"</td>
+<td>Field-level configuration drift detection between snapshots</td>
 </tr>
 <tr>
 <td>"Are we following security best practices?"</td>
-<td>Automated CIS Benchmark scanning</td>
+<td>12+ CIS-aligned checks with severity filtering</td>
 </tr>
 <tr>
 <td>"Someone spun up a bunch of test resources"</td>
 <td>Delete everything created after a baseline snapshot</td>
 </tr>
 <tr>
-<td>"How much is each team spending?"</td>
-<td>Per-inventory cost tracking with tag filtering</td>
+<td>"I need to clean up a sandbox account"</td>
+<td>Purge all resources except those matching tag filters</td>
 </tr>
 <tr>
-<td>"I need to clean up a sandbox account"</td>
-<td>Purge all resources except those with specific tags</td>
+<td>"How much is each team spending?"</td>
+<td>Per-inventory cost tracking with tag-based attribution</td>
+</tr>
+<tr>
+<td>"What's in that Lambda function?"</td>
+<td>Extract, view, and diff deployment packages across snapshots</td>
+</tr>
+<tr>
+<td>"Are our guardrails being followed?"</td>
+<td>YAML-based compliance policies with BLOCK/WARN/AUTO-FIX</td>
+</tr>
+<tr>
+<td>"I need a resource explorer for the team"</td>
+<td>Launch a web UI with <code>awsinv serve</code></td>
 </tr>
 </tbody>
 </table>
 <hr />
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>aws-inventory-manager
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--regions<span class="w"> </span>us-east-1
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>report
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span>aws-inventory-manager
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--region<span class="w"> </span>us-east-1
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>report<span class="w"> </span>--detailed
 </span></code></pre></div>
-<p><a href="getting-started/installation/">:octicons-arrow-right-24: Full installation guide</a> | <a href="getting-started/first-snapshot/">:octicons-arrow-right-24: First snapshot tutorial</a></p>
+<p><strong>Turn your inventory into IaC:</strong></p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span>aws-inventory-manager<span class="o">[</span>generate<span class="o">]</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>awsinv<span class="w"> </span>generate<span class="w"> </span>terraform<span class="w"> </span>my-baseline<span class="w"> </span>--output<span class="w"> </span>./terraform
+</span></code></pre></div>
+<p><a href="getting-started/installation/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> Full installation guide</a> | <a href="getting-started/first-snapshot/"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13.22 19.03a.75.75 0 0 1 0-1.06L18.19 13H3.75a.75.75 0 0 1 0-1.5h14.44l-4.97-4.97a.749.749 0 0 1 .326-1.275.75.75 0 0 1 .734.215l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0"/></svg></span> First snapshot tutorial</a></p>
 
 
 

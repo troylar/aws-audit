@@ -988,6 +988,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/change-tracking/" class="md-nav__link">
         
   
@@ -1136,34 +1164,6 @@
     
   
     Creator Tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guides/iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
   
 
     
@@ -1918,12 +1918,12 @@
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <p>Before installing, ensure you have:</p>
 <ul>
-<li><strong>Python 3.8+</strong> (3.8, 3.9, 3.10, 3.11, 3.12, or 3.13)</li>
+<li><strong>Python 3.11+</strong> (3.11, 3.12, 3.13, or 3.14)</li>
 <li><strong>AWS CLI configured</strong> with credentials (<code>aws configure</code> or environment variables)</li>
 <li><strong>Sufficient IAM permissions</strong> (see <a href="../../reference/iam-permissions/">IAM Permissions</a>)</li>
 </ul>
 <p>To verify your setup:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python3<span class="w"> </span>--version<span class="w">            </span><span class="c1"># Should be 3.8+ (use &#39;python&#39; on some systems)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python3<span class="w"> </span>--version<span class="w">            </span><span class="c1"># Should be 3.11+ (use &#39;python&#39; on some systems)</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>aws<span class="w"> </span>sts<span class="w"> </span>get-caller-identity<span class="w">  </span><span class="c1"># Should return your account info</span>
 </span></code></pre></div>
 <h2 id="install-from-pypi">Install from PyPI<a class="headerlink" href="#install-from-pypi" title="Permanent link">&para;</a></h2>

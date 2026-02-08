@@ -683,6 +683,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#step-5-generate-iac-from-your-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Generate IaC from Your Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -999,6 +1010,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../guides/iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../guides/change-tracking/" class="md-nav__link">
         
   
@@ -1147,34 +1186,6 @@
     
   
     Creator Tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guides/iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
   
 
     
@@ -1906,6 +1917,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#step-5-generate-iac-from-your-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Generate IaC from Your Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1967,11 +1989,15 @@
 <td><strong>Query</strong></td>
 <td>Search and analyze resources across snapshots using SQL or built-in filters.</td>
 </tr>
+<tr>
+<td><strong>IaC Generation</strong></td>
+<td>Generate Terraform or CDK code from a snapshot's resources. Requires <code>pip install aws-inventory-manager[generate]</code>.</td>
+</tr>
 </tbody>
 </table>
 <h2 id="step-1-create-a-snapshot">Step 1: Create a Snapshot<a class="headerlink" href="#step-1-create-a-snapshot" title="Permanent link">&para;</a></h2>
 <p>Capture the current state of your AWS resources:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--regions<span class="w"> </span>us-east-1
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--region<span class="w"> </span>us-east-1
 </span></code></pre></div>
 <p>This takes 30--60 seconds depending on resource count. The tool scans 27 AWS services and catalogs 80+ resource types.</p>
 <div class="admonition tip">
@@ -2018,9 +2044,16 @@
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Export to YAML</span>
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.yaml
 </span></code></pre></div>
+<h2 id="step-5-generate-iac-from-your-snapshot">Step 5: Generate IaC from Your Snapshot<a class="headerlink" href="#step-5-generate-iac-from-your-snapshot" title="Permanent link">&para;</a></h2>
+<p>Turn your captured inventory into infrastructure as code:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span>aws-inventory-manager<span class="o">[</span>generate<span class="o">]</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>awsinv<span class="w"> </span>generate<span class="w"> </span>terraform<span class="w"> </span>my-baseline<span class="w"> </span>--output<span class="w"> </span>./terraform
+</span></code></pre></div>
+<p>This generates Terraform files for all resources in your snapshot. You can also generate CDK TypeScript or CDK Python. See the <a href="../../guides/iac-generation/">IaC Generation guide</a> for full options.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../common-workflows/">Common Workflows</a> -- practical scenarios for daily use</li>
+<li><a href="../../guides/iac-generation/">IaC Generation</a> -- generate Terraform or CDK from your snapshots</li>
 <li><a href="../../guides/snapshots/">Snapshots guide</a> -- advanced snapshot features</li>
 <li><a href="../../guides/change-tracking/">Change Tracking</a> -- deep-dive into delta analysis</li>
 <li><a href="../../guides/security-scanning/">Security Scanning</a> -- find security issues</li>

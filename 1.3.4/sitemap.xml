@@ -2,130 +2,134 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/changelog/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
+    </url>
+    <url>
+         <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/cli-conventions/</loc>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/faq/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/configuration/aws-config-integration/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/configuration/data-storage/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/configuration/environment-variables/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/configuration/multi-account/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/development/architecture/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/development/contributing/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/development/publishing/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/development/testing/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/getting-started/common-workflows/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/getting-started/first-snapshot/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/getting-started/installation/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guardrails/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guardrails/ci-cd-integration/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guardrails/formula-syntax/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guardrails/policy-reference/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/change-tracking/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/cost-analysis/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/creator-tracking/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/iac-generation/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/lambda-code/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/query-analysis/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/resource-cleanup/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/security-scanning/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/snapshots/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/guides/web-ui/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/reference/cli/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/reference/database/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/reference/iam-permissions/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
     <url>
          <loc>https://troylar.github.io/aws-inventory-manager/1.3.4/reference/supported-resources/</loc>
-         <lastmod>2026-02-07</lastmod>
+         <lastmod>2026-02-08</lastmod>
     </url>
 </urlset>

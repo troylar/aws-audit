@@ -886,6 +886,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../iac-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    IaC Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../change-tracking/" class="md-nav__link">
         
   
@@ -1186,34 +1214,6 @@
     
   
     Creator Tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../iac-generation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    IaC Generation
   
 
     
@@ -2022,7 +2022,7 @@
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>preview<span class="w"> </span>my-baseline
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Execute (requires confirmation)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>execute<span class="w"> </span>my-baseline<span class="w"> </span>--confirm
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>execute<span class="w"> </span>my-baseline<span class="w"> </span>--yes
 </span></code></pre></div>
 <h2 id="purge-mode">Purge Mode<a class="headerlink" href="#purge-mode" title="Permanent link">&para;</a></h2>
 <p>Delete <em>all</em> resources except those matching protection rules:</p>
@@ -2030,7 +2030,7 @@
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--protect-tag<span class="w"> </span><span class="s2">&quot;keep=true&quot;</span><span class="w"> </span>--preview
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Execute</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--protect-tag<span class="w"> </span><span class="s2">&quot;keep=true&quot;</span><span class="w"> </span>--confirm
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--protect-tag<span class="w"> </span><span class="s2">&quot;keep=true&quot;</span><span class="w"> </span>--yes
 </span></code></pre></div>
 <h2 id="purge-by-creatordate">Purge by Creator/Date<a class="headerlink" href="#purge-by-creatordate" title="Permanent link">&para;</a></h2>
 <p>Delete resources created by specific users or within date ranges:</p>
@@ -2044,11 +2044,11 @@
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--from-snapshot<span class="w"> </span>my-snapshot<span class="w"> </span>--created-by<span class="w"> </span><span class="s2">&quot;AWSReservedSSO_Developer&quot;</span><span class="w"> </span>--preview
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Delete resources created after a specific date</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--from-snapshot<span class="w"> </span>my-snapshot<span class="w"> </span>--created-after<span class="w"> </span><span class="s2">&quot;2025-01-01&quot;</span><span class="w"> </span>--confirm
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--from-snapshot<span class="w"> </span>my-snapshot<span class="w"> </span>--created-after<span class="w"> </span><span class="s2">&quot;2025-01-01&quot;</span><span class="w"> </span>--yes
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
 </span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># Delete resources created within a date range</span>
 </span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--from-snapshot<span class="w"> </span>my-snapshot<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span>--created-after<span class="w"> </span><span class="s2">&quot;2025-01-01&quot;</span><span class="w"> </span>--created-before<span class="w"> </span><span class="s2">&quot;2025-01-15&quot;</span><span class="w"> </span>--confirm
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span>--created-after<span class="w"> </span><span class="s2">&quot;2025-01-01&quot;</span><span class="w"> </span>--created-before<span class="w"> </span><span class="s2">&quot;2025-01-15&quot;</span><span class="w"> </span>--yes
 </span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
 </span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="c1"># Combine creator and date filters</span>
 </span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>awsinv<span class="w"> </span>cleanup<span class="w"> </span>purge<span class="w"> </span>--from-snapshot<span class="w"> </span>my-snapshot<span class="w"> </span><span class="se">\</span>
@@ -2144,7 +2144,7 @@
 <h2 id="safety-features">Safety Features<a class="headerlink" href="#safety-features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Preview mode</strong>: Always see what would happen before execution</li>
-<li><strong>Confirmation required</strong>: <code>--confirm</code> flag mandatory for destructive operations</li>
+<li><strong>Confirmation required</strong>: <code>--yes</code> flag mandatory for destructive operations</li>
 <li><strong>Dependency ordering</strong>: Deletes in correct order (instances before VPCs, etc.)</li>
 <li><strong>Audit logging</strong>: Every deletion logged to <code>~/.snapshots/audit-logs/</code></li>
 </ul>

@@ -12,31 +12,27 @@
         <meta name="author" content="Troy Larson">
       
       
-        <link rel="canonical" href="https://troylar.github.io/aws-inventory-manager/1.3.4/reference/supported-resources/">
+        <link rel="canonical" href="https://troylar.github.io/aws-inventory-manager/1.3.4/cli-conventions/">
       
       
-        <link rel="prev" href="../cli/">
-      
-      
-        <link rel="next" href="../iam-permissions/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>Supported Resources - AWS Inventory Manager</title>
+        <title>CLI Option Naming Conventions - AWS Inventory Manager</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,7 +51,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#supported-resource-types" class="md-skip">
+        <a href="#cli-option-naming-conventions" class="md-skip">
           Skip to content
         </a>
       
@@ -98,7 +94,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="AWS Inventory Manager" class="md-header__button md-logo" aria-label="AWS Inventory Manager" data-md-component="logo">
+    <a href=".." title="AWS Inventory Manager" class="md-header__button md-logo" aria-label="AWS Inventory Manager" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -118,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Supported Resources
+              CLI Option Naming Conventions
             
           </span>
         </div>
@@ -231,7 +227,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
   
@@ -252,7 +248,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../getting-started/installation/" class="md-tabs__link">
+        <a href="../getting-started/installation/" class="md-tabs__link">
           
   
   
@@ -272,7 +268,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../configuration/environment-variables/" class="md-tabs__link">
+        <a href="../configuration/environment-variables/" class="md-tabs__link">
           
   
   
@@ -292,7 +288,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../guides/snapshots/" class="md-tabs__link">
+        <a href="../guides/snapshots/" class="md-tabs__link">
           
   
   
@@ -312,7 +308,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../guardrails/" class="md-tabs__link">
+        <a href="../guardrails/" class="md-tabs__link">
           
   
   
@@ -328,13 +324,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../cli/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../reference/cli/" class="md-tabs__link">
           
   
   
@@ -354,7 +348,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../development/contributing/" class="md-tabs__link">
+        <a href="../development/contributing/" class="md-tabs__link">
           
   
   
@@ -372,7 +366,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../faq/" class="md-tabs__link">
+      <a href="../faq/" class="md-tabs__link">
         
   
   
@@ -391,7 +385,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../changelog/" class="md-tabs__link">
+      <a href="../changelog/" class="md-tabs__link">
         
   
   
@@ -426,7 +420,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="AWS Inventory Manager" class="md-nav__button md-logo" aria-label="AWS Inventory Manager" data-md-component="logo">
+    <a href=".." title="AWS Inventory Manager" class="md-nav__button md-logo" aria-label="AWS Inventory Manager" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -456,7 +450,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -537,7 +531,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/installation/" class="md-nav__link">
+      <a href="../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -565,7 +559,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/first-snapshot/" class="md-nav__link">
+      <a href="../getting-started/first-snapshot/" class="md-nav__link">
         
   
   
@@ -593,7 +587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/common-workflows/" class="md-nav__link">
+      <a href="../getting-started/common-workflows/" class="md-nav__link">
         
   
   
@@ -682,7 +676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/environment-variables/" class="md-nav__link">
+      <a href="../configuration/environment-variables/" class="md-nav__link">
         
   
   
@@ -710,7 +704,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/aws-config-integration/" class="md-nav__link">
+      <a href="../configuration/aws-config-integration/" class="md-nav__link">
         
   
   
@@ -738,7 +732,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/data-storage/" class="md-nav__link">
+      <a href="../configuration/data-storage/" class="md-nav__link">
         
   
   
@@ -766,7 +760,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/multi-account/" class="md-nav__link">
+      <a href="../configuration/multi-account/" class="md-nav__link">
         
   
   
@@ -855,7 +849,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/snapshots/" class="md-nav__link">
+      <a href="../guides/snapshots/" class="md-nav__link">
         
   
   
@@ -883,7 +877,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/iac-generation/" class="md-nav__link">
+      <a href="../guides/iac-generation/" class="md-nav__link">
         
   
   
@@ -911,7 +905,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/change-tracking/" class="md-nav__link">
+      <a href="../guides/change-tracking/" class="md-nav__link">
         
   
   
@@ -939,7 +933,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/security-scanning/" class="md-nav__link">
+      <a href="../guides/security-scanning/" class="md-nav__link">
         
   
   
@@ -967,7 +961,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/cost-analysis/" class="md-nav__link">
+      <a href="../guides/cost-analysis/" class="md-nav__link">
         
   
   
@@ -995,7 +989,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/resource-cleanup/" class="md-nav__link">
+      <a href="../guides/resource-cleanup/" class="md-nav__link">
         
   
   
@@ -1023,7 +1017,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/lambda-code/" class="md-nav__link">
+      <a href="../guides/lambda-code/" class="md-nav__link">
         
   
   
@@ -1051,7 +1045,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/creator-tracking/" class="md-nav__link">
+      <a href="../guides/creator-tracking/" class="md-nav__link">
         
   
   
@@ -1079,7 +1073,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/query-analysis/" class="md-nav__link">
+      <a href="../guides/query-analysis/" class="md-nav__link">
         
   
   
@@ -1107,7 +1101,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/web-ui/" class="md-nav__link">
+      <a href="../guides/web-ui/" class="md-nav__link">
         
   
   
@@ -1196,7 +1190,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guardrails/" class="md-nav__link">
+      <a href="../guardrails/" class="md-nav__link">
         
   
   
@@ -1224,7 +1218,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guardrails/policy-reference/" class="md-nav__link">
+      <a href="../guardrails/policy-reference/" class="md-nav__link">
         
   
   
@@ -1252,7 +1246,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guardrails/formula-syntax/" class="md-nav__link">
+      <a href="../guardrails/formula-syntax/" class="md-nav__link">
         
   
   
@@ -1280,7 +1274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guardrails/ci-cd-integration/" class="md-nav__link">
+      <a href="../guardrails/ci-cd-integration/" class="md-nav__link">
         
   
   
@@ -1312,31 +1306,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
@@ -1354,7 +1345,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1372,7 +1363,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
+      <a href="../reference/cli/" class="md-nav__link">
         
   
   
@@ -1397,37 +1388,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Supported Resources
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../reference/supported-resources/" class="md-nav__link">
         
   
   
@@ -1443,125 +1407,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#compute" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compute
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#storage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Storage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#database" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Database
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#networking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Networking
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#security-identity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Security &amp; Identity
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#management-monitoring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Management &amp; Monitoring
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#developer-tools" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Developer Tools
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#messaging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Messaging
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#backup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Backup
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1574,7 +1419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../iam-permissions/" class="md-nav__link">
+      <a href="../reference/iam-permissions/" class="md-nav__link">
         
   
   
@@ -1602,7 +1447,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../database/" class="md-nav__link">
+      <a href="../reference/database/" class="md-nav__link">
         
   
   
@@ -1691,7 +1536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/contributing/" class="md-nav__link">
+      <a href="../development/contributing/" class="md-nav__link">
         
   
   
@@ -1719,7 +1564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/testing/" class="md-nav__link">
+      <a href="../development/testing/" class="md-nav__link">
         
   
   
@@ -1747,7 +1592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/publishing/" class="md-nav__link">
+      <a href="../development/publishing/" class="md-nav__link">
         
   
   
@@ -1775,7 +1620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/architecture/" class="md-nav__link">
+      <a href="../development/architecture/" class="md-nav__link">
         
   
   
@@ -1810,7 +1655,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../faq/" class="md-nav__link">
+      <a href="../faq/" class="md-nav__link">
         
   
   
@@ -1837,7 +1682,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../changelog/" class="md-nav__link">
+      <a href="../changelog/" class="md-nav__link">
         
   
   
@@ -1884,10 +1729,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#compute" class="md-nav__link">
+  <a href="#standard-option-names" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compute
+        Standard Option Names
       
     </span>
   </a>
@@ -1895,10 +1740,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#storage" class="md-nav__link">
+  <a href="#short-flag-assignments" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Storage
+        Short Flag Assignments
       
     </span>
   </a>
@@ -1906,76 +1751,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#database" class="md-nav__link">
+  <a href="#rules" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Database
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#networking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Networking
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#security-identity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Security &amp; Identity
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#management-monitoring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Management &amp; Monitoring
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#developer-tools" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Developer Tools
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#messaging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Messaging
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#backup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Backup
+        Rules
       
     </span>
   </a>
@@ -2002,215 +1781,271 @@
   
 
 
-<h1 id="supported-resource-types">Supported Resource Types<a class="headerlink" href="#supported-resource-types" title="Permanent link">&para;</a></h1>
-<p>AWS Inventory Manager supports 80+ resource types across 27 AWS services. 43 of these support deletion via the cleanup command.</p>
-<h2 id="compute">Compute<a class="headerlink" href="#compute" title="Permanent link">&para;</a></h2>
+<h1 id="cli-option-naming-conventions">CLI Option Naming Conventions<a class="headerlink" href="#cli-option-naming-conventions" title="Permanent link">&para;</a></h1>
+<p>Reference for contributors adding or modifying <code>awsinv</code> CLI commands.</p>
+<h2 id="standard-option-names">Standard Option Names<a class="headerlink" href="#standard-option-names" title="Permanent link">&para;</a></h2>
+<p>Every command that uses one of these concepts MUST use the canonical name and short flag listed here.</p>
 <table>
 <thead>
 <tr>
-<th>Service</th>
-<th>Resource Types</th>
+<th>Concept</th>
+<th>Long Name</th>
+<th>Short</th>
+<th>Type</th>
+<th>Input Pattern</th>
+<th>Envvars</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>EC2</td>
-<td>Instances, Volumes, VPCs, Subnets, Security Groups, ENIs, Internet Gateways, NAT Gateways, Route Tables, Key Pairs, Elastic IPs, VPC Endpoints</td>
+<td>Snapshot (filter)</td>
+<td><code>--snapshot</code></td>
+<td><code>-s</code></td>
+<td>str</td>
+<td>Single value</td>
+<td><code>AWSINV_SNAPSHOT_ID</code></td>
 </tr>
 <tr>
-<td>Lambda</td>
-<td>Functions (with deployment code), Layers (with code), Event Source Mappings</td>
+<td>Snapshot (subject)</td>
+<td>positional arg</td>
+<td>--</td>
+<td>Argument</td>
+<td>Single value</td>
+<td><code>AWSINV_SNAPSHOT_ID</code></td>
 </tr>
 <tr>
-<td>ECS</td>
-<td>Clusters, Services, Task Definitions</td>
+<td>Region</td>
+<td><code>--region</code></td>
+<td><code>-r</code></td>
+<td>List[str]</td>
+<td>Repeatable</td>
+<td><code>AWSINV_REGION</code>, <code>AWS_REGION</code></td>
 </tr>
 <tr>
-<td>EKS</td>
-<td>Clusters, Node Groups, Fargate Profiles</td>
+<td>Resource type</td>
+<td><code>--type</code></td>
+<td><code>-t</code></td>
+<td>List[str]</td>
+<td>Repeatable</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Output format</td>
+<td><code>--format</code></td>
+<td><code>-f</code></td>
+<td>str</td>
+<td>Choice: table, json, csv, yaml</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Output file</td>
+<td><code>--output</code></td>
+<td><code>-o</code></td>
+<td>str</td>
+<td>File path</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Profile</td>
+<td><code>--profile</code></td>
+<td><code>-p</code></td>
+<td>str</td>
+<td>Single value</td>
+<td><code>AWSINV_PROFILE</code>, <code>AWS_PROFILE</code></td>
+</tr>
+<tr>
+<td>Confirmation skip</td>
+<td><code>--yes</code></td>
+<td><code>-y</code></td>
+<td>bool</td>
+<td>Flag</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Verbose</td>
+<td><code>--verbose</code></td>
+<td><code>-v</code></td>
+<td>bool</td>
+<td>Flag</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Quiet</td>
+<td><code>--quiet</code></td>
+<td><code>-q</code></td>
+<td>bool</td>
+<td>Flag</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Result limit</td>
+<td><code>--limit</code></td>
+<td><code>-l</code></td>
+<td>int</td>
+<td>Single value (default 100)</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Inventory</td>
+<td><code>--inventory</code></td>
+<td><code>-i</code></td>
+<td>str</td>
+<td>Single value</td>
+<td><code>AWSINV_INVENTORY_ID</code></td>
+</tr>
+<tr>
+<td>Description</td>
+<td><code>--description</code></td>
+<td><code>-d</code></td>
+<td>str</td>
+<td>Single value</td>
+<td>--</td>
+</tr>
+<tr>
+<td>Storage path</td>
+<td><code>--storage-path</code></td>
+<td>--</td>
+<td>str</td>
+<td>Single value</td>
+<td><code>AWSINV_STORAGE_PATH</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="storage">Storage<a class="headerlink" href="#storage" title="Permanent link">&para;</a></h2>
+<h2 id="short-flag-assignments">Short Flag Assignments<a class="headerlink" href="#short-flag-assignments" title="Permanent link">&para;</a></h2>
+<p>Each letter has exactly ONE meaning across the entire CLI.</p>
 <table>
 <thead>
 <tr>
-<th>Service</th>
-<th>Resource Types</th>
+<th>Flag</th>
+<th>Meaning</th>
+<th>Scope</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>S3</td>
-<td>Buckets (with policies, encryption, versioning config)</td>
+<td><code>-a</code></td>
+<td><code>--all</code></td>
+<td>lambda list</td>
 </tr>
 <tr>
-<td>EBS</td>
-<td>Volumes, Snapshots</td>
+<td><code>-c</code></td>
+<td><code>--category</code></td>
+<td>guardrails list, guardrails export</td>
 </tr>
 <tr>
-<td>EFS</td>
-<td>File Systems, Mount Targets</td>
+<td><code>-d</code></td>
+<td><code>--description</code></td>
+<td>inventory create, groups create</td>
+</tr>
+<tr>
+<td><code>-e</code></td>
+<td><code>--env</code></td>
+<td>guardrails check, guardrails list</td>
+</tr>
+<tr>
+<td><code>-f</code></td>
+<td><code>--format</code></td>
+<td>All commands with output format</td>
+</tr>
+<tr>
+<td><code>-g</code></td>
+<td><code>--group-by</code></td>
+<td>query stats</td>
+</tr>
+<tr>
+<td><code>-h</code></td>
+<td><code>--help</code></td>
+<td>Reserved (Typer built-in)</td>
+</tr>
+<tr>
+<td><code>-i</code></td>
+<td><code>--inventory</code></td>
+<td>All commands with inventory filter</td>
+</tr>
+<tr>
+<td><code>-l</code></td>
+<td><code>--limit</code></td>
+<td>All commands with result limits</td>
+</tr>
+<tr>
+<td><code>-m</code></td>
+<td><code>--model-id</code></td>
+<td>generate, diff verify</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td><code>--count</code></td>
+<td>guardrails generate</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td><code>--output</code></td>
+<td>All commands with file output</td>
+</tr>
+<tr>
+<td><code>-p</code></td>
+<td><code>--profile</code></td>
+<td>Global (all commands)</td>
+</tr>
+<tr>
+<td><code>-q</code></td>
+<td><code>--quiet</code></td>
+<td>Global (all commands)</td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td><code>--region</code></td>
+<td>All commands with region filter</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td><code>--snapshot</code></td>
+<td>All non-snapshot-group commands</td>
+</tr>
+<tr>
+<td><code>-t</code></td>
+<td><code>--type</code></td>
+<td>All commands with type filter</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td><code>--verbose</code></td>
+<td>Global (all commands)</td>
+</tr>
+<tr>
+<td><code>-x</code></td>
+<td><code>--exclude-names</code></td>
+<td>cleanup scan-all</td>
+</tr>
+<tr>
+<td><code>-y</code></td>
+<td><code>--yes</code></td>
+<td>All destructive commands</td>
 </tr>
 </tbody>
 </table>
-<h2 id="database">Database<a class="headerlink" href="#database" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Resource Types</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>RDS</td>
-<td>DB Instances, DB Clusters, DB Subnet Groups</td>
-</tr>
-<tr>
-<td>DynamoDB</td>
-<td>Tables</td>
-</tr>
-<tr>
-<td>ElastiCache</td>
-<td>Clusters, Replication Groups</td>
-</tr>
-</tbody>
-</table>
-<h2 id="networking">Networking<a class="headerlink" href="#networking" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Resource Types</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>ELB</td>
-<td>Application Load Balancers, Network Load Balancers, Classic Load Balancers, Target Groups</td>
-</tr>
-<tr>
-<td>Route53</td>
-<td>Hosted Zones, Record Sets</td>
-</tr>
-<tr>
-<td>API Gateway</td>
-<td>REST APIs, HTTP APIs, Stages</td>
-</tr>
-</tbody>
-</table>
-<h2 id="security-identity">Security &amp; Identity<a class="headerlink" href="#security-identity" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Resource Types</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>IAM</td>
-<td>Users, Roles, Groups, Policies, Instance Profiles</td>
-</tr>
-<tr>
-<td>KMS</td>
-<td>Keys, Aliases</td>
-</tr>
-<tr>
-<td>Secrets Manager</td>
-<td>Secrets</td>
-</tr>
-<tr>
-<td>WAF</td>
-<td>WebACLs, Rule Groups, IP Sets</td>
-</tr>
-</tbody>
-</table>
-<h2 id="management-monitoring">Management &amp; Monitoring<a class="headerlink" href="#management-monitoring" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Resource Types</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>CloudWatch</td>
-<td>Alarms, Log Groups, Dashboards</td>
-</tr>
-<tr>
-<td>CloudFormation</td>
-<td>Stacks</td>
-</tr>
-<tr>
-<td>EventBridge</td>
-<td>Rules, Event Buses</td>
-</tr>
-<tr>
-<td>SSM</td>
-<td>Parameters</td>
-</tr>
-</tbody>
-</table>
-<h2 id="developer-tools">Developer Tools<a class="headerlink" href="#developer-tools" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Resource Types</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>CodePipeline</td>
-<td>Pipelines</td>
-</tr>
-<tr>
-<td>CodeBuild</td>
-<td>Projects</td>
-</tr>
-<tr>
-<td>Step Functions</td>
-<td>State Machines</td>
-</tr>
-</tbody>
-</table>
-<h2 id="messaging">Messaging<a class="headerlink" href="#messaging" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Resource Types</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>SNS</td>
-<td>Topics, Subscriptions</td>
-</tr>
-<tr>
-<td>SQS</td>
-<td>Queues</td>
-</tr>
-</tbody>
-</table>
-<h2 id="backup">Backup<a class="headerlink" href="#backup" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Resource Types</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>AWS Backup</td>
-<td>Backup Plans, Backup Vaults</td>
-</tr>
-</tbody>
-</table>
+<p>Unassigned: <code>b</code>, <code>j</code>, <code>k</code>, <code>u</code>, <code>w</code>, <code>z</code></p>
+<h2 id="rules">Rules<a class="headerlink" href="#rules" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>One meaning per letter</strong>: A short flag letter must mean the same thing on every command that uses it. If a command has an option that does not match the canonical meaning, omit the short flag.</p>
+</li>
+<li>
+<p><strong>Repeatable lists</strong>: Use <code>List[str]</code> with Typer's repeatable option pattern (<code>-r us-east-1 -r us-west-2</code>), not comma-separated strings.</p>
+</li>
+<li>
+<p><strong>Destructive commands</strong>: All commands that delete, purge, restore, or execute destructive changes must use <code>--yes / -y</code> for confirmation skip.</p>
+</li>
+<li>
+<p><strong>Snapshot argument pattern</strong>: Commands in the <code>snapshot</code> group accept the snapshot name as a positional argument. Commands outside the group use <code>--snapshot / -s</code>.</p>
+</li>
+<li>
+<p><strong>Envvar consistency</strong>: If an option supports an envvar on one command, it must support the same envvar on every command that accepts that option.</p>
+</li>
+<li>
+<p><strong>No legacy aliases</strong>: When renaming an option, replace it fully. Do not keep old names as hidden aliases.</p>
+</li>
+</ol>
 
 
 
@@ -2295,10 +2130,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
