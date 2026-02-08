@@ -22,7 +22,16 @@ in your account.
 === "Collection"
 
     ```bash
-    awsinv snapshot create my-baseline --region us-east-1,us-west-2
+    awsinv collection create prod-baseline --description "Production account"
+    awsinv collection create staging --description "Staging environment"
+    awsinv collection list
+    awsinv collection show prod-baseline
+    ```
+
+=== "Snapshot"
+
+    ```bash
+    awsinv snapshot create my-baseline --collection prod-baseline --region us-east-1,us-west-2
     awsinv snapshot report --detailed
     awsinv snapshot export my-baseline -o inventory.yaml --type s3 --tag env=prod
     ```
@@ -64,6 +73,14 @@ in your account.
 ## Features
 
 <div class="grid cards" markdown>
+
+-   :material-folder-multiple:{ .lg .middle } **Collections**
+
+    ---
+
+    Named containers for organizing snapshots by account, environment, or team. Each collection tracks an active baseline snapshot and supports tag-based filtering.
+
+    [:octicons-arrow-right-24: Collections guide](guides/collections.md)
 
 -   :material-camera:{ .lg .middle } **Inventory Snapshots**
 
@@ -203,7 +220,8 @@ in your account.
 
 ```bash
 pip install aws-inventory-manager
-awsinv snapshot create my-baseline --region us-east-1
+awsinv collection create my-project --description "My AWS project"
+awsinv snapshot create my-baseline --collection my-project --region us-east-1
 awsinv snapshot report --detailed
 ```
 

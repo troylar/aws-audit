@@ -6,19 +6,27 @@ This tutorial walks you through creating your first inventory snapshot, viewing 
 
 | Term | Meaning |
 |------|---------|
+| **Collection** | A named container for organizing snapshots by environment, team, or purpose. Create a collection first, then add snapshots to it. |
 | **Snapshot** | A point-in-time inventory of your AWS resources (stored in local SQLite database). Not an EBS/RDS snapshot. |
-| **Collection** | A named group of snapshots. Use collections to organize snapshots by environment, team, or purpose. |
 | **Cleanup** | Delete resources that were created *after* a snapshot, returning to that baseline state. |
 | **Purge** | Delete all resources *except* those matching protection rules. Filter by creator or date range. |
 | **Query** | Search and analyze resources across snapshots using SQL or built-in filters. |
 | **IaC Generation** | Generate Terraform or CDK code from a snapshot's resources. Requires `pip install aws-inventory-manager[generate]`. |
 
-## Step 1: Create a Snapshot
+## Step 1: Create a Collection
 
-Capture the current state of your AWS resources:
+Collections organize your snapshots by environment, team, or purpose. Start by creating one:
 
 ```bash
-awsinv snapshot create my-baseline --region us-east-1
+awsinv collection create my-project --description "My first collection"
+```
+
+## Step 2: Create a Snapshot
+
+Capture the current state of your AWS resources into the collection:
+
+```bash
+awsinv snapshot create my-baseline --collection my-project --region us-east-1
 ```
 
 This takes 30--60 seconds depending on resource count. The tool scans 27 AWS services and catalogs 80+ resource types.
@@ -26,7 +34,7 @@ This takes 30--60 seconds depending on resource count. The tool scans 27 AWS ser
 !!! tip
     If you have [AWS Config](../configuration/aws-config-integration.md) enabled, collection can be up to 5x faster. The tool detects it automatically.
 
-## Step 2: View What Was Captured
+## Step 3: View What Was Captured
 
 ```bash
 awsinv snapshot report
@@ -54,7 +62,7 @@ For a detailed view of all resources:
 awsinv snapshot report --detailed
 ```
 
-## Step 3: Track Changes
+## Step 4: Track Changes
 
 After making changes to your AWS environment, compare against your baseline:
 
@@ -68,7 +76,7 @@ This shows:
 - Resources that were deleted
 - Configuration changes (field-level diff)
 
-## Step 4: Export Your Snapshot
+## Step 5: Export Your Snapshot
 
 Export data for external analysis:
 
@@ -83,7 +91,7 @@ awsinv snapshot export my-baseline -o inventory.csv
 awsinv snapshot export my-baseline -o inventory.yaml
 ```
 
-## Step 5: Generate IaC from Your Snapshot
+## Step 6: Generate IaC from Your Snapshot
 
 Turn your captured inventory into infrastructure as code:
 

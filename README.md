@@ -10,7 +10,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Inventory Snapshots** | **Configuration Drift** | **Security Scanning** | **Cost Analysis** | **Resource Cleanup** | **IaC Generation**
+**Collections** | **Inventory Snapshots** | **Configuration Drift** | **Security Scanning** | **Cost Analysis** | **Resource Cleanup** | **IaC Generation**
 
 [Documentation](https://troylar.github.io/aws-inventory-manager/) | [Quick Start](#quick-start) | [Features](#features) | [Contributing](#contributing)
 
@@ -46,19 +46,22 @@ pip install aws-inventory-manager
 Or with pipx: `pipx install aws-inventory-manager`
 
 ```bash
-# 1. Capture current state
-awsinv snapshot create my-baseline --region us-east-1
+# 1. Organize snapshots into a collection
+awsinv collection create prod-baseline --description "Production account"
 
-# 2. View what was captured
+# 2. Capture current state into the collection
+awsinv snapshot create my-baseline --collection prod-baseline --region us-east-1
+
+# 3. View what was captured
 awsinv snapshot report
 
-# 3. Track changes
+# 4. Track changes
 awsinv delta --snapshot my-baseline --show-diff
 
-# 4. Find security issues
+# 5. Find security issues
 awsinv security scan --severity HIGH
 
-# 5. Clean up (always preview first!)
+# 6. Clean up (always preview first!)
 awsinv cleanup preview my-baseline
 awsinv cleanup execute my-baseline --yes
 ```
@@ -69,6 +72,7 @@ awsinv cleanup execute my-baseline --yes
 
 ## Features
 
+- **Collections** -- Named containers for organizing snapshots by account, environment, or team ([guide](https://troylar.github.io/aws-inventory-manager/guides/collections/))
 - **Inventory Snapshots** -- 27 AWS services, 80+ resource types, multi-region, Lambda code collection, SQLite storage ([guide](https://troylar.github.io/aws-inventory-manager/guides/snapshots/))
 - **Change Tracking** -- Field-level drift detection with before/after diff ([guide](https://troylar.github.io/aws-inventory-manager/guides/change-tracking/))
 - **Security Scanning** -- 12+ CIS-aligned checks across severity levels ([guide](https://troylar.github.io/aws-inventory-manager/guides/security-scanning/))
@@ -92,7 +96,7 @@ Full documentation is available at **[troylar.github.io/aws-inventory-manager](h
 |---------|-------------|
 | [Getting Started](https://troylar.github.io/aws-inventory-manager/getting-started/installation/) | Installation, first snapshot, common workflows |
 | [Configuration](https://troylar.github.io/aws-inventory-manager/configuration/environment-variables/) | Environment variables, AWS Config, data storage, multi-account |
-| [Guides](https://troylar.github.io/aws-inventory-manager/guides/snapshots/) | How-to guides for every feature |
+| [Guides](https://troylar.github.io/aws-inventory-manager/guides/collections/) | How-to guides for every feature |
 | [Guardrails](https://troylar.github.io/aws-inventory-manager/guardrails/) | Policy-based compliance checking |
 | [Reference](https://troylar.github.io/aws-inventory-manager/reference/cli/) | CLI reference, IAM permissions, supported resources, database schema |
 | [Development](https://troylar.github.io/aws-inventory-manager/development/contributing/) | Contributing, testing, architecture |
@@ -126,6 +130,7 @@ awsinv cleanup purge --protect-tag "baseline=true" --yes
 
 | Command Group | Description |
 |--------------|-------------|
+| `awsinv collection` | Create, list, show, delete snapshot collections |
 | `awsinv snapshot` | Create, list, export, enrich snapshots |
 | `awsinv delta` | Track changes since a baseline |
 | `awsinv security` | Run CIS-aligned security scans |
