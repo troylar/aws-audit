@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
@@ -86,9 +85,7 @@ class TestCopilotInstall:
         """Install command accepts --path option."""
         mock_install.return_value = _make_install_result()
 
-        result = runner.invoke(
-            app, ["copilot", "install", "--path", "/tmp/my-project"]
-        )
+        result = runner.invoke(app, ["copilot", "install", "--path", "/tmp/my-project"])
 
         assert result.exit_code == 0
         call_args = mock_install.call_args
@@ -166,9 +163,7 @@ class TestCopilotUninstall:
         """Uninstall command accepts --path option."""
         mock_uninstall.return_value = _make_uninstall_result()
 
-        result = runner.invoke(
-            app, ["copilot", "uninstall", "--path", "/tmp/my-project"]
-        )
+        result = runner.invoke(app, ["copilot", "uninstall", "--path", "/tmp/my-project"])
 
         assert result.exit_code == 0
         call_args = mock_uninstall.call_args
@@ -261,9 +256,7 @@ class TestCopilotList:
         """List command accepts --path option."""
         mock_list.return_value = []
 
-        result = runner.invoke(
-            app, ["copilot", "list", "--path", "/tmp/my-project"]
-        )
+        result = runner.invoke(app, ["copilot", "list", "--path", "/tmp/my-project"])
 
         assert result.exit_code == 0
         call_args = mock_list.call_args

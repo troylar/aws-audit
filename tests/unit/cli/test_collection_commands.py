@@ -133,9 +133,7 @@ class TestCollectionCreate:
 
     @patch("src.aws.credentials.get_account_id", return_value="123456789012")
     @patch("src.cli.main.Config.load")
-    def test_create_collection_invalid_name(
-        self, mock_config_load, mock_get_account_id, cli_runner, mock_config
-    ):
+    def test_create_collection_invalid_name(self, mock_config_load, mock_get_account_id, cli_runner, mock_config):
         """Test that an invalid collection name is rejected."""
         mock_config_load.return_value = mock_config
 
@@ -149,9 +147,7 @@ class TestCollectionCreate:
 
     @patch("src.aws.credentials.get_account_id", return_value="123456789012")
     @patch("src.cli.main.Config.load")
-    def test_create_collection_name_too_long(
-        self, mock_config_load, mock_get_account_id, cli_runner, mock_config
-    ):
+    def test_create_collection_name_too_long(self, mock_config_load, mock_get_account_id, cli_runner, mock_config):
         """Test that a collection name over 50 chars is rejected."""
         mock_config_load.return_value = mock_config
         long_name = "a" * 51
@@ -291,9 +287,7 @@ class TestCollectionDelete:
 
         assert result.exit_code == 0
         assert "deleted" in result.stdout.lower()
-        mock_storage.delete.assert_called_once_with(
-            "test-collection", "123456789012", delete_snapshots=False
-        )
+        mock_storage.delete.assert_called_once_with("test-collection", "123456789012", delete_snapshots=False)
 
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.validate_credentials", return_value=MOCK_IDENTITY)
@@ -379,7 +373,7 @@ class TestCollectionMigrate:
         mock_snap_storage = MagicMock()
         mock_snap_storage.storage_dir.glob.side_effect = [
             [mock_snap_file],  # *.yaml
-            [],                # *.yaml.gz
+            [],  # *.yaml.gz
         ]
         mock_snap_storage_cls.return_value = mock_snap_storage
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
@@ -127,8 +126,11 @@ class TestGenerateDryRun:
         result = runner.invoke(
             app,
             [
-                "generate", "terraform", "my-snapshot",
-                "--dry-run", "--no-best-practices",
+                "generate",
+                "terraform",
+                "my-snapshot",
+                "--dry-run",
+                "--no-best-practices",
             ],
         )
 
@@ -149,8 +151,11 @@ class TestGenerateDryRun:
         result = runner.invoke(
             app,
             [
-                "generate", "terraform", "nonexistent",
-                "--dry-run", "--no-best-practices",
+                "generate",
+                "terraform",
+                "nonexistent",
+                "--dry-run",
+                "--no-best-practices",
             ],
         )
 
@@ -222,9 +227,13 @@ class TestGenerateOptions:
         result = runner.invoke(
             app,
             [
-                "generate", "terraform", "my-snapshot",
-                "--model-id", "anthropic.claude-3-sonnet",
-                "--region", "us-west-2",
+                "generate",
+                "terraform",
+                "my-snapshot",
+                "--model-id",
+                "anthropic.claude-3-sonnet",
+                "--region",
+                "us-west-2",
             ],
         )
 
@@ -247,7 +256,9 @@ class TestGenerateOptions:
         result = runner.invoke(
             app,
             [
-                "generate", "terraform", "my-snapshot",
+                "generate",
+                "terraform",
+                "my-snapshot",
                 "--no-best-practices",
             ],
         )
@@ -270,10 +281,13 @@ class TestGenerateOptions:
         result = runner.invoke(
             app,
             [
-                "generate", "terraform", "my-snapshot",
+                "generate",
+                "terraform",
+                "my-snapshot",
                 "--guardrails",
                 "--guardrails-strict",
-                "--guardrails-env", "production",
+                "--guardrails-env",
+                "production",
             ],
         )
 
@@ -297,8 +311,10 @@ class TestGenerateOptions:
         result = runner.invoke(
             app,
             [
-                "generate", "terraform",
-                "--from-file", "/tmp/inventory.json",
+                "generate",
+                "terraform",
+                "--from-file",
+                "/tmp/inventory.json",
             ],
         )
 

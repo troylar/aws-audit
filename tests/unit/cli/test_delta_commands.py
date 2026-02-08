@@ -300,9 +300,7 @@ class TestDeltaCommand:
 
         mock_compare.return_value = no_changes_delta_report
 
-        result = cli_runner.invoke(
-            app, ["delta", "--snapshot", "baseline-snap", "--type", "AWS::EC2::Instance"]
-        )
+        result = cli_runner.invoke(app, ["delta", "--snapshot", "baseline-snap", "--type", "AWS::EC2::Instance"])
 
         assert result.exit_code == 0
         mock_compare.assert_called_once()
@@ -339,9 +337,7 @@ class TestDeltaCommand:
 
         mock_compare.return_value = no_changes_delta_report
 
-        result = cli_runner.invoke(
-            app, ["delta", "--snapshot", "baseline-snap", "--region", "us-west-2"]
-        )
+        result = cli_runner.invoke(app, ["delta", "--snapshot", "baseline-snap", "--region", "us-west-2"])
 
         assert result.exit_code == 0
         mock_compare.assert_called_once()
@@ -367,9 +363,7 @@ class TestDeltaCommand:
         mock_coll_storage.get_by_name.side_effect = Exception("Collection not found")
         mock_coll_storage_cls.return_value = mock_coll_storage
 
-        result = cli_runner.invoke(
-            app, ["delta", "--collection", "nonexistent-collection"]
-        )
+        result = cli_runner.invoke(app, ["delta", "--collection", "nonexistent-collection"])
 
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower()

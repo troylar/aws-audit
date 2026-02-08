@@ -83,15 +83,17 @@ def mock_group_store():
 @pytest.fixture
 def web_client(mock_snapshot_store, mock_resource_store, mock_collection_store, mock_audit_store, mock_group_store):
     """Create a test client with all stores mocked."""
-    with patch("src.web.dependencies.init_database"), \
-         patch("src.web.routes.pages.get_snapshot_store", return_value=mock_snapshot_store), \
-         patch("src.web.routes.pages.get_resource_store", return_value=mock_resource_store), \
-         patch("src.web.routes.pages.get_audit_store", return_value=mock_audit_store), \
-         patch("src.web.routes.pages.get_group_store", return_value=mock_group_store), \
-         patch("src.web.dependencies.get_snapshot_store", return_value=mock_snapshot_store), \
-         patch("src.web.dependencies.get_resource_store", return_value=mock_resource_store), \
-         patch("src.web.dependencies.get_collection_store", return_value=mock_collection_store), \
-         patch("src.web.dependencies.get_audit_store", return_value=mock_audit_store), \
-         patch("src.web.dependencies.get_group_store", return_value=mock_group_store):
+    with (
+        patch("src.web.dependencies.init_database"),
+        patch("src.web.routes.pages.get_snapshot_store", return_value=mock_snapshot_store),
+        patch("src.web.routes.pages.get_resource_store", return_value=mock_resource_store),
+        patch("src.web.routes.pages.get_audit_store", return_value=mock_audit_store),
+        patch("src.web.routes.pages.get_group_store", return_value=mock_group_store),
+        patch("src.web.dependencies.get_snapshot_store", return_value=mock_snapshot_store),
+        patch("src.web.dependencies.get_resource_store", return_value=mock_resource_store),
+        patch("src.web.dependencies.get_collection_store", return_value=mock_collection_store),
+        patch("src.web.dependencies.get_audit_store", return_value=mock_audit_store),
+        patch("src.web.dependencies.get_group_store", return_value=mock_group_store),
+    ):
         app = create_app(storage_path="/tmp/test-storage")
         yield TestClient(app)

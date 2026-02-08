@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
@@ -84,9 +83,7 @@ class TestCleanupPreview:
         assert "Preview" in result.stdout or "preview" in result.stdout.lower()
 
     def test_preview_with_account_id_and_type_filter(self):
-        operation = _make_operation(
-            filters={"resource_types": ["AWS::EC2::Instance"], "regions": ["us-east-1"]}
-        )
+        operation = _make_operation(filters={"resource_types": ["AWS::EC2::Instance"], "regions": ["us-east-1"]})
         mock_cleaner_cls = MagicMock()
         mock_cleaner = MagicMock()
         mock_cleaner.preview.return_value = operation
@@ -103,10 +100,15 @@ class TestCleanupPreview:
             result = runner.invoke(
                 app,
                 [
-                    "cleanup", "preview", "baseline",
-                    "--account-id", "123456789012",
-                    "--type", "AWS::EC2::Instance",
-                    "--region", "us-east-1",
+                    "cleanup",
+                    "preview",
+                    "baseline",
+                    "--account-id",
+                    "123456789012",
+                    "--type",
+                    "AWS::EC2::Instance",
+                    "--region",
+                    "us-east-1",
                 ],
             )
 

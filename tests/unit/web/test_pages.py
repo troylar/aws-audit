@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
 
 pytest.importorskip("fastapi", reason="Requires 'web' optional dependencies")

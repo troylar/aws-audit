@@ -593,15 +593,15 @@ class TestGenerationProgressDisplay:
         display = self._make_display()
         display.set_source("snapshot", "/output")
 
-        with patch("src.cli.generation_progress.Live") as MockLive:
+        with patch("src.cli.generation_progress.Live") as mock_live_cls:
             mock_live_instance = MagicMock()
-            MockLive.return_value = mock_live_instance
+            mock_live_cls.return_value = mock_live_instance
 
             display.start()
 
             assert display.start_time > 0
             assert display.live is not None
-            MockLive.assert_called_once()
+            mock_live_cls.assert_called_once()
             mock_live_instance.start.assert_called_once()
 
             display.stop()
@@ -619,9 +619,9 @@ class TestGenerationProgressDisplay:
         """Test that _refresh calls live.update when live is active."""
         display = self._make_display()
 
-        with patch("src.cli.generation_progress.Live") as MockLive:
+        with patch("src.cli.generation_progress.Live") as mock_live_cls:
             mock_live_instance = MagicMock()
-            MockLive.return_value = mock_live_instance
+            mock_live_cls.return_value = mock_live_instance
 
             display.start()
             display.set_total_resources(10)
@@ -687,14 +687,16 @@ class TestGenerationProgressDisplay:
         display.set_source("snap", "/out")
         display.start_time = time.time()
         display.current_step = WorkflowStep.COMPARE_INVENTORY
-        display.set_comparison_result({
-            "coverage_percentage": 95.0,
-            "total_resources": 20,
-            "represented_count": 19,
-            "missing_count": 1,
-            "issues": [{"type": "missing"}],
-            "summary": "Almost full coverage",
-        })
+        display.set_comparison_result(
+            {
+                "coverage_percentage": 95.0,
+                "total_resources": 20,
+                "represented_count": 19,
+                "missing_count": 1,
+                "issues": [{"type": "missing"}],
+                "summary": "Almost full coverage",
+            }
+        )
 
         result = display._build_display()
         assert result is not None
@@ -879,14 +881,16 @@ class TestGenerationProgressDisplay:
         console = MagicMock()
         display = GenerationProgressDisplay(console=console)
         display.start_time = time.time()
-        display.set_comparison_result({
-            "coverage_percentage": 75.0,
-            "total_resources": 20,
-            "represented_count": 15,
-            "missing_count": 5,
-            "issues": [],
-            "summary": "",
-        })
+        display.set_comparison_result(
+            {
+                "coverage_percentage": 75.0,
+                "total_resources": 20,
+                "represented_count": 15,
+                "missing_count": 5,
+                "issues": [],
+                "summary": "",
+            }
+        )
 
         display.print_final_summary(success=True)
         assert console.print.call_count > 0
@@ -922,9 +926,9 @@ class TestGenerationProgressDisplay:
         display.set_source("prod-snapshot", "/tmp/iac-output")
         display.set_output_format("terraform")
 
-        with patch("src.cli.generation_progress.Live") as MockLive:
+        with patch("src.cli.generation_progress.Live") as mock_live_cls:
             mock_live_instance = MagicMock()
-            MockLive.return_value = mock_live_instance
+            mock_live_cls.return_value = mock_live_instance
 
             display.start()
 

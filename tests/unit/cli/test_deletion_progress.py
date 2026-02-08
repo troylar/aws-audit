@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 from rich.console import Group
-from rich.text import Text
 
 from src.cli.deletion_progress import (
     DeletionProgressDisplay,
@@ -676,15 +675,15 @@ class TestStartAndStop:
         console = MagicMock()
         display = DeletionProgressDisplay(resources, console)
 
-        with patch("src.cli.deletion_progress.Live") as MockLive:
+        with patch("src.cli.deletion_progress.Live") as mock_live_cls:
             mock_live_instance = MagicMock()
-            MockLive.return_value = mock_live_instance
+            mock_live_cls.return_value = mock_live_instance
 
             display.start()
 
             assert display.start_time > 0
             assert display.live is not None
-            MockLive.assert_called_once()
+            mock_live_cls.assert_called_once()
             mock_live_instance.start.assert_called_once()
 
     def test_stop_stops_live_and_sets_none(self):
@@ -699,9 +698,9 @@ class TestStartAndStop:
         console = MagicMock()
         display = DeletionProgressDisplay(resources, console)
 
-        with patch("src.cli.deletion_progress.Live") as MockLive:
+        with patch("src.cli.deletion_progress.Live") as mock_live_cls:
             mock_live_instance = MagicMock()
-            MockLive.return_value = mock_live_instance
+            mock_live_cls.return_value = mock_live_instance
 
             display.start()
             display.stop()
@@ -729,9 +728,9 @@ class TestStartAndStop:
         console = MagicMock()
         display = DeletionProgressDisplay(resources, console)
 
-        with patch("src.cli.deletion_progress.Live") as MockLive:
+        with patch("src.cli.deletion_progress.Live") as mock_live_cls:
             mock_live_instance = MagicMock()
-            MockLive.return_value = mock_live_instance
+            mock_live_cls.return_value = mock_live_instance
 
             display.start()
             display.mark_in_progress(resources[0])

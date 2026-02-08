@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
@@ -71,14 +70,15 @@ class TestSnapshotCreate:
         mock_snapshot.metadata = {"collection_errors": []}
         mock_snapshot.filters_applied = None
 
-        with patch("src.snapshot.capturer.create_snapshot", return_value=mock_snapshot) as mock_create, \
-             patch("src.snapshot.collection_storage.CollectionStorage") as mock_coll_cls:
+        with (
+            patch("src.snapshot.capturer.create_snapshot", return_value=mock_snapshot),
+            patch("src.snapshot.collection_storage.CollectionStorage") as mock_coll_cls,
+        ):
             mock_coll_storage = MagicMock()
             mock_coll_cls.return_value = mock_coll_storage
             mock_coll_storage.get_or_create_default.return_value = MagicMock(
                 description=None, include_tags=None, exclude_tags=None
             )
-            active_coll = mock_coll_storage.get_or_create_default.return_value
 
             mock_storage = MagicMock()
             mock_storage.save_snapshot.return_value = MagicMock(name="my-snap.yaml")
@@ -104,18 +104,21 @@ class TestSnapshotCreate:
 
         with patch("src.snapshot.collection_storage.CollectionStorage") as mock_coll_cls:
             mock_coll = MagicMock()
-            mock_coll.get_by_name.return_value = MagicMock(
-                description=None, include_tags=None, exclude_tags=None
-            )
+            mock_coll.get_by_name.return_value = MagicMock(description=None, include_tags=None, exclude_tags=None)
             mock_coll_cls.return_value = mock_coll
 
             result = runner.invoke(
                 app,
                 [
-                    "snapshot", "create", "my-snap",
-                    "--region", "us-east-1",
-                    "--collection", "prod",
-                    "--include-tags", "Env=prod",
+                    "snapshot",
+                    "create",
+                    "my-snap",
+                    "--region",
+                    "us-east-1",
+                    "--collection",
+                    "prod",
+                    "--include-tags",
+                    "Env=prod",
                 ],
             )
 
@@ -344,8 +347,10 @@ class TestSnapshotReport:
         mock_storage.load_snapshot.return_value = snap
         mock_storage_cls.return_value = mock_storage
 
-        with patch("src.snapshot.reporter.SnapshotReporter") as mock_reporter_cls, \
-             patch("src.snapshot.report_formatter.ReportFormatter") as mock_fmt_cls:
+        with (
+            patch("src.snapshot.reporter.SnapshotReporter") as mock_reporter_cls,
+            patch("src.snapshot.report_formatter.ReportFormatter") as mock_fmt_cls,
+        ):
             mock_reporter = MagicMock()
             mock_reporter._extract_metadata.return_value = MagicMock()
             mock_reporter.generate_summary.return_value = MagicMock(total_count=10)

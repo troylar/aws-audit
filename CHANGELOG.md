@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-02-08
+
+### Fixed
+- **Version command**: `awsinv version` now dynamically reads version from package metadata instead of a stale hard-coded string
+
+### Changed
+- **Test coverage**: Increased from 60% to 71% (Milestone 1), CI threshold raised from 39% to 70%
+- Added 373 new tests covering CLI commands, web page routes, generation progress, deletion progress, guardrails CLI, and more
+
+## [2.0.0] - 2026-02-08
+
+### Changed
+- **Renamed "Inventory" concept to "Collection"** throughout the codebase and documentation
+- Elevated IaC generation positioning in documentation
+- CLI consistency review and improvements
+
 ## [1.1.0] - 2026-02-04
 
 ### Added

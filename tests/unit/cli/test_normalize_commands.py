@@ -73,7 +73,9 @@ class TestNormalizeCommand:
     @patch("src.storage.Database")
     @patch("src.matching.ResourceNormalizer")
     @patch("src.matching.NormalizerConfig")
-    def test_normalize_dry_run(self, mock_norm_config_cls, mock_normalizer_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner):
+    def test_normalize_dry_run(
+        self, mock_norm_config_cls, mock_normalizer_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner
+    ):
         mock_config = MagicMock()
         mock_config.storage_path = None
         mock_config.log_level = "INFO"
@@ -115,7 +117,9 @@ class TestNormalizeCommand:
     @patch("src.storage.Database")
     @patch("src.matching.ResourceNormalizer")
     @patch("src.matching.NormalizerConfig")
-    def test_normalize_saves_changes(self, mock_norm_config_cls, mock_normalizer_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner):
+    def test_normalize_saves_changes(
+        self, mock_norm_config_cls, mock_normalizer_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner
+    ):
         mock_config = MagicMock()
         mock_config.storage_path = None
         mock_config.log_level = "INFO"
@@ -162,7 +166,9 @@ class TestNormalizeCommand:
     @patch("src.storage.Database")
     @patch("src.matching.ResourceNormalizer")
     @patch("src.matching.NormalizerConfig")
-    def test_normalize_snapshot_id_not_found(self, mock_norm_config_cls, mock_normalizer_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner):
+    def test_normalize_snapshot_id_not_found(
+        self, mock_norm_config_cls, mock_normalizer_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner
+    ):
         mock_config = MagicMock()
         mock_config.storage_path = None
         mock_config.log_level = "INFO"
@@ -198,7 +204,9 @@ class TestNormalizeCommand:
     @patch("src.storage.Database")
     @patch("src.matching.NormalizerConfig")
     @patch("src.matching.ResourceNormalizer")
-    def test_normalize_ai_fallback_when_no_api_key(self, mock_normalizer_cls, mock_norm_config_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner):
+    def test_normalize_ai_fallback_when_no_api_key(
+        self, mock_normalizer_cls, mock_norm_config_cls, mock_db_cls, mock_snap_store_cls, mock_config_load, cli_runner
+    ):
         mock_config = MagicMock()
         mock_config.storage_path = None
         mock_config.log_level = "INFO"
@@ -234,4 +242,8 @@ class TestNormalizeCommand:
         result = cli_runner.invoke(app, ["normalize", "--snapshot", "test-snap"])
 
         assert result.exit_code == 0
-        assert "OPENAI_API_KEY not set" in result.stdout or "rules-based" in result.stdout.lower() or "Updated" in result.stdout
+        assert (
+            "OPENAI_API_KEY not set" in result.stdout
+            or "rules-based" in result.stdout.lower()
+            or "Updated" in result.stdout
+        )

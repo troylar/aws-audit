@@ -232,9 +232,12 @@ class TestCostCommand:
             app,
             [
                 "cost",
-                "--snapshot", "cost-test-snap",
-                "--start-date", "2025-01-01",
-                "--end-date", "2025-01-31",
+                "--snapshot",
+                "cost-test-snap",
+                "--start-date",
+                "2025-01-01",
+                "--end-date",
+                "2025-01-31",
             ],
         )
 
@@ -325,9 +328,7 @@ class TestCostCommand:
         mock_coll_storage.get_by_name.side_effect = Exception("Collection not found")
         mock_coll_storage_cls.return_value = mock_coll_storage
 
-        result = cli_runner.invoke(
-            app, ["cost", "--collection", "nonexistent-collection"]
-        )
+        result = cli_runner.invoke(app, ["cost", "--collection", "nonexistent-collection"])
 
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower()
@@ -389,9 +390,12 @@ class TestCostCommand:
             app,
             [
                 "cost",
-                "--snapshot", "cost-test-snap",
-                "--start-date", "2025-01-01",
-                "--end-date", "bad-date",
+                "--snapshot",
+                "cost-test-snap",
+                "--start-date",
+                "2025-01-01",
+                "--end-date",
+                "bad-date",
             ],
         )
 

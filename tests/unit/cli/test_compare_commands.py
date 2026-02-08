@@ -190,10 +190,14 @@ class TestCompareCommand:
         result = cli_runner.invoke(
             app,
             [
-                "compare", "my-snapshot",
-                "--iac-dir", "./terraform",
-                "--model-id", "anthropic.claude-3",
-                "--region", "us-west-2",
+                "compare",
+                "my-snapshot",
+                "--iac-dir",
+                "./terraform",
+                "--model-id",
+                "anthropic.claude-3",
+                "--region",
+                "us-west-2",
             ],
         )
 

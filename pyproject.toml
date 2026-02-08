@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aws-inventory-manager"
-version = "2.0.0"
+version = "2.0.1"
 description = "Know Everything About Your AWS Environment"
 readme = "README.md"
 requires-python = ">=3.11"

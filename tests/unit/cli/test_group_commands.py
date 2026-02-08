@@ -28,8 +28,16 @@ def _make_group(
     if members is None:
         members = [
             GroupMember(resource_name="my-bucket", resource_type="s3:bucket", original_arn="arn:aws:s3:::my-bucket"),
-            GroupMember(resource_name="my-func", resource_type="lambda:function", original_arn="arn:aws:lambda:us-east-1:123456789012:function:my-func"),
-            GroupMember(resource_name="my-table", resource_type="dynamodb:table", original_arn="arn:aws:dynamodb:us-east-1:123456789012:table/my-table"),
+            GroupMember(
+                resource_name="my-func",
+                resource_type="lambda:function",
+                original_arn="arn:aws:lambda:us-east-1:123456789012:function:my-func",
+            ),
+            GroupMember(
+                resource_name="my-table",
+                resource_type="dynamodb:table",
+                original_arn="arn:aws:dynamodb:us-east-1:123456789012:table/my-table",
+            ),
         ]
     return ResourceGroup(
         name=name,
@@ -109,10 +117,15 @@ class TestGroupCreate:
         result = cli_runner.invoke(
             app,
             [
-                "group", "create", "iam-baseline",
-                "--from-snapshot", "snap-2025",
-                "--type", "iam",
-                "--region", "us-east-1",
+                "group",
+                "create",
+                "iam-baseline",
+                "--from-snapshot",
+                "snap-2025",
+                "--type",
+                "iam",
+                "--region",
+                "us-east-1",
             ],
         )
 
@@ -332,7 +345,13 @@ class TestGroupCompare:
             "not_in_group": 4,
             "resources": {
                 "missing": [{"name": "old-bucket", "resource_type": "s3:bucket"}],
-                "extra": [{"name": "new-func", "resource_type": "lambda:function", "arn": "arn:aws:lambda:us-east-1:123:function:new-func"}],
+                "extra": [
+                    {
+                        "name": "new-func",
+                        "resource_type": "lambda:function",
+                        "arn": "arn:aws:lambda:us-east-1:123:function:new-func",
+                    }
+                ],
             },
         }
         mock_store_cls.return_value = mock_store
@@ -383,7 +402,11 @@ class TestGroupCompare:
                     {"name": "bucket-b", "resource_type": "s3:bucket"},
                 ],
                 "extra": [
-                    {"name": "func-x", "resource_type": "lambda:function", "arn": "arn:aws:lambda:us-east-1:123:function:func-x"},
+                    {
+                        "name": "func-x",
+                        "resource_type": "lambda:function",
+                        "arn": "arn:aws:lambda:us-east-1:123:function:func-x",
+                    },
                 ],
             },
         }

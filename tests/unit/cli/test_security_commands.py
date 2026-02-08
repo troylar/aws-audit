@@ -147,9 +147,7 @@ class TestSecurityScanCommand:
         mock_scanner.scan.return_value = scan_result_with_findings
         mock_scanner_cls.return_value = mock_scanner
 
-        result = cli_runner.invoke(
-            app, ["security", "scan", "--snapshot", "security-test-snap"]
-        )
+        result = cli_runner.invoke(app, ["security", "scan", "--snapshot", "security-test-snap"])
 
         assert result.exit_code == 0
         assert "security issue" in result.stdout.lower() or "finding" in result.stdout.lower()
@@ -173,9 +171,7 @@ class TestSecurityScanCommand:
         mock_scanner.scan.return_value = scan_result_no_findings
         mock_scanner_cls.return_value = mock_scanner
 
-        result = cli_runner.invoke(
-            app, ["security", "scan", "--snapshot", "clean-snap"]
-        )
+        result = cli_runner.invoke(app, ["security", "scan", "--snapshot", "clean-snap"])
 
         assert result.exit_code == 0
         assert "No security issues" in result.stdout
@@ -246,9 +242,7 @@ class TestSecurityScanCommand:
         mock_storage.load_snapshot.side_effect = FileNotFoundError("Snapshot not found")
         mock_storage_cls.return_value = mock_storage
 
-        result = cli_runner.invoke(
-            app, ["security", "scan", "--snapshot", "nonexistent"]
-        )
+        result = cli_runner.invoke(app, ["security", "scan", "--snapshot", "nonexistent"])
 
         assert result.exit_code == 1
         assert "not found" in result.stdout.lower()
@@ -319,9 +313,7 @@ class TestSecurityScanCommand:
         mock_scanner.scan.return_value = scan_result_no_findings
         mock_scanner_cls.return_value = mock_scanner
 
-        result = cli_runner.invoke(
-            app, ["security", "scan", "--collection", "prod-baseline"]
-        )
+        result = cli_runner.invoke(app, ["security", "scan", "--collection", "prod-baseline"])
 
         assert result.exit_code == 0
 
@@ -346,9 +338,7 @@ class TestSecurityScanCommand:
         mock_coll_storage.get_by_name.return_value = mock_collection
         mock_coll_storage_cls.return_value = mock_coll_storage
 
-        result = cli_runner.invoke(
-            app, ["security", "scan", "--collection", "empty-coll"]
-        )
+        result = cli_runner.invoke(app, ["security", "scan", "--collection", "empty-coll"])
 
         assert result.exit_code == 1
         assert "no active snapshot" in result.stdout.lower()

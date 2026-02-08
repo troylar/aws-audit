@@ -5,7 +5,6 @@ from __future__ import annotations
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
@@ -68,9 +67,7 @@ class TestServeCommand:
             patch("src.web.app.create_app", return_value=mock_app_instance),
             patch("src.cli.config.Config.load", return_value=mock_cfg),
         ):
-            result = runner.invoke(
-                app, ["serve", "--host", "0.0.0.0", "--port", "9090", "--no-open"]
-            )
+            result = runner.invoke(app, ["serve", "--host", "0.0.0.0", "--port", "9090", "--no-open"])
 
         assert result.exit_code == 0, f"stdout: {result.stdout}\nexception: {result.exception}"
         mock_uvicorn.run.assert_called_once_with(

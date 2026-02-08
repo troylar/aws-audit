@@ -913,9 +913,7 @@ class TestValidateCommand:
     def test_validate_with_guardrail_errors_grouped(self, mock_validate: MagicMock, tmp_path: Path) -> None:
         """Validate groups errors by guardrail ID."""
         policy_file = tmp_path / "policy.yaml"
-        policy_file.write_text(
-            "name: test\nversion: '1.0'\nguardrails:\n  - id: GR-ENC-001\n    severity: INVALID\n"
-        )
+        policy_file.write_text("name: test\nversion: '1.0'\nguardrails:\n  - id: GR-ENC-001\n    severity: INVALID\n")
 
         mock_validate.return_value = [
             "guardrails[0]: Invalid severity value",
@@ -930,9 +928,7 @@ class TestValidateCommand:
     def test_validate_with_guardrail_errors_verbose(self, mock_validate: MagicMock, tmp_path: Path) -> None:
         """Validate shows tips for common errors in verbose mode."""
         policy_file = tmp_path / "policy.yaml"
-        policy_file.write_text(
-            "name: test\nversion: '1.0'\nguardrails:\n  - id: GR-ENC-001\n    severity: INVALID\n"
-        )
+        policy_file.write_text("name: test\nversion: '1.0'\nguardrails:\n  - id: GR-ENC-001\n    severity: INVALID\n")
 
         mock_validate.return_value = [
             "guardrails[0]: Invalid severity value",

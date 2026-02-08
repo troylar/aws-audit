@@ -612,9 +612,7 @@ class TestQueryResources:
         ]
         mock_store_cls.return_value = mock_store
 
-        result = cli_runner.invoke(
-            app, ["query", "resources", "--arn", "arn:aws:s3:::my-bucket*"]
-        )
+        result = cli_runner.invoke(app, ["query", "resources", "--arn", "arn:aws:s3:::my-bucket*"])
 
         assert result.exit_code == 0
         assert "my-bucket" in result.stdout
@@ -634,9 +632,7 @@ class TestQueryResources:
         ]
         mock_store_cls.return_value = mock_store
 
-        result = cli_runner.invoke(
-            app, ["query", "resources", "--snapshot", "baseline-2024"]
-        )
+        result = cli_runner.invoke(app, ["query", "resources", "--snapshot", "baseline-2024"])
 
         assert result.exit_code == 0
         assert "my-bucket" in result.stdout
@@ -904,12 +900,8 @@ class TestQueryDiff:
     def test_diff_with_changes(self, mock_store_cls, mock_db_cls, cli_runner):
         mock_store = MagicMock()
         mock_store.compare_snapshots.return_value = {
-            "added": [
-                {"arn": "arn:aws:s3:::new-bucket", "resource_type": "s3:bucket", "region": "us-east-1"}
-            ],
-            "removed": [
-                {"arn": "arn:aws:s3:::old-bucket", "resource_type": "s3:bucket", "region": "us-east-1"}
-            ],
+            "added": [{"arn": "arn:aws:s3:::new-bucket", "resource_type": "s3:bucket", "region": "us-east-1"}],
+            "removed": [{"arn": "arn:aws:s3:::old-bucket", "resource_type": "s3:bucket", "region": "us-east-1"}],
             "modified": [
                 {
                     "arn": "arn:aws:ec2:us-east-1:123:instance/i-abc",
@@ -976,9 +968,7 @@ class TestQueryDiff:
         }
         mock_store_cls.return_value = mock_store
 
-        result = cli_runner.invoke(
-            app, ["query", "diff", "snap-1", "snap-2", "--format", "json"]
-        )
+        result = cli_runner.invoke(app, ["query", "diff", "snap-1", "snap-2", "--format", "json"])
 
         assert result.exit_code == 0
         assert "snapshot1_count" in result.stdout
@@ -1001,9 +991,7 @@ class TestQueryDiff:
         }
         mock_store_cls.return_value = mock_store
 
-        result = cli_runner.invoke(
-            app, ["query", "diff", "snap-1", "snap-2", "--format", "summary"]
-        )
+        result = cli_runner.invoke(app, ["query", "diff", "snap-1", "snap-2", "--format", "summary"])
 
         assert result.exit_code == 0
         assert "Added" in result.stdout
@@ -1015,7 +1003,11 @@ class TestQueryDiff:
         mock_store.compare_snapshots.return_value = {
             "added": [
                 {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket", "region": "us-east-1"},
-                {"arn": "arn:aws:ec2:us-east-1:123:instance/i-abc", "resource_type": "ec2:instance", "region": "us-east-1"},
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123:instance/i-abc",
+                    "resource_type": "ec2:instance",
+                    "region": "us-east-1",
+                },
             ],
             "removed": [],
             "modified": [],
@@ -1029,9 +1021,7 @@ class TestQueryDiff:
         }
         mock_store_cls.return_value = mock_store
 
-        result = cli_runner.invoke(
-            app, ["query", "diff", "snap-1", "snap-2", "--type", "s3"]
-        )
+        result = cli_runner.invoke(app, ["query", "diff", "snap-1", "snap-2", "--type", "s3"])
 
         assert result.exit_code == 0
 
