@@ -165,13 +165,13 @@ class TestSnapshotReportCLIFiltering:
         cli_runner,
         test_snapshot,
     ):
-        """Test report with --resource-type filter."""
+        """Test report with --type filter (renamed from --resource-type)."""
         mock_get_active.return_value = "test-snapshot"
         mock_load.return_value = test_snapshot
 
         result = cli_runner.invoke(
             app,
-            ["snapshot", "report", "--resource-type", "ec2"],
+            ["snapshot", "report", "--type", "ec2"],
         )
 
         assert result.exit_code == 0
@@ -216,9 +216,9 @@ class TestSnapshotReportCLIFiltering:
             [
                 "snapshot",
                 "report",
-                "--resource-type",
+                "--type",
                 "ec2",
-                "--resource-type",
+                "--type",
                 "s3",
                 "--region",
                 "us-east-1",
@@ -248,7 +248,7 @@ class TestSnapshotReportCLIExport:
         output_file = tmp_path / "report.json"
         result = cli_runner.invoke(
             app,
-            ["snapshot", "report", "--export", str(output_file)],
+            ["snapshot", "report", "--output", str(output_file)],
         )
 
         assert result.exit_code == 0
@@ -273,7 +273,7 @@ class TestSnapshotReportCLIExport:
         output_file = tmp_path / "resources.csv"
         result = cli_runner.invoke(
             app,
-            ["snapshot", "report", "--export", str(output_file)],
+            ["snapshot", "report", "--output", str(output_file)],
         )
 
         assert result.exit_code == 0
@@ -298,7 +298,7 @@ class TestSnapshotReportCLIExport:
         output_file = tmp_path / "summary.txt"
         result = cli_runner.invoke(
             app,
-            ["snapshot", "report", "--export", str(output_file)],
+            ["snapshot", "report", "--output", str(output_file)],
         )
 
         assert result.exit_code == 0
@@ -326,9 +326,9 @@ class TestSnapshotReportCLIExport:
             [
                 "snapshot",
                 "report",
-                "--resource-type",
+                "--type",
                 "ec2",
-                "--export",
+                "--output",
                 str(output_file),
             ],
         )
@@ -353,7 +353,7 @@ class TestSnapshotReportCLIExport:
         output_file = tmp_path / "detailed.json"
         result = cli_runner.invoke(
             app,
-            ["snapshot", "report", "--detailed", "--export", str(output_file)],
+            ["snapshot", "report", "--detailed", "--output", str(output_file)],
         )
 
         assert result.exit_code == 0
@@ -379,7 +379,7 @@ class TestSnapshotReportCLIExport:
 
         result = cli_runner.invoke(
             app,
-            ["snapshot", "report", "--export", str(output_file)],
+            ["snapshot", "report", "--output", str(output_file)],
         )
 
         assert result.exit_code != 0
@@ -402,7 +402,7 @@ class TestSnapshotReportCLIExport:
         output_file = tmp_path / "report.xlsx"
         result = cli_runner.invoke(
             app,
-            ["snapshot", "report", "--export", str(output_file)],
+            ["snapshot", "report", "--output", str(output_file)],
         )
 
         assert result.exit_code != 0

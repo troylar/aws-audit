@@ -164,15 +164,7 @@ class TestConfirmationConsistency:
                 for p in cmd.params
             )
             if not has_yes:
-                # Check for --force or --confirm as alternatives (should be deprecated)
-                has_alt = any(
-                    "--force" in getattr(p, "opts", []) or "--confirm" in getattr(p, "opts", [])
-                    for p in cmd.params
-                )
-                if has_alt:
-                    missing.append(f"{cmd_path}: uses --force/--confirm instead of --yes")
-                else:
-                    missing.append(f"{cmd_path}: no confirmation flag found")
+                missing.append(f"{cmd_path}: no --yes flag found")
 
         if missing:
             assert False, "Destructive commands not using --yes:\n  " + "\n  ".join(missing)
@@ -196,36 +188,37 @@ class TestOptionNameConsistency:
         "--limit": {"short": "-l"},
     }
 
-    # Deprecated names that should NOT appear as primary (non-hidden) options
-    # Format: old_name -> (canonical_name, set of command paths where deprecation applies, or None for all)
-    DEPRECATED_NAMES = {
-        "--regions": ("--region", None),
-        "--resource-type": ("--type", None),
-        "--export": ("--output", None),
-        "--force": ("--yes", {"inventory delete", "cleanup execute", "cleanup purge"}),
-        "--confirm": ("--yes", None),
+    # Old option names that should NOT appear on any command
+    REMOVED_NAMES = {
+        "--regions": "--region",
+        "--resource-type": "--type",
+        "--export": "--output",
+        "--confirm": "--yes",
     }
 
-    def test_no_deprecated_names_as_primary_options(self):
-        """Verify deprecated option names are hidden, not primary."""
+    # --force is only removed from destructive commands; lambda fetch still uses it
+    REMOVED_FORCE_COMMANDS = {"inventory delete", "cleanup execute", "cleanup purge"}
+
+    def test_no_removed_option_names(self):
+        """Verify old option names have been fully removed."""
         commands = _collect_commands(app)
 
         violations = []
         for cmd_path, cmd in commands:
             for param in cmd.params:
                 opts = getattr(param, "opts", [])
-                is_hidden = getattr(param, "hidden", False)
                 for opt in opts:
-                    if opt in self.DEPRECATED_NAMES and not is_hidden:
-                        canonical, scoped_cmds = self.DEPRECATED_NAMES[opt]
-                        if scoped_cmds is not None and cmd_path not in scoped_cmds:
-                            continue
+                    if opt in self.REMOVED_NAMES:
                         violations.append(
-                            f"{cmd_path}: {opt} should be hidden (deprecated in favor of {canonical})"
+                            f"{cmd_path}: {opt} should be removed (use {self.REMOVED_NAMES[opt]})"
+                        )
+                    if opt == "--force" and cmd_path in self.REMOVED_FORCE_COMMANDS:
+                        violations.append(
+                            f"{cmd_path}: --force should be removed (use --yes)"
                         )
 
         if violations:
-            assert False, "Deprecated option names still visible:\n  " + "\n  ".join(violations)
+            assert False, "Removed option names still present:\n  " + "\n  ".join(violations)
 
 
 class TestEnvvarConsistency:

@@ -64,14 +64,4 @@ Unassigned: `b`, `j`, `k`, `u`, `w`, `z`
 
 5. **Envvar consistency**: If an option supports an envvar on one command, it must support the same envvar on every command that accepts that option.
 
-6. **Deprecation process**: When renaming an option, keep the old name as a hidden parameter, emit a warning via `src/cli/deprecation.py`, and plan removal in the next major version.
-
-## Deprecated Options
-
-| Old Name | New Name | Scope | Since | Remove In |
-|----------|----------|-------|-------|-----------|
-| `--regions` | `--region` | All region commands | 1.4.0 | 2.0.0 |
-| `--resource-type` | `--type` | All type filter commands | 1.4.0 | 2.0.0 |
-| `--force` | `--yes` | inventory delete | 1.4.0 | 2.0.0 |
-| `--confirm` | `--yes` | cleanup execute, cleanup purge | 1.4.0 | 2.0.0 |
-| `--export` | `--output` | snapshot report, delta, cost, security scan | 1.4.0 | 2.0.0 |
+6. **No legacy aliases**: When renaming an option, replace it fully. Do not keep old names as hidden aliases.
