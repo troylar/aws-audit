@@ -762,7 +762,9 @@ def inventory_delete(
 
 
 # Snapshot commands group
-snapshot_app = typer.Typer(help="Manage inventory snapshots (point-in-time captures of AWS resource metadata, not EBS/RDS snapshots)")
+snapshot_app = typer.Typer(
+    help="Manage inventory snapshots (point-in-time captures of AWS resource metadata, not EBS/RDS snapshots)"
+)
 app.add_typer(snapshot_app, name="snapshot")
 
 # Config commands group
@@ -1452,7 +1454,11 @@ def snapshot_create(
 
 
 @snapshot_app.command("list")
-def snapshot_list(profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"])):
+def snapshot_list(
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
+):
     """List all available snapshots.
 
     See also: 'snapshot show' for detailed resource contents, 'snapshot report' for aggregated summary.
@@ -1492,7 +1498,9 @@ def snapshot_list(profile: Optional[str] = typer.Option(None, "--profile", "-p",
 @snapshot_app.command("show")
 def snapshot_show(
     name: str = typer.Argument(..., help="Snapshot name to display"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Display detailed information about a snapshot.
 
@@ -1547,7 +1555,9 @@ def snapshot_show(
 @snapshot_app.command("set-active")
 def snapshot_set_active(
     name: str = typer.Argument(..., help="Snapshot name to set as active"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Set a snapshot as the active snapshot.
 
@@ -1571,7 +1581,9 @@ def snapshot_set_active(
 def snapshot_delete(
     name: str = typer.Argument(..., help="Snapshot name to delete"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Delete a snapshot.
 
@@ -1817,7 +1829,9 @@ def snapshot_enrich_creators(
 def snapshot_rename(
     old_name: str = typer.Argument(..., help="Current snapshot name"),
     new_name: str = typer.Argument(..., help="New snapshot name"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Rename a snapshot.
 
@@ -1853,13 +1867,22 @@ def snapshot_rename(
 @snapshot_app.command("report")
 def snapshot_report(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (required if multiple exist)", envvar="AWSINV_INVENTORY_ID"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
-    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location", envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"]),
-    type: Optional[List[str]] = typer.Option(
-        None, "--type", "-t", help="Filter by resource type (repeatable)"
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Inventory name (required if multiple exist)", envvar="AWSINV_INVENTORY_ID"
     ),
-    region: Optional[List[str]] = typer.Option(None, "--region", help="Filter by region (can specify multiple)", envvar=["AWSINV_REGION", "AWS_REGION"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
+    storage_path: Optional[str] = typer.Option(
+        None,
+        "--storage-path",
+        help="Override storage location",
+        envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
+    ),
+    type: Optional[List[str]] = typer.Option(None, "--type", "-t", help="Filter by resource type (repeatable)"),
+    region: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by region (can specify multiple)", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     detailed: bool = typer.Option(
         False,
         "--detailed",
@@ -2159,16 +2182,27 @@ def snapshot_report(
 @snapshot_app.command("export")
 def snapshot_export(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Use most recent snapshot from inventory", envvar="AWSINV_INVENTORY_ID"),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Use most recent snapshot from inventory", envvar="AWSINV_INVENTORY_ID"
+    ),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path (stdout if omitted)"),
     format: Optional[str] = typer.Option(None, "--format", "-f", help="Output format: yaml, json, csv"),
     type: Optional[List[str]] = typer.Option(None, "--type", "-t", help="Filter by resource type (repeatable)"),
-    region: Optional[List[str]] = typer.Option(None, "--region", "-r", help="Filter by region (repeatable)", envvar=["AWSINV_REGION", "AWS_REGION"]),
+    region: Optional[List[str]] = typer.Option(
+        None, "--region", "-r", help="Filter by region (repeatable)", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     tag: Optional[List[str]] = typer.Option(None, "--tag", help="Filter by tag Key=Value (repeatable)"),
     search: Optional[str] = typer.Option(None, "--search", help="Filter by ARN substring"),
     no_config: bool = typer.Option(False, "--no-config", help="Exclude raw config from output"),
-    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location", envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"]),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    storage_path: Optional[str] = typer.Option(
+        None,
+        "--storage-path",
+        help="Override storage location",
+        envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Export snapshot resources to YAML, JSON, or CSV.
 
@@ -2383,8 +2417,15 @@ def snapshot_export(
 @snapshot_app.command("creators")
 def snapshot_creators(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
-    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location", envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
+    storage_path: Optional[str] = typer.Option(
+        None,
+        "--storage-path",
+        help="Override storage location",
+        envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
+    ),
     detailed: bool = typer.Option(False, "--detailed", help="Show individual resources for each creator"),
     output_file: Optional[str] = typer.Option(
         None,
@@ -2633,13 +2674,21 @@ def delta(
         help="Baseline snapshot name (default: active from inventory)",
         envvar="AWSINV_SNAPSHOT_ID",
     ),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')", envvar="AWSINV_INVENTORY_ID"),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Inventory name (default: 'default')", envvar="AWSINV_INVENTORY_ID"
+    ),
     type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by resource type"),
-    region: Optional[str] = typer.Option(None, "--region", help="Filter by region", envvar=["AWSINV_REGION", "AWS_REGION"]),
+    region: Optional[str] = typer.Option(
+        None, "--region", help="Filter by region", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     show_details: bool = typer.Option(False, "--show-details", help="Show detailed resource information"),
     show_diff: bool = typer.Option(False, "--show-diff", help="Show field-level configuration differences"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Export to file (JSON or CSV based on extension)"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    output: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Export to file (JSON or CSV based on extension)"
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """View resource changes since snapshot.
 
@@ -2782,15 +2831,21 @@ def cost(
         help="Baseline snapshot name (default: active from inventory)",
         envvar="AWSINV_SNAPSHOT_ID",
     ),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')", envvar="AWSINV_INVENTORY_ID"),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Inventory name (default: 'default')", envvar="AWSINV_INVENTORY_ID"
+    ),
     start_date: Optional[str] = typer.Option(
         None, "--start-date", help="Start date (YYYY-MM-DD, default: snapshot date)"
     ),
     end_date: Optional[str] = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD, default: today)"),
     granularity: str = typer.Option("MONTHLY", "--granularity", help="Cost granularity: DAILY or MONTHLY"),
     show_services: bool = typer.Option(True, "--show-services/--no-services", help="Show service breakdown"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Export to file (JSON or CSV based on extension)"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    output: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Export to file (JSON or CSV based on extension)"
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Analyze costs for resources in a specific inventory.
 
@@ -2981,19 +3036,27 @@ def cost(
 # Security Commands
 # ============================================================================
 
-security_app = typer.Typer(help="Security scanning (checks resource configurations against best practices, not AWS Security Hub)")
+security_app = typer.Typer(
+    help="Security scanning (checks resource configurations against best practices, not AWS Security Hub)"
+)
 
 
 @security_app.command(name="scan")
 def security_scan(
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name to scan", envvar="AWSINV_SNAPSHOT_ID"),
-    inventory: Optional[str] = typer.Option(None, "--inventory", "-i", help="Inventory name (uses active snapshot)", envvar="AWSINV_INVENTORY_ID"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Snapshot name to scan", envvar="AWSINV_SNAPSHOT_ID"
+    ),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", "-i", help="Inventory name (uses active snapshot)", envvar="AWSINV_INVENTORY_ID"
+    ),
     storage_dir: Optional[str] = typer.Option(None, "--storage-dir", help="Snapshot storage directory"),
     severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity: critical, high, medium, low"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Export findings to file"),
     format: str = typer.Option("json", "--format", "-f", help="Export format: json or csv"),
     cis_only: bool = typer.Option(False, "--cis-only", help="Show only findings with CIS Benchmark mappings"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Scan a snapshot for security misconfigurations and compliance issues.
 
@@ -3169,11 +3232,15 @@ def cleanup_preview(
         ..., help="Baseline snapshot - resources created after this will be deleted"
     ),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     resource_types: Optional[List[str]] = typer.Option(
         None, "--type", help="Filter by resource types (e.g., AWS::EC2::Instance)"
     ),
-    regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]),
+    regions: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     protect_tags: Optional[List[str]] = typer.Option(
         None,
         "--protect-tag",
@@ -3311,9 +3378,13 @@ def cleanup_execute(
         ..., help="Baseline snapshot - resources created after this will be deleted"
     ),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
-    regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]),
+    regions: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     protect_tags: Optional[List[str]] = typer.Option(
         None,
         "--protect-tag",
@@ -3572,9 +3643,13 @@ def _resource_matches_exclusion(
 @cleanup_app.command("purge")
 def cleanup_purge(
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
-    regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]),
+    regions: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     protect_tags: Optional[List[str]] = typer.Option(
         None,
         "--protect-tag",
@@ -4184,10 +4259,14 @@ def query_sql(
 @query_app.command("resources")
 def query_resources(
     type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by resource type (e.g., 's3:bucket', 'ec2')"),
-    region: Optional[str] = typer.Option(None, "--region", "-r", help="Filter by region", envvar=["AWSINV_REGION", "AWS_REGION"]),
+    region: Optional[str] = typer.Option(
+        None, "--region", "-r", help="Filter by region", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag (Key=Value)"),
     arn: Optional[str] = typer.Option(None, "--arn", help="Filter by ARN pattern (supports wildcards)"),
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Limit to specific snapshot", envvar="AWSINV_SNAPSHOT_ID"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Limit to specific snapshot", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     limit: int = typer.Option(100, "--limit", "-l", help="Maximum results to return"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
@@ -4331,7 +4410,9 @@ def query_history(
 
 @query_app.command("stats")
 def query_stats(
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Specific snapshot (default: all)", envvar="AWSINV_SNAPSHOT_ID"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Specific snapshot (default: all)", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     group_by: str = typer.Option("type", "--group-by", "-g", help="Group by: type, region, service, snapshot"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
@@ -4527,7 +4608,11 @@ def group_create(
         None, "--type", "-t", help="Filter by resource type when creating from snapshot"
     ),
     region_filter: Optional[str] = typer.Option(
-        None, "--region", "-r", help="Filter by region when creating from snapshot", envvar=["AWSINV_REGION", "AWS_REGION"]
+        None,
+        "--region",
+        "-r",
+        help="Filter by region when creating from snapshot",
+        envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
 ):
     """Create a new resource group.
@@ -4755,7 +4840,9 @@ def group_delete(
 @group_app.command("compare")
 def group_compare(
     name: str = typer.Argument(..., help="Group name"),
-    snapshot: str = typer.Option(..., "--snapshot", "-s", help="Snapshot to compare against", envvar="AWSINV_SNAPSHOT_ID"),
+    snapshot: str = typer.Option(
+        ..., "--snapshot", "-s", help="Snapshot to compare against", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     format: str = typer.Option("summary", "--format", "-f", help="Output format: summary, table, json"),
     show_details: bool = typer.Option(False, "--details", help="Show individual resource details"),
 ):
@@ -5083,7 +5170,9 @@ def serve(
 
 @app.command()
 def normalize(
-    snapshot: str = typer.Option(..., "--snapshot", "-s", help="Snapshot name to normalize", envvar="AWSINV_SNAPSHOT_ID"),
+    snapshot: str = typer.Option(
+        ..., "--snapshot", "-s", help="Snapshot name to normalize", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview normalizations without saving"),
     use_ai: bool = typer.Option(True, "--ai/--no-ai", help="Use AI for ambiguous names (default: enabled)"),
 ):
@@ -5387,7 +5476,9 @@ def lambda_list(
 @lambda_app.command("extract")
 def lambda_extract(
     function_name: str = typer.Argument(..., help="Lambda function name (or 'all' for all functions)"),
-    snapshot_name: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name (defaults to active)", envvar="AWSINV_SNAPSHOT_ID"),
+    snapshot_name: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Snapshot name (defaults to active)", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     output_dir: str = typer.Option("./lambda_code", "--output", "-o", help="Output directory"),
     flatten: bool = typer.Option(False, "--flatten", help="Extract all to single directory (no subdirs)"),
 ):
@@ -5470,7 +5561,9 @@ def lambda_extract(
 @lambda_app.command("show")
 def lambda_show(
     function_name: str = typer.Argument(..., help="Lambda function name"),
-    snapshot_name: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name (defaults to active)", envvar="AWSINV_SNAPSHOT_ID"),
+    snapshot_name: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Snapshot name (defaults to active)", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     file_path: Optional[str] = typer.Option(None, "--file", help="Show specific file from package"),
     list_files: bool = typer.Option(False, "--list", help="List files in package"),
 ):
@@ -5765,7 +5858,9 @@ def lambda_fetch(
         help="Max code size (MB) to store inline. Larger stored to files. -1 for unlimited.",
     ),
     force: bool = typer.Option(False, "--force", help="Re-fetch code even if already stored"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     no_ssl_verify: bool = typer.Option(
         False,
         "--no-ssl-verify",

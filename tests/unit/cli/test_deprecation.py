@@ -43,9 +43,7 @@ class TestRemovedOptionNames:
                 opts = getattr(param, "opts", [])
                 for opt in opts:
                     if opt in self.REMOVED_OPTIONS:
-                        violations.append(
-                            f"{cmd_path}: {opt} should be removed (use {self.REMOVED_OPTIONS[opt]})"
-                        )
+                        violations.append(f"{cmd_path}: {opt} should be removed (use {self.REMOVED_OPTIONS[opt]})")
 
         if violations:
             assert False, "Removed options still present:\n  " + "\n  ".join(violations)

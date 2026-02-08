@@ -159,10 +159,7 @@ class TestConfirmationConsistency:
             if cmd_path not in cmd_dict:
                 continue
             cmd = cmd_dict[cmd_path]
-            has_yes = any(
-                "--yes" in getattr(p, "opts", [])
-                for p in cmd.params
-            )
+            has_yes = any("--yes" in getattr(p, "opts", []) for p in cmd.params)
             if not has_yes:
                 missing.append(f"{cmd_path}: no --yes flag found")
 
@@ -209,13 +206,9 @@ class TestOptionNameConsistency:
                 opts = getattr(param, "opts", [])
                 for opt in opts:
                     if opt in self.REMOVED_NAMES:
-                        violations.append(
-                            f"{cmd_path}: {opt} should be removed (use {self.REMOVED_NAMES[opt]})"
-                        )
+                        violations.append(f"{cmd_path}: {opt} should be removed (use {self.REMOVED_NAMES[opt]})")
                     if opt == "--force" and cmd_path in self.REMOVED_FORCE_COMMANDS:
-                        violations.append(
-                            f"{cmd_path}: --force should be removed (use --yes)"
-                        )
+                        violations.append(f"{cmd_path}: --force should be removed (use --yes)")
 
         if violations:
             assert False, "Removed option names still present:\n  " + "\n  ".join(violations)
@@ -294,9 +287,7 @@ class TestTerminologyClarity:
                 group = click_app.commands[group_name]
                 help_text = getattr(group, "help", "") or ""
                 if expected_text.lower() not in help_text.lower():
-                    violations.append(
-                        f"'{group_name}' group help missing disambiguation: expected '{expected_text}'"
-                    )
+                    violations.append(f"'{group_name}' group help missing disambiguation: expected '{expected_text}'")
 
         if violations:
             assert False, "Missing AWS terminology clarification:\n  " + "\n  ".join(violations)

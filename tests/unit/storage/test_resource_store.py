@@ -24,7 +24,9 @@ def store(db: Database) -> ResourceStore:
     return ResourceStore(db)
 
 
-def _insert_snapshot(db: Database, name: str, created_at: str = "2025-01-10T00:00:00+00:00", account_id: str = "123456789012") -> int:
+def _insert_snapshot(
+    db: Database, name: str, created_at: str = "2025-01-10T00:00:00+00:00", account_id: str = "123456789012"
+) -> int:
     """Insert a snapshot and return its id."""
     with db.transaction() as cursor:
         cursor.execute(
@@ -117,7 +119,9 @@ class TestSearch:
     def _seed_data(self, db: Database) -> None:
         snap_id = _insert_snapshot(db, "snap1", "2025-01-10T00:00:00+00:00")
         r1 = _insert_resource(db, snap_id, "arn:aws:s3:::bucket1", "s3:bucket", "bucket1", "us-east-1")
-        r2 = _insert_resource(db, snap_id, "arn:aws:ec2:us-west-2:123:instance/i-1", "ec2:instance", "web-server", "us-west-2")
+        r2 = _insert_resource(
+            db, snap_id, "arn:aws:ec2:us-west-2:123:instance/i-1", "ec2:instance", "web-server", "us-west-2"
+        )
         _insert_tag(db, r1, "Environment", "prod")
         _insert_tag(db, r1, "Team", "platform")
         _insert_tag(db, r2, "Environment", "dev")

@@ -198,7 +198,9 @@ class TestGenerateProviderConfig:
         with patch("src.generate.terraform_generator.compile_terraform_agent", return_value=MagicMock()):
             with patch("src.generate.terraform_generator.GenerationConfig.from_env") as mock_env:
                 mock_env.return_value = MagicMock(
-                    bedrock_model_id="m", bedrock_region="us-east-1", max_retries=3,
+                    bedrock_model_id="m",
+                    bedrock_region="us-east-1",
+                    max_retries=3,
                 )
                 gen = TerraformGenerator(output_dir=str(tmp_path))
 
@@ -215,7 +217,9 @@ class TestGenerateVariablesFile:
         with patch("src.generate.terraform_generator.compile_terraform_agent", return_value=MagicMock()):
             with patch("src.generate.terraform_generator.GenerationConfig.from_env") as mock_env:
                 mock_env.return_value = MagicMock(
-                    bedrock_model_id="m", bedrock_region="us-east-1", max_retries=3,
+                    bedrock_model_id="m",
+                    bedrock_region="us-east-1",
+                    max_retries=3,
                 )
                 gen = TerraformGenerator(output_dir=str(tmp_path))
 
@@ -228,7 +232,9 @@ class TestGenerateVariablesFile:
         with patch("src.generate.terraform_generator.compile_terraform_agent", return_value=MagicMock()):
             with patch("src.generate.terraform_generator.GenerationConfig.from_env") as mock_env:
                 mock_env.return_value = MagicMock(
-                    bedrock_model_id="m", bedrock_region="us-east-1", max_retries=3,
+                    bedrock_model_id="m",
+                    bedrock_region="us-east-1",
+                    max_retries=3,
                 )
                 gen = TerraformGenerator(output_dir=str(tmp_path))
 
@@ -248,7 +254,9 @@ class TestGenerateOutputsFile:
         with patch("src.generate.terraform_generator.compile_terraform_agent", return_value=MagicMock()):
             with patch("src.generate.terraform_generator.GenerationConfig.from_env") as mock_env:
                 mock_env.return_value = MagicMock(
-                    bedrock_model_id="m", bedrock_region="us-east-1", max_retries=3,
+                    bedrock_model_id="m",
+                    bedrock_region="us-east-1",
+                    max_retries=3,
                 )
                 gen = TerraformGenerator(output_dir=str(tmp_path))
 
@@ -274,7 +282,9 @@ class TestGenerateTerraformFunction:
         with patch("src.generate.terraform_generator.compile_terraform_agent", return_value=mock_agent):
             with patch("src.generate.terraform_generator.GenerationConfig.from_env") as mock_env:
                 mock_env.return_value = MagicMock(
-                    bedrock_model_id="m", bedrock_region="us-east-1", max_retries=3,
+                    bedrock_model_id="m",
+                    bedrock_region="us-east-1",
+                    max_retries=3,
                 )
                 result = generate_terraform(
                     snapshot_name="snap1",
