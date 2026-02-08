@@ -18,7 +18,6 @@ from ..utils.logging import setup_logging
 from .config import Config
 from .deletion_progress import DeletionProgressDisplay
 
-
 logger = logging.getLogger(__name__)
 
 # Create Typer app

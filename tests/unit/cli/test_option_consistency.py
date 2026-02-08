@@ -10,8 +10,9 @@ These tests programmatically inspect all Typer commands and verify:
 
 import os
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
+import pytest
 import typer
 import typer.core
 
