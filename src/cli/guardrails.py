@@ -168,7 +168,7 @@ def _warn_missing_config(resources: list, con: Console) -> int:
 # Create the guardrails command group
 guardrails_app = typer.Typer(
     name="guardrails",
-    help="Evaluate compliance guardrails against inventory snapshots.",
+    help="IaC guardrails (policy checks for generated code, not AWS Control Tower guardrails)",
     no_args_is_help=True,
 )
 
@@ -179,7 +179,6 @@ def check(
     policy: Optional[str] = typer.Option(
         None,
         "--policy",
-        "-p",
         help="Path to custom guardrails policy file (YAML)",
     ),
     env: str = typer.Option(
@@ -191,7 +190,6 @@ def check(
     from_file: Optional[str] = typer.Option(
         None,
         "--from-file",
-        "-f",
         help="Path to JSON/YAML inventory file (alternative to snapshot)",
     ),
     output: Optional[str] = typer.Option(
@@ -213,8 +211,10 @@ def check(
 ) -> None:
     """Evaluate guardrails against an inventory snapshot.
 
-    Checks resources for compliance without generating IaC.
+    Checks resources for compliance with IaC policy guardrails without generating code.
     Useful for CI/CD gates and compliance audits.
+
+    See also: 'security scan' for runtime security configuration checks against AWS best practices.
 
     Examples:
         awsinv guardrails check my-snapshot
@@ -409,7 +409,6 @@ def list_guardrails(
     policy: Optional[str] = typer.Option(
         None,
         "--policy",
-        "-p",
         help="Path to custom guardrails policy file (YAML)",
     ),
     env: str = typer.Option(
@@ -421,7 +420,6 @@ def list_guardrails(
     severity: Optional[str] = typer.Option(
         None,
         "--severity",
-        "-s",
         help="Filter by severity: CRITICAL, HIGH, MEDIUM, LOW, INFO",
     ),
     category: Optional[str] = typer.Option(
@@ -807,7 +805,6 @@ def generate_guardrails(
     types: Optional[str] = typer.Option(
         None,
         "--types",
-        "-t",
         help="Comma-separated resource types to focus on (e.g., s3,ec2,rds)",
     ),
     output: Optional[str] = typer.Option(
