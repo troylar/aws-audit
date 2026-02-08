@@ -42,6 +42,24 @@ awsinv snapshot create pre-deploy-v2.3 --region us-east-1,us-west-2
 awsinv delta --snapshot pre-deploy-v2.3 --show-diff
 ```
 
+## Capture and Codify Infrastructure
+
+Adopt IaC for an existing AWS environment (brownfield adoption):
+
+```bash
+# Snapshot everything in the account
+awsinv snapshot create current-state --region us-east-1,us-west-2
+
+# Generate Terraform
+awsinv generate terraform current-state --output ./terraform
+
+# Or generate CDK TypeScript
+awsinv generate cdk-typescript current-state --output ./cdk-app
+
+# Apply guardrails to ensure generated code meets standards
+awsinv guardrails check --policy security.yaml --strict
+```
+
 ## Security Audit
 
 ```bash

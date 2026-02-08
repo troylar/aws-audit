@@ -55,6 +55,9 @@ markdown_extensions:
   - pymdownx.betterem
   - pymdownx.caret
   - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -87,13 +90,13 @@ nav:
     - Multi-Account Support: configuration/multi-account.md
   - Guides:
     - Snapshots: guides/snapshots.md
+    - IaC Generation: guides/iac-generation.md
     - Change Tracking: guides/change-tracking.md
     - Security Scanning: guides/security-scanning.md
     - Cost Analysis: guides/cost-analysis.md
     - Resource Cleanup: guides/resource-cleanup.md
     - Lambda Code: guides/lambda-code.md
     - Creator Tracking: guides/creator-tracking.md
-    - IaC Generation: guides/iac-generation.md
     - Query & Analysis: guides/query-analysis.md
     - Web UI: guides/web-ui.md
   - Guardrails:

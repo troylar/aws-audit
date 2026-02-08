@@ -11,6 +11,7 @@ This tutorial walks you through creating your first inventory snapshot, viewing 
 | **Cleanup** | Delete resources that were created *after* a snapshot, returning to that baseline state. |
 | **Purge** | Delete all resources *except* those matching protection rules. Filter by creator or date range. |
 | **Query** | Search and analyze resources across snapshots using SQL or built-in filters. |
+| **IaC Generation** | Generate Terraform or CDK code from a snapshot's resources. Requires `pip install aws-inventory-manager[generate]`. |
 
 ## Step 1: Create a Snapshot
 
@@ -82,9 +83,21 @@ awsinv snapshot export my-baseline -o inventory.csv
 awsinv snapshot export my-baseline -o inventory.yaml
 ```
 
+## Step 5: Generate IaC from Your Snapshot
+
+Turn your captured inventory into infrastructure as code:
+
+```bash
+pip install aws-inventory-manager[generate]
+awsinv generate terraform my-baseline --output ./terraform
+```
+
+This generates Terraform files for all resources in your snapshot. You can also generate CDK TypeScript or CDK Python. See the [IaC Generation guide](../guides/iac-generation.md) for full options.
+
 ## Next Steps
 
 - [Common Workflows](common-workflows.md) -- practical scenarios for daily use
+- [IaC Generation](../guides/iac-generation.md) -- generate Terraform or CDK from your snapshots
 - [Snapshots guide](../guides/snapshots.md) -- advanced snapshot features
 - [Change Tracking](../guides/change-tracking.md) -- deep-dive into delta analysis
 - [Security Scanning](../guides/security-scanning.md) -- find security issues

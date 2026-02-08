@@ -1,6 +1,6 @@
 # AWS Inventory Manager
 
-**Know Everything About Your AWS Environment**
+**Know Your AWS Environment. Generate Its Infrastructure as Code.**
 
 [![CI](https://github.com/troylar/aws-inventory-manager/actions/workflows/test.yml/badge.svg)](https://github.com/troylar/aws-inventory-manager/actions/workflows/test.yml)
 [![Coverage](https://codecov.io/gh/troylar/aws-inventory-manager/branch/main/graph/badge.svg)](https://codecov.io/gh/troylar/aws-inventory-manager)
@@ -10,7 +10,11 @@
 
 ---
 
-One CLI that inventories **27 AWS services and 80+ resource types**, then lets you track drift, enforce compliance, generate Terraform and CDK, scan for security issues, manage Lambda code, query resources with SQL, and clean up what shouldn't be there. 60+ commands. Zero agents running in your account.
+One CLI that inventories **27 AWS services and 80+ resource types**, then generates
+production-ready **Terraform, CDK TypeScript, and CDK Python** from what it finds.
+Also: drift detection, security scanning, compliance guardrails, resource cleanup,
+Lambda code management, SQL queries, and more. 60+ commands. Zero agents running
+in your account.
 
 !!! note
     "Snapshot" in this tool means an *inventory snapshot* (a catalog of what exists), not an AWS EBS or RDS snapshot. No AWS snapshots are created.
@@ -21,6 +25,14 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
     awsinv snapshot create my-baseline --region us-east-1,us-west-2
     awsinv snapshot report --detailed
     awsinv snapshot export my-baseline -o inventory.yaml --type s3 --tag env=prod
+    ```
+
+=== "Generate IaC"
+
+    ```bash
+    awsinv generate --snapshot my-baseline --output terraform/
+    awsinv generate --snapshot my-baseline --output cdk/ --format cdk-typescript
+    awsinv guardrails check --policy security.yaml --strict
     ```
 
 === "Drift & Security"
@@ -36,14 +48,6 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
     awsinv cleanup preview my-baseline        # See what would be deleted
     awsinv cleanup execute my-baseline --yes
     awsinv cleanup purge --exclude-tag env=prod --yes
-    ```
-
-=== "Generate IaC"
-
-    ```bash
-    awsinv generate --snapshot my-baseline --output terraform/
-    awsinv generate --snapshot my-baseline --output cdk/ --format cdk-typescript
-    awsinv guardrails check --policy security.yaml --strict
     ```
 
 === "Explore"
@@ -69,6 +73,22 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
 
     [:octicons-arrow-right-24: Snapshots guide](guides/snapshots.md)
 
+-   :material-code-braces:{ .lg .middle } **IaC Generation**
+
+    ---
+
+    Generate Terraform, CDK TypeScript, or CDK Python from live resources. AI-powered, layer-based chunking, automatic validation, guardrails integration.
+
+    [:octicons-arrow-right-24: IaC generation guide](guides/iac-generation.md)
+
+-   :material-shield-lock:{ .lg .middle } **Guardrails & Compliance**
+
+    ---
+
+    Custom YAML policy rules with BLOCK, AUTO-FIX, and WARN actions. AI-powered auto-fix, severity levels, environment overrides, CI/CD exit codes.
+
+    [:octicons-arrow-right-24: Guardrails overview](guardrails/index.md)
+
 -   :material-swap-horizontal:{ .lg .middle } **Change Tracking**
 
     ---
@@ -84,22 +104,6 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
     12+ CIS-aligned checks: public S3 buckets, open security groups, stale IAM credentials, unencrypted RDS, IMDSv1. Severity filtering and remediation guidance.
 
     [:octicons-arrow-right-24: Security scanning guide](guides/security-scanning.md)
-
--   :material-shield-lock:{ .lg .middle } **Guardrails & Compliance**
-
-    ---
-
-    Custom YAML policy rules with BLOCK, AUTO-FIX, and WARN actions. AI-powered auto-fix, severity levels, environment overrides, CI/CD exit codes.
-
-    [:octicons-arrow-right-24: Guardrails overview](guardrails/index.md)
-
--   :material-code-braces:{ .lg .middle } **IaC Generation**
-
-    ---
-
-    Generate Terraform, CDK TypeScript, or CDK Python from live resources. AI-powered, layer-based chunking, automatic validation, guardrails integration.
-
-    [:octicons-arrow-right-24: IaC generation guide](guides/iac-generation.md)
 
 -   :material-delete-sweep:{ .lg .middle } **Resource Cleanup**
 
@@ -182,12 +186,13 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
 | Problem | Solution |
 |---------|----------|
 | "What's actually running in our account?" | Snapshot 80+ resource types across all regions in one command |
+| "I need Terraform for existing resources" | Generate Terraform or CDK from live inventory with guardrails |
+| "Our generated IaC must meet security standards" | Built-in guardrails auto-fix encryption, tagging, and network policies |
 | "What changed since last week?" | Field-level configuration drift detection between snapshots |
 | "Are we following security best practices?" | 12+ CIS-aligned checks with severity filtering |
 | "Someone spun up a bunch of test resources" | Delete everything created after a baseline snapshot |
 | "I need to clean up a sandbox account" | Purge all resources except those matching tag filters |
 | "How much is each team spending?" | Per-inventory cost tracking with tag-based attribution |
-| "I need Terraform for existing resources" | Generate Terraform or CDK from live inventory with guardrails |
 | "What's in that Lambda function?" | Extract, view, and diff deployment packages across snapshots |
 | "Are our guardrails being followed?" | YAML-based compliance policies with BLOCK/WARN/AUTO-FIX |
 | "I need a resource explorer for the team" | Launch a web UI with `awsinv serve` |
@@ -200,6 +205,13 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
 pip install aws-inventory-manager
 awsinv snapshot create my-baseline --region us-east-1
 awsinv snapshot report --detailed
+```
+
+**Turn your inventory into IaC:**
+
+```bash
+pip install aws-inventory-manager[generate]
+awsinv generate terraform my-baseline --output ./terraform
 ```
 
 [:octicons-arrow-right-24: Full installation guide](getting-started/installation.md) | [:octicons-arrow-right-24: First snapshot tutorial](getting-started/first-snapshot.md)
