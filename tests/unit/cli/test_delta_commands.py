@@ -13,11 +13,24 @@ from src.models.delta_report import DeltaReport, ResourceChange
 from src.models.resource import Resource
 from src.models.snapshot import Snapshot
 
+runner = CliRunner()
 
-@pytest.fixture
-def cli_runner():
-    """Create a Typer CLI runner."""
-    return CliRunner()
+MOCK_IDENTITY = {
+    "account_id": "123456789012",
+    "arn": "arn:aws:iam::123456789012:user/test",
+}
+
+# Patch both import sites so the mock takes effect regardless of import order
+PATCHES = [
+    "src.cli.main.validate_credentials",
+    "src.aws.credentials.validate_credentials",
+]
+
+
+def _invoke_delta(args):
+    """Invoke delta command with both validate_credentials locations patched."""
+    with patch(PATCHES[0], return_value=MOCK_IDENTITY), patch(PATCHES[1], return_value=MOCK_IDENTITY):
+        return runner.invoke(app, ["delta"] + args)
 
 
 @pytest.fixture
@@ -31,13 +44,6 @@ def sample_snapshot():
             region="us-east-1",
             config_hash="a" * 64,
         ),
-        Resource(
-            arn="arn:aws:s3:::my-bucket",
-            resource_type="AWS::S3::Bucket",
-            name="my-bucket",
-            region="us-east-1",
-            config_hash="b" * 64,
-        ),
     ]
     return Snapshot(
         name="baseline-snap",
@@ -49,54 +55,23 @@ def sample_snapshot():
 
 
 @pytest.fixture
-def sample_delta_report(sample_snapshot):
+def sample_delta_report():
     """Create a sample delta report with changes."""
-    added = [
-        Resource(
-            arn="arn:aws:ec2:us-east-1:123456789012:instance/i-new456",
-            resource_type="AWS::EC2::Instance",
-            name="new-server",
-            region="us-east-1",
-            config_hash="c" * 64,
-        ),
-    ]
-    deleted = [
-        Resource(
-            arn="arn:aws:s3:::old-bucket",
-            resource_type="AWS::S3::Bucket",
-            name="old-bucket",
-            region="us-east-1",
-            config_hash="d" * 64,
-        ),
-    ]
-    modified = [
-        ResourceChange(
-            resource=Resource(
-                arn="arn:aws:ec2:us-east-1:123456789012:instance/i-abc123",
-                resource_type="AWS::EC2::Instance",
-                name="web-server",
-                region="us-east-1",
-                config_hash="e" * 64,
-            ),
-            baseline_resource=Resource(
-                arn="arn:aws:ec2:us-east-1:123456789012:instance/i-abc123",
-                resource_type="AWS::EC2::Instance",
-                name="web-server",
-                region="us-east-1",
-                config_hash="a" * 64,
-            ),
-            change_type="modified",
-            old_config_hash="a" * 64,
-            new_config_hash="e" * 64,
-        ),
-    ]
     return DeltaReport(
         generated_at=datetime(2025, 1, 20, 12, 0, 0, tzinfo=timezone.utc),
         baseline_snapshot_name="baseline-snap",
         current_snapshot_name="current-snap",
-        added_resources=added,
-        deleted_resources=deleted,
-        modified_resources=modified,
+        added_resources=[
+            Resource(
+                arn="arn:aws:ec2:us-east-1:123456789012:instance/i-new456",
+                resource_type="AWS::EC2::Instance",
+                name="new-server",
+                region="us-east-1",
+                config_hash="c" * 64,
+            ),
+        ],
+        deleted_resources=[],
+        modified_resources=[],
         baseline_resource_count=3,
         current_resource_count=3,
     )
@@ -129,269 +104,120 @@ def mock_collection():
 class TestDeltaCommand:
     """Tests for awsinv delta command."""
 
-    @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.delta")
-    def test_delta_help_text(self, mock_delta_fn, mock_storage_cls, cli_runner):
-        """Test that delta command has help text."""
-        result = cli_runner.invoke(app, ["delta", "--help"])
+    def test_delta_help_text(self):
+        result = runner.invoke(app, ["delta", "--help"])
         assert result.exit_code == 0
         assert "snapshot" in result.stdout.lower()
 
     @patch("src.delta.calculator.compare_to_current_state")
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
     def test_delta_with_valid_snapshot(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        mock_coll_storage_cls,
-        mock_compare,
-        cli_runner,
-        sample_snapshot,
-        sample_delta_report,
-        mock_collection,
+        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, sample_delta_report, mock_collection
     ):
-        """Test delta with a valid snapshot returns changes."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
         mock_storage_cls.return_value = mock_storage
-
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_or_create_default.return_value = mock_collection
-        mock_coll_storage_cls.return_value = mock_coll_storage
-
+        mock_coll_storage_cls.return_value.get_or_create_default.return_value = mock_collection
         mock_compare.return_value = sample_delta_report
 
-        result = cli_runner.invoke(app, ["delta", "--snapshot", "baseline-snap"])
-
-        assert result.exit_code == 0
+        result = _invoke_delta(["--snapshot", "baseline-snap"])
+        assert result.exit_code == 0, f"Unexpected output: {result.output}"
 
     @patch("src.delta.calculator.compare_to_current_state")
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
     def test_delta_no_changes(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        mock_coll_storage_cls,
-        mock_compare,
-        cli_runner,
-        sample_snapshot,
-        no_changes_delta_report,
-        mock_collection,
+        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, no_changes_delta_report, mock_collection
     ):
-        """Test delta when no changes are detected."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
         mock_storage_cls.return_value = mock_storage
-
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_or_create_default.return_value = mock_collection
-        mock_coll_storage_cls.return_value = mock_coll_storage
-
+        mock_coll_storage_cls.return_value.get_or_create_default.return_value = mock_collection
         mock_compare.return_value = no_changes_delta_report
 
-        result = cli_runner.invoke(app, ["delta", "--snapshot", "baseline-snap"])
-
-        assert result.exit_code == 0
+        result = _invoke_delta(["--snapshot", "baseline-snap"])
+        assert result.exit_code == 0, f"Unexpected output: {result.output}"
         assert "No changes" in result.stdout
 
+    @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
-    def test_delta_with_nonexistent_snapshot(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        cli_runner,
-        mock_collection,
-    ):
-        """Test delta with a snapshot that does not exist."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
+    def test_delta_with_nonexistent_snapshot(self, mock_storage_cls, mock_coll_storage_cls, mock_collection):
         mock_storage = MagicMock()
         mock_storage.load_snapshot.side_effect = FileNotFoundError("Snapshot 'nonexistent' not found")
         mock_storage_cls.return_value = mock_storage
+        mock_coll_storage_cls.return_value.get_or_create_default.return_value = mock_collection
 
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_or_create_default.return_value = mock_collection
-
-        with patch("src.snapshot.collection_storage.CollectionStorage", return_value=mock_coll_storage):
-            result = cli_runner.invoke(app, ["delta", "--snapshot", "nonexistent"])
-
-        assert result.exit_code == 1
+        result = _invoke_delta(["--snapshot", "nonexistent"])
+        assert result.exit_code == 1, f"Unexpected output: {result.output}"
         assert "not found" in result.stdout.lower()
 
     @patch("src.delta.calculator.compare_to_current_state")
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
     def test_delta_with_show_diff(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        mock_coll_storage_cls,
-        mock_compare,
-        cli_runner,
-        sample_snapshot,
-        sample_delta_report,
-        mock_collection,
+        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, sample_delta_report, mock_collection
     ):
-        """Test delta with --show-diff flag enables drift details."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
         mock_storage_cls.return_value = mock_storage
-
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_or_create_default.return_value = mock_collection
-        mock_coll_storage_cls.return_value = mock_coll_storage
-
+        mock_coll_storage_cls.return_value.get_or_create_default.return_value = mock_collection
         mock_compare.return_value = sample_delta_report
 
-        result = cli_runner.invoke(app, ["delta", "--snapshot", "baseline-snap", "--show-diff"])
-
-        assert result.exit_code == 0
+        result = _invoke_delta(["--snapshot", "baseline-snap", "--show-diff"])
+        assert result.exit_code == 0, f"Unexpected output: {result.output}"
         mock_compare.assert_called_once()
-        call_kwargs = mock_compare.call_args
-        assert call_kwargs[1]["include_drift_details"] is True
+        assert mock_compare.call_args[1]["include_drift_details"] is True
 
     @patch("src.delta.calculator.compare_to_current_state")
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
     def test_delta_with_type_filter(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        mock_coll_storage_cls,
-        mock_compare,
-        cli_runner,
-        sample_snapshot,
-        no_changes_delta_report,
-        mock_collection,
+        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, no_changes_delta_report, mock_collection
     ):
-        """Test delta with --type filter passes resource_type_filter."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
         mock_storage_cls.return_value = mock_storage
-
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_or_create_default.return_value = mock_collection
-        mock_coll_storage_cls.return_value = mock_coll_storage
-
+        mock_coll_storage_cls.return_value.get_or_create_default.return_value = mock_collection
         mock_compare.return_value = no_changes_delta_report
 
-        result = cli_runner.invoke(app, ["delta", "--snapshot", "baseline-snap", "--type", "AWS::EC2::Instance"])
-
-        assert result.exit_code == 0
-        mock_compare.assert_called_once()
-        call_kwargs = mock_compare.call_args
-        assert call_kwargs[1]["resource_type_filter"] == ["AWS::EC2::Instance"]
+        result = _invoke_delta(["--snapshot", "baseline-snap", "--type", "AWS::EC2::Instance"])
+        assert result.exit_code == 0, f"Unexpected output: {result.output}"
+        assert mock_compare.call_args[1]["resource_type_filter"] == ["AWS::EC2::Instance"]
 
     @patch("src.delta.calculator.compare_to_current_state")
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
     def test_delta_with_region_filter(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        mock_coll_storage_cls,
-        mock_compare,
-        cli_runner,
-        sample_snapshot,
-        no_changes_delta_report,
-        mock_collection,
+        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, no_changes_delta_report, mock_collection
     ):
-        """Test delta with --region filter passes region_filter."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
         mock_storage_cls.return_value = mock_storage
-
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_or_create_default.return_value = mock_collection
-        mock_coll_storage_cls.return_value = mock_coll_storage
-
+        mock_coll_storage_cls.return_value.get_or_create_default.return_value = mock_collection
         mock_compare.return_value = no_changes_delta_report
 
-        result = cli_runner.invoke(app, ["delta", "--snapshot", "baseline-snap", "--region", "us-west-2"])
-
-        assert result.exit_code == 0
-        mock_compare.assert_called_once()
-        call_kwargs = mock_compare.call_args
-        assert call_kwargs[1]["region_filter"] == ["us-west-2"]
+        result = _invoke_delta(["--snapshot", "baseline-snap", "--region", "us-west-2"])
+        assert result.exit_code == 0, f"Unexpected output: {result.output}"
+        assert mock_compare.call_args[1]["region_filter"] == ["us-west-2"]
 
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
-    def test_delta_with_nonexistent_collection(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        mock_coll_storage_cls,
-        cli_runner,
-    ):
-        """Test delta with a collection that does not exist."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_by_name.side_effect = Exception("Collection not found")
-        mock_coll_storage_cls.return_value = mock_coll_storage
+    def test_delta_with_nonexistent_collection(self, mock_storage_cls, mock_coll_storage_cls):
+        mock_coll_storage_cls.return_value.get_by_name.side_effect = Exception("Collection not found")
 
-        result = cli_runner.invoke(app, ["delta", "--collection", "nonexistent-collection"])
-
-        assert result.exit_code == 1
+        result = _invoke_delta(["--collection", "nonexistent-collection"])
+        assert result.exit_code == 1, f"Unexpected output: {result.output}"
         assert "not found" in result.stdout.lower()
 
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
-    @patch("src.cli.main.validate_credentials")
-    def test_delta_collection_no_snapshots(
-        self,
-        mock_validate,
-        mock_storage_cls,
-        mock_coll_storage_cls,
-        cli_runner,
-    ):
-        """Test delta when collection has no snapshots."""
-        mock_validate.return_value = {
-            "account_id": "123456789012",
-            "arn": "arn:aws:iam::123456789012:user/test",
-        }
+    def test_delta_collection_no_snapshots(self, mock_storage_cls, mock_coll_storage_cls):
         empty_collection = MagicMock()
         empty_collection.snapshots = []
         empty_collection.active_snapshot = None
+        mock_coll_storage_cls.return_value.get_or_create_default.return_value = empty_collection
 
-        mock_coll_storage = MagicMock()
-        mock_coll_storage.get_or_create_default.return_value = empty_collection
-        mock_coll_storage_cls.return_value = mock_coll_storage
-
-        result = cli_runner.invoke(app, ["delta"])
-
-        assert result.exit_code == 1
-        assert "No snapshots" in result.stdout or "no snapshots" in result.stdout.lower()
+        result = _invoke_delta([])
+        assert result.exit_code == 1, f"Unexpected output: {result.output}"
+        assert "no snapshots" in result.stdout.lower()

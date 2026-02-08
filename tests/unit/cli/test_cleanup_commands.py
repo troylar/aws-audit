@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
 from src.cli.main import app
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 runner = CliRunner()
 
@@ -171,7 +177,7 @@ class TestCleanupExecute:
         # Exit code is 2 because the typer.Exit(1) is caught by the
         # broad except Exception handler in cleanup_execute, which re-raises as Exit(2).
         assert result.exit_code == 2
-        assert "--yes" in result.stdout
+        assert "--yes" in _strip_ansi(result.output)
 
     def test_execute_with_yes_flag_success(self):
         preview_op = _make_operation(total_resources=3, skipped_count=0)
@@ -223,7 +229,7 @@ class TestCleanupExecute:
         result = runner.invoke(app, ["cleanup", "execute", "--help"])
 
         assert result.exit_code == 0
-        assert "--yes" in result.stdout
+        assert "--yes" in _strip_ansi(result.stdout)
 
 
 class TestCleanupPurge:
@@ -233,7 +239,7 @@ class TestCleanupPurge:
         result = runner.invoke(app, ["cleanup", "purge"])
 
         assert result.exit_code == 1
-        assert "--yes" in result.stdout
+        assert "--yes" in _strip_ansi(result.output)
 
     def test_purge_preview_mode(self):
         mock_resource = MagicMock()
@@ -284,8 +290,9 @@ class TestCleanupPurge:
 
     def test_purge_help(self):
         result = runner.invoke(app, ["cleanup", "purge", "--help"])
+        output = _strip_ansi(result.stdout)
 
         assert result.exit_code == 0
-        assert "--yes" in result.stdout
-        assert "--exclude-name" in result.stdout
-        assert "--exclude-tag" in result.stdout
+        assert "--yes" in output
+        assert "--exclude-name" in output
+        assert "--exclude-tag" in output
