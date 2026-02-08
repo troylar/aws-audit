@@ -28,10 +28,10 @@ For each region:
 
 ```bash
 # Default behavior: Use Config when available (recommended)
-awsinv snapshot create my-snapshot --regions us-east-1
+awsinv snapshot create my-snapshot --region us-east-1
 
 # Force direct API only (skip Config, useful for debugging)
-awsinv snapshot create my-snapshot --regions us-east-1 --no-config
+awsinv snapshot create my-snapshot --region us-east-1 --no-config
 
 # Multi-account via Config Aggregator
 awsinv snapshot create org-snapshot --config-aggregator my-org-aggregator
@@ -67,6 +67,6 @@ If these aren't met, the tool falls back to direct API calls automatically.
 ## Verifying Config Status
 
 ```bash
-awsinv config check --regions us-east-1
-awsinv config check --regions us-east-1 --verbose  # Shows per-type breakdown
+awsinv config check --region us-east-1
+awsinv config check --region us-east-1 --verbose  # Shows per-type breakdown
 ```

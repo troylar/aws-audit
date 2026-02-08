@@ -9,11 +9,11 @@ Real-world scenarios showing how teams use AWS Inventory Manager.
 
 ```bash
 # Morning: Capture clean state
-awsinv snapshot create morning-baseline --regions us-east-1
+awsinv snapshot create morning-baseline --region us-east-1
 
 # Evening: Clean up everything created during the day
 awsinv cleanup preview morning-baseline   # Always preview first!
-awsinv cleanup execute morning-baseline --confirm
+awsinv cleanup execute morning-baseline --yes
 ```
 
 ## Sandbox Account Cleanup
@@ -27,14 +27,14 @@ awsinv cleanup execute morning-baseline --confirm
 
 awsinv cleanup purge --protect-tag "baseline=true" --preview
 # Review the preview output carefully!
-awsinv cleanup purge --protect-tag "baseline=true" --confirm
+awsinv cleanup purge --protect-tag "baseline=true" --yes
 ```
 
 ## Pre/Post Deployment Comparison
 
 ```bash
 # Before deploy
-awsinv snapshot create pre-deploy-v2.3 --regions us-east-1,us-west-2
+awsinv snapshot create pre-deploy-v2.3 --region us-east-1,us-west-2
 
 # Deploy your changes...
 
@@ -46,8 +46,8 @@ awsinv delta --snapshot pre-deploy-v2.3 --show-diff
 
 ```bash
 # Weekly security scan
-awsinv snapshot create weekly-audit --regions us-east-1
-awsinv security scan --export security-report-$(date +%Y%m%d).json
+awsinv snapshot create weekly-audit --region us-east-1
+awsinv security scan --output security-report-$(date +%Y%m%d).json
 ```
 
 ## Cost Attribution by Team
@@ -68,7 +68,7 @@ The tool itself doesn't include scheduling, but you can add it:
 
 ```bash
 # Cron example (daily at midnight)
-0 0 * * * /usr/local/bin/awsinv snapshot create daily-$(date +\%Y\%m\%d) --regions us-east-1
+0 0 * * * /usr/local/bin/awsinv snapshot create daily-$(date +\%Y\%m\%d) --region us-east-1
 ```
 
 Or use AWS EventBridge + Lambda to trigger from within AWS.

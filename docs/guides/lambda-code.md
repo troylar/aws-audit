@@ -65,16 +65,16 @@ When creating snapshots, control how Lambda code is stored:
 
 ```bash
 # Default: Store code inline up to 10MB, hash-only for larger
-awsinv snapshot create my-snap --regions us-east-1
+awsinv snapshot create my-snap --region us-east-1
 
 # Store code inline up to 50MB
-awsinv snapshot create my-snap --regions us-east-1 --lambda-code-max-size 50
+awsinv snapshot create my-snap --region us-east-1 --lambda-code-max-size 50
 
 # Store all code externally (none inline)
-awsinv snapshot create my-snap --regions us-east-1 --lambda-code-max-size 0
+awsinv snapshot create my-snap --region us-east-1 --lambda-code-max-size 0
 
 # Store all code inline regardless of size
-awsinv snapshot create my-snap --regions us-east-1 --lambda-code-max-size -1
+awsinv snapshot create my-snap --region us-east-1 --lambda-code-max-size -1
 ```
 
 Large packages are stored to `~/.snapshots/lambda-code/<snapshot>/` and automatically loaded when needed.

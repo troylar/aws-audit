@@ -6,25 +6,25 @@ Snapshots are the foundation of AWS Inventory Manager. A snapshot captures a poi
 
 ```bash
 # Basic snapshot
-awsinv snapshot create my-baseline --regions us-east-1
+awsinv snapshot create my-baseline --region us-east-1
 
 # Multi-region
-awsinv snapshot create my-baseline --regions us-east-1,us-west-2
+awsinv snapshot create my-baseline --region us-east-1,us-west-2
 
 # Filter by service
-awsinv snapshot create my-baseline --regions us-east-1 --resource-types ec2,s3,lambda
+awsinv snapshot create my-baseline --region us-east-1 --type ec2,s3,lambda
 
 # Filter by tag
-awsinv snapshot create my-baseline --regions us-east-1 --include-tags "env=prod"
+awsinv snapshot create my-baseline --region us-east-1 --include-tags "env=prod"
 
 # Assign to inventory group
-awsinv snapshot create my-baseline --regions us-east-1 --inventory prod-baseline
+awsinv snapshot create my-baseline --region us-east-1 --inventory prod-baseline
 
 # Track who created each resource
-awsinv snapshot create my-baseline --regions us-east-1 --track-creators
+awsinv snapshot create my-baseline --region us-east-1 --track-creators
 
 # Collect Lambda deployment code
-awsinv snapshot create my-baseline --regions us-east-1 --lambda-code-max-size 50
+awsinv snapshot create my-baseline --region us-east-1 --lambda-code-max-size 50
 ```
 
 ## Listing Snapshots
@@ -43,7 +43,7 @@ awsinv snapshot report --snapshot my-baseline
 awsinv snapshot report --snapshot my-baseline --detailed
 
 # Export report
-awsinv snapshot report --snapshot my-baseline --export report.json
+awsinv snapshot report --snapshot my-baseline --output report.json
 ```
 
 ## Enriching Snapshots

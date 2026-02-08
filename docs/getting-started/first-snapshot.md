@@ -17,7 +17,7 @@ This tutorial walks you through creating your first inventory snapshot, viewing 
 Capture the current state of your AWS resources:
 
 ```bash
-awsinv snapshot create my-baseline --regions us-east-1
+awsinv snapshot create my-baseline --region us-east-1
 ```
 
 This takes 30--60 seconds depending on resource count. The tool scans 27 AWS services and catalogs 80+ resource types.

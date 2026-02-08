@@ -5,7 +5,7 @@ Track who created each resource in your AWS account using CloudTrail.
 ## Tracking During Snapshot Creation
 
 ```bash
-awsinv snapshot create my-snapshot --regions us-east-1 --track-creators
+awsinv snapshot create my-snapshot --region us-east-1 --track-creators
 ```
 
 ## Enriching Existing Snapshots
@@ -38,8 +38,8 @@ awsinv snapshot creators my-snapshot
 awsinv snapshot creators --detailed
 
 # Export to JSON or CSV
-awsinv snapshot creators --export creators.json
-awsinv snapshot creators --export creators.csv
+awsinv snapshot creators --output creators.json
+awsinv snapshot creators --output creators.csv
 ```
 
 Output includes:

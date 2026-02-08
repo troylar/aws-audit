@@ -12,7 +12,7 @@ awsinv security scan
 awsinv security scan --severity HIGH
 
 # Export results
-awsinv security scan --export security-report.json
+awsinv security scan --output security-report.json
 ```
 
 ## Security Checks
