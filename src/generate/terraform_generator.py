@@ -42,9 +42,9 @@ class GenerationResult:
         for layer in self.layers:
             if isinstance(layer, Layer):
                 total_resources += len(layer.resources)
-                if layer.status == LayerStatus.COMPLETED:
+                if layer.status in (LayerStatus.COMPLETED, LayerStatus.COMPLETED.value):
                     completed += 1
-                elif layer.status == LayerStatus.FAILED:
+                elif layer.status in (LayerStatus.FAILED, LayerStatus.FAILED.value):
                     failed += 1
             elif isinstance(layer, list):
                 total_resources += len(layer)

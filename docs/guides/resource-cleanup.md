@@ -11,7 +11,7 @@ Delete resources created *after* a baseline snapshot:
 awsinv cleanup preview my-baseline
 
 # Execute (requires confirmation)
-awsinv cleanup execute my-baseline --confirm
+awsinv cleanup execute my-baseline --yes
 ```
 
 ## Purge Mode
@@ -23,7 +23,7 @@ Delete *all* resources except those matching protection rules:
 awsinv cleanup purge --protect-tag "keep=true" --preview
 
 # Execute
-awsinv cleanup purge --protect-tag "keep=true" --confirm
+awsinv cleanup purge --protect-tag "keep=true" --yes
 ```
 
 ## Purge by Creator/Date
@@ -41,11 +41,11 @@ awsinv cleanup purge --from-snapshot my-snapshot --created-by "john.doe" --previ
 awsinv cleanup purge --from-snapshot my-snapshot --created-by "AWSReservedSSO_Developer" --preview
 
 # Delete resources created after a specific date
-awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --confirm
+awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --yes
 
 # Delete resources created within a date range
 awsinv cleanup purge --from-snapshot my-snapshot \
-  --created-after "2025-01-01" --created-before "2025-01-15" --confirm
+  --created-after "2025-01-01" --created-before "2025-01-15" --yes
 
 # Combine creator and date filters
 awsinv cleanup purge --from-snapshot my-snapshot \
@@ -133,7 +133,7 @@ protection:
 ## Safety Features
 
 - **Preview mode**: Always see what would happen before execution
-- **Confirmation required**: `--confirm` flag mandatory for destructive operations
+- **Confirmation required**: `--yes` flag mandatory for destructive operations
 - **Dependency ordering**: Deletes in correct order (instances before VPCs, etc.)
 - **Audit logging**: Every deletion logged to `~/.snapshots/audit-logs/`
 

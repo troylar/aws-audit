@@ -23,7 +23,7 @@ The `--show-diff` flag provides before/after values for each changed field, with
 ## JSON Export for CI/CD
 
 ```bash
-awsinv delta --snapshot my-baseline --export changes.json
+awsinv delta --snapshot my-baseline --output changes.json
 ```
 
 This produces a structured JSON file suitable for CI/CD pipeline integration, containing arrays of added, removed, and modified resources.

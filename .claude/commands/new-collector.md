@@ -301,7 +301,7 @@ Testing & Verification:
 [ ] Run unit tests: invoke test-unit
 [ ] Fix any test failures
 [ ] Test with real AWS account:
-    awsinv snapshot create test --regions us-east-1
+    awsinv snapshot create test --region us-east-1
 [ ] Verify resources are collected correctly
 
 Documentation:
@@ -318,7 +318,7 @@ Commit:
 💡 Helpful Resources:
 - Boto3 <ServiceName> docs: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/<service>.html
 - Check paginator availability: client.can_paginate('<method>')
-- Test with: awsinv snapshot create test-<service> --regions us-east-1
+- Test with: awsinv snapshot create test-<service> --region us-east-1
 ```
 
 ## Example Usage

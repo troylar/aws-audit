@@ -8,7 +8,7 @@ Configure most CLI options via environment variables. Useful for CI/CD pipelines
 |----------|-------------|-----------------|
 | `AWSINV_SNAPSHOT_ID` | Default snapshot name for queries | `--snapshot` |
 | `AWSINV_INVENTORY_ID` | Default inventory name | `--inventory` |
-| `AWSINV_REGION` | Comma-separated regions (e.g., `us-east-1,us-west-2`) | `--regions` |
+| `AWSINV_REGION` | Default region (repeatable via CLI: `-r us-east-1 -r us-west-2`) | `--region` |
 | `AWSINV_PROFILE` | AWS CLI profile to use | `--profile` |
 | `AWSINV_STORAGE_PATH` | Custom path for SQLite DB and logs | `--storage-path` |
 | `AWSINV_BEDROCK_MODEL_ID` | Bedrock model ID for IaC generation | `--model-id` |
@@ -34,5 +34,5 @@ env:
 
 steps:
   - run: awsinv snapshot create ci-baseline
-  - run: awsinv security scan --export report.json
+  - run: awsinv security scan --output report.json
 ```

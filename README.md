@@ -47,7 +47,7 @@ Or with pipx: `pipx install aws-inventory-manager`
 
 ```bash
 # 1. Capture current state
-awsinv snapshot create my-baseline --regions us-east-1
+awsinv snapshot create my-baseline --region us-east-1
 
 # 2. View what was captured
 awsinv snapshot report
@@ -60,7 +60,7 @@ awsinv security scan --severity HIGH
 
 # 5. Clean up (always preview first!)
 awsinv cleanup preview my-baseline
-awsinv cleanup execute my-baseline --confirm
+awsinv cleanup execute my-baseline --yes
 ```
 
 > See the full [Getting Started tutorial](https://troylar.github.io/aws-inventory-manager/getting-started/first-snapshot/) for a complete walkthrough.
@@ -104,18 +104,18 @@ Full documentation is available at **[troylar.github.io/aws-inventory-manager](h
 
 ```bash
 # Development environment reset
-awsinv snapshot create morning-baseline --regions us-east-1
+awsinv snapshot create morning-baseline --region us-east-1
 # ... work all day ...
-awsinv cleanup execute morning-baseline --confirm
+awsinv cleanup execute morning-baseline --yes
 
 # Pre/post deployment comparison
-awsinv snapshot create pre-deploy --regions us-east-1,us-west-2
+awsinv snapshot create pre-deploy --region us-east-1,us-west-2
 # ... deploy ...
 awsinv delta --snapshot pre-deploy --show-diff
 
 # Sandbox account cleanup
 awsinv cleanup purge --protect-tag "baseline=true" --preview
-awsinv cleanup purge --protect-tag "baseline=true" --confirm
+awsinv cleanup purge --protect-tag "baseline=true" --yes
 ```
 
 > See [Common Workflows](https://troylar.github.io/aws-inventory-manager/getting-started/common-workflows/) for more examples.

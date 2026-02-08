@@ -29,7 +29,7 @@ You are helping the user take AWS inventory snapshots across multiple AWS accoun
 
    # Take snapshot
    awsinv --profile <profile-name> snapshot create "snapshot-$(date +%Y%m%d)" \
-     --regions <regions> \
+     --region <regions> \
      --inventory <profile-name>-baseline
    ```
 

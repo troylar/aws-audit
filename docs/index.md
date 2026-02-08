@@ -18,7 +18,7 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
 === "Inventory"
 
     ```bash
-    awsinv snapshot create my-baseline --regions us-east-1,us-west-2
+    awsinv snapshot create my-baseline --region us-east-1,us-west-2
     awsinv snapshot report --detailed
     awsinv snapshot export my-baseline -o inventory.yaml --type s3 --tag env=prod
     ```
@@ -27,15 +27,15 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
 
     ```bash
     awsinv delta --snapshot my-baseline --show-diff
-    awsinv security scan --severity HIGH --export report.json
+    awsinv security scan --severity HIGH --output report.json
     ```
 
 === "Cleanup"
 
     ```bash
     awsinv cleanup preview my-baseline        # See what would be deleted
-    awsinv cleanup execute my-baseline --confirm
-    awsinv cleanup purge --exclude-tag env=prod --confirm
+    awsinv cleanup execute my-baseline --yes
+    awsinv cleanup purge --exclude-tag env=prod --yes
     ```
 
 === "Generate IaC"
@@ -198,7 +198,7 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
 
 ```bash
 pip install aws-inventory-manager
-awsinv snapshot create my-baseline --regions us-east-1
+awsinv snapshot create my-baseline --region us-east-1
 awsinv snapshot report --detailed
 ```
 

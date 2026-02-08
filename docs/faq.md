@@ -23,12 +23,12 @@ aws ec2 describe-instances --region us-east-1
 **Solutions:**
 
 1. **Enable AWS Config** for faster collection (up to 5x faster). The tool detects it automatically.
-2. **Limit regions:** Only scan regions you use with `--regions us-east-1,us-west-2`
-3. **Limit resource types:** Filter to specific services with `--resource-types ec2,s3,lambda`
+2. **Limit regions:** Only scan regions you use with `--region us-east-1,us-west-2`
+3. **Limit resource types:** Filter to specific services with `--type ec2,s3,lambda`
 
 ```bash
 # Faster: Only scan what you need
-awsinv snapshot create quick-snap --regions us-east-1 --resource-types ec2,lambda
+awsinv snapshot create quick-snap --region us-east-1 --type ec2,lambda
 ```
 
 ### "No resources found" in snapshot
@@ -71,8 +71,8 @@ awsinv snapshot create quick-snap --regions us-east-1 --resource-types ec2,lambd
 The tool includes built-in retry logic with exponential backoff. If you still see issues:
 
 1. Use `--no-config` to skip Config detection (reduces API calls)
-2. Limit regions with `--regions`
-3. Limit resource types with `--resource-types`
+2. Limit regions with `--region`
+3. Limit resource types with `--type`
 4. For very large accounts, consider running during off-peak hours
 
 ### Large accounts (50k+ resources)
@@ -131,7 +131,7 @@ The tool doesn't include scheduling, but you can add it:
 
 ```bash
 # Cron example (daily at midnight)
-0 0 * * * /usr/local/bin/awsinv snapshot create daily-$(date +\%Y\%m\%d) --regions us-east-1
+0 0 * * * /usr/local/bin/awsinv snapshot create daily-$(date +\%Y\%m\%d) --region us-east-1
 ```
 
 Or use AWS EventBridge + Lambda to trigger from within AWS.
@@ -154,5 +154,5 @@ When you run cleanup execute against a baseline, the tool deletes resources crea
 **Best practice:** Always include networking infrastructure in your baseline snapshot, or protect it with tags:
 
 ```bash
-awsinv cleanup execute my-baseline --protect-tag "layer=network" --confirm
+awsinv cleanup execute my-baseline --protect-tag "layer=network" --yes
 ```

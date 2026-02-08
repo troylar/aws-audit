@@ -217,7 +217,7 @@ def version():
 
 
 # Inventory commands group
-inventory_app = typer.Typer(help="Inventory management commands")
+inventory_app = typer.Typer(help="Manage resource inventories (named collections of snapshots, not AWS SSM Inventory)")
 app.add_typer(inventory_app, name="inventory")
 
 
@@ -643,7 +643,7 @@ def inventory_migrate(
 @inventory_app.command("delete")
 def inventory_delete(
     name: str = typer.Argument(..., help="Inventory name to delete", envvar="AWSINV_INVENTORY_ID"),
-    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompts"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompts"),
     profile: Optional[str] = typer.Option(
         None,
         "--profile",
@@ -713,7 +713,7 @@ def inventory_delete(
             )
 
         # T028: Confirmation prompt
-        if not force:
+        if not yes:
             console.print()
             confirm = typer.confirm(f"Delete inventory '{name}'?", default=False)
             if not confirm:
@@ -722,14 +722,14 @@ def inventory_delete(
 
         # T030: Ask about snapshot file deletion
         delete_snapshots = False
-        if inventory.snapshots and not force:
+        if inventory.snapshots and not yes:
             console.print()
             delete_snapshots = typer.confirm(
                 f"Delete {len(inventory.snapshots)} snapshot file(s) too?",
                 default=False,
             )
-        elif inventory.snapshots and force:
-            # With --force, don't delete snapshots by default (safer)
+        elif inventory.snapshots and yes:
+            # With --yes, don't delete snapshots by default (safer)
             delete_snapshots = False
 
         # T031, T032: Delete inventory (already implemented in InventoryStorage)
@@ -761,20 +761,23 @@ def inventory_delete(
 
 
 # Snapshot commands group
-snapshot_app = typer.Typer(help="Snapshot management commands")
+snapshot_app = typer.Typer(
+    help="Manage inventory snapshots (point-in-time captures of AWS resource metadata, not EBS/RDS snapshots)"
+)
 app.add_typer(snapshot_app, name="snapshot")
 
 # Config commands group
-config_app = typer.Typer(help="AWS Config integration commands")
+config_app = typer.Typer(help="AWS Config integration (uses AWS Config service for resource collection)")
 app.add_typer(config_app, name="config")
 
 
 @config_app.command("check")
 def config_check(
-    regions: Optional[str] = typer.Option(
+    region: Optional[List[str]] = typer.Option(
         None,
-        "--regions",
-        help="Comma-separated list of regions (default: us-east-1)",
+        "--region",
+        "-r",
+        help="Region to check (repeatable, e.g. --region us-east-1 --region us-west-2)",
         envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
     profile: Optional[str] = typer.Option(
@@ -803,7 +806,10 @@ def config_check(
         CONFIG_SUPPORTED_TYPES,
     )
 
-    region_list = (regions or "us-east-1").split(",")
+    if region:
+        region_list = list(region)
+    else:
+        region_list = ["us-east-1"]
 
     # Create session
     session_kwargs = {}
@@ -885,10 +891,11 @@ def snapshot_create(
         help="Snapshot name (auto-generated if not provided)",
         envvar="AWSINV_SNAPSHOT_ID",
     ),
-    regions: Optional[str] = typer.Option(
+    region: Optional[List[str]] = typer.Option(
         None,
-        "--regions",
-        help="Comma-separated list of regions (default: us-east-1)",
+        "--region",
+        "-r",
+        help="Region to snapshot (repeatable, e.g. --region us-east-1 --region us-west-2)",
         envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
     profile: Optional[str] = typer.Option(
@@ -1051,8 +1058,8 @@ def snapshot_create(
 
         # Parse regions - default to us-east-1
         region_list = []
-        if regions:
-            region_list = [r.strip() for r in regions.split(",")]
+        if region:
+            region_list = list(region)
         elif config.regions:
             region_list = config.regions
         else:
@@ -1446,8 +1453,15 @@ def snapshot_create(
 
 
 @snapshot_app.command("list")
-def snapshot_list(profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name")):
-    """List all available snapshots."""
+def snapshot_list(
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
+):
+    """List all available snapshots.
+
+    See also: 'snapshot show' for detailed resource contents, 'snapshot report' for aggregated summary.
+    """
     try:
         storage = SnapshotStorage(config.storage_path)
         snapshots = storage.list_snapshots()
@@ -1483,9 +1497,14 @@ def snapshot_list(profile: Optional[str] = typer.Option(None, "--profile", "-p",
 @snapshot_app.command("show")
 def snapshot_show(
     name: str = typer.Argument(..., help="Snapshot name to display"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
-    """Display detailed information about a snapshot."""
+    """Display detailed information about a snapshot.
+
+    See also: 'snapshot list' for all snapshots, 'snapshot report' for aggregated summary.
+    """
     try:
         storage = SnapshotStorage(config.storage_path)
         snapshot = storage.load_snapshot(name)
@@ -1535,7 +1554,9 @@ def snapshot_show(
 @snapshot_app.command("set-active")
 def snapshot_set_active(
     name: str = typer.Argument(..., help="Snapshot name to set as active"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Set a snapshot as the active snapshot.
 
@@ -1559,7 +1580,9 @@ def snapshot_set_active(
 def snapshot_delete(
     name: str = typer.Argument(..., help="Snapshot name to delete"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Delete a snapshot.
 
@@ -1605,8 +1628,8 @@ def snapshot_delete(
 @snapshot_app.command("enrich-creators")
 def snapshot_enrich_creators(
     name: Optional[str] = typer.Argument(None, help="Snapshot name (defaults to active snapshot)"),
-    regions: Optional[str] = typer.Option(
-        None, "--regions", help="Comma-separated list of regions to query CloudTrail"
+    region: Optional[List[str]] = typer.Option(
+        None, "--region", "-r", help="Region to query CloudTrail (repeatable)", envvar=["AWSINV_REGION", "AWS_REGION"]
     ),
     profile: Optional[str] = typer.Option(
         None,
@@ -1615,7 +1638,7 @@ def snapshot_enrich_creators(
         help="AWS profile name",
         envvar=["AWSINV_PROFILE", "AWS_PROFILE"],
     ),
-    days_back: int = typer.Option(90, "--days", "-d", help="Days to look back in CloudTrail (max 90)"),
+    days_back: int = typer.Option(90, "--days", help="Days to look back in CloudTrail (max 90)"),
 ):
     """Enrich an existing snapshot with creator information from CloudTrail.
 
@@ -1658,8 +1681,8 @@ def snapshot_enrich_creators(
         console.print(f"   Resources: {snapshot.resource_count}")
 
         # Parse regions
-        if regions:
-            region_list = [r.strip() for r in regions.split(",")]
+        if region:
+            region_list = list(region)
         else:
             # Use regions from snapshot metadata if available
             region_list = snapshot.metadata.get("regions", ["us-east-1"])
@@ -1805,7 +1828,9 @@ def snapshot_enrich_creators(
 def snapshot_rename(
     old_name: str = typer.Argument(..., help="Current snapshot name"),
     new_name: str = typer.Argument(..., help="New snapshot name"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Rename a snapshot.
 
@@ -1841,22 +1866,32 @@ def snapshot_rename(
 @snapshot_app.command("report")
 def snapshot_report(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (required if multiple exist)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
-    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location"),
-    resource_type: Optional[List[str]] = typer.Option(
-        None, "--resource-type", help="Filter by resource type (can specify multiple)"
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Inventory name (required if multiple exist)", envvar="AWSINV_INVENTORY_ID"
     ),
-    region: Optional[List[str]] = typer.Option(None, "--region", help="Filter by region (can specify multiple)"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
+    storage_path: Optional[str] = typer.Option(
+        None,
+        "--storage-path",
+        help="Override storage location",
+        envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
+    ),
+    type: Optional[List[str]] = typer.Option(None, "--type", "-t", help="Filter by resource type (repeatable)"),
+    region: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by region (can specify multiple)", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     detailed: bool = typer.Option(
         False,
         "--detailed",
         help="Show detailed resource information (ARN, tags, creation date)",
     ),
     page_size: int = typer.Option(100, "--page-size", help="Resources per page in detailed view (default: 100)"),
-    export: Optional[str] = typer.Option(
+    output_file: Optional[str] = typer.Option(
         None,
-        "--export",
+        "--output",
+        "-o",
         help="Export report to file (format detected from extension: .json, .csv, .txt)",
     ),
 ):
@@ -1864,6 +1899,8 @@ def snapshot_report(
 
     Shows aggregated resource counts by service, region, and type with
     visual progress bars and formatted output. Can export to JSON, CSV, or TXT formats.
+
+    See also: 'snapshot export' for full resource data export (including raw_config and tags).
 
     Snapshot Selection (in order of precedence):
       1. Explicit snapshot name argument
@@ -1874,11 +1911,11 @@ def snapshot_report(
         awsinv snapshot report                          # Report on active snapshot
         awsinv snapshot report baseline-2025-01         # Report on specific snapshot
         awsinv snapshot report --inventory prod         # Most recent snapshot from 'prod' inventory
-        awsinv snapshot report --resource-type ec2      # Filter by resource type
+        awsinv snapshot report --type ec2               # Filter by resource type
         awsinv snapshot report --region us-east-1       # Filter by region
-        awsinv snapshot report --resource-type ec2 --resource-type lambda  # Multiple filters
-        awsinv snapshot report --export report.json     # Export full report to JSON
-        awsinv snapshot report --export resources.csv   # Export resources to CSV
+        awsinv snapshot report --type ec2 --type lambda # Multiple filters
+        awsinv snapshot report --output report.json     # Export full report to JSON
+        awsinv snapshot report --output resources.csv   # Export resources to CSV
         awsinv snapshot report --export summary.txt     # Export summary to TXT
         awsinv snapshot report --detailed --export details.json  # Export detailed view
     """
@@ -1987,11 +2024,11 @@ def snapshot_report(
             raise typer.Exit(code=0)
 
         # Create filter criteria if filters provided
-        has_filters = bool(resource_type or region)
+        has_filters = bool(type or region)
         criteria = None
         if has_filters:
             criteria = FilterCriteria(
-                resource_types=resource_type if resource_type else None,
+                resource_types=type if type else None,
                 regions=region if region else None,
             )
 
@@ -2005,10 +2042,10 @@ def snapshot_report(
             detailed_resources = list(reporter.get_detailed_resources(criteria))
 
             # Export mode
-            if export:
+            if output_file:
                 try:
                     # Detect format from file extension
-                    export_format = detect_format(export)
+                    export_format = detect_format(output_file)
 
                     # Export based on format
                     if export_format == "json":
@@ -2016,14 +2053,14 @@ def snapshot_report(
                         summary = (
                             reporter.generate_filtered_summary(criteria) if criteria else reporter.generate_summary()
                         )
-                        export_path = export_report_json(export, metadata, summary, detailed_resources)
+                        export_path = export_report_json(output_file, metadata, summary, detailed_resources)
                         console.print(
                             f"✓ Exported {len(detailed_resources):,} resources to JSON: {export_path}",
                             style="bold green",
                         )
                     elif export_format == "csv":
                         # For CSV, export detailed resources
-                        export_path = export_report_csv(export, detailed_resources)
+                        export_path = export_report_csv(output_file, detailed_resources)
                         console.print(
                             f"✓ Exported {len(detailed_resources):,} resources to CSV: {export_path}",
                             style="bold green",
@@ -2033,7 +2070,7 @@ def snapshot_report(
                         summary = (
                             reporter.generate_filtered_summary(criteria) if criteria else reporter.generate_summary()
                         )
-                        export_path = export_report_txt(export, metadata, summary)
+                        export_path = export_report_txt(output_file, metadata, summary)
                         console.print(
                             f"✓ Exported summary to TXT: {export_path}",
                             style="bold green",
@@ -2055,8 +2092,8 @@ def snapshot_report(
                 # Display mode - show filter information if applied
                 if criteria:
                     console.print("\n[bold cyan]Filters Applied:[/bold cyan]")
-                    if resource_type:
-                        console.print(f"  • Resource Types: {', '.join(resource_type)}")
+                    if type:
+                        console.print(f"  • Resource Types: {', '.join(type)}")
                     if region:
                         console.print(f"  • Regions: {', '.join(region)}")
                     console.print(
@@ -2074,17 +2111,17 @@ def snapshot_report(
                 summary = reporter.generate_summary()
 
             # Export mode
-            if export:
+            if output_file:
                 try:
                     # Detect format from file extension
-                    export_format = detect_format(export)
+                    export_format = detect_format(output_file)
 
                     # Export based on format
                     if export_format == "json":
                         # For JSON, export full report structure
                         # Get all resources for complete export
                         all_resources = list(reporter.get_detailed_resources(criteria))
-                        export_path = export_report_json(export, metadata, summary, all_resources)
+                        export_path = export_report_json(output_file, metadata, summary, all_resources)
                         console.print(
                             f"✓ Exported {summary.total_count:,} resources to JSON: {export_path}",
                             style="bold green",
@@ -2092,14 +2129,14 @@ def snapshot_report(
                     elif export_format == "csv":
                         # For CSV, export resources
                         all_resources = list(reporter.get_detailed_resources(criteria))
-                        export_path = export_report_csv(export, all_resources)
+                        export_path = export_report_csv(output_file, all_resources)
                         console.print(
                             f"✓ Exported {len(all_resources):,} resources to CSV: {export_path}",
                             style="bold green",
                         )
                     elif export_format == "txt":
                         # For TXT, export summary only
-                        export_path = export_report_txt(export, metadata, summary)
+                        export_path = export_report_txt(output_file, metadata, summary)
                         console.print(
                             f"✓ Exported summary to TXT: {export_path}",
                             style="bold green",
@@ -2121,8 +2158,8 @@ def snapshot_report(
                 # Display mode - show filter information
                 if criteria:
                     console.print("\n[bold cyan]Filters Applied:[/bold cyan]")
-                    if resource_type:
-                        console.print(f"  • Resource Types: {', '.join(resource_type)}")
+                    if type:
+                        console.print(f"  • Resource Types: {', '.join(type)}")
                     if region:
                         console.print(f"  • Regions: {', '.join(region)}")
                     console.print(
@@ -2144,21 +2181,34 @@ def snapshot_report(
 @snapshot_app.command("export")
 def snapshot_export(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Use most recent snapshot from inventory"),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Use most recent snapshot from inventory", envvar="AWSINV_INVENTORY_ID"
+    ),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path (stdout if omitted)"),
     format: Optional[str] = typer.Option(None, "--format", "-f", help="Output format: yaml, json, csv"),
     type: Optional[List[str]] = typer.Option(None, "--type", "-t", help="Filter by resource type (repeatable)"),
-    region: Optional[List[str]] = typer.Option(None, "--region", "-r", help="Filter by region (repeatable)"),
+    region: Optional[List[str]] = typer.Option(
+        None, "--region", "-r", help="Filter by region (repeatable)", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     tag: Optional[List[str]] = typer.Option(None, "--tag", help="Filter by tag Key=Value (repeatable)"),
-    search: Optional[str] = typer.Option(None, "--search", "-s", help="Filter by ARN substring"),
+    search: Optional[str] = typer.Option(None, "--search", help="Filter by ARN substring"),
     no_config: bool = typer.Option(False, "--no-config", help="Exclude raw config from output"),
-    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    storage_path: Optional[str] = typer.Option(
+        None,
+        "--storage-path",
+        help="Override storage location",
+        envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Export snapshot resources to YAML, JSON, or CSV.
 
     Exports full resource data including raw_config, tags, and metadata.
     Supports filtering by type, region, tag, and ARN search.
+
+    See also: 'snapshot report' for an aggregated summary view (counts by service/region/type).
 
     Output format is auto-detected from file extension, or defaults to YAML
     for stdout.
@@ -2366,12 +2416,20 @@ def snapshot_export(
 @snapshot_app.command("creators")
 def snapshot_creators(
     snapshot_name: Optional[str] = typer.Argument(None, help="Snapshot name (default: active snapshot)"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
-    storage_path: Optional[str] = typer.Option(None, "--storage-path", help="Override storage location"),
-    detailed: bool = typer.Option(False, "--detailed", "-d", help="Show individual resources for each creator"),
-    export: Optional[str] = typer.Option(
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
+    storage_path: Optional[str] = typer.Option(
         None,
-        "--export",
+        "--storage-path",
+        help="Override storage location",
+        envvar=["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
+    ),
+    detailed: bool = typer.Option(False, "--detailed", help="Show individual resources for each creator"),
+    output_file: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
         help="Export to file (format detected from extension: .json, .csv)",
     ),
 ):
@@ -2428,11 +2486,11 @@ def snapshot_creators(
         resources_without_creator = resource_store.get_resources_without_creator(target_snapshot_name)
 
         # Export mode
-        if export:
+        if output_file:
             import json
             from pathlib import Path
 
-            export_path = Path(export)
+            export_path = Path(output_file)
             ext = export_path.suffix.lower()
 
             if ext == ".json":
@@ -2613,19 +2671,30 @@ def delta(
         None,
         "--snapshot",
         help="Baseline snapshot name (default: active from inventory)",
+        envvar="AWSINV_SNAPSHOT_ID",
     ),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')"),
-    resource_type: Optional[str] = typer.Option(None, "--resource-type", help="Filter by resource type"),
-    region: Optional[str] = typer.Option(None, "--region", help="Filter by region"),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Inventory name (default: 'default')", envvar="AWSINV_INVENTORY_ID"
+    ),
+    type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by resource type"),
+    region: Optional[str] = typer.Option(
+        None, "--region", help="Filter by region", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     show_details: bool = typer.Option(False, "--show-details", help="Show detailed resource information"),
     show_diff: bool = typer.Option(False, "--show-diff", help="Show field-level configuration differences"),
-    export: Optional[str] = typer.Option(None, "--export", help="Export to file (JSON or CSV based on extension)"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    output: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Export to file (JSON or CSV based on extension)"
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """View resource changes since snapshot.
 
     Compares current AWS state to the snapshot and shows added, deleted,
     and modified resources. Use --show-diff to see field-level configuration changes.
+
+    See also: 'query compare' to compare two snapshots against each other.
     """
     try:
         # T021: Get inventory and use its active snapshot
@@ -2703,7 +2772,7 @@ def delta(
         console.print(f"   Created: {reference_snapshot.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
 
         # Prepare filters
-        resource_type_filter = [resource_type] if resource_type else None
+        resource_type_filter = [type] if type else None
         region_filter = [region] if region else None
 
         # Use profile parameter if provided, otherwise use config
@@ -2728,11 +2797,11 @@ def delta(
         reporter.display(delta_report, show_details=show_details)
 
         # Export if requested
-        if export:
-            if export.endswith(".json"):
-                reporter.export_json(delta_report, export)
-            elif export.endswith(".csv"):
-                reporter.export_csv(delta_report, export)
+        if output:
+            if output.endswith(".json"):
+                reporter.export_json(delta_report, output)
+            elif output.endswith(".csv"):
+                reporter.export_csv(delta_report, output)
             else:
                 console.print("✗ Unsupported export format. Use .json or .csv", style="bold red")
                 raise typer.Exit(code=1)
@@ -2759,16 +2828,23 @@ def cost(
         None,
         "--snapshot",
         help="Baseline snapshot name (default: active from inventory)",
+        envvar="AWSINV_SNAPSHOT_ID",
     ),
-    inventory: Optional[str] = typer.Option(None, "--inventory", help="Inventory name (default: 'default')"),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", help="Inventory name (default: 'default')", envvar="AWSINV_INVENTORY_ID"
+    ),
     start_date: Optional[str] = typer.Option(
         None, "--start-date", help="Start date (YYYY-MM-DD, default: snapshot date)"
     ),
     end_date: Optional[str] = typer.Option(None, "--end-date", help="End date (YYYY-MM-DD, default: today)"),
     granularity: str = typer.Option("MONTHLY", "--granularity", help="Cost granularity: DAILY or MONTHLY"),
     show_services: bool = typer.Option(True, "--show-services/--no-services", help="Show service breakdown"),
-    export: Optional[str] = typer.Option(None, "--export", help="Export to file (JSON or CSV based on extension)"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    output: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Export to file (JSON or CSV based on extension)"
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Analyze costs for resources in a specific inventory.
 
@@ -2923,11 +2999,11 @@ def cost(
             reporter.display(cost_report, show_services=show_services, has_deltas=has_deltas)
 
             # Export if requested
-            if export:
-                if export.endswith(".json"):
-                    reporter.export_json(cost_report, export)
-                elif export.endswith(".csv"):
-                    reporter.export_csv(cost_report, export)
+            if output:
+                if output.endswith(".json"):
+                    reporter.export_json(cost_report, output)
+                elif output.endswith(".csv"):
+                    reporter.export_csv(cost_report, output)
                 else:
                     console.print(
                         "✗ Unsupported export format. Use .json or .csv",
@@ -2959,21 +3035,31 @@ def cost(
 # Security Commands
 # ============================================================================
 
-security_app = typer.Typer(help="Security scanning and compliance checking commands")
+security_app = typer.Typer(
+    help="Security scanning (checks resource configurations against best practices, not AWS Security Hub)"
+)
 
 
 @security_app.command(name="scan")
 def security_scan(
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name to scan"),
-    inventory: Optional[str] = typer.Option(None, "--inventory", "-i", help="Inventory name (uses active snapshot)"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Snapshot name to scan", envvar="AWSINV_SNAPSHOT_ID"
+    ),
+    inventory: Optional[str] = typer.Option(
+        None, "--inventory", "-i", help="Inventory name (uses active snapshot)", envvar="AWSINV_INVENTORY_ID"
+    ),
     storage_dir: Optional[str] = typer.Option(None, "--storage-dir", help="Snapshot storage directory"),
     severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity: critical, high, medium, low"),
-    export: Optional[str] = typer.Option(None, "--export", help="Export findings to file"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Export findings to file"),
     format: str = typer.Option("json", "--format", "-f", help="Export format: json or csv"),
     cis_only: bool = typer.Option(False, "--cis-only", help="Show only findings with CIS Benchmark mappings"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
 ):
     """Scan a snapshot for security misconfigurations and compliance issues.
+
+    See also: 'guardrails check' for IaC policy compliance checks on generated code.
 
     Performs comprehensive security checks including:
     - Public S3 buckets
@@ -3090,8 +3176,8 @@ def security_scan(
             )
 
             # Display findings
-            output = reporter.format_terminal(findings_to_report)
-            console.print(output)
+            terminal_output = reporter.format_terminal(findings_to_report)
+            console.print(terminal_output)
 
             # Show CIS summary
             cis_mapper = CISMapper()
@@ -3106,13 +3192,13 @@ def security_scan(
                 )
 
         # Export if requested
-        if export:
+        if output:
             if format.lower() == "json":
-                reporter.export_json(findings_to_report, export)
-                console.print(f"\n✓ Exported findings to: [cyan]{export}[/cyan] (JSON)")
+                reporter.export_json(findings_to_report, output)
+                console.print(f"\n✓ Exported findings to: [cyan]{output}[/cyan] (JSON)")
             elif format.lower() == "csv":
-                reporter.export_csv(findings_to_report, export)
-                console.print(f"\n✓ Exported findings to: [cyan]{export}[/cyan] (CSV)")
+                reporter.export_csv(findings_to_report, output)
+                console.print(f"\n✓ Exported findings to: [cyan]{output}[/cyan] (CSV)")
             else:
                 console.print(
                     f"✗ Invalid format: {format}. Must be 'json' or 'csv'",
@@ -3136,7 +3222,7 @@ app.add_typer(security_app, name="security")
 
 
 # Cleanup commands (destructive operations)
-cleanup_app = typer.Typer(help="Delete resources - returns environment to baseline or removes unprotected resources")
+cleanup_app = typer.Typer(help="Revert environment to baseline by removing resources added after a baseline snapshot")
 
 
 @cleanup_app.command("preview")
@@ -3145,11 +3231,15 @@ def cleanup_preview(
         ..., help="Baseline snapshot - resources created after this will be deleted"
     ),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     resource_types: Optional[List[str]] = typer.Option(
         None, "--type", help="Filter by resource types (e.g., AWS::EC2::Instance)"
     ),
-    regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
+    regions: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     protect_tags: Optional[List[str]] = typer.Option(
         None,
         "--protect-tag",
@@ -3162,6 +3252,9 @@ def cleanup_preview(
 
     Shows what resources have been created since the snapshot without
     performing any deletions. This is a safe dry-run operation.
+
+    See also: 'cleanup execute' to actually perform the deletion, 'cleanup purge' to delete
+    all unprotected resources regardless of snapshot baseline.
 
     Examples:
         # Preview resources created since a baseline snapshot
@@ -3265,7 +3358,7 @@ def cleanup_preview(
             console.print(
                 f"\n[yellow]⚠️  {deletable_count} resource(s) would be DELETED if you run 'cleanup execute'[/yellow]"
             )
-            console.print("[dim]Use 'awsinv cleanup execute' with --confirm to actually delete resources[/dim]\n")
+            console.print("[dim]Use 'awsinv cleanup execute' with --yes to actually delete resources[/dim]\n")
         else:
             console.print("\n[green]✓ No resources would be deleted - environment matches baseline[/green]\n")
 
@@ -3284,37 +3377,45 @@ def cleanup_execute(
         ..., help="Baseline snapshot - resources created after this will be deleted"
     ),
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
-    regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
+    regions: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     protect_tags: Optional[List[str]] = typer.Option(
         None,
         "--protect-tag",
         help="Protect resources with tag (format: key=value, can repeat)",
     ),
     config_file: Optional[str] = typer.Option(None, "--config", help="Path to protection rules config file"),
-    confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt (REQUIRED for execution)"),
 ):
     """DELETE resources created after a baseline snapshot.
+
+    Reverts environment to baseline by removing resources added after the baseline snapshot.
 
     ⚠️  DESTRUCTIVE OPERATION: This will permanently delete AWS resources!
 
     Deletes resources that were created after the snapshot, returning
     your AWS environment to that baseline state. Protected resources are skipped.
 
+    See also: 'cleanup preview' for a safe dry-run, 'cleanup purge' to delete all
+    unprotected resources regardless of snapshot baseline.
+
     Examples:
         # Delete resources created after baseline, protecting tagged resources
-        awsinv cleanup execute my-snapshot --protect-tag "project=baseline" --confirm
+        awsinv cleanup execute my-snapshot --protect-tag "project=baseline" --yes
 
         # Use config file for protection rules
-        awsinv cleanup execute my-snapshot --config .awsinv-cleanup.yaml --confirm
+        awsinv cleanup execute my-snapshot --config .awsinv-cleanup.yaml --yes
 
         # Delete only EC2 instances, skip prompt
-        awsinv cleanup execute my-snapshot --confirm --yes --type AWS::EC2::Instance
+        awsinv cleanup execute my-snapshot --yes --type AWS::EC2::Instance
 
         # Delete in specific region with profile
-        awsinv cleanup execute my-snapshot --confirm --region us-east-1 --profile prod
+        awsinv cleanup execute my-snapshot --yes --region us-east-1 --profile prod
     """
     from ..aws.credentials import get_account_id
     from ..restore.audit import AuditStorage
@@ -3323,11 +3424,11 @@ def cleanup_execute(
     from ..restore.safety import SafetyChecker
 
     try:
-        # Require --confirm flag
-        if not confirm:
-            console.print("\n[red]ERROR: --confirm flag is required for deletion operations[/red]")
+        # Require --yes flag
+        if not yes:
+            console.print("\n[red]ERROR: --yes flag is required for deletion operations[/red]")
             console.print("[yellow]This is a safety measure to prevent accidental deletions[/yellow]")
-            console.print("\n[dim]Run with: awsinv cleanup execute <snapshot> --confirm[/dim]\n")
+            console.print("\n[dim]Run with: awsinv cleanup execute <snapshot> --yes[/dim]\n")
             raise typer.Exit(code=1)
 
         console.print("\n[bold red]⚠️  DESTRUCTIVE OPERATION[/bold red]\n")
@@ -3541,9 +3642,13 @@ def _resource_matches_exclusion(
 @cleanup_app.command("purge")
 def cleanup_purge(
     account_id: str = typer.Option(None, "--account-id", help="AWS account ID (auto-detected if not provided)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     resource_types: Optional[List[str]] = typer.Option(None, "--type", help="Filter by resource types"),
-    regions: Optional[List[str]] = typer.Option(None, "--region", help="Filter by AWS regions"),
+    regions: Optional[List[str]] = typer.Option(
+        None, "--region", help="Filter by AWS regions", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     protect_tags: Optional[List[str]] = typer.Option(
         None,
         "--protect-tag",
@@ -3564,7 +3669,6 @@ def cleanup_purge(
     from_snapshot: Optional[str] = typer.Option(
         None,
         "--from-snapshot",
-        "-s",
         help="Use resources from an enriched snapshot (required for --created-by filters)",
     ),
     created_by: Optional[str] = typer.Option(
@@ -3587,8 +3691,7 @@ def cleanup_purge(
         "--preview",
         help="Preview mode - show what would be deleted without deleting",
     ),
-    confirm: bool = typer.Option(False, "--confirm", help="Confirm deletion (REQUIRED for execution)"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Skip interactive confirmation prompt"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt (REQUIRED for execution)"),
 ):
     """DELETE all resources EXCEPT those matching protection rules or exclusions.
 
@@ -3598,6 +3701,9 @@ def cleanup_purge(
     ALL resources that don't match protection rules (tags, types, etc.).
 
     Use this for lab/sandbox cleanup where baseline resources are tagged.
+
+    See also: 'cleanup preview' for a safe dry-run, 'cleanup execute' to delete only
+    resources added since a baseline snapshot.
 
     Exclusion Filters:
         Use --exclude-name and --exclude-tag to protect specific resources from deletion.
@@ -3613,10 +3719,10 @@ def cleanup_purge(
         awsinv cleanup purge --protect-tag "project=baseline" --preview
 
         # Delete everything except baseline-tagged resources
-        awsinv cleanup purge --protect-tag "project=baseline" --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --yes
 
         # Multiple protection tags (OR logic - protected if ANY match)
-        awsinv cleanup purge --protect-tag "project=baseline" --protect-tag "env=prod" --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --protect-tag "env=prod" --yes
 
         # Exclude specific resources by name pattern (wildcards supported)
         awsinv cleanup purge --protect-tag "env=dev" --exclude-name "*-prod-*" --preview
@@ -3636,19 +3742,19 @@ def cleanup_purge(
         awsinv cleanup purge --protect-tag "env=dev" --exclude-name "*-prod-*" --exclude-tag "protected=yes" --preview
 
         # Use config file for protection rules
-        awsinv cleanup purge --config .awsinv-cleanup.yaml --confirm
+        awsinv cleanup purge --config .awsinv-cleanup.yaml --yes
 
         # Purge only specific resource types
-        awsinv cleanup purge --protect-tag "project=baseline" --type AWS::EC2::Instance --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --type AWS::EC2::Instance --yes
 
         # Purge in specific region
-        awsinv cleanup purge --protect-tag "project=baseline" --region us-east-1 --confirm
+        awsinv cleanup purge --protect-tag "project=baseline" --region us-east-1 --yes
 
         # Delete resources created by a specific user (requires enriched snapshot)
         awsinv cleanup purge --from-snapshot my-snapshot --created-by "john.doe" --preview
 
         # Delete resources created by a specific role
-        awsinv cleanup purge --from-snapshot my-snapshot --created-by "AWSReservedSSO_Developer" --confirm
+        awsinv cleanup purge --from-snapshot my-snapshot --created-by "AWSReservedSSO_Developer" --yes
 
         # Delete resources created after a specific date
         awsinv cleanup purge --from-snapshot my-snapshot --created-after "2025-01-01" --preview
@@ -3710,10 +3816,10 @@ def cleanup_purge(
         if preview:
             console.print("\n[bold cyan]🔍 Purge Preview (dry-run)[/bold cyan]\n")
         else:
-            if not confirm:
-                console.print("\n[red]ERROR: --confirm flag is required for purge operations[/red]")
+            if not yes:
+                console.print("\n[red]ERROR: --yes flag is required for purge operations[/red]")
                 console.print("[yellow]This is a safety measure to prevent accidental deletions[/yellow]")
-                console.print("\n[dim]Run with: awsinv cleanup purge --confirm[/dim]\n")
+                console.print("\n[dim]Run with: awsinv cleanup purge --yes[/dim]\n")
                 raise typer.Exit(code=1)
             console.print("\n[bold red]⚠️  PURGE OPERATION - DESTRUCTIVE[/bold red]\n")
 
@@ -3933,7 +4039,7 @@ def cleanup_purge(
                 for resource, reason in protected:
                     console.print(f"  [green]✓[/green] {resource.resource_type}: {resource.name} - {reason}")
 
-            console.print("\n[dim]This was a preview. Use --confirm to actually delete resources.[/dim]\n")
+            console.print("\n[dim]This was a preview. Use --yes to actually delete resources.[/dim]\n")
             raise typer.Exit(code=0)
 
         # Execution mode
@@ -4152,10 +4258,14 @@ def query_sql(
 @query_app.command("resources")
 def query_resources(
     type: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by resource type (e.g., 's3:bucket', 'ec2')"),
-    region: Optional[str] = typer.Option(None, "--region", "-r", help="Filter by region"),
+    region: Optional[str] = typer.Option(
+        None, "--region", "-r", help="Filter by region", envvar=["AWSINV_REGION", "AWS_REGION"]
+    ),
     tag: Optional[str] = typer.Option(None, "--tag", help="Filter by tag (Key=Value)"),
     arn: Optional[str] = typer.Option(None, "--arn", help="Filter by ARN pattern (supports wildcards)"),
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Limit to specific snapshot"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Limit to specific snapshot", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     limit: int = typer.Option(100, "--limit", "-l", help="Maximum results to return"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
@@ -4299,7 +4409,9 @@ def query_history(
 
 @query_app.command("stats")
 def query_stats(
-    snapshot: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Specific snapshot (default: all)"),
+    snapshot: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Specific snapshot (default: all)", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     group_by: str = typer.Option("type", "--group-by", "-g", help="Group by: type, region, service, snapshot"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
@@ -4479,7 +4591,7 @@ app.add_typer(query_app, name="query")
 # Group Commands
 # =============================================================================
 
-group_app = typer.Typer(help="Manage resource groups for baseline comparison")
+group_app = typer.Typer(help="Resource groups (user-defined collections for tracking, not IAM or Security Groups)")
 
 
 @group_app.command("create")
@@ -4488,7 +4600,6 @@ def group_create(
     from_snapshot: Optional[str] = typer.Option(
         None,
         "--from-snapshot",
-        "-s",
         help="Create group from resources in this snapshot",
     ),
     description: str = typer.Option("", "--description", "-d", help="Group description"),
@@ -4496,7 +4607,11 @@ def group_create(
         None, "--type", "-t", help="Filter by resource type when creating from snapshot"
     ),
     region_filter: Optional[str] = typer.Option(
-        None, "--region", "-r", help="Filter by region when creating from snapshot"
+        None,
+        "--region",
+        "-r",
+        help="Filter by region when creating from snapshot",
+        envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
 ):
     """Create a new resource group.
@@ -4724,9 +4839,11 @@ def group_delete(
 @group_app.command("compare")
 def group_compare(
     name: str = typer.Argument(..., help="Group name"),
-    snapshot: str = typer.Option(..., "--snapshot", "-s", help="Snapshot to compare against"),
+    snapshot: str = typer.Option(
+        ..., "--snapshot", "-s", help="Snapshot to compare against", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     format: str = typer.Option("summary", "--format", "-f", help="Output format: summary, table, json"),
-    show_details: bool = typer.Option(False, "--details", "-d", help="Show individual resource details"),
+    show_details: bool = typer.Option(False, "--details", help="Show individual resource details"),
 ):
     """Compare a snapshot against a resource group.
 
@@ -4814,7 +4931,6 @@ def group_add(
     resource: str = typer.Option(
         ...,
         "--resource",
-        "-r",
         help="Resource to add as 'name:type' (e.g., 'my-bucket:s3:bucket')",
     ),
 ):
@@ -4867,7 +4983,7 @@ def group_add(
 @group_app.command("remove")
 def group_remove(
     name: str = typer.Argument(..., help="Group name"),
-    resource: str = typer.Option(..., "--resource", "-r", help="Resource to remove as 'name:type'"),
+    resource: str = typer.Option(..., "--resource", help="Resource to remove as 'name:type'"),
 ):
     """Remove a resource from a group.
 
@@ -4988,7 +5104,7 @@ app.add_typer(group_app, name="group")
 @app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host to bind to"),
-    port: int = typer.Option(8080, "--port", "-p", help="Port to bind to"),
+    port: int = typer.Option(8080, "--port", help="Port to bind to"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="Open browser on startup"),
     reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
 ):
@@ -5053,7 +5169,9 @@ def serve(
 
 @app.command()
 def normalize(
-    snapshot: str = typer.Option(..., "--snapshot", "-s", help="Snapshot name to normalize"),
+    snapshot: str = typer.Option(
+        ..., "--snapshot", "-s", help="Snapshot name to normalize", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview normalizations without saving"),
     use_ai: bool = typer.Option(True, "--ai/--no-ai", help="Use AI for ambiguous names (default: enabled)"),
 ):
@@ -5357,9 +5475,11 @@ def lambda_list(
 @lambda_app.command("extract")
 def lambda_extract(
     function_name: str = typer.Argument(..., help="Lambda function name (or 'all' for all functions)"),
-    snapshot_name: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name (defaults to active)"),
+    snapshot_name: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Snapshot name (defaults to active)", envvar="AWSINV_SNAPSHOT_ID"
+    ),
     output_dir: str = typer.Option("./lambda_code", "--output", "-o", help="Output directory"),
-    flatten: bool = typer.Option(False, "--flatten", "-f", help="Extract all to single directory (no subdirs)"),
+    flatten: bool = typer.Option(False, "--flatten", help="Extract all to single directory (no subdirs)"),
 ):
     """Extract Lambda function code to disk.
 
@@ -5440,9 +5560,11 @@ def lambda_extract(
 @lambda_app.command("show")
 def lambda_show(
     function_name: str = typer.Argument(..., help="Lambda function name"),
-    snapshot_name: Optional[str] = typer.Option(None, "--snapshot", "-s", help="Snapshot name (defaults to active)"),
-    file_path: Optional[str] = typer.Option(None, "--file", "-f", help="Show specific file from package"),
-    list_files: bool = typer.Option(False, "--list", "-l", help="List files in package"),
+    snapshot_name: Optional[str] = typer.Option(
+        None, "--snapshot", "-s", help="Snapshot name (defaults to active)", envvar="AWSINV_SNAPSHOT_ID"
+    ),
+    file_path: Optional[str] = typer.Option(None, "--file", help="Show specific file from package"),
+    list_files: bool = typer.Option(False, "--list", help="List files in package"),
 ):
     """Show Lambda function code with syntax highlighting.
 
@@ -5570,7 +5692,7 @@ def lambda_diff(
     function_name: str = typer.Argument(..., help="Lambda function name"),
     snapshot1: str = typer.Argument(..., help="First snapshot (older)"),
     snapshot2: str = typer.Argument(..., help="Second snapshot (newer)"),
-    file_path: Optional[str] = typer.Option(None, "--file", "-f", help="Diff specific file"),
+    file_path: Optional[str] = typer.Option(None, "--file", help="Diff specific file"),
 ):
     """Compare Lambda function code between two snapshots.
 
@@ -5727,17 +5849,17 @@ def lambda_fetch(
     function_name: Optional[str] = typer.Option(
         None,
         "--function",
-        "-f",
         help="Specific function name (default: all without code)",
     ),
     max_size: int = typer.Option(
         50,
         "--max-size",
-        "-m",
         help="Max code size (MB) to store inline. Larger stored to files. -1 for unlimited.",
     ),
     force: bool = typer.Option(False, "--force", help="Re-fetch code even if already stored"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="AWS profile name"),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="AWS profile name", envvar=["AWSINV_PROFILE", "AWS_PROFILE"]
+    ),
     no_ssl_verify: bool = typer.Option(
         False,
         "--no-ssl-verify",
@@ -5976,7 +6098,6 @@ def copilot_install(
     path: Optional[str] = typer.Option(
         None,
         "--path",
-        "-p",
         help="Target project directory (defaults to current directory)",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
@@ -6050,7 +6171,6 @@ def copilot_uninstall(
     path: Optional[str] = typer.Option(
         None,
         "--path",
-        "-p",
         help="Target project directory (defaults to current directory)",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
@@ -6109,7 +6229,6 @@ def copilot_list(
     path: Optional[str] = typer.Option(
         None,
         "--path",
-        "-p",
         help="Target project directory (defaults to current directory)",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
@@ -6191,7 +6310,6 @@ def generate(
     from_file: Optional[str] = typer.Option(
         None,
         "--from-file",
-        "-f",
         help="Path to JSON/YAML export file (alternative to snapshot)",
     ),
     model_id: Optional[str] = typer.Option(
@@ -6205,6 +6323,7 @@ def generate(
         "--region",
         "-r",
         help="AWS region for Bedrock (default: from AWSINV_BEDROCK_REGION)",
+        envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
@@ -6213,7 +6332,7 @@ def generate(
         "--no-best-practices",
         help="Disable built-in best-practice guardrails (advisory warnings)",
     ),
-    guardrails: bool = typer.Option(False, "--guardrails", "-g", help="Enable guardrails policy evaluation"),
+    guardrails: bool = typer.Option(False, "--guardrails", help="Enable guardrails policy evaluation"),
     guardrails_policy: Optional[str] = typer.Option(
         None,
         "--guardrails-policy",
@@ -6676,11 +6795,10 @@ def generate(
 @app.command()
 def compare(
     snapshot_name: Optional[str] = typer.Argument(None, help="Name of snapshot to compare against"),
-    iac_dir: str = typer.Option("./terraform", "--iac-dir", "-d", help="Directory containing IaC files"),
+    iac_dir: str = typer.Option("./terraform", "--iac-dir", help="Directory containing IaC files"),
     from_file: Optional[str] = typer.Option(
         None,
         "--from-file",
-        "-f",
         help="Path to JSON/YAML inventory file (alternative to snapshot)",
     ),
     model_id: Optional[str] = typer.Option(
@@ -6694,6 +6812,7 @@ def compare(
         "--region",
         "-r",
         help="AWS region for Bedrock (default: from AWSINV_BEDROCK_REGION)",
+        envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
     output_json: bool = typer.Option(False, "--json", help="Output results as JSON"),
 ) -> None:
