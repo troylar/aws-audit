@@ -113,7 +113,13 @@ class TestDeltaCommand:
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
     def test_delta_with_valid_snapshot(
-        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, sample_delta_report, mock_collection
+        self,
+        mock_storage_cls,
+        mock_coll_storage_cls,
+        mock_compare,
+        sample_snapshot,
+        sample_delta_report,
+        mock_collection,
     ):
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
@@ -128,7 +134,13 @@ class TestDeltaCommand:
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
     def test_delta_no_changes(
-        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, no_changes_delta_report, mock_collection
+        self,
+        mock_storage_cls,
+        mock_coll_storage_cls,
+        mock_compare,
+        sample_snapshot,
+        no_changes_delta_report,
+        mock_collection,
     ):
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
@@ -156,7 +168,13 @@ class TestDeltaCommand:
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
     def test_delta_with_show_diff(
-        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, sample_delta_report, mock_collection
+        self,
+        mock_storage_cls,
+        mock_coll_storage_cls,
+        mock_compare,
+        sample_snapshot,
+        sample_delta_report,
+        mock_collection,
     ):
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
@@ -173,7 +191,13 @@ class TestDeltaCommand:
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
     def test_delta_with_type_filter(
-        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, no_changes_delta_report, mock_collection
+        self,
+        mock_storage_cls,
+        mock_coll_storage_cls,
+        mock_compare,
+        sample_snapshot,
+        no_changes_delta_report,
+        mock_collection,
     ):
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
@@ -189,7 +213,13 @@ class TestDeltaCommand:
     @patch("src.snapshot.collection_storage.CollectionStorage")
     @patch("src.cli.main.SnapshotStorage")
     def test_delta_with_region_filter(
-        self, mock_storage_cls, mock_coll_storage_cls, mock_compare, sample_snapshot, no_changes_delta_report, mock_collection
+        self,
+        mock_storage_cls,
+        mock_coll_storage_cls,
+        mock_compare,
+        sample_snapshot,
+        no_changes_delta_report,
+        mock_collection,
     ):
         mock_storage = MagicMock()
         mock_storage.load_snapshot.return_value = sample_snapshot
