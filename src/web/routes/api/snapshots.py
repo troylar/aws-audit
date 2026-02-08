@@ -68,7 +68,7 @@ class CreateSnapshotRequest(BaseModel):
 
     name: Optional[str] = None  # Auto-generated if not provided
     regions: Optional[List[str]] = None  # Defaults to us-east-1
-    inventory: Optional[str] = None  # Inventory name to use
+    collection: Optional[str] = None  # Collection name to use
     set_active: bool = True
     use_config: bool = True  # Use AWS Config for collection
 
@@ -85,7 +85,7 @@ class SnapshotJobStatus(BaseModel):
 
 
 def _create_snapshot_sync(
-    job_id: str, name: str, regions: List[str], inventory: Optional[str], set_active: bool, use_config: bool
+    job_id: str, name: str, regions: List[str], collection: Optional[str], set_active: bool, use_config: bool
 ):
     """Synchronous snapshot creation function to run in background."""
     import os
@@ -101,8 +101,8 @@ def _create_snapshot_sync(
         sys.path.insert(0, project_root)
 
     from src.config import config
+    from src.snapshot.collection_storage import CollectionStorage
     from src.snapshot.collector import SnapshotCollector
-    from src.snapshot.inventory_storage import InventoryStorage
     from src.snapshot.storage import SnapshotStorage
 
     try:
@@ -116,21 +116,21 @@ def _create_snapshot_sync(
 
         _snapshot_jobs[job_id]["message"] = f"Authenticated as account {account_id}"
 
-        # Load inventory if specified
-        inventory_storage = InventoryStorage(config.storage_path)
-        active_inventory = None
+        # Load collection if specified
+        collection_storage = CollectionStorage(config.storage_path)
+        active_collection = None
         include_tags = {}
         exclude_tags = {}
 
-        if inventory:
+        if collection:
             try:
-                active_inventory = inventory_storage.get_by_name(inventory, account_id)
-                include_tags = active_inventory.include_tags or {}
-                exclude_tags = active_inventory.exclude_tags or {}
-                _snapshot_jobs[job_id]["message"] = f"Using inventory: {inventory}"
+                active_collection = collection_storage.get_by_name(collection, account_id)
+                include_tags = active_collection.include_tags or {}
+                exclude_tags = active_collection.exclude_tags or {}
+                _snapshot_jobs[job_id]["message"] = f"Using collection: {collection}"
             except Exception:
                 _snapshot_jobs[job_id]["status"] = "failed"
-                _snapshot_jobs[job_id]["message"] = f"Inventory '{inventory}' not found"
+                _snapshot_jobs[job_id]["message"] = f"Collection '{collection}' not found"
                 return
 
         _snapshot_jobs[job_id]["message"] = f"Collecting resources from {', '.join(regions)}..."
@@ -196,7 +196,7 @@ async def create_snapshot(request: CreateSnapshotRequest, background_tasks: Back
 
     thread = threading.Thread(
         target=_create_snapshot_sync,
-        args=(job_id, name, regions, request.inventory, request.set_active, request.use_config),
+        args=(job_id, name, regions, request.collection, request.set_active, request.use_config),
         daemon=True,
     )
     thread.start()

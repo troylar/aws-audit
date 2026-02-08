@@ -74,7 +74,7 @@ CANONICAL_FLAG_MEANINGS = {
     "-e": "--env",
     "-f": "--format",
     "-g": "--group-by",
-    "-i": "--inventory",
+    "-i": "--collection",
     "-l": "--limit",
     "-m": "--model-id",
     "-n": "--count",
@@ -92,7 +92,7 @@ CANONICAL_FLAG_MEANINGS = {
 # Destructive commands that must use --yes / -y
 DESTRUCTIVE_COMMANDS = {
     "snapshot delete",
-    "inventory delete",
+    "collection delete",
     "group delete",
     "cleanup restore",
     "cleanup execute",
@@ -176,7 +176,7 @@ class TestOptionNameConsistency:
         "--snapshot": {"short": "-s", "envvar": "AWSINV_SNAPSHOT_ID"},
         "--region": {"short": "-r", "envvar": "AWSINV_REGION"},
         "--profile": {"short": "-p", "envvar": "AWSINV_PROFILE"},
-        "--inventory": {"short": "-i", "envvar": "AWSINV_INVENTORY_ID"},
+        "--collection": {"short": "-i", "envvar": "AWSINV_COLLECTION_ID"},
         "--format": {"short": "-f"},
         "--output": {"short": "-o"},
         "--type": {"short": "-t"},
@@ -195,7 +195,7 @@ class TestOptionNameConsistency:
     }
 
     # --force is only removed from destructive commands; lambda fetch still uses it
-    REMOVED_FORCE_COMMANDS = {"inventory delete", "cleanup execute", "cleanup purge"}
+    REMOVED_FORCE_COMMANDS = {"collection delete", "cleanup execute", "cleanup purge"}
 
     def test_no_removed_option_names(self):
         """Verify old option names have been fully removed."""
@@ -222,12 +222,12 @@ class TestEnvvarConsistency:
         "--snapshot": ["AWSINV_SNAPSHOT_ID"],
         "--region": ["AWSINV_REGION", "AWS_REGION"],
         "--profile": ["AWSINV_PROFILE", "AWS_PROFILE"],
-        "--inventory": ["AWSINV_INVENTORY_ID"],
+        "--collection": ["AWSINV_COLLECTION_ID"],
         "--storage-path": ["AWSINV_STORAGE_PATH", "AWS_INVENTORY_STORAGE_PATH"],
     }
 
     def test_options_with_required_envvars(self):
-        """Verify every command with --snapshot, --region, --inventory, --profile has envvar."""
+        """Verify every command with --snapshot, --region, --collection, --profile has envvar."""
         commands = _collect_commands(app)
 
         violations = []
@@ -269,7 +269,6 @@ class TestTerminologyClarity:
     # Groups that use AWS-conflicting terms and need disambiguation
     TERMINOLOGY_CHECKS = {
         "snapshot": "not EBS/RDS snapshot",
-        "inventory": "not AWS SSM Inventory",
         "security": "not AWS Security Hub",
         "guardrails": "not AWS Control Tower",
         "group": "not IAM or Security Group",

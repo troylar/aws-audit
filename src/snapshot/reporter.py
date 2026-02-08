@@ -45,7 +45,7 @@ class SnapshotReporter:
             created_at=self.snapshot.created_at,
             account_id=self.snapshot.account_id,
             regions=self.snapshot.regions,
-            inventory_name=self.snapshot.inventory_name,
+            collection_name=self.snapshot.collection_name,
             total_resource_count=len(self.snapshot.resources),
         )
 

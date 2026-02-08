@@ -138,9 +138,16 @@ class Database:
                         cursor.execute(sql)
                         logger.debug(f"Migration SQL executed: {sql[:50]}...")
                     except sqlite3.OperationalError as e:
-                        # Column may already exist if migration was partially applied
-                        if "duplicate column name" in str(e).lower():
+                        err_msg = str(e).lower()
+                        # Column/table may already exist if migration was partially applied
+                        if "duplicate column name" in err_msg:
                             logger.debug(f"Column already exists, skipping: {e}")
+                        elif "there is already another table" in err_msg:
+                            logger.debug(f"Table already exists, skipping: {e}")
+                        elif "no such table" in err_msg:
+                            logger.debug(f"Source table does not exist, skipping: {e}")
+                        elif "no such column" in err_msg:
+                            logger.debug(f"Column does not exist, skipping: {e}")
                         else:
                             raise
 

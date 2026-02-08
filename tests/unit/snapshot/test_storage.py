@@ -64,7 +64,7 @@ class TestSchemaVersionBackwardCompatibility:
             "resource_count": 1,
             "service_counts": {"s3": 1},
             "metadata": {},
-            "inventory_name": "default",
+            "collection_name": "default",
             "resources": [
                 {
                     "arn": "arn:aws:s3:::old-bucket",

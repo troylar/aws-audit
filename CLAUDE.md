@@ -4,7 +4,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-26
 
 ## Active Technologies
 - Python 3.8+ (supports 3.8-3.13 per pyproject.toml) + boto3 (AWS SDK), typer (CLI), rich (terminal UI), pyyaml (storage), python-dateutil (timestamps) (002-inventory-management)
-- Local filesystem YAML files (.snapshots/inventories.yaml, .snapshots/snapshots/*.yaml) (002-inventory-management)
+- Local filesystem YAML files (.snapshots/collections.yaml, .snapshots/snapshots/*.yaml) (002-inventory-management)
 - Python 3.8+ (project requires >=3.8, testing on 3.8-3.13) + Typer 0.9+, Rich 13.0+, PyYAML 6.0+, boto3 1.28+ (003-snapshot-resource-report)
 - YAML files in ~/.snapshots (configurable via AWS_INVENTORY_STORAGE_PATH) (003-snapshot-resource-report)
 - Python 3.8+ (supports 3.8 through 3.13) + boto3>=1.28.0, typer>=0.9.0, rich>=13.0.0, pyyaml>=6.0, python-dateutil>=2.8.0 (001-quick-wins)

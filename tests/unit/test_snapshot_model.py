@@ -30,7 +30,7 @@ class TestSnapshotModel:
         assert snapshot.is_active is True
         assert snapshot.resource_count == 0
         assert snapshot.service_counts == {}
-        assert snapshot.inventory_name == "default"
+        assert snapshot.collection_name == "default"
 
     def test_snapshot_creation_with_resources(self):
         """Test creating a snapshot with resources."""
@@ -181,7 +181,7 @@ class TestSnapshotModel:
             metadata={"author": "admin", "purpose": "testing"},
             filters_applied={"include_tags": {"Environment": "test"}},
             total_resources_before_filter=10,
-            inventory_name="test-inventory",
+            collection_name="test-collection",
         )
 
         data = snapshot.to_dict()
@@ -196,7 +196,7 @@ class TestSnapshotModel:
         assert data["metadata"] == {"author": "admin", "purpose": "testing"}
         assert data["filters_applied"] == {"include_tags": {"Environment": "test"}}
         assert data["total_resources_before_filter"] == 10
-        assert data["inventory_name"] == "test-inventory"
+        assert data["collection_name"] == "test-collection"
         assert len(data["resources"]) == 1
         assert data["resources"][0]["name"] == "test-bucket"
 
@@ -213,7 +213,7 @@ class TestSnapshotModel:
             "metadata": {"version": "1.0"},
             "filters_applied": None,
             "total_resources_before_filter": None,
-            "inventory_name": "production",
+            "collection_name": "production",
             "resources": [
                 {
                     "arn": "arn:aws:lambda:us-west-1:123456789012:function:func1",
@@ -250,11 +250,11 @@ class TestSnapshotModel:
         assert snapshot.metadata == {"version": "1.0"}
         assert snapshot.filters_applied is None
         assert snapshot.total_resources_before_filter is None
-        assert snapshot.inventory_name == "production"
+        assert snapshot.collection_name == "production"
         assert len(snapshot.resources) == 2
 
     def test_snapshot_from_dict_backward_compatibility(self):
-        """Test deserializing snapshot without inventory_name (backward compatibility)."""
+        """Test deserializing snapshot without collection_name (backward compatibility)."""
         data = {
             "name": "legacy-snapshot",
             "created_at": "2024-01-01T00:00:00+00:00",
@@ -264,7 +264,7 @@ class TestSnapshotModel:
         }
 
         snapshot = Snapshot.from_dict(data)
-        assert snapshot.inventory_name == "default"  # Should default to "default"
+        assert snapshot.collection_name == "default"  # Should default to "default"
 
     def test_snapshot_roundtrip_serialization(self):
         """Test that to_dict -> from_dict preserves all data."""
@@ -292,7 +292,7 @@ class TestSnapshotModel:
             metadata={"compliance": "sox", "team": "platform"},
             filters_applied={"include_tags": {"Environment": "production"}},
             total_resources_before_filter=50,
-            inventory_name="prod-inventory",
+            collection_name="prod-collection",
         )
 
         # Serialize and deserialize
@@ -310,7 +310,7 @@ class TestSnapshotModel:
         assert restored.metadata == original.metadata
         assert restored.filters_applied == original.filters_applied
         assert restored.total_resources_before_filter == original.total_resources_before_filter
-        assert restored.inventory_name == original.inventory_name
+        assert restored.collection_name == original.collection_name
         assert len(restored.resources) == len(original.resources)
 
     def test_validate_valid_snapshot(self):

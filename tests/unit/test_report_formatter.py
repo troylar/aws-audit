@@ -30,7 +30,7 @@ def sample_metadata() -> SnapshotMetadata:
         created_at=datetime(2025, 1, 29, 10, 30, 0),
         account_id="123456789012",
         regions=["us-east-1", "us-west-2"],
-        inventory_name="production",
+        collection_name="production",
         total_resource_count=100,
     )
 
@@ -117,7 +117,7 @@ class TestReportFormatterRenderHeader:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1", "us-west-2", "eu-west-1", "ap-south-1", "ca-central-1"],
-            inventory_name="prod",
+            collection_name="prod",
             total_resource_count=100,
         )
 

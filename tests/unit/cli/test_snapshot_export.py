@@ -46,7 +46,7 @@ def make_snapshot(resources=None, name="test-snapshot"):
     """Create a mock snapshot."""
     snapshot = MagicMock()
     snapshot.name = name
-    snapshot.inventory_name = "test-inventory"
+    snapshot.collection_name = "test-collection"
     snapshot.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     snapshot.resources = resources if resources is not None else [make_resource()]
     snapshot.resource_count = len(snapshot.resources)

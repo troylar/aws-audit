@@ -90,6 +90,7 @@ nav:
     - Multi-Account Support: configuration/multi-account.md
   - Guides:
     - Snapshots: guides/snapshots.md
+    - Collections: guides/collections.md
     - IaC Generation: guides/iac-generation.md
     - Change Tracking: guides/change-tracking.md
     - Security Scanning: guides/security-scanning.md

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from . import charts, cleanup, filters, groups, inventories, queries, resources, snapshots, views
+from . import charts, cleanup, collections, filters, groups, queries, resources, snapshots, views
 
 router = APIRouter()
 router.include_router(snapshots.router, tags=["snapshots"])
@@ -13,6 +13,6 @@ router.include_router(cleanup.router, tags=["cleanup"])
 router.include_router(filters.router, tags=["filters"])
 router.include_router(views.router, tags=["views"])
 router.include_router(groups.router, tags=["groups"])
-router.include_router(inventories.router, tags=["inventories"])
+router.include_router(collections.router, tags=["collections"])
 
 __all__ = ["router"]

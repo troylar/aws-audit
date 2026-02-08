@@ -1,6 +1,6 @@
 """SQLite schema definitions for AWS Inventory Manager."""
 
-SCHEMA_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.3.0"
 
 # Schema creation SQL
 SCHEMA_SQL = """
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
     metadata TEXT,
     filters_applied TEXT,
     schema_version TEXT DEFAULT '1.1',
-    inventory_name TEXT DEFAULT 'default',
+    collection_name TEXT DEFAULT 'default',
     is_active BOOLEAN DEFAULT 0
 );
 
@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS resource_tags (
     FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE
 );
 
--- Inventories table
-CREATE TABLE IF NOT EXISTS inventories (
+-- Collections table
+CREATE TABLE IF NOT EXISTS collections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     account_id TEXT NOT NULL,
@@ -71,12 +71,12 @@ CREATE TABLE IF NOT EXISTS inventories (
     UNIQUE(name, account_id)
 );
 
--- Link table for inventory snapshots (many-to-many)
-CREATE TABLE IF NOT EXISTS inventory_snapshots (
-    inventory_id INTEGER NOT NULL,
+-- Link table for collection snapshots (many-to-many)
+CREATE TABLE IF NOT EXISTS collection_snapshots (
+    collection_id INTEGER NOT NULL,
     snapshot_id INTEGER NOT NULL,
-    PRIMARY KEY (inventory_id, snapshot_id),
-    FOREIGN KEY (inventory_id) REFERENCES inventories(id) ON DELETE CASCADE,
+    PRIMARY KEY (collection_id, snapshot_id),
+    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
     FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE
 );
 
@@ -207,9 +207,9 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_created ON snapshots(created_at);
 CREATE INDEX IF NOT EXISTS idx_snapshots_name ON snapshots(name);
 CREATE INDEX IF NOT EXISTS idx_snapshots_account_created ON snapshots(account_id, created_at DESC);
 
--- Inventories indexes
-CREATE INDEX IF NOT EXISTS idx_inventories_account ON inventories(account_id);
-CREATE INDEX IF NOT EXISTS idx_inventories_name_account ON inventories(name, account_id);
+-- Collections indexes
+CREATE INDEX IF NOT EXISTS idx_collections_account ON collections(account_id);
+CREATE INDEX IF NOT EXISTS idx_collections_name_account ON collections(name, account_id);
 
 -- Audit indexes (for history queries and filtering)
 CREATE INDEX IF NOT EXISTS idx_audit_ops_timestamp ON audit_operations(timestamp DESC);
@@ -269,6 +269,14 @@ MIGRATIONS = {
         SET canonical_name = COALESCE(name, arn)
         WHERE canonical_name IS NULL
         """,
+    ],
+    "1.3.0": [
+        # Rename inventories table to collections
+        "ALTER TABLE inventories RENAME TO collections",
+        # Rename inventory_snapshots table to collection_snapshots
+        "ALTER TABLE inventory_snapshots RENAME TO collection_snapshots",
+        # Rename inventory_name column to collection_name in snapshots
+        "ALTER TABLE snapshots RENAME COLUMN inventory_name TO collection_name",
     ],
     "1.2.0": [
         # Add normalized_name column for pattern-stripped names

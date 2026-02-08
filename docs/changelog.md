@@ -643,7 +643,7 @@ New permissions required for creator tracking:
 - **Environment Variables**: Configure CLI options via environment variables for CI/CD and personal defaults
   - `AWSINV_PROFILE` / `AWS_PROFILE` - AWS CLI profile to use
   - `AWSINV_SNAPSHOT_ID` - Default snapshot name for queries
-  - `AWSINV_INVENTORY_ID` - Default inventory name
+  - `AWSINV_COLLECTION_ID` - Default collection name
   - `AWSINV_REGION` / `AWS_REGION` - Comma-separated regions
   - `AWSINV_STORAGE_PATH` / `AWS_INVENTORY_STORAGE_PATH` - Custom storage path
 
@@ -690,7 +690,7 @@ New permissions required for creator tracking:
 - `src/storage/schema.py` - Database schema definitions and indexes
 - `src/storage/snapshot_store.py` - Snapshot CRUD operations
 - `src/storage/resource_store.py` - Resource queries and search
-- `src/storage/inventory_store.py` - Inventory management
+- `src/storage/collection_store.py` - Collection management
 - `src/storage/audit_store.py` - Audit log storage
 
 ### Testing
@@ -835,11 +835,11 @@ New permissions required for creator tracking:
   - Flexible filtering by resource type and region (supports exact match, prefix, and contains)
   - Multi-format export support (JSON, CSV, TXT)
   - Pagination for large datasets (configurable page size)
-  - Automatic selection of most recent snapshot when inventory is specified
+  - Automatic selection of most recent snapshot when collection is specified
   - Rich terminal UI with visual progress bars and formatted tables
 
 ### Changed
-- `--inventory` option now automatically uses the most recent snapshot from that inventory
+- `--collection` option now automatically uses the most recent snapshot from that collection
 - Improved error messages for snapshot selection with helpful suggestions
 - Enhanced datetime handling for timezone-aware resource age calculations
 
@@ -851,10 +851,10 @@ New permissions required for creator tracking:
 
 ### Added
 - Command name changed from `aws-baseline` to `awsinv`
-- Inventory-based resource organization
-- Multi-inventory support per AWS account
+- Collection-based resource organization
+- Multi-collection support per AWS account
 - Tag-based filtering for snapshots
-- Cost analysis per inventory
+- Cost analysis per collection
 - Delta tracking improvements
 
 ### Changed

@@ -7,7 +7,7 @@ This tutorial walks you through creating your first inventory snapshot, viewing 
 | Term | Meaning |
 |------|---------|
 | **Snapshot** | A point-in-time inventory of your AWS resources (stored in local SQLite database). Not an EBS/RDS snapshot. |
-| **Inventory** | A named collection of snapshots. Use inventories to organize snapshots by environment, team, or purpose. |
+| **Collection** | A named group of snapshots. Use collections to organize snapshots by environment, team, or purpose. |
 | **Cleanup** | Delete resources that were created *after* a snapshot, returning to that baseline state. |
 | **Purge** | Delete all resources *except* those matching protection rules. Filter by creator or date range. |
 | **Query** | Search and analyze resources across snapshots using SQL or built-in filters. |

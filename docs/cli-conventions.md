@@ -19,7 +19,7 @@ Every command that uses one of these concepts MUST use the canonical name and sh
 | Verbose | `--verbose` | `-v` | bool | Flag | -- |
 | Quiet | `--quiet` | `-q` | bool | Flag | -- |
 | Result limit | `--limit` | `-l` | int | Single value (default 100) | -- |
-| Inventory | `--inventory` | `-i` | str | Single value | `AWSINV_INVENTORY_ID` |
+| Collection | `--collection` | `-i` | str | Single value | `AWSINV_COLLECTION_ID` |
 | Description | `--description` | `-d` | str | Single value | -- |
 | Storage path | `--storage-path` | -- | str | Single value | `AWSINV_STORAGE_PATH` |
 
@@ -31,12 +31,12 @@ Each letter has exactly ONE meaning across the entire CLI.
 |------|---------|-------|
 | `-a` | `--all` | lambda list |
 | `-c` | `--category` | guardrails list, guardrails export |
-| `-d` | `--description` | inventory create, groups create |
+| `-d` | `--description` | collection create, groups create |
 | `-e` | `--env` | guardrails check, guardrails list |
 | `-f` | `--format` | All commands with output format |
 | `-g` | `--group-by` | query stats |
 | `-h` | `--help` | Reserved (Typer built-in) |
-| `-i` | `--inventory` | All commands with inventory filter |
+| `-i` | `--collection` | All commands with collection filter |
 | `-l` | `--limit` | All commands with result limits |
 | `-m` | `--model-id` | generate, diff verify |
 | `-n` | `--count` | guardrails generate |

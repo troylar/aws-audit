@@ -543,7 +543,7 @@ class TestGetResourcesInGroup:
             account_id="123456789012",
             regions=["us-east-1"],
             resources=resource_objects,
-            inventory_name="test-inventory",
+            collection_name="test-collection",
         )
         snapshot_store.save(snapshot)
 
@@ -684,7 +684,7 @@ class TestGetResourcesNotInGroup:
             account_id="123456789012",
             regions=["us-east-1"],
             resources=resource_objects,
-            inventory_name="test-inventory",
+            collection_name="test-collection",
         )
         snapshot_store.save(snapshot)
 
@@ -887,7 +887,7 @@ class TestLogicalIdMatching:
             account_id="123456789012",
             regions=["us-east-1"],
             resources=resource_objects,
-            inventory_name="test-inventory",
+            collection_name="test-collection",
         )
         snapshot_store.save(snapshot)
 

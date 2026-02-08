@@ -19,7 +19,7 @@ in your account.
 !!! note
     "Snapshot" in this tool means an *inventory snapshot* (a catalog of what exists), not an AWS EBS or RDS snapshot. No AWS snapshots are created.
 
-=== "Inventory"
+=== "Collection"
 
     ```bash
     awsinv snapshot create my-baseline --region us-east-1,us-west-2
@@ -125,7 +125,7 @@ in your account.
 
     ---
 
-    Per-inventory cost tracking via AWS Cost Explorer. Date range filtering, service-level breakdown, tag-based attribution, forecast data.
+    Per-collection cost tracking via AWS Cost Explorer. Date range filtering, service-level breakdown, tag-based attribution, forecast data.
 
     [:octicons-arrow-right-24: Cost analysis guide](guides/cost-analysis.md)
 
@@ -192,7 +192,7 @@ in your account.
 | "Are we following security best practices?" | 12+ CIS-aligned checks with severity filtering |
 | "Someone spun up a bunch of test resources" | Delete everything created after a baseline snapshot |
 | "I need to clean up a sandbox account" | Purge all resources except those matching tag filters |
-| "How much is each team spending?" | Per-inventory cost tracking with tag-based attribution |
+| "How much is each team spending?" | Per-collection cost tracking with tag-based attribution |
 | "What's in that Lambda function?" | Extract, view, and diff deployment packages across snapshots |
 | "Are our guardrails being followed?" | YAML-based compliance policies with BLOCK/WARN/AUTO-FIX |
 | "I need a resource explorer for the team" | Launch a web UI with `awsinv serve` |

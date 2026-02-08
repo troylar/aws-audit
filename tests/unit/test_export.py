@@ -60,7 +60,7 @@ class TestJSONExport:
             created_at=datetime(2025, 1, 29, 10, 30, 0),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="test",
+            collection_name="test",
             total_resource_count=2,
         )
 
@@ -104,7 +104,7 @@ class TestJSONExport:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="test",
+            collection_name="test",
             total_resource_count=0,
         )
         summary = ResourceSummary()
@@ -179,7 +179,7 @@ class TestTXTExport:
             created_at=datetime(2025, 1, 29, 10, 30, 0),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="test",
+            collection_name="test",
             total_resource_count=1,
         )
 
@@ -212,7 +212,7 @@ class TestExportEdgeCases:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="test",
+            collection_name="test",
             total_resource_count=0,
         )
         summary = ResourceSummary(total_count=0)
@@ -236,7 +236,7 @@ class TestExportEdgeCases:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="test",
+            collection_name="test",
             total_resource_count=0,
         )
         summary = ResourceSummary()

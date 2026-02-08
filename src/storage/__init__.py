@@ -1,9 +1,9 @@
 """SQLite storage layer for AWS Inventory Manager."""
 
 from .audit_store import AuditStore
+from .collection_store import CollectionStore
 from .database import Database, json_deserialize, json_serialize
 from .group_store import GroupStore
-from .inventory_store import InventoryStore
 from .resource_store import ResourceStore
 from .schema import SCHEMA_VERSION
 from .snapshot_store import SnapshotStore
@@ -13,7 +13,7 @@ __all__ = [
     "SCHEMA_VERSION",
     "SnapshotStore",
     "ResourceStore",
-    "InventoryStore",
+    "CollectionStore",
     "AuditStore",
     "GroupStore",
     "json_serialize",

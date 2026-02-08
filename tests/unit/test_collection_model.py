@@ -1,51 +1,51 @@
-"""Unit tests for Inventory model."""
+"""Unit tests for Collection model."""
 
 from datetime import datetime, timezone
 
-from src.models.inventory import Inventory
+from src.models.collection import Collection
 
 
-class TestInventoryModel:
-    """Test cases for Inventory data model."""
+class TestCollectionModel:
+    """Test cases for Collection data model."""
 
-    def test_inventory_creation(self):
-        """Test creating a basic inventory."""
-        inventory = Inventory(
+    def test_collection_creation(self):
+        """Test creating a basic collection."""
+        collection = Collection(
             name="test",
             account_id="123456789012",
-            description="Test inventory",
+            description="Test collection",
         )
 
-        assert inventory.name == "test"
-        assert inventory.account_id == "123456789012"
-        assert inventory.description == "Test inventory"
-        assert inventory.include_tags == {}
-        assert inventory.exclude_tags == {}
-        assert inventory.snapshots == []
-        assert inventory.active_snapshot is None
-        assert isinstance(inventory.created_at, datetime)
-        assert isinstance(inventory.last_updated, datetime)
+        assert collection.name == "test"
+        assert collection.account_id == "123456789012"
+        assert collection.description == "Test collection"
+        assert collection.include_tags == {}
+        assert collection.exclude_tags == {}
+        assert collection.snapshots == []
+        assert collection.active_snapshot is None
+        assert isinstance(collection.created_at, datetime)
+        assert isinstance(collection.last_updated, datetime)
 
-    def test_inventory_with_filters(self):
-        """Test creating inventory with tag filters."""
-        inventory = Inventory(
+    def test_collection_with_filters(self):
+        """Test creating collection with tag filters."""
+        collection = Collection(
             name="filtered",
             account_id="123456789012",
             include_tags={"Team": "Alpha"},
             exclude_tags={"Status": "archived"},
         )
 
-        assert inventory.include_tags == {"Team": "Alpha"}
-        assert inventory.exclude_tags == {"Status": "archived"}
+        assert collection.include_tags == {"Team": "Alpha"}
+        assert collection.exclude_tags == {"Status": "archived"}
 
-    def test_to_dict(self, sample_inventory_data):
-        """Test serializing inventory to dictionary."""
-        inventory = Inventory.from_dict(sample_inventory_data)
-        result = inventory.to_dict()
+    def test_to_dict(self, sample_collection_data):
+        """Test serializing collection to dictionary."""
+        collection = Collection.from_dict(sample_collection_data)
+        result = collection.to_dict()
 
-        assert result["name"] == "test-inventory"
+        assert result["name"] == "test-collection"
         assert result["account_id"] == "123456789012"
-        assert result["description"] == "Test inventory"
+        assert result["description"] == "Test collection"
         assert result["include_tags"] == {"Environment": "production"}
         assert result["exclude_tags"] == {"Status": "archived"}
         assert result["snapshots"] == ["snapshot1.yaml", "snapshot2.yaml"]
@@ -53,50 +53,50 @@ class TestInventoryModel:
         assert "created_at" in result
         assert "last_updated" in result
 
-    def test_from_dict(self, sample_inventory_data):
-        """Test deserializing inventory from dictionary."""
-        inventory = Inventory.from_dict(sample_inventory_data)
+    def test_from_dict(self, sample_collection_data):
+        """Test deserializing collection from dictionary."""
+        collection = Collection.from_dict(sample_collection_data)
 
-        assert inventory.name == "test-inventory"
-        assert inventory.account_id == "123456789012"
-        assert inventory.description == "Test inventory"
-        assert inventory.include_tags == {"Environment": "production"}
-        assert inventory.exclude_tags == {"Status": "archived"}
-        assert len(inventory.snapshots) == 2
-        assert inventory.active_snapshot == "snapshot1.yaml"
+        assert collection.name == "test-collection"
+        assert collection.account_id == "123456789012"
+        assert collection.description == "Test collection"
+        assert collection.include_tags == {"Environment": "production"}
+        assert collection.exclude_tags == {"Status": "archived"}
+        assert len(collection.snapshots) == 2
+        assert collection.active_snapshot == "snapshot1.yaml"
 
     def test_add_snapshot(self):
-        """Test adding snapshot to inventory."""
-        inventory = Inventory(name="test", account_id="123456789012")
+        """Test adding snapshot to collection."""
+        collection = Collection(name="test", account_id="123456789012")
 
         # Add first snapshot
-        inventory.add_snapshot("snap1.yaml", set_active=True)
-        assert len(inventory.snapshots) == 1
-        assert "snap1.yaml" in inventory.snapshots
-        assert inventory.active_snapshot == "snap1.yaml"
+        collection.add_snapshot("snap1.yaml", set_active=True)
+        assert len(collection.snapshots) == 1
+        assert "snap1.yaml" in collection.snapshots
+        assert collection.active_snapshot == "snap1.yaml"
 
         # Add second snapshot without setting active
-        inventory.add_snapshot("snap2.yaml", set_active=False)
-        assert len(inventory.snapshots) == 2
-        assert inventory.active_snapshot == "snap1.yaml"
+        collection.add_snapshot("snap2.yaml", set_active=False)
+        assert len(collection.snapshots) == 2
+        assert collection.active_snapshot == "snap1.yaml"
 
         # Add third snapshot and set as active
-        inventory.add_snapshot("snap3.yaml", set_active=True)
-        assert len(inventory.snapshots) == 3
-        assert inventory.active_snapshot == "snap3.yaml"
+        collection.add_snapshot("snap3.yaml", set_active=True)
+        assert len(collection.snapshots) == 3
+        assert collection.active_snapshot == "snap3.yaml"
 
     def test_add_snapshot_duplicate(self):
         """Test adding duplicate snapshot (should not duplicate)."""
-        inventory = Inventory(name="test", account_id="123456789012")
+        collection = Collection(name="test", account_id="123456789012")
 
-        inventory.add_snapshot("snap1.yaml")
-        inventory.add_snapshot("snap1.yaml")
+        collection.add_snapshot("snap1.yaml")
+        collection.add_snapshot("snap1.yaml")
 
-        assert len(inventory.snapshots) == 1
+        assert len(collection.snapshots) == 1
 
     def test_remove_snapshot(self):
-        """Test removing snapshot from inventory."""
-        inventory = Inventory(
+        """Test removing snapshot from collection."""
+        collection = Collection(
             name="test",
             account_id="123456789012",
             snapshots=["snap1.yaml", "snap2.yaml"],
@@ -104,153 +104,153 @@ class TestInventoryModel:
         )
 
         # Remove non-active snapshot
-        inventory.remove_snapshot("snap2.yaml")
-        assert len(inventory.snapshots) == 1
-        assert inventory.active_snapshot == "snap1.yaml"
+        collection.remove_snapshot("snap2.yaml")
+        assert len(collection.snapshots) == 1
+        assert collection.active_snapshot == "snap1.yaml"
 
         # Remove active snapshot
-        inventory.remove_snapshot("snap1.yaml")
-        assert len(inventory.snapshots) == 0
-        assert inventory.active_snapshot is None
+        collection.remove_snapshot("snap1.yaml")
+        assert len(collection.snapshots) == 0
+        assert collection.active_snapshot is None
 
     def test_remove_nonexistent_snapshot(self):
         """Test removing snapshot that doesn't exist (should not error)."""
-        inventory = Inventory(
+        collection = Collection(
             name="test",
             account_id="123456789012",
             snapshots=["snap1.yaml"],
         )
 
-        inventory.remove_snapshot("nonexistent.yaml")
-        assert len(inventory.snapshots) == 1
+        collection.remove_snapshot("nonexistent.yaml")
+        assert len(collection.snapshots) == 1
 
-    def test_validate_valid_inventory(self):
-        """Test validation of valid inventory."""
-        inventory = Inventory(
-            name="valid-inventory_123",
+    def test_validate_valid_collection(self):
+        """Test validation of valid collection."""
+        collection = Collection(
+            name="valid-collection_123",
             account_id="123456789012",
             snapshots=["snap1.yaml"],
             active_snapshot="snap1.yaml",
         )
 
-        errors = inventory.validate()
+        errors = collection.validate()
         assert len(errors) == 0
 
     def test_validate_invalid_name_format(self):
         """Test validation with invalid name format."""
-        inventory = Inventory(
+        collection = Collection(
             name="invalid name!",  # Spaces and special chars
             account_id="123456789012",
         )
 
-        errors = inventory.validate()
+        errors = collection.validate()
         assert len(errors) == 1
         assert "alphanumeric" in errors[0].lower()
 
     def test_validate_empty_name(self):
         """Test validation with empty name."""
-        inventory = Inventory(
+        collection = Collection(
             name="",
             account_id="123456789012",
         )
 
-        errors = inventory.validate()
+        errors = collection.validate()
         assert len(errors) > 0
 
     def test_validate_long_name(self):
         """Test validation with name exceeding 50 characters."""
-        inventory = Inventory(
+        collection = Collection(
             name="a" * 51,  # 51 characters
             account_id="123456789012",
         )
 
-        errors = inventory.validate()
+        errors = collection.validate()
         assert any("50 characters" in err for err in errors)
 
     def test_validate_invalid_account_id(self):
         """Test validation with invalid account ID."""
         # Too short
-        inventory = Inventory(
+        collection = Collection(
             name="test",
             account_id="12345",
         )
-        errors = inventory.validate()
+        errors = collection.validate()
         assert any("12 digits" in err for err in errors)
 
         # Contains letters
-        inventory = Inventory(
+        collection = Collection(
             name="test",
             account_id="12345678901a",
         )
-        errors = inventory.validate()
+        errors = collection.validate()
         assert any("12 digits" in err for err in errors)
 
     def test_validate_active_snapshot_not_in_list(self):
         """Test validation when active snapshot is not in snapshots list."""
-        inventory = Inventory(
+        collection = Collection(
             name="test",
             account_id="123456789012",
             snapshots=["snap1.yaml"],
             active_snapshot="snap2.yaml",  # Not in list
         )
 
-        errors = inventory.validate()
+        errors = collection.validate()
         assert any("active snapshot" in err.lower() for err in errors)
 
     def test_last_updated_changes_on_add(self):
         """Test that last_updated changes when adding snapshot."""
-        inventory = Inventory(name="test", account_id="123456789012")
-        original_updated = inventory.last_updated
+        collection = Collection(name="test", account_id="123456789012")
+        original_updated = collection.last_updated
 
         # Wait a tiny bit to ensure timestamp difference
         import time
 
         time.sleep(0.01)
 
-        inventory.add_snapshot("snap1.yaml")
-        assert inventory.last_updated > original_updated
+        collection.add_snapshot("snap1.yaml")
+        assert collection.last_updated > original_updated
 
     def test_last_updated_changes_on_remove(self):
         """Test that last_updated changes when removing snapshot."""
-        inventory = Inventory(
+        collection = Collection(
             name="test",
             account_id="123456789012",
             snapshots=["snap1.yaml"],
         )
-        original_updated = inventory.last_updated
+        original_updated = collection.last_updated
 
         # Wait a tiny bit to ensure timestamp difference
         import time
 
         time.sleep(0.01)
 
-        inventory.remove_snapshot("snap1.yaml")
-        assert inventory.last_updated > original_updated
+        collection.remove_snapshot("snap1.yaml")
+        assert collection.last_updated > original_updated
 
-    def test_inventory_with_all_fields(self):
-        """Test inventory with all possible fields populated."""
+    def test_collection_with_all_fields(self):
+        """Test collection with all possible fields populated."""
         now = datetime.now(timezone.utc)
-        inventory = Inventory(
+        collection = Collection(
             name="comprehensive-test",
             account_id="123456789012",
             include_tags={"Env": "prod", "Team": "Platform"},
             exclude_tags={"Status": "archived", "Temp": "true"},
             snapshots=["s1.yaml", "s2.yaml", "s3.yaml"],
             active_snapshot="s2.yaml",
-            description="Comprehensive test inventory",
+            description="Comprehensive test collection",
             created_at=now,
             last_updated=now,
         )
 
-        assert inventory.name == "comprehensive-test"
-        assert len(inventory.include_tags) == 2
-        assert len(inventory.exclude_tags) == 2
-        assert len(inventory.snapshots) == 3
-        assert inventory.active_snapshot == "s2.yaml"
-        assert inventory.description == "Comprehensive test inventory"
+        assert collection.name == "comprehensive-test"
+        assert len(collection.include_tags) == 2
+        assert len(collection.exclude_tags) == 2
+        assert len(collection.snapshots) == 3
+        assert collection.active_snapshot == "s2.yaml"
+        assert collection.description == "Comprehensive test collection"
 
-    def test_inventory_from_dict_with_datetime_objects(self):
-        """Test deserializing inventory when datetime fields are already datetime objects.
+    def test_collection_from_dict_with_datetime_objects(self):
+        """Test deserializing collection when datetime fields are already datetime objects.
 
         This can happen when PyYAML auto-parses ISO datetime strings.
         Regression test for issue #36.
@@ -258,7 +258,7 @@ class TestInventoryModel:
         created_at = datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
         last_updated = datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
         data = {
-            "name": "test-inventory",
+            "name": "test-collection",
             "account_id": "123456789012",
             "description": "Test",
             "include_tags": {},
@@ -268,22 +268,22 @@ class TestInventoryModel:
             "created_at": created_at,  # datetime object, not string
             "last_updated": last_updated,  # datetime object, not string
         }
-        inventory = Inventory.from_dict(data)
+        collection = Collection.from_dict(data)
 
-        assert inventory.created_at == created_at
-        assert inventory.last_updated == last_updated
+        assert collection.created_at == created_at
+        assert collection.last_updated == last_updated
         # Ensure to_dict works correctly after from_dict with datetime
-        data_out = inventory.to_dict()
+        data_out = collection.to_dict()
         assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"
         assert data_out["last_updated"] == "2024-03-16T10:00:00+00:00"
 
-    def test_inventory_from_dict_with_string_datetimes(self):
-        """Test deserializing inventory when datetime fields are strings.
+    def test_collection_from_dict_with_string_datetimes(self):
+        """Test deserializing collection when datetime fields are strings.
 
         This is the normal case when loading from serialized YAML.
         """
         data = {
-            "name": "test-inventory",
+            "name": "test-collection",
             "account_id": "123456789012",
             "description": "Test",
             "include_tags": {},
@@ -293,24 +293,24 @@ class TestInventoryModel:
             "created_at": "2024-03-15T14:30:00+00:00",  # string
             "last_updated": "2024-03-16T10:00:00+00:00",  # string
         }
-        inventory = Inventory.from_dict(data)
+        collection = Collection.from_dict(data)
 
-        assert inventory.created_at == datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
-        assert inventory.last_updated == datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
+        assert collection.created_at == datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
+        assert collection.last_updated == datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
         # Ensure to_dict works correctly
-        data_out = inventory.to_dict()
+        data_out = collection.to_dict()
         assert data_out["created_at"] == "2024-03-15T14:30:00+00:00"
         assert data_out["last_updated"] == "2024-03-16T10:00:00+00:00"
 
-    def test_inventory_from_dict_with_mixed_datetime_types(self):
-        """Test deserializing inventory when one datetime field is a string and one is datetime.
+    def test_collection_from_dict_with_mixed_datetime_types(self):
+        """Test deserializing collection when one datetime field is a string and one is datetime.
 
         This is an edge case to ensure both fields are handled independently.
         Regression test for issue #36.
         """
         created_at = datetime(2024, 3, 15, 14, 30, 0, tzinfo=timezone.utc)
         data = {
-            "name": "test-inventory",
+            "name": "test-collection",
             "account_id": "123456789012",
             "description": "Test",
             "include_tags": {},
@@ -320,7 +320,7 @@ class TestInventoryModel:
             "created_at": created_at,  # datetime object
             "last_updated": "2024-03-16T10:00:00+00:00",  # string
         }
-        inventory = Inventory.from_dict(data)
+        collection = Collection.from_dict(data)
 
-        assert inventory.created_at == created_at
-        assert inventory.last_updated == datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)
+        assert collection.created_at == created_at
+        assert collection.last_updated == datetime(2024, 3, 16, 10, 0, 0, tzinfo=timezone.utc)

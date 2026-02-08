@@ -22,7 +22,7 @@ def make_snapshot_metadata(
     name="test-snapshot",
     account_id="123456789012",
     regions=None,
-    inventory_name="test-inventory",
+    collection_name="test-collection",
     total_resource_count=100,
 ):
     """Helper to create SnapshotMetadata objects."""
@@ -31,7 +31,7 @@ def make_snapshot_metadata(
         created_at=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         account_id=account_id,
         regions=regions or ["us-east-1", "us-west-2"],
-        inventory_name=inventory_name,
+        collection_name=collection_name,
         total_resource_count=total_resource_count,
     )
 

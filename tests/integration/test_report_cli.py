@@ -55,7 +55,7 @@ def test_snapshot():
         account_id="123456789012",
         regions=["us-east-1"],
         resources=resources,
-        inventory_name="test",
+        collection_name="test",
     )
 
 
@@ -117,7 +117,7 @@ class TestSnapshotReportCLIEmptySnapshot:
             account_id="123456789012",
             regions=["us-east-1"],
             resources=[],
-            inventory_name="test",
+            collection_name="test",
         )
         mock_get_active.return_value = "empty"
         mock_load.return_value = empty_snapshot
@@ -409,29 +409,29 @@ class TestSnapshotReportCLIExport:
         assert "format" in result.stdout.lower() or "error" in result.stdout.lower()
 
 
-class TestSnapshotReportCLIInventoryDefault:
-    """Tests for inventory-based snapshot selection."""
+class TestSnapshotReportCLICollectionDefault:
+    """Tests for collection-based snapshot selection."""
 
     @patch("src.snapshot.storage.SnapshotStorage.load_snapshot")
     @patch("src.snapshot.storage.SnapshotStorage.list_snapshots")
-    def test_inventory_defaults_to_most_recent(
+    def test_collection_defaults_to_most_recent(
         self,
         mock_list_snapshots,
         mock_load_snapshot,
         cli_runner,
         test_snapshot,
     ):
-        """Test that specifying --inventory uses the most recent snapshot from that inventory."""
+        """Test that specifying --collection uses the most recent snapshot from that collection."""
         from datetime import datetime
 
-        # Create two snapshots from same inventory with different dates
+        # Create two snapshots from same collection with different dates
         older_snapshot = Snapshot(
             name="snapshot-2025-01-01",
             created_at=datetime(2025, 1, 1, 10, 0, 0),
             account_id="123456789012",
             regions=["us-east-1"],
             resources=test_snapshot.resources,
-            inventory_name="prod",
+            collection_name="prod",
         )
 
         newer_snapshot = Snapshot(
@@ -440,7 +440,7 @@ class TestSnapshotReportCLIInventoryDefault:
             account_id="123456789012",
             regions=["us-east-1"],
             resources=test_snapshot.resources,
-            inventory_name="prod",
+            collection_name="prod",
         )
 
         # Mock list_snapshots to return both
@@ -459,7 +459,7 @@ class TestSnapshotReportCLIInventoryDefault:
 
         mock_load_snapshot.side_effect = load_side_effect
 
-        result = cli_runner.invoke(app, ["snapshot", "report", "--inventory", "prod"])
+        result = cli_runner.invoke(app, ["snapshot", "report", "--collection", "prod"])
 
         assert result.exit_code == 0
         # Should use the newer snapshot
@@ -469,18 +469,18 @@ class TestSnapshotReportCLIInventoryDefault:
 
     @patch("src.snapshot.storage.SnapshotStorage.load_snapshot")
     @patch("src.snapshot.storage.SnapshotStorage.list_snapshots")
-    def test_inventory_no_snapshots_error(
+    def test_collection_no_snapshots_error(
         self,
         mock_list_snapshots,
         mock_load_snapshot,
         cli_runner,
         test_snapshot,
     ):
-        """Test error when inventory has no snapshots."""
+        """Test error when collection has no snapshots."""
         # Mock empty list
         mock_list_snapshots.return_value = []
 
-        result = cli_runner.invoke(app, ["snapshot", "report", "--inventory", "nonexistent"])
+        result = cli_runner.invoke(app, ["snapshot", "report", "--collection", "nonexistent"])
 
         assert result.exit_code != 0
         assert "No snapshots found" in result.stdout or "nonexistent" in result.stdout

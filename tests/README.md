@@ -6,12 +6,12 @@ Comprehensive test suite for the AWS Baseline Snapshot & Delta Tracking tool.
 
 ```
 tests/
-├── conftest.py                    # Shared fixtures
-├── unit/                          # Unit tests
-│   ├── test_inventory_model.py    # Inventory model tests
-│   └── test_inventory_storage.py  # InventoryStorage service tests
-└── integration/                   # Integration tests
-    └── test_inventory_cli.py      # CLI command tests
+├── conftest.py                      # Shared fixtures
+├── unit/                            # Unit tests
+│   ├── test_collection_model.py     # Collection model tests
+│   └── test_collection_storage.py   # CollectionStorage service tests
+└── integration/                     # Integration tests
+    └── test_collection_cli.py       # CLI command tests
 ```
 
 ## Running Tests
@@ -48,13 +48,13 @@ pytest tests/unit/
 pytest tests/integration/
 
 # Specific test file
-pytest tests/unit/test_inventory_model.py
+pytest tests/unit/test_collection_model.py
 
 # Specific test class
-pytest tests/unit/test_inventory_model.py::TestInventoryModel
+pytest tests/unit/test_collection_model.py::TestCollectionModel
 
 # Specific test
-pytest tests/unit/test_inventory_model.py::TestInventoryModel::test_inventory_creation
+pytest tests/unit/test_collection_model.py::TestCollectionModel::test_collection_creation
 
 # With coverage
 pytest --cov=src --cov-report=term-missing
@@ -69,18 +69,18 @@ pytest -v
 
 Unit tests focus on individual components in isolation, using mocks for dependencies.
 
-**test_inventory_model.py** (28 tests)
-- Inventory creation and initialization
+**test_collection_model.py** (28 tests)
+- Collection creation and initialization
 - Serialization (to_dict/from_dict)
 - Snapshot management (add/remove)
 - Validation rules (name, account_id, etc.)
 - Edge cases and error conditions
 
-**test_inventory_storage.py** (25 tests)
+**test_collection_storage.py** (25 tests)
 - File I/O operations
 - CRUD operations (load, save, delete)
 - Account-scoped queries
-- Default inventory handling
+- Default collection handling
 - Atomic writes and data integrity
 - Error handling and edge cases
 
@@ -88,12 +88,12 @@ Unit tests focus on individual components in isolation, using mocks for dependen
 
 Integration tests are documented as manual test scenarios due to the complexity of mocking file system and AWS credential interactions.
 
-**test_inventory_cli_manual.py** - Manual test scenarios:
-- `inventory create` command (basic, with filters, error cases)
-- `inventory list` command (empty, multiple inventories)
-- `inventory show` command (details, nonexistent)
-- `inventory delete` command (with force, last inventory protection)
-- `inventory migrate` command (no snapshots, with snapshots)
+**test_collection_cli_manual.py** - Manual test scenarios:
+- `collection create` command (basic, with filters, error cases)
+- `collection list` command (empty, multiple collections)
+- `collection show` command (details, nonexistent)
+- `collection delete` command (with force, last collection protection)
+- `collection migrate` command (no snapshots, with snapshots)
 - Complete workflows (full lifecycle testing)
 
 **Why Manual?**
@@ -123,23 +123,23 @@ invoke coverage-report
 Shared fixtures are defined in `conftest.py`:
 
 - `temp_dir` - Temporary directory for file operations
-- `sample_inventory_data` - Sample inventory dictionary
+- `sample_collection_data` - Sample collection dictionary
 - `sample_snapshot_data` - Sample snapshot dictionary
 - `mock_aws_identity` - Mock AWS credentials
 
 ### Example Test
 
 ```python
-def test_create_inventory(temp_dir):
-    """Test creating an inventory."""
-    storage = InventoryStorage(temp_dir)
+def test_create_collection(temp_dir):
+    """Test creating a collection."""
+    storage = CollectionStorage(temp_dir)
 
-    inventory = Inventory(
+    collection = Collection(
         name="test",
         account_id="123456789012"
     )
 
-    storage.save(inventory)
+    storage.save(collection)
 
     retrieved = storage.get_by_name("test", "123456789012")
     assert retrieved.name == "test"

@@ -1,4 +1,4 @@
-"""Inventory model for organizing snapshots by account and purpose."""
+"""Collection model for organizing snapshots by account and purpose."""
 
 import re
 from dataclasses import dataclass, field
@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 
 @dataclass
-class Inventory:
+class Collection:
     """Named container for organizing snapshots by account and purpose.
 
     Attributes:
@@ -15,10 +15,10 @@ class Inventory:
         account_id: AWS account ID (12 digits)
         include_tags: Tag filters (resource MUST have ALL)
         exclude_tags: Tag filters (resource MUST NOT have ANY)
-        snapshots: List of snapshot filenames in this inventory
+        snapshots: List of snapshot filenames in this collection
         active_snapshot: Filename of active baseline snapshot
         description: Human-readable description
-        created_at: Inventory creation timestamp (timezone-aware UTC)
+        created_at: Collection creation timestamp (timezone-aware UTC)
         last_updated: Last modification timestamp (timezone-aware UTC, auto-updated)
     """
 
@@ -51,14 +51,14 @@ class Inventory:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Inventory":
+    def from_dict(cls, data: Dict[str, Any]) -> "Collection":
         """Deserialize from dictionary (YAML load).
 
         Args:
             data: Dictionary loaded from YAML
 
         Returns:
-            Inventory instance
+            Collection instance
         """
         # Handle datetime fields being either string or datetime (PyYAML can auto-parse)
         created_at = data["created_at"]
@@ -82,7 +82,7 @@ class Inventory:
         )
 
     def add_snapshot(self, snapshot_filename: str, set_active: bool = False) -> None:
-        """Add snapshot to inventory, optionally marking as active.
+        """Add snapshot to collection, optionally marking as active.
 
         Args:
             snapshot_filename: Name of snapshot file to add
@@ -95,7 +95,7 @@ class Inventory:
         self.last_updated = datetime.now(timezone.utc)
 
     def remove_snapshot(self, snapshot_filename: str) -> None:
-        """Remove snapshot from inventory, clearing active if it was active.
+        """Remove snapshot from collection, clearing active if it was active.
 
         Args:
             snapshot_filename: Name of snapshot file to remove
@@ -107,7 +107,7 @@ class Inventory:
         self.last_updated = datetime.now(timezone.utc)
 
     def validate(self) -> List[str]:
-        """Validate inventory data, return list of errors.
+        """Validate collection data, return list of errors.
 
         Returns:
             List of validation error messages (empty if valid)

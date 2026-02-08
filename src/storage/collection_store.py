@@ -1,56 +1,56 @@
-"""Inventory storage operations for SQLite backend."""
+"""Collection storage operations for SQLite backend."""
 
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from ..models.inventory import Inventory
+from ..models.collection import Collection
 from .database import Database, json_deserialize, json_serialize
 
 logger = logging.getLogger(__name__)
 
 
-class InventoryStore:
-    """CRUD operations for inventories in SQLite database."""
+class CollectionStore:
+    """CRUD operations for collections in SQLite database."""
 
     def __init__(self, db: Database):
-        """Initialize inventory store.
+        """Initialize collection store.
 
         Args:
             db: Database connection manager
         """
         self.db = db
 
-    def save(self, inventory: Inventory) -> int:
-        """Save or update inventory in database.
+    def save(self, collection: Collection) -> int:
+        """Save or update collection in database.
 
         Args:
-            inventory: Inventory to save
+            collection: Collection to save
 
         Returns:
-            Database ID of saved inventory
+            Database ID of saved collection
         """
         # Get active snapshot ID if set
         active_snapshot_id = None
-        if inventory.active_snapshot:
+        if collection.active_snapshot:
             # Look up snapshot ID by name (remove file extensions if present)
-            snap_name = inventory.active_snapshot.replace(".yaml.gz", "").replace(".yaml", "")
+            snap_name = collection.active_snapshot.replace(".yaml.gz", "").replace(".yaml", "")
             row = self.db.fetchone("SELECT id FROM snapshots WHERE name = ?", (snap_name,))
             if row:
                 active_snapshot_id = row["id"]
 
         with self.db.transaction() as cursor:
-            # Check if inventory exists
+            # Check if collection exists
             existing = self.db.fetchone(
-                "SELECT id FROM inventories WHERE name = ? AND account_id = ?",
-                (inventory.name, inventory.account_id),
+                "SELECT id FROM collections WHERE name = ? AND account_id = ?",
+                (collection.name, collection.account_id),
             )
 
             if existing:
                 # Update existing
                 cursor.execute(
                     """
-                    UPDATE inventories SET
+                    UPDATE collections SET
                         description = ?,
                         include_tags = ?,
                         exclude_tags = ?,
@@ -59,59 +59,59 @@ class InventoryStore:
                     WHERE id = ?
                     """,
                     (
-                        inventory.description,
-                        json_serialize(inventory.include_tags),
-                        json_serialize(inventory.exclude_tags),
+                        collection.description,
+                        json_serialize(collection.include_tags),
+                        json_serialize(collection.exclude_tags),
                         active_snapshot_id,
-                        inventory.last_updated.isoformat(),
+                        collection.last_updated.isoformat(),
                         existing["id"],
                     ),
                 )
-                inventory_id = existing["id"]
+                collection_id = existing["id"]
 
                 # Update snapshot links
-                self._update_snapshot_links(cursor, inventory_id, inventory.snapshots)
+                self._update_snapshot_links(cursor, collection_id, collection.snapshots)
 
-                logger.debug(f"Updated inventory '{inventory.name}' (id={inventory_id})")
+                logger.debug(f"Updated collection '{collection.name}' (id={collection_id})")
             else:
                 # Insert new
                 cursor.execute(
                     """
-                    INSERT INTO inventories (
+                    INSERT INTO collections (
                         name, account_id, description, include_tags, exclude_tags,
                         active_snapshot_id, created_at, last_updated
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        inventory.name,
-                        inventory.account_id,
-                        inventory.description,
-                        json_serialize(inventory.include_tags),
-                        json_serialize(inventory.exclude_tags),
+                        collection.name,
+                        collection.account_id,
+                        collection.description,
+                        json_serialize(collection.include_tags),
+                        json_serialize(collection.exclude_tags),
                         active_snapshot_id,
-                        inventory.created_at.isoformat(),
-                        inventory.last_updated.isoformat(),
+                        collection.created_at.isoformat(),
+                        collection.last_updated.isoformat(),
                     ),
                 )
-                inventory_id = cursor.lastrowid
+                collection_id = cursor.lastrowid
 
                 # Add snapshot links
-                self._update_snapshot_links(cursor, inventory_id, inventory.snapshots)
+                self._update_snapshot_links(cursor, collection_id, collection.snapshots)
 
-                logger.debug(f"Saved inventory '{inventory.name}' (id={inventory_id})")
+                logger.debug(f"Saved collection '{collection.name}' (id={collection_id})")
 
-            return inventory_id
+            return collection_id
 
-    def _update_snapshot_links(self, cursor, inventory_id: int, snapshot_names: List[str]) -> None:
-        """Update inventory-snapshot links.
+    def _update_snapshot_links(self, cursor, collection_id: int, snapshot_names: List[str]) -> None:
+        """Update collection-snapshot links.
 
         Args:
             cursor: Database cursor
-            inventory_id: Inventory ID
+            collection_id: Collection ID
             snapshot_names: List of snapshot names to link
         """
         # Clear existing links
-        cursor.execute("DELETE FROM inventory_snapshots WHERE inventory_id = ?", (inventory_id,))
+        cursor.execute("DELETE FROM collection_snapshots WHERE collection_id = ?", (collection_id,))
 
         # Add new links
         for snap_name in snapshot_names:
@@ -120,49 +120,49 @@ class InventoryStore:
             row = self.db.fetchone("SELECT id FROM snapshots WHERE name = ?", (snap_name,))
             if row:
                 cursor.execute(
-                    "INSERT OR IGNORE INTO inventory_snapshots (inventory_id, snapshot_id) VALUES (?, ?)",
-                    (inventory_id, row["id"]),
+                    "INSERT OR IGNORE INTO collection_snapshots (collection_id, snapshot_id) VALUES (?, ?)",
+                    (collection_id, row["id"]),
                 )
 
-    def load(self, name: str, account_id: str) -> Optional[Inventory]:
-        """Load inventory by name and account.
+    def load(self, name: str, account_id: str) -> Optional[Collection]:
+        """Load collection by name and account.
 
         Args:
-            name: Inventory name
+            name: Collection name
             account_id: AWS account ID
 
         Returns:
-            Inventory object or None if not found
+            Collection object or None if not found
         """
         row = self.db.fetchone(
-            "SELECT * FROM inventories WHERE name = ? AND account_id = ?",
+            "SELECT * FROM collections WHERE name = ? AND account_id = ?",
             (name, account_id),
         )
         if not row:
             return None
 
-        return self._row_to_inventory(row)
+        return self._row_to_collection(row)
 
-    def _row_to_inventory(self, row: Dict[str, Any]) -> Inventory:
-        """Convert database row to Inventory object.
+    def _row_to_collection(self, row: Dict[str, Any]) -> Collection:
+        """Convert database row to Collection object.
 
         Args:
             row: Database row dict
 
         Returns:
-            Inventory object
+            Collection object
         """
-        inventory_id = row["id"]
+        collection_id = row["id"]
 
         # Get linked snapshot names
         snapshot_rows = self.db.fetchall(
             """
             SELECT s.name FROM snapshots s
-            JOIN inventory_snapshots is_link ON s.id = is_link.snapshot_id
-            WHERE is_link.inventory_id = ?
+            JOIN collection_snapshots cs_link ON s.id = cs_link.snapshot_id
+            WHERE cs_link.collection_id = ?
             ORDER BY s.created_at DESC
             """,
-            (inventory_id,),
+            (collection_id,),
         )
         snapshots = [r["name"] for r in snapshot_rows]
 
@@ -185,7 +185,7 @@ class InventoryStore:
         if last_updated.tzinfo is None:
             last_updated = last_updated.replace(tzinfo=timezone.utc)
 
-        return Inventory(
+        return Collection(
             name=row["name"],
             account_id=row["account_id"],
             description=row["description"] or "",
@@ -197,35 +197,35 @@ class InventoryStore:
             last_updated=last_updated,
         )
 
-    def list_all(self) -> List[Inventory]:
-        """List all inventories.
+    def list_all(self) -> List[Collection]:
+        """List all collections.
 
         Returns:
-            List of all Inventory objects
+            List of all Collection objects
         """
-        rows = self.db.fetchall("SELECT * FROM inventories ORDER BY account_id, name")
-        return [self._row_to_inventory(row) for row in rows]
+        rows = self.db.fetchall("SELECT * FROM collections ORDER BY account_id, name")
+        return [self._row_to_collection(row) for row in rows]
 
-    def list_by_account(self, account_id: str) -> List[Inventory]:
-        """List inventories for a specific account.
+    def list_by_account(self, account_id: str) -> List[Collection]:
+        """List collections for a specific account.
 
         Args:
             account_id: AWS account ID
 
         Returns:
-            List of Inventory objects for the account
+            List of Collection objects for the account
         """
         rows = self.db.fetchall(
-            "SELECT * FROM inventories WHERE account_id = ? ORDER BY name",
+            "SELECT * FROM collections WHERE account_id = ? ORDER BY name",
             (account_id,),
         )
-        return [self._row_to_inventory(row) for row in rows]
+        return [self._row_to_collection(row) for row in rows]
 
     def delete(self, name: str, account_id: str) -> bool:
-        """Delete inventory.
+        """Delete collection.
 
         Args:
-            name: Inventory name
+            name: Collection name
             account_id: AWS account ID
 
         Returns:
@@ -233,84 +233,84 @@ class InventoryStore:
         """
         with self.db.transaction() as cursor:
             cursor.execute(
-                "DELETE FROM inventories WHERE name = ? AND account_id = ?",
+                "DELETE FROM collections WHERE name = ? AND account_id = ?",
                 (name, account_id),
             )
             deleted = cursor.rowcount > 0
 
         if deleted:
-            logger.debug(f"Deleted inventory '{name}' for account {account_id}")
+            logger.debug(f"Deleted collection '{name}' for account {account_id}")
         return deleted
 
     def exists(self, name: str, account_id: str) -> bool:
-        """Check if inventory exists.
+        """Check if collection exists.
 
         Args:
-            name: Inventory name
+            name: Collection name
             account_id: AWS account ID
 
         Returns:
             True if exists
         """
         row = self.db.fetchone(
-            "SELECT 1 FROM inventories WHERE name = ? AND account_id = ?",
+            "SELECT 1 FROM collections WHERE name = ? AND account_id = ?",
             (name, account_id),
         )
         return row is not None
 
-    def add_snapshot_to_inventory(
+    def add_snapshot_to_collection(
         self, name: str, account_id: str, snapshot_name: str, set_active: bool = False
     ) -> bool:
-        """Add a snapshot to an inventory.
+        """Add a snapshot to a collection.
 
         Args:
-            name: Inventory name
+            name: Collection name
             account_id: AWS account ID
             snapshot_name: Snapshot name to add
             set_active: Whether to set this as the active snapshot
 
         Returns:
-            True if successful, False if inventory not found
+            True if successful, False if collection not found
         """
-        inventory = self.load(name, account_id)
-        if not inventory:
+        collection = self.load(name, account_id)
+        if not collection:
             return False
 
-        inventory.add_snapshot(snapshot_name, set_active)
-        self.save(inventory)
+        collection.add_snapshot(snapshot_name, set_active)
+        self.save(collection)
         return True
 
-    def remove_snapshot_from_inventory(self, name: str, account_id: str, snapshot_name: str) -> bool:
-        """Remove a snapshot from an inventory.
+    def remove_snapshot_from_collection(self, name: str, account_id: str, snapshot_name: str) -> bool:
+        """Remove a snapshot from a collection.
 
         Args:
-            name: Inventory name
+            name: Collection name
             account_id: AWS account ID
             snapshot_name: Snapshot name to remove
 
         Returns:
-            True if successful, False if inventory not found
+            True if successful, False if collection not found
         """
-        inventory = self.load(name, account_id)
-        if not inventory:
+        collection = self.load(name, account_id)
+        if not collection:
             return False
 
-        inventory.remove_snapshot(snapshot_name)
-        self.save(inventory)
+        collection.remove_snapshot(snapshot_name)
+        self.save(collection)
         return True
 
     def get_id(self, name: str, account_id: str) -> Optional[int]:
-        """Get database ID for inventory.
+        """Get database ID for collection.
 
         Args:
-            name: Inventory name
+            name: Collection name
             account_id: AWS account ID
 
         Returns:
             Database ID or None
         """
         row = self.db.fetchone(
-            "SELECT id FROM inventories WHERE name = ? AND account_id = ?",
+            "SELECT id FROM collections WHERE name = ? AND account_id = ?",
             (name, account_id),
         )
         return row["id"] if row else None

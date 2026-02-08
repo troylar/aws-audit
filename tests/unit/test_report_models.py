@@ -29,7 +29,7 @@ class TestSnapshotMetadata:
             created_at=datetime(2025, 1, 29, 10, 30, 0),
             account_id="123456789012",
             regions=["us-east-1", "us-west-2"],
-            inventory_name="production",
+            collection_name="production",
             total_resource_count=1547,
         )
 
@@ -37,7 +37,7 @@ class TestSnapshotMetadata:
         assert metadata.created_at == datetime(2025, 1, 29, 10, 30, 0)
         assert metadata.account_id == "123456789012"
         assert metadata.regions == ["us-east-1", "us-west-2"]
-        assert metadata.inventory_name == "production"
+        assert metadata.collection_name == "production"
         assert metadata.total_resource_count == 1547
 
     def test_region_summary_few_regions(self):
@@ -47,7 +47,7 @@ class TestSnapshotMetadata:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1", "us-west-2", "eu-west-1"],
-            inventory_name="prod",
+            collection_name="prod",
             total_resource_count=100,
         )
 
@@ -61,7 +61,7 @@ class TestSnapshotMetadata:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=regions,
-            inventory_name="prod",
+            collection_name="prod",
             total_resource_count=100,
         )
 
@@ -568,7 +568,7 @@ class TestResourceReport:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="prod",
+            collection_name="prod",
             total_resource_count=100,
         )
 
@@ -593,7 +593,7 @@ class TestResourceReport:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="prod",
+            collection_name="prod",
             total_resource_count=100,
         )
         summary = ResourceSummary(total_count=100)
@@ -620,7 +620,7 @@ class TestResourceReport:
             created_at=datetime.now(),
             account_id="123456789012",
             regions=["us-east-1"],
-            inventory_name="prod",
+            collection_name="prod",
             total_resource_count=100,
         )
         summary = ResourceSummary(total_count=100)

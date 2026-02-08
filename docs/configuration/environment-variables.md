@@ -7,7 +7,7 @@ Configure most CLI options via environment variables. Useful for CI/CD pipelines
 | Variable | Description | Equivalent Flag |
 |----------|-------------|-----------------|
 | `AWSINV_SNAPSHOT_ID` | Default snapshot name for queries | `--snapshot` |
-| `AWSINV_INVENTORY_ID` | Default inventory name | `--inventory` |
+| `AWSINV_COLLECTION_ID` | Default collection name | `--collection` |
 | `AWSINV_REGION` | Default region (repeatable via CLI: `-r us-east-1 -r us-west-2`) | `--region` |
 | `AWSINV_PROFILE` | AWS CLI profile to use | `--profile` |
 | `AWSINV_STORAGE_PATH` | Custom path for SQLite DB and logs | `--storage-path` |
@@ -17,7 +17,7 @@ Configure most CLI options via environment variables. Useful for CI/CD pipelines
 ## Usage Example
 
 ```bash
-export AWSINV_INVENTORY_ID="prod-baseline"
+export AWSINV_COLLECTION_ID="prod-baseline"
 export AWSINV_REGION="us-east-1"
 
 # These commands will now use the exported values automatically

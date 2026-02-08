@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from ..storage import AuditStore, Database, GroupStore, InventoryStore, ResourceStore, SnapshotStore
+from ..storage import AuditStore, CollectionStore, Database, GroupStore, ResourceStore, SnapshotStore
 
 # Global instances (initialized at startup)
 _db: Optional[Database] = None
@@ -49,9 +49,9 @@ def get_resource_store() -> ResourceStore:
     return ResourceStore(get_database())
 
 
-def get_inventory_store() -> InventoryStore:
-    """Get an InventoryStore instance."""
-    return InventoryStore(get_database())
+def get_collection_store() -> CollectionStore:
+    """Get a CollectionStore instance."""
+    return CollectionStore(get_database())
 
 
 def get_audit_store() -> AuditStore:

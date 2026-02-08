@@ -145,7 +145,7 @@ class SnapshotStorage:
                     "regions": snap["regions"],
                     "resource_count": snap["resource_count"],
                     "service_counts": snap["service_counts"],
-                    "inventory_name": snap.get("inventory_name", "default"),
+                    "collection_name": snap.get("collection_name", snap.get("inventory_name", "default")),
                 }
             )
 

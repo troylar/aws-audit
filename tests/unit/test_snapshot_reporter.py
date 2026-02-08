@@ -82,7 +82,7 @@ def sample_snapshot(sample_resources) -> Snapshot:
         account_id="123456789012",
         regions=["us-east-1", "us-west-2"],
         resources=sample_resources,
-        inventory_name="production",
+        collection_name="production",
     )
 
 
@@ -105,7 +105,7 @@ class TestSnapshotReporterInit:
         assert metadata.created_at == datetime(2025, 1, 29, 10, 30, 0)
         assert metadata.account_id == "123456789012"
         assert metadata.regions == ["us-east-1", "us-west-2"]
-        assert metadata.inventory_name == "production"
+        assert metadata.collection_name == "production"
         assert metadata.total_resource_count == 5
 
 
@@ -146,7 +146,7 @@ class TestSnapshotReporterGenerateSummary:
             account_id="123456789012",
             regions=["us-east-1"],
             resources=[],
-            inventory_name="test",
+            collection_name="test",
         )
 
         reporter = SnapshotReporter(empty_snapshot)
@@ -188,7 +188,7 @@ class TestSnapshotReporterLargeDataset:
             account_id="123456789012",
             regions=["us-east-1", "us-west-2", "eu-west-1"],
             resources=resources,
-            inventory_name="test",
+            collection_name="test",
         )
 
         reporter = SnapshotReporter(snapshot)

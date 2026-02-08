@@ -282,17 +282,17 @@ class TestSecurityScanCLI:
         assert result.exit_code != 0
         assert "not found" in result.stdout.lower() or "error" in result.stdout.lower()
 
-    def test_scan_with_inventory_name(self, runner: CliRunner, test_snapshot_with_issues: tuple[str, Path]) -> None:
-        """Test scanning using --inventory flag to auto-select latest snapshot."""
+    def test_scan_with_collection_name(self, runner: CliRunner, test_snapshot_with_issues: tuple[str, Path]) -> None:
+        """Test scanning using --collection flag to auto-select latest snapshot."""
         snapshot_name, storage_dir = test_snapshot_with_issues
 
         result = runner.invoke(
             app,
-            ["security", "scan", "--inventory", "default", "--storage-dir", str(storage_dir)],
+            ["security", "scan", "--collection", "default", "--storage-dir", str(storage_dir)],
         )
 
-        # Should work if inventory exists and has snapshots
-        # Exit code may vary depending on whether inventory has active snapshot
+        # Should work if collection exists and has snapshots
+        # Exit code may vary depending on whether collection has active snapshot
         # At minimum, command should not crash
         assert (
             "security" in result.stdout.lower() or "scan" in result.stdout.lower() or "error" in result.stdout.lower()

@@ -26,7 +26,7 @@ class SnapshotMetadata:
         created_at: Snapshot creation timestamp
         account_id: AWS account ID
         regions: List of AWS regions included in snapshot
-        inventory_name: Parent inventory name
+        collection_name: Parent collection name
         total_resource_count: Total number of resources in snapshot
     """
 
@@ -34,7 +34,7 @@ class SnapshotMetadata:
     created_at: datetime
     account_id: str
     regions: List[str]
-    inventory_name: str
+    collection_name: str
     total_resource_count: int
 
     @property

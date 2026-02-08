@@ -51,7 +51,7 @@ class TestRemovedOptionNames:
     def test_no_force_on_destructive_commands(self):
         """Verify --force is removed from destructive commands (replaced by --yes)."""
         commands = _collect_commands()
-        destructive = {"inventory delete", "cleanup execute", "cleanup purge"}
+        destructive = {"collection delete", "cleanup execute", "cleanup purge"}
 
         violations = []
         for cmd_path, cmd in commands:

@@ -63,7 +63,7 @@ class SnapshotStore:
                 INSERT INTO snapshots (
                     name, created_at, account_id, regions, resource_count,
                     total_resources_before_filter, service_counts, metadata,
-                    filters_applied, schema_version, inventory_name, is_active
+                    filters_applied, schema_version, collection_name, is_active
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -77,7 +77,7 @@ class SnapshotStore:
                     json_serialize(snapshot.metadata),
                     json_serialize(snapshot.filters_applied),
                     snapshot.schema_version,
-                    snapshot.inventory_name,
+                    snapshot.collection_name,
                     snapshot.is_active,
                 ),
             )
@@ -212,7 +212,7 @@ class SnapshotStore:
             service_counts=json_deserialize(snapshot_row["service_counts"]) or {},
             metadata=json_deserialize(snapshot_row["metadata"]) or {},
             filters_applied=json_deserialize(snapshot_row["filters_applied"]),
-            inventory_name=snapshot_row["inventory_name"] or "default",
+            collection_name=snapshot_row.get("collection_name", snapshot_row.get("inventory_name")) or "default",
             schema_version=snapshot_row["schema_version"] or "1.1",
         )
 
@@ -228,7 +228,7 @@ class SnapshotStore:
         rows = self.db.fetchall(
             """
             SELECT name, created_at, account_id, regions, resource_count,
-                   service_counts, is_active, inventory_name
+                   service_counts, is_active, collection_name
             FROM snapshots
             ORDER BY created_at DESC
             """
@@ -246,7 +246,7 @@ class SnapshotStore:
                     "resource_count": row["resource_count"],
                     "service_counts": json_deserialize(row["service_counts"]) or {},
                     "is_active": bool(row["is_active"]),
-                    "inventory_name": row["inventory_name"],
+                    "collection_name": row["collection_name"],
                 }
             )
 

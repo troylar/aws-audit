@@ -158,7 +158,7 @@ def export_report_json(
             "created_at": metadata.created_at.isoformat(),
             "account_id": metadata.account_id,
             "regions": metadata.regions,
-            "inventory_name": metadata.inventory_name,
+            "collection_name": metadata.collection_name,
             "total_resource_count": metadata.total_resource_count,
         },
         "summary": {
@@ -274,7 +274,7 @@ def export_report_txt(
     lines.append(f"Snapshot Report: {metadata.name}")
     lines.append("=" * 65)
     lines.append("")
-    lines.append(f"Inventory:     {metadata.inventory_name}")
+    lines.append(f"Collection:    {metadata.collection_name}")
     lines.append(f"Account ID:    {metadata.account_id}")
     lines.append(f"Created:       {metadata.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
     lines.append(f"Regions:       {metadata.region_summary}")

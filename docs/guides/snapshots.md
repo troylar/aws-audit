@@ -17,8 +17,8 @@ awsinv snapshot create my-baseline --region us-east-1 --type ec2,s3,lambda
 # Filter by tag
 awsinv snapshot create my-baseline --region us-east-1 --include-tags "env=prod"
 
-# Assign to inventory group
-awsinv snapshot create my-baseline --region us-east-1 --inventory prod-baseline
+# Assign to collection
+awsinv snapshot create my-baseline --region us-east-1 --collection prod-baseline
 
 # Track who created each resource
 awsinv snapshot create my-baseline --region us-east-1 --track-creators

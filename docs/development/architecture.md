@@ -51,7 +51,7 @@
 | `src/collectors/` | 27 AWS service collectors (EC2, S3, Lambda, etc.) |
 | `src/config_service/` | AWS Config integration (detection, collection, mapping) |
 | `src/storage/` | SQLite database layer (schema, CRUD, queries) |
-| `src/models/` | Data models (Resource, Snapshot, Inventory) |
+| `src/models/` | Data models (Resource, Snapshot, Collection) |
 | `src/delta/` | Configuration drift detection |
 | `src/security/` | CIS Benchmark security scanner |
 | `src/cost/` | AWS Cost Explorer integration |

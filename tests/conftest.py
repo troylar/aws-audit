@@ -15,12 +15,12 @@ def temp_dir():
 
 
 @pytest.fixture
-def sample_inventory_data() -> Dict[str, Any]:
-    """Sample inventory data for testing."""
+def sample_collection_data() -> Dict[str, Any]:
+    """Sample collection data for testing."""
     return {
-        "name": "test-inventory",
+        "name": "test-collection",
         "account_id": "123456789012",
-        "description": "Test inventory",
+        "description": "Test collection",
         "include_tags": {"Environment": "production"},
         "exclude_tags": {"Status": "archived"},
         "snapshots": ["snapshot1.yaml", "snapshot2.yaml"],
@@ -44,7 +44,7 @@ def sample_snapshot_data() -> Dict[str, Any]:
         "metadata": {},
         "filters_applied": None,
         "total_resources_before_filter": None,
-        "inventory_name": "default",
+        "collection_name": "default",
         "resources": [],
     }
 
