@@ -294,7 +294,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../guides/snapshots/" class="md-tabs__link">
+        <a href="../../guides/collections/" class="md-tabs__link">
           
   
   
@@ -639,10 +639,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-1-create-a-snapshot" class="md-nav__link">
+  <a href="#step-1-create-a-collection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1: Create a Snapshot
+        Step 1: Create a Collection
       
     </span>
   </a>
@@ -650,10 +650,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-view-what-was-captured" class="md-nav__link">
+  <a href="#step-2-create-a-snapshot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: View What Was Captured
+        Step 2: Create a Snapshot
       
     </span>
   </a>
@@ -661,10 +661,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-track-changes" class="md-nav__link">
+  <a href="#step-3-view-what-was-captured" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Track Changes
+        Step 3: View What Was Captured
       
     </span>
   </a>
@@ -672,10 +672,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-4-export-your-snapshot" class="md-nav__link">
+  <a href="#step-4-track-changes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4: Export Your Snapshot
+        Step 4: Track Changes
       
     </span>
   </a>
@@ -683,10 +683,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-5-generate-iac-from-your-snapshot" class="md-nav__link">
+  <a href="#step-5-export-your-snapshot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 5: Generate IaC from Your Snapshot
+        Step 5: Export Your Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-generate-iac-from-your-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Generate IaC from Your Snapshot
       
     </span>
   </a>
@@ -982,14 +993,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/snapshots/" class="md-nav__link">
+      <a href="../../guides/collections/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Snapshots
+    Collections
   
 
     
@@ -1010,14 +1021,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/collections/" class="md-nav__link">
+      <a href="../../guides/snapshots/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Collections
+    Snapshots
   
 
     
@@ -1901,10 +1912,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-1-create-a-snapshot" class="md-nav__link">
+  <a href="#step-1-create-a-collection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1: Create a Snapshot
+        Step 1: Create a Collection
       
     </span>
   </a>
@@ -1912,10 +1923,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-view-what-was-captured" class="md-nav__link">
+  <a href="#step-2-create-a-snapshot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: View What Was Captured
+        Step 2: Create a Snapshot
       
     </span>
   </a>
@@ -1923,10 +1934,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-track-changes" class="md-nav__link">
+  <a href="#step-3-view-what-was-captured" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Track Changes
+        Step 3: View What Was Captured
       
     </span>
   </a>
@@ -1934,10 +1945,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-4-export-your-snapshot" class="md-nav__link">
+  <a href="#step-4-track-changes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4: Export Your Snapshot
+        Step 4: Track Changes
       
     </span>
   </a>
@@ -1945,10 +1956,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-5-generate-iac-from-your-snapshot" class="md-nav__link">
+  <a href="#step-5-export-your-snapshot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 5: Generate IaC from Your Snapshot
+        Step 5: Export Your Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-generate-iac-from-your-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Generate IaC from Your Snapshot
       
     </span>
   </a>
@@ -1998,12 +2020,12 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Snapshot</strong></td>
-<td>A point-in-time inventory of your AWS resources (stored in local SQLite database). Not an EBS/RDS snapshot.</td>
+<td><strong>Collection</strong></td>
+<td>A named container for organizing snapshots by environment, team, or purpose. Create a collection first, then add snapshots to it.</td>
 </tr>
 <tr>
-<td><strong>Collection</strong></td>
-<td>A named group of snapshots. Use collections to organize snapshots by environment, team, or purpose.</td>
+<td><strong>Snapshot</strong></td>
+<td>A point-in-time inventory of your AWS resources (stored in local SQLite database). Not an EBS/RDS snapshot.</td>
 </tr>
 <tr>
 <td><strong>Cleanup</strong></td>
@@ -2023,37 +2045,41 @@
 </tr>
 </tbody>
 </table>
-<h2 id="step-1-create-a-snapshot">Step 1: Create a Snapshot<a class="headerlink" href="#step-1-create-a-snapshot" title="Permanent link">&para;</a></h2>
-<p>Capture the current state of your AWS resources:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--region<span class="w"> </span>us-east-1
+<h2 id="step-1-create-a-collection">Step 1: Create a Collection<a class="headerlink" href="#step-1-create-a-collection" title="Permanent link">&para;</a></h2>
+<p>Collections organize your snapshots by environment, team, or purpose. Start by creating one:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>awsinv<span class="w"> </span>collection<span class="w"> </span>create<span class="w"> </span>my-project<span class="w"> </span>--description<span class="w"> </span><span class="s2">&quot;My first collection&quot;</span>
+</span></code></pre></div>
+<h2 id="step-2-create-a-snapshot">Step 2: Create a Snapshot<a class="headerlink" href="#step-2-create-a-snapshot" title="Permanent link">&para;</a></h2>
+<p>Capture the current state of your AWS resources into the collection:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>my-baseline<span class="w"> </span>--collection<span class="w"> </span>my-project<span class="w"> </span>--region<span class="w"> </span>us-east-1
 </span></code></pre></div>
 <p>This takes 30--60 seconds depending on resource count. The tool scans 27 AWS services and catalogs 80+ resource types.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>If you have <a href="../../configuration/aws-config-integration/">AWS Config</a> enabled, collection can be up to 5x faster. The tool detects it automatically.</p>
 </div>
-<h2 id="step-2-view-what-was-captured">Step 2: View What Was Captured<a class="headerlink" href="#step-2-view-what-was-captured" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>report
+<h2 id="step-3-view-what-was-captured">Step 3: View What Was Captured<a class="headerlink" href="#step-3-view-what-was-captured" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>report
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>+------------------------------------------+
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>| Snapshot: my-baseline                    |
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>| Resources: 127                           |
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>| Regions: us-east-1                       |
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>+------------------------------------------+
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>| EC2 Instances:     12                    |
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>| S3 Buckets:        8                     |
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>| Lambda Functions:  23                    |
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>| IAM Roles:         45                    |
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>| ...                                      |
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>+------------------------------------------+
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>+------------------------------------------+
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| Snapshot: my-baseline                    |
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>| Resources: 127                           |
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>| Regions: us-east-1                       |
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>+------------------------------------------+
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>| EC2 Instances:     12                    |
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>| S3 Buckets:        8                     |
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>| Lambda Functions:  23                    |
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>| IAM Roles:         45                    |
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>| ...                                      |
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>+------------------------------------------+
 </span></code></pre></div>
 <p>For a detailed view of all resources:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>report<span class="w"> </span>--detailed
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span>report<span class="w"> </span>--detailed
 </span></code></pre></div>
-<h2 id="step-3-track-changes">Step 3: Track Changes<a class="headerlink" href="#step-3-track-changes" title="Permanent link">&para;</a></h2>
+<h2 id="step-4-track-changes">Step 4: Track Changes<a class="headerlink" href="#step-4-track-changes" title="Permanent link">&para;</a></h2>
 <p>After making changes to your AWS environment, compare against your baseline:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>awsinv<span class="w"> </span>delta<span class="w"> </span>--snapshot<span class="w"> </span>my-baseline<span class="w"> </span>--show-diff
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>awsinv<span class="w"> </span>delta<span class="w"> </span>--snapshot<span class="w"> </span>my-baseline<span class="w"> </span>--show-diff
 </span></code></pre></div>
 <p>This shows:</p>
 <ul>
@@ -2061,21 +2087,21 @@
 <li>Resources that were deleted</li>
 <li>Configuration changes (field-level diff)</li>
 </ul>
-<h2 id="step-4-export-your-snapshot">Step 4: Export Your Snapshot<a class="headerlink" href="#step-4-export-your-snapshot" title="Permanent link">&para;</a></h2>
+<h2 id="step-5-export-your-snapshot">Step 5: Export Your Snapshot<a class="headerlink" href="#step-5-export-your-snapshot" title="Permanent link">&para;</a></h2>
 <p>Export data for external analysis:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Export to JSON</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.json
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Export to CSV</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.csv
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Export to YAML</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.yaml
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Export to JSON</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.json
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Export to CSV</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.csv
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Export to YAML</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>awsinv<span class="w"> </span>snapshot<span class="w"> </span><span class="nb">export</span><span class="w"> </span>my-baseline<span class="w"> </span>-o<span class="w"> </span>inventory.yaml
 </span></code></pre></div>
-<h2 id="step-5-generate-iac-from-your-snapshot">Step 5: Generate IaC from Your Snapshot<a class="headerlink" href="#step-5-generate-iac-from-your-snapshot" title="Permanent link">&para;</a></h2>
+<h2 id="step-6-generate-iac-from-your-snapshot">Step 6: Generate IaC from Your Snapshot<a class="headerlink" href="#step-6-generate-iac-from-your-snapshot" title="Permanent link">&para;</a></h2>
 <p>Turn your captured inventory into infrastructure as code:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span>aws-inventory-manager<span class="o">[</span>generate<span class="o">]</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>awsinv<span class="w"> </span>generate<span class="w"> </span>terraform<span class="w"> </span>my-baseline<span class="w"> </span>--output<span class="w"> </span>./terraform
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span>aws-inventory-manager<span class="o">[</span>generate<span class="o">]</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>awsinv<span class="w"> </span>generate<span class="w"> </span>terraform<span class="w"> </span>my-baseline<span class="w"> </span>--output<span class="w"> </span>./terraform
 </span></code></pre></div>
 <p>This generates Terraform files for all resources in your snapshot. You can also generate CDK TypeScript or CDK Python. See the <a href="../../guides/iac-generation/">IaC Generation guide</a> for full options.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
