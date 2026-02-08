@@ -3,8 +3,10 @@
 import tempfile
 from pathlib import Path
 from typing import Any, Dict
+from unittest.mock import MagicMock
 
 import pytest
+from typer.testing import CliRunner
 
 
 @pytest.fixture
@@ -12,6 +14,64 @@ def temp_dir():
     """Create a temporary directory for test files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
+
+
+@pytest.fixture
+def cli_runner():
+    """Pre-configured Typer CliRunner."""
+    return CliRunner()
+
+
+@pytest.fixture
+def mock_storage():
+    """Mock SnapshotStorage for CLI tests."""
+    storage = MagicMock()
+    storage.list_snapshots.return_value = []
+    storage.load_snapshot.return_value = None
+    storage.list_collections.return_value = []
+    return storage
+
+
+@pytest.fixture
+def mock_database():
+    """Mock Database for web and storage tests."""
+    db = MagicMock()
+    db.ensure_schema.return_value = None
+    return db
+
+
+@pytest.fixture
+def sample_resource_data() -> Dict[str, Any]:
+    """Sample AWS resource data for testing."""
+    return {
+        "resource_type": "ec2:instance",
+        "resource_id": "i-1234567890abcdef0",
+        "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-1234567890abcdef0",
+        "region": "us-east-1",
+        "name": "test-instance",
+        "tags": {"Name": "test-instance", "Environment": "test"},
+        "config": {
+            "InstanceId": "i-1234567890abcdef0",
+            "InstanceType": "t3.micro",
+            "State": {"Name": "running"},
+        },
+    }
+
+
+@pytest.fixture
+def sample_generation_state() -> Dict[str, Any]:
+    """Sample GenerationState for generate module tests."""
+    return {
+        "snapshot_name": "test-snapshot",
+        "format": "terraform",
+        "output_dir": "/tmp/test-output",
+        "resources": [],
+        "resource_map": {},
+        "layers": [],
+        "generated_files": [],
+        "guardrail_results": None,
+        "errors": [],
+    }
 
 
 @pytest.fixture

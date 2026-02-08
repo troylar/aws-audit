@@ -464,3 +464,585 @@ class TestQuerySqlEdgeCases:
         assert result.exit_code == 0
         call_args = mock_store.query_raw.call_args[0][0]
         assert "snapshot_id = 42" in call_args
+
+
+# ---------------------------------------------------------------------------
+# query resources
+# ---------------------------------------------------------------------------
+
+
+class TestQueryResources:
+    """Tests for awsinv query resources command."""
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_basic(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": "arn:aws:s3:::my-bucket",
+                "resource_type": "s3:bucket",
+                "name": "my-bucket",
+                "region": "us-east-1",
+                "snapshot_name": "snap-1",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources"])
+
+        assert result.exit_code == 0
+        assert "my-bucket" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_with_type_filter(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": "arn:aws:s3:::bucket-1",
+                "resource_type": "s3:bucket",
+                "name": "bucket-1",
+                "region": "us-east-1",
+                "snapshot_name": "snap-1",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources", "--type", "s3:bucket"])
+
+        assert result.exit_code == 0
+        assert "bucket-1" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_with_tag_filter(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": "arn:aws:ec2:us-east-1:123:instance/i-abc",
+                "resource_type": "ec2:instance",
+                "name": "web-server",
+                "region": "us-east-1",
+                "snapshot_name": "snap-1",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources", "--tag", "Env=prod"])
+
+        assert result.exit_code == 0
+        assert "1 resource(s) found" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_with_tag_key_only(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": "arn:aws:ec2:us-east-1:123:instance/i-abc",
+                "resource_type": "ec2:instance",
+                "name": "web-server",
+                "region": "us-east-1",
+                "snapshot_name": "snap-1",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources", "--tag", "Environment"])
+
+        assert result.exit_code == 0
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_json_format(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": "arn:aws:s3:::bucket-1",
+                "resource_type": "s3:bucket",
+                "name": "bucket-1",
+                "region": "us-east-1",
+                "snapshot_name": "snap-1",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources", "--format", "json"])
+
+        assert result.exit_code == 0
+        assert "bucket-1" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_no_results(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = []
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources", "--type", "nonexistent"])
+
+        assert result.exit_code == 0
+        assert "No resources found" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_error(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.side_effect = Exception("DB error")
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources"])
+
+        assert result.exit_code == 1
+        assert "Error" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_with_arn_filter(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": "arn:aws:s3:::my-bucket",
+                "resource_type": "s3:bucket",
+                "name": "my-bucket",
+                "region": "us-east-1",
+                "snapshot_name": "snap-1",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(
+            app, ["query", "resources", "--arn", "arn:aws:s3:::my-bucket*"]
+        )
+
+        assert result.exit_code == 0
+        assert "my-bucket" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_with_snapshot_filter(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": "arn:aws:s3:::my-bucket",
+                "resource_type": "s3:bucket",
+                "name": "my-bucket",
+                "region": "us-east-1",
+                "snapshot_name": "baseline-2024",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(
+            app, ["query", "resources", "--snapshot", "baseline-2024"]
+        )
+
+        assert result.exit_code == 0
+        assert "my-bucket" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_resources_long_arn_truncated(self, mock_store_cls, mock_db_cls, cli_runner):
+        long_arn = "arn:aws:lambda:us-east-1:123456789012:function:" + "a" * 100
+        mock_store = MagicMock()
+        mock_store.search.return_value = [
+            {
+                "arn": long_arn,
+                "resource_type": "lambda:function",
+                "name": "long-func",
+                "region": "us-east-1",
+                "snapshot_name": "snap-1",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "resources"])
+
+        assert result.exit_code == 0
+        assert "..." in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# query history
+# ---------------------------------------------------------------------------
+
+
+class TestQueryHistory:
+    """Tests for awsinv query history command."""
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_history_table(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.get_history.return_value = [
+            {
+                "snapshot_name": "snap-1",
+                "snapshot_created_at": "2025-06-15T12:00:00",
+                "config_hash": "abc123def456789",
+                "source": "direct_api",
+            },
+            {
+                "snapshot_name": "snap-2",
+                "snapshot_created_at": "2025-06-16T12:00:00",
+                "config_hash": "xyz789abc123456",
+                "source": "aws_config",
+            },
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "history", "arn:aws:s3:::my-bucket"])
+
+        assert result.exit_code == 0
+        assert "snap-1" in result.stdout
+        assert "snap-2" in result.stdout
+        assert "2 snapshot(s)" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_history_json(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.get_history.return_value = [
+            {
+                "snapshot_name": "snap-1",
+                "snapshot_created_at": "2025-06-15T12:00:00",
+                "config_hash": "abc123",
+                "source": "direct_api",
+            }
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(
+            app,
+            ["query", "history", "arn:aws:s3:::my-bucket", "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        assert "snap-1" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_history_no_results(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.get_history.return_value = []
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "history", "arn:aws:s3:::missing"])
+
+        assert result.exit_code == 0
+        assert "No history found" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_history_config_change_highlight(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.get_history.return_value = [
+            {
+                "snapshot_name": "snap-1",
+                "snapshot_created_at": "2025-06-15T12:00:00",
+                "config_hash": "hash_a_full_length",
+                "source": "direct_api",
+            },
+            {
+                "snapshot_name": "snap-2",
+                "snapshot_created_at": "2025-06-16T12:00:00",
+                "config_hash": "hash_b_changed_xx",
+                "source": "direct_api",
+            },
+        ]
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "history", "arn:aws:s3:::my-bucket"])
+
+        assert result.exit_code == 0
+        assert "changed" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_history_error(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.get_history.side_effect = Exception("DB error")
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "history", "arn:aws:s3:::my-bucket"])
+
+        assert result.exit_code == 1
+        assert "Error" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# query stats
+# ---------------------------------------------------------------------------
+
+
+class TestQueryStats:
+    """Tests for awsinv query stats command."""
+
+    @patch("src.storage.SnapshotStore")
+    @patch("src.storage.ResourceStore")
+    @patch("src.storage.Database")
+    def test_stats_default(self, mock_db_cls, mock_resource_store_cls, mock_snap_store_cls, cli_runner):
+        mock_snap_store = MagicMock()
+        mock_snap_store.get_snapshot_count.return_value = 5
+        mock_snap_store.get_resource_count.return_value = 100
+        mock_snap_store_cls.return_value = mock_snap_store
+
+        mock_resource_store = MagicMock()
+        mock_resource_store.get_stats.return_value = [
+            {"group_key": "AWS::EC2::Instance", "count": 50},
+            {"group_key": "AWS::S3::Bucket", "count": 30},
+        ]
+        mock_resource_store_cls.return_value = mock_resource_store
+
+        result = cli_runner.invoke(app, ["query", "stats"])
+
+        assert result.exit_code == 0
+        assert "5" in result.stdout
+        assert "100" in result.stdout
+
+    @patch("src.storage.SnapshotStore")
+    @patch("src.storage.ResourceStore")
+    @patch("src.storage.Database")
+    def test_stats_json(self, mock_db_cls, mock_resource_store_cls, mock_snap_store_cls, cli_runner):
+        mock_snap_store = MagicMock()
+        mock_snap_store.get_snapshot_count.return_value = 2
+        mock_snap_store.get_resource_count.return_value = 10
+        mock_snap_store_cls.return_value = mock_snap_store
+
+        mock_resource_store = MagicMock()
+        mock_resource_store.get_stats.return_value = [
+            {"group_key": "us-east-1", "count": 10},
+        ]
+        mock_resource_store_cls.return_value = mock_resource_store
+
+        result = cli_runner.invoke(app, ["query", "stats", "--format", "json"])
+
+        assert result.exit_code == 0
+        assert "us-east-1" in result.stdout
+
+    @patch("src.storage.SnapshotStore")
+    @patch("src.storage.ResourceStore")
+    @patch("src.storage.Database")
+    def test_stats_group_by_region(self, mock_db_cls, mock_resource_store_cls, mock_snap_store_cls, cli_runner):
+        mock_snap_store = MagicMock()
+        mock_snap_store.get_snapshot_count.return_value = 1
+        mock_snap_store.get_resource_count.return_value = 5
+        mock_snap_store_cls.return_value = mock_snap_store
+
+        mock_resource_store = MagicMock()
+        mock_resource_store.get_stats.return_value = [
+            {"group_key": "us-east-1", "count": 3},
+            {"group_key": "us-west-2", "count": 2},
+        ]
+        mock_resource_store_cls.return_value = mock_resource_store
+
+        result = cli_runner.invoke(app, ["query", "stats", "--group-by", "region"])
+
+        assert result.exit_code == 0
+        assert "Region" in result.stdout
+
+    @patch("src.storage.SnapshotStore")
+    @patch("src.storage.ResourceStore")
+    @patch("src.storage.Database")
+    def test_stats_no_results(self, mock_db_cls, mock_resource_store_cls, mock_snap_store_cls, cli_runner):
+        mock_snap_store = MagicMock()
+        mock_snap_store.get_snapshot_count.return_value = 0
+        mock_snap_store.get_resource_count.return_value = 0
+        mock_snap_store_cls.return_value = mock_snap_store
+
+        mock_resource_store = MagicMock()
+        mock_resource_store.get_stats.return_value = []
+        mock_resource_store_cls.return_value = mock_resource_store
+
+        result = cli_runner.invoke(app, ["query", "stats"])
+
+        assert result.exit_code == 0
+        assert "No statistics" in result.stdout
+
+    @patch("src.storage.SnapshotStore")
+    @patch("src.storage.ResourceStore")
+    @patch("src.storage.Database")
+    def test_stats_with_snapshot_filter(self, mock_db_cls, mock_resource_store_cls, mock_snap_store_cls, cli_runner):
+        mock_snap_store = MagicMock()
+        mock_snap_store.get_snapshot_count.return_value = 1
+        mock_snap_store.get_resource_count.return_value = 10
+        mock_snap_store_cls.return_value = mock_snap_store
+
+        mock_resource_store = MagicMock()
+        mock_resource_store.get_stats.return_value = [
+            {"group_key": "AWS::EC2::Instance", "count": 10},
+        ]
+        mock_resource_store_cls.return_value = mock_resource_store
+
+        result = cli_runner.invoke(app, ["query", "stats", "--snapshot", "snap-1"])
+
+        assert result.exit_code == 0
+        assert "snap-1" in result.stdout
+
+    @patch("src.storage.SnapshotStore")
+    @patch("src.storage.ResourceStore")
+    @patch("src.storage.Database")
+    def test_stats_error(self, mock_db_cls, mock_resource_store_cls, mock_snap_store_cls, cli_runner):
+        mock_db_cls.side_effect = Exception("Connection failed")
+
+        result = cli_runner.invoke(app, ["query", "stats"])
+
+        assert result.exit_code == 1
+        assert "Error" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# query diff
+# ---------------------------------------------------------------------------
+
+
+class TestQueryDiff:
+    """Tests for awsinv query diff command."""
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_diff_with_changes(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.compare_snapshots.return_value = {
+            "added": [
+                {"arn": "arn:aws:s3:::new-bucket", "resource_type": "s3:bucket", "region": "us-east-1"}
+            ],
+            "removed": [
+                {"arn": "arn:aws:s3:::old-bucket", "resource_type": "s3:bucket", "region": "us-east-1"}
+            ],
+            "modified": [
+                {
+                    "arn": "arn:aws:ec2:us-east-1:123:instance/i-abc",
+                    "resource_type": "ec2:instance",
+                    "old_hash": "hash_old_abcdef",
+                    "new_hash": "hash_new_xyz123",
+                }
+            ],
+            "summary": {
+                "snapshot1_count": 10,
+                "snapshot2_count": 10,
+                "added_count": 1,
+                "removed_count": 1,
+                "modified_count": 1,
+            },
+        }
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "diff", "snap-1", "snap-2"])
+
+        assert result.exit_code == 0
+        assert "Added" in result.stdout
+        assert "Removed" in result.stdout
+        assert "Modified" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_diff_no_changes(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.compare_snapshots.return_value = {
+            "added": [],
+            "removed": [],
+            "modified": [],
+            "summary": {
+                "snapshot1_count": 10,
+                "snapshot2_count": 10,
+                "added_count": 0,
+                "removed_count": 0,
+                "modified_count": 0,
+            },
+        }
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "diff", "snap-1", "snap-2"])
+
+        assert result.exit_code == 0
+        assert "No differences" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_diff_json_format(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.compare_snapshots.return_value = {
+            "added": [],
+            "removed": [],
+            "modified": [],
+            "summary": {
+                "snapshot1_count": 5,
+                "snapshot2_count": 5,
+                "added_count": 0,
+                "removed_count": 0,
+                "modified_count": 0,
+            },
+        }
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(
+            app, ["query", "diff", "snap-1", "snap-2", "--format", "json"]
+        )
+
+        assert result.exit_code == 0
+        assert "snapshot1_count" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_diff_summary_format(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.compare_snapshots.return_value = {
+            "added": [{"arn": "a", "resource_type": "s3:bucket", "region": "us-east-1"}],
+            "removed": [],
+            "modified": [],
+            "summary": {
+                "snapshot1_count": 5,
+                "snapshot2_count": 6,
+                "added_count": 1,
+                "removed_count": 0,
+                "modified_count": 0,
+            },
+        }
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(
+            app, ["query", "diff", "snap-1", "snap-2", "--format", "summary"]
+        )
+
+        assert result.exit_code == 0
+        assert "Added" in result.stdout
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_diff_with_type_filter(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.compare_snapshots.return_value = {
+            "added": [
+                {"arn": "arn:aws:s3:::bucket-1", "resource_type": "s3:bucket", "region": "us-east-1"},
+                {"arn": "arn:aws:ec2:us-east-1:123:instance/i-abc", "resource_type": "ec2:instance", "region": "us-east-1"},
+            ],
+            "removed": [],
+            "modified": [],
+            "summary": {
+                "snapshot1_count": 5,
+                "snapshot2_count": 7,
+                "added_count": 2,
+                "removed_count": 0,
+                "modified_count": 0,
+            },
+        }
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(
+            app, ["query", "diff", "snap-1", "snap-2", "--type", "s3"]
+        )
+
+        assert result.exit_code == 0
+
+    @patch("src.storage.Database")
+    @patch("src.storage.ResourceStore")
+    def test_diff_error(self, mock_store_cls, mock_db_cls, cli_runner):
+        mock_store = MagicMock()
+        mock_store.compare_snapshots.side_effect = Exception("Snapshot not found")
+        mock_store_cls.return_value = mock_store
+
+        result = cli_runner.invoke(app, ["query", "diff", "snap-1", "snap-2"])
+
+        assert result.exit_code == 1
+        assert "Error" in result.stdout

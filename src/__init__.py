@@ -1,3 +1,8 @@
 """AWS Baseline Snapshot & Delta Tracking tool."""
 
-__version__ = "1.3.3"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("aws-inventory-manager")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"
