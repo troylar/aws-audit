@@ -1,0 +1,59 @@
+# S3 Security Guardrails
+# Ensures S3 buckets meet security best practices
+
+name: s3-security-policy
+version: "1.0"
+description: Security guardrails for S3 buckets
+
+guardrails:
+  - id: GR-S3-001
+    short_description: S3 bucket encryption required
+    long_description: |
+      All S3 buckets must have server-side encryption enabled.
+      This guardrail auto-fixes by enabling AES-256 encryption.
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to: ["s3:bucket"]
+    condition: "Encryption exists"
+    auto_fix:
+      Encryption:
+        SSEAlgorithm: "AES256"
+
+  - id: GR-S3-002
+    short_description: S3 bucket versioning required
+    long_description: |
+      S3 buckets should have versioning enabled for data protection.
+    severity: MEDIUM
+    action: WARN
+    applies_to: ["s3:bucket"]
+    condition: "get('Versioning.Status') == 'Enabled'"
+
+  - id: GR-S3-003
+    short_description: Block public access
+    long_description: |
+      S3 buckets must have public access blocked at the bucket level.
+      This guardrail auto-fixes by enabling all public access blocks.
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to: ["s3:bucket"]
+    condition: >
+      PublicAccessBlock exists and
+      get('PublicAccessBlock.BlockPublicAcls') == True and
+      get('PublicAccessBlock.BlockPublicPolicy') == True and
+      get('PublicAccessBlock.IgnorePublicAcls') == True and
+      get('PublicAccessBlock.RestrictPublicBuckets') == True
+    auto_fix:
+      PublicAccessBlock:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  - id: GR-S3-004
+    short_description: Require access logging
+    long_description: |
+      S3 buckets should have access logging enabled for audit purposes.
+    severity: LOW
+    action: WARN
+    applies_to: ["s3:bucket"]
+    condition: "LoggingConfiguration exists"
