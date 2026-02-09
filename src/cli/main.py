@@ -1828,13 +1828,10 @@ def snapshot_enrich_creators(
 
             console.print("\n[DEBUG] === Event Type Filtering ===", style="dim")
             console.print(f"[DEBUG] Snapshot has {len(snapshot_resource_types)} unique resource types", style="dim")
-            console.print(
-                f"[DEBUG] {len(mapped_types)} types have CloudTrail event mappings", style="dim"
-            )
+            console.print(f"[DEBUG] {len(mapped_types)} types have CloudTrail event mappings", style="dim")
             if unmapped_types:
                 console.print(
-                    f"[DEBUG] {len(unmapped_types)} types have NO mapping: "
-                    f"{', '.join(sorted(unmapped_types))}",
+                    f"[DEBUG] {len(unmapped_types)} types have NO mapping: {', '.join(sorted(unmapped_types))}",
                     style="dim",
                 )
 
