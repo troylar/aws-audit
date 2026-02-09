@@ -9,9 +9,11 @@ from unittest.mock import MagicMock, patch
 from src.cloudtrail.query import (
     EVENT_TO_RESOURCE_TYPE,
     MULTI_SERVICE_EVENTS,
+    RESOURCE_TYPE_NORMALIZATION,
     CloudTrailQuery,
     ResourceCreationEvent,
     get_resource_type_for_event,
+    normalize_resource_type,
 )
 
 
@@ -258,3 +260,228 @@ class TestResourceCreationEvent:
         assert event.event_name == "CreateBucket"
         assert event.resource_name == "my-bucket"
         assert event.created_by_type == "AssumedRole"
+
+
+class TestResourceTypeNormalization:
+    """Test resource type normalization for suffixed types."""
+
+    def test_normalize_suffixed_elb_types(self):
+        expected = "AWS::ElasticLoadBalancingV2::LoadBalancer"
+        assert normalize_resource_type(f"{expected}::Application") == expected
+        assert normalize_resource_type(f"{expected}::Network") == expected
+        assert normalize_resource_type(f"{expected}::Gateway") == expected
+
+    def test_normalize_suffixed_vpc_endpoint_types(self):
+        assert normalize_resource_type("AWS::EC2::VPCEndpoint::Interface") == "AWS::EC2::VPCEndpoint"
+        assert normalize_resource_type("AWS::EC2::VPCEndpoint::Gateway") == "AWS::EC2::VPCEndpoint"
+
+    def test_normalize_suffixed_waf_types(self):
+        assert normalize_resource_type("AWS::WAFv2::WebACL::Regional") == "AWS::WAFv2::WebACL"
+        assert normalize_resource_type("AWS::WAFv2::WebACL::CloudFront") == "AWS::WAFv2::WebACL"
+
+    def test_normalize_suffixed_apigateway_types(self):
+        assert normalize_resource_type("AWS::ApiGatewayV2::Api::HTTP") == "AWS::ApiGatewayV2::Api"
+        assert normalize_resource_type("AWS::ApiGatewayV2::Api::WebSocket") == "AWS::ApiGatewayV2::Api"
+
+    def test_normalize_base_type_unchanged(self):
+        assert normalize_resource_type("AWS::EC2::Instance") == "AWS::EC2::Instance"
+        assert normalize_resource_type("AWS::S3::Bucket") == "AWS::S3::Bucket"
+        assert normalize_resource_type("AWS::Lambda::Function") == "AWS::Lambda::Function"
+
+    def test_all_normalization_entries_map_to_valid_cloudtrail_types(self):
+        all_cloudtrail_types = set(EVENT_TO_RESOURCE_TYPE.values())
+        for source_mapping in MULTI_SERVICE_EVENTS.values():
+            all_cloudtrail_types.update(source_mapping.values())
+        for suffixed, base in RESOURCE_TYPE_NORMALIZATION.items():
+            assert base in all_cloudtrail_types, f"{suffixed} normalizes to {base} which has no CloudTrail event"
+
+
+class TestEC2ResourceExtraction:
+    """Test resource name extraction for EC2/VPC events that need special handling."""
+
+    def test_extract_volume_id(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"availabilityZone": "us-east-1a", "size": "100"},
+            "responseElements": {"volumeId": "vol-0123456789abcdef0"},
+        }
+        name, arn = query._extract_resource_info(event, "CreateVolume")
+        assert name == "vol-0123456789abcdef0"
+
+    def test_extract_vpc_id(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"cidrBlock": "10.0.0.0/16"},
+            "responseElements": {"vpc": {"vpcId": "vpc-0123456789abcdef0", "cidrBlock": "10.0.0.0/16"}},
+        }
+        name, arn = query._extract_resource_info(event, "CreateVpc")
+        assert name == "vpc-0123456789abcdef0"
+
+    def test_extract_subnet_id(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"vpcId": "vpc-123", "cidrBlock": "10.0.1.0/24"},
+            "responseElements": {"subnet": {"subnetId": "subnet-0123456789abcdef0"}},
+        }
+        name, arn = query._extract_resource_info(event, "CreateSubnet")
+        assert name == "subnet-0123456789abcdef0"
+
+    def test_extract_security_group_id_fallback(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"vpcId": "vpc-123", "groupDescription": "test"},
+            "responseElements": {"groupId": "sg-0123456789abcdef0"},
+        }
+        name, arn = query._extract_resource_info(event, "CreateSecurityGroup")
+        assert name == "sg-0123456789abcdef0"
+
+    def test_extract_security_group_name_from_request(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"groupName": "my-security-group", "groupDescription": "test"},
+            "responseElements": {"groupId": "sg-0123456789abcdef0"},
+        }
+        name, arn = query._extract_resource_info(event, "CreateSecurityGroup")
+        assert name == "my-security-group"
+
+    def test_extract_vpc_endpoint_id(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"vpcId": "vpc-123", "serviceName": "com.amazonaws.us-east-1.s3"},
+            "responseElements": {
+                "CreateVpcEndpointResponse": {
+                    "vpcEndpoint": {"vpcEndpointId": "vpce-0123456789abcdef0"}
+                }
+            },
+        }
+        name, arn = query._extract_resource_info(event, "CreateVpcEndpoint")
+        assert name == "vpce-0123456789abcdef0"
+
+    def test_extract_instance_id(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {},
+            "responseElements": {
+                "instancesSet": {"items": [{"instanceId": "i-0123456789abcdef0"}]}
+            },
+        }
+        name, arn = query._extract_resource_info(event, "RunInstances")
+        assert name == "i-0123456789abcdef0"
+
+
+class TestKMSResourceExtraction:
+    """Test KMS key ID extraction from CloudTrail events."""
+
+    def test_extract_key_id(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"description": "My key", "keyUsage": "ENCRYPT_DECRYPT"},
+            "responseElements": {"keyMetadata": {"keyId": "12345678-1234-1234-1234-123456789012"}},
+        }
+        name, arn = query._extract_resource_info(event, "CreateKey")
+        assert name == "12345678-1234-1234-1234-123456789012"
+
+
+class TestSQSResourceExtraction:
+    """Test SQS queue name extraction from CloudTrail events."""
+
+    def test_extract_queue_name_from_request(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"queueName": "my-queue"},
+            "responseElements": {"queueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue"},
+        }
+        name, arn = query._extract_resource_info(event, "CreateQueue")
+        assert name == "my-queue"
+
+    def test_extract_queue_name_from_url_fallback(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {},
+            "responseElements": {"queueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue"},
+        }
+        name, arn = query._extract_resource_info(event, "CreateQueue")
+        assert name == "my-queue"
+
+
+class TestNewEventMappings:
+    """Test newly added event type mappings."""
+
+    def test_lambda_layer_mapping(self):
+        assert EVENT_TO_RESOURCE_TYPE["PublishLayerVersion"] == "AWS::Lambda::LayerVersion"
+
+    def test_ssm_document_mapping(self):
+        assert EVENT_TO_RESOURCE_TYPE["CreateDocument"] == "AWS::SSM::Document"
+
+    def test_eks_fargate_mapping(self):
+        assert EVENT_TO_RESOURCE_TYPE["CreateFargateProfile"] == "AWS::EKS::FargateProfile"
+
+    def test_composite_alarm_mapping(self):
+        assert EVENT_TO_RESOURCE_TYPE["PutCompositeAlarm"] == "AWS::CloudWatch::CompositeAlarm"
+
+    def test_extract_layer_name(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"layerName": "my-layer"},
+            "responseElements": {},
+        }
+        name, arn = query._extract_resource_info(event, "PublishLayerVersion")
+        assert name == "my-layer"
+
+    def test_extract_document_name(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"name": "MyDocument"},
+            "responseElements": {},
+        }
+        name, arn = query._extract_resource_info(event, "CreateDocument")
+        assert name == "MyDocument"
+
+    def test_extract_fargate_profile_name(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"fargateProfileName": "my-profile"},
+            "responseElements": {},
+        }
+        name, arn = query._extract_resource_info(event, "CreateFargateProfile")
+        assert name == "my-profile"
+
+    def test_extract_composite_alarm_name(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"alarmName": "my-composite-alarm"},
+            "responseElements": {},
+        }
+        name, arn = query._extract_resource_info(event, "PutCompositeAlarm")
+        assert name == "my-composite-alarm"
+
+
+class TestNullResponseHandling:
+    """Test extraction when response elements are null or missing."""
+
+    def test_null_response_elements(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {"cidrBlock": "10.0.0.0/16"},
+            "responseElements": None,
+        }
+        name, arn = query._extract_resource_info(event, "CreateVpc")
+        assert name is None
+
+    def test_empty_response_elements(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {},
+            "responseElements": {},
+        }
+        name, arn = query._extract_resource_info(event, "CreateVolume")
+        assert name is None
+
+    def test_vpc_response_not_dict(self):
+        query = CloudTrailQuery()
+        event = {
+            "requestParameters": {},
+            "responseElements": {"vpc": "not-a-dict"},
+        }
+        name, arn = query._extract_resource_info(event, "CreateVpc")
+        assert name is None

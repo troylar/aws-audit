@@ -88,6 +88,14 @@ EVENT_TO_RESOURCE_TYPE: Dict[str, str] = {
     # ElastiCache
     "CreateCacheCluster": "AWS::ElastiCache::CacheCluster",
     "CreateReplicationGroup": "AWS::ElastiCache::ReplicationGroup",
+    # Lambda Layers
+    "PublishLayerVersion": "AWS::Lambda::LayerVersion",
+    # SSM Documents
+    "CreateDocument": "AWS::SSM::Document",
+    # EKS Fargate
+    "CreateFargateProfile": "AWS::EKS::FargateProfile",
+    # CloudWatch Composite Alarms
+    "PutCompositeAlarm": "AWS::CloudWatch::CompositeAlarm",
 }
 
 # Events that map to different resource types based on event source
@@ -102,6 +110,26 @@ MULTI_SERVICE_EVENTS: Dict[str, Dict[str, str]] = {
         "glue.amazonaws.com": "AWS::Glue::Table",
     },
 }
+
+# Snapshot collectors use suffixed resource types for subtype distinction,
+# but CloudTrail events map to the base type. This normalizes suffixed types
+# back to their base type for matching.
+RESOURCE_TYPE_NORMALIZATION: Dict[str, str] = {
+    "AWS::ElasticLoadBalancingV2::LoadBalancer::Application": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+    "AWS::ElasticLoadBalancingV2::LoadBalancer::Network": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+    "AWS::ElasticLoadBalancingV2::LoadBalancer::Gateway": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+    "AWS::EC2::VPCEndpoint::Interface": "AWS::EC2::VPCEndpoint",
+    "AWS::EC2::VPCEndpoint::Gateway": "AWS::EC2::VPCEndpoint",
+    "AWS::WAFv2::WebACL::Regional": "AWS::WAFv2::WebACL",
+    "AWS::WAFv2::WebACL::CloudFront": "AWS::WAFv2::WebACL",
+    "AWS::ApiGatewayV2::Api::HTTP": "AWS::ApiGatewayV2::Api",
+    "AWS::ApiGatewayV2::Api::WebSocket": "AWS::ApiGatewayV2::Api",
+}
+
+
+def normalize_resource_type(resource_type: str) -> str:
+    """Normalize a suffixed resource type to its base CloudTrail type."""
+    return RESOURCE_TYPE_NORMALIZATION.get(resource_type, resource_type)
 
 
 def get_resource_type_for_event(event_name: str, event_source: Optional[str] = None) -> Optional[str]:
@@ -387,11 +415,46 @@ class CloudTrailQuery:
                 resource_arn = response_elements[key]
                 break
 
-        # For EC2 instances, extract from response
+        # Event-specific extraction for types where standard name_keys don't work
         if event_name == "RunInstances" and response_elements:
             instances = response_elements.get("instancesSet", {}).get("items", [])
             if instances:
                 resource_name = instances[0].get("instanceId")
+        elif event_name == "CreateVolume" and not resource_name and response_elements:
+            resource_name = response_elements.get("volumeId")
+        elif event_name == "CreateVpc" and not resource_name and response_elements:
+            vpc = response_elements.get("vpc", {})
+            resource_name = vpc.get("vpcId") if isinstance(vpc, dict) else None
+        elif event_name == "CreateSubnet" and not resource_name and response_elements:
+            subnet = response_elements.get("subnet", {})
+            resource_name = subnet.get("subnetId") if isinstance(subnet, dict) else None
+        elif event_name == "CreateSecurityGroup" and not resource_name and response_elements:
+            resource_name = response_elements.get("groupId")
+        elif event_name == "CreateVpcEndpoint" and response_elements:
+            # Override serviceName (from generic name_keys) with actual endpoint ID
+            vpe_resp = response_elements.get("CreateVpcEndpointResponse", {})
+            vpe = vpe_resp.get("vpcEndpoint", {}) if isinstance(vpe_resp, dict) else {}
+            vpe_id = vpe.get("vpcEndpointId") if isinstance(vpe, dict) else None
+            if vpe_id:
+                resource_name = vpe_id
+        elif event_name == "CreateKey" and not resource_name and response_elements:
+            key_meta = response_elements.get("keyMetadata", {})
+            resource_name = key_meta.get("keyId") if isinstance(key_meta, dict) else None
+        elif event_name == "CreateQueue" and not resource_name and response_elements:
+            queue_url = response_elements.get("queueUrl", "")
+            if queue_url:
+                resource_name = queue_url.split("/")[-1]
+        elif event_name == "PublishLayerVersion" and not resource_name:
+            resource_name = request_params.get("layerName")
+        elif event_name == "CreateDocument" and not resource_name:
+            resource_name = request_params.get("name")
+        elif event_name == "CreateFargateProfile" and not resource_name:
+            resource_name = request_params.get("fargateProfileName")
+        elif event_name == "PutCompositeAlarm" and not resource_name:
+            resource_name = request_params.get("alarmName")
+
+        if not resource_name:
+            logger.debug(f"Could not extract resource name from {event_name} event")
 
         return resource_name, resource_arn
 
@@ -476,13 +539,17 @@ class CloudTrailQuery:
 
         # Filter event types if resource_types specified
         if resource_types:
+            # Normalize resource types so suffixed types (e.g., ::Application) match base CloudTrail types
+            normalized_types = {normalize_resource_type(rt) for rt in resource_types}
             filtered_event_names = [
-                event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items() if res_type in resource_types
+                event_name
+                for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items()
+                if res_type in normalized_types
             ]
             # Also check multi-service events
             for event_name, source_mapping in MULTI_SERVICE_EVENTS.items():
                 for res_type in source_mapping.values():
-                    if res_type in resource_types and event_name not in filtered_event_names:
+                    if res_type in normalized_types and event_name not in filtered_event_names:
                         filtered_event_names.append(event_name)
             # If no matches found, fall back to querying all event types
             if not filtered_event_names:
