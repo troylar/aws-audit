@@ -735,72 +735,29 @@ def _print_error_tip(error: str, console: Console) -> None:
             return
 
 
-@guardrails_app.command("create")
-def create_guardrail(
-    requirement: str = typer.Argument(..., help="Natural language requirement for the guardrail"),
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Append to policy file instead of stdout",
-    ),
-) -> None:
-    """Generate a guardrail from a natural language requirement.
-
-    Uses AI to create a guardrail definition from your description.
-    Outputs YAML that can be added to your policy file.
-
-    Examples:
-        awsinv guardrails create "S3 buckets must have encryption enabled"
-        awsinv guardrails create "No public security groups" >> policy.yaml
-        awsinv guardrails create "RDS instances need backups" -o policy.yaml
-    """
-    from ..guardrails.generator import generate_guardrail, guardrail_to_yaml
-
-    bedrock = _get_bedrock_client()
-    if not bedrock:
-        raise typer.Exit(1)
-
-    console.print(f"[dim]Generating guardrail for: {requirement}[/dim]")
-    console.print()
-
-    guardrail = generate_guardrail(requirement, bedrock_client=bedrock)
-
-    if not guardrail:
-        console.print("[red]Error:[/red] Failed to generate guardrail")
-        raise typer.Exit(1)
-
-    yaml_output = guardrail_to_yaml(guardrail)
-
-    if output:
-        # Append to file
-        output_path = Path(output)
-        mode = "a" if output_path.exists() else "w"
-
-        with open(output_path, mode) as f:
-            if mode == "a":
-                f.write("\n")
-            f.write(yaml_output)
-            f.write("\n")
-
-        console.print(f"[green]Guardrail appended to {output}[/green]")
-        console.print()
-        console.print(yaml_output)
-    else:
-        # Output to stdout
-        console.print(yaml_output)
-
-    raise typer.Exit(0)
-
-
 @guardrails_app.command("generate")
 def generate_guardrails(
-    description: str = typer.Argument(..., help="High-level policy description"),
+    description: Optional[str] = typer.Argument(None, help="Requirement or policy description"),
+    from_file: Optional[str] = typer.Option(
+        None,
+        "--from-file",
+        help="Path to rules file (TXT, JSON, or CSV)",
+    ),
+    format_override: Optional[str] = typer.Option(
+        None,
+        "--format",
+        help="File format override: txt, json, csv (auto-detected by default)",
+    ),
+    instructions: Optional[str] = typer.Option(
+        None,
+        "--instructions",
+        help="Instructions for how to interpret the rules in --from-file",
+    ),
     count: int = typer.Option(
-        5,
+        1,
         "--count",
         "-n",
-        help="Number of guardrails to generate",
+        help="Number of guardrails to generate (used with description, not --from-file)",
     ),
     types: Optional[str] = typer.Option(
         None,
@@ -814,48 +771,111 @@ def generate_guardrails(
         help="Save to policy file",
     ),
 ) -> None:
-    """Generate multiple guardrails from a policy description.
+    """Generate guardrails from a requirement, description, or rules file.
 
-    Uses AI to create a set of guardrails based on your high-level
-    security or compliance requirements.
+    Three modes:
+      1. Single requirement: awsinv guardrails generate "S3 must be encrypted"
+      2. Batch from description: awsinv guardrails generate "PCI baseline" --count 10
+      3. Bulk from file: awsinv guardrails generate --from-file rules.csv
 
     Examples:
-        awsinv guardrails generate "production security baseline"
-        awsinv guardrails generate "HIPAA compliance" --count 10
-        awsinv guardrails generate "secure S3 and RDS" --types s3,rds
-        awsinv guardrails generate "PCI-DSS requirements" -o pci-policy.yaml
+        awsinv guardrails generate "S3 buckets must have encryption enabled"
+        awsinv guardrails generate "production security baseline" --count 5
+        awsinv guardrails generate --from-file rules.txt
+        awsinv guardrails generate --from-file rules.csv --instructions "format is 'RULE_ID: description'"
+        awsinv guardrails generate --from-file rules.json -o policy.yaml
     """
-    from ..guardrails.generator import generate_guardrails_batch, guardrail_to_yaml
+    from ..guardrails.file_parser import parse_rules_file
+    from ..guardrails.generator import (
+        generate_guardrail,
+        generate_guardrails_batch,
+        guardrail_to_yaml,
+        translate_rules_to_guardrails,
+    )
+
+    if not description and not from_file:
+        console.print("[red]Error:[/red] Provide a description argument or use --from-file")
+        raise typer.Exit(1)
+
+    if description and from_file:
+        console.print("[red]Error:[/red] Cannot use both a description argument and --from-file")
+        raise typer.Exit(1)
+
+    if not from_file and (format_override or instructions):
+        console.print("[red]Error:[/red] --format and --instructions are only valid with --from-file")
+        raise typer.Exit(1)
 
     bedrock = _get_bedrock_client()
     if not bedrock:
         raise typer.Exit(1)
 
-    resource_types = None
-    if types:
-        resource_types = [t.strip() for t in types.split(",")]
+    guardrails_result = []
 
-    console.print(f"[dim]Generating {count} guardrails for: {description}[/dim]")
-    if resource_types:
-        console.print(f"[dim]Focusing on: {', '.join(resource_types)}[/dim]")
-    console.print()
+    if from_file:
+        # Mode 3: Bulk from file
+        try:
+            rules = parse_rules_file(from_file, format_override=format_override)
+        except (FileNotFoundError, ValueError) as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1)
 
-    guardrails = generate_guardrails_batch(
-        description=description,
-        count=count,
-        resource_types=resource_types,
-        bedrock_client=bedrock,
-    )
+        if not rules:
+            console.print("[red]Error:[/red] No rules found in file")
+            raise typer.Exit(1)
 
-    if not guardrails:
+        console.print(f"[dim]Translating {len(rules)} rules from {from_file}...[/dim]")
+        if instructions:
+            console.print(f"[dim]Instructions: {instructions}[/dim]")
+        console.print()
+
+        guardrails_result = translate_rules_to_guardrails(
+            rules=rules,
+            instructions=instructions,
+            bedrock_client=bedrock,
+        )
+
+        if len(guardrails_result) < len(rules):
+            console.print(
+                f"[yellow]Warning:[/yellow] {len(rules) - len(guardrails_result)} of "
+                f"{len(rules)} rules failed to translate"
+            )
+
+    elif description and count == 1:
+        # Mode 1: Single requirement (replaces `create`)
+        console.print(f"[dim]Generating guardrail for: {description}[/dim]")
+        console.print()
+
+        guardrail = generate_guardrail(description, bedrock_client=bedrock)
+        if guardrail:
+            guardrails_result = [guardrail]
+
+    else:
+        # Mode 2: Batch from description
+        resource_types = None
+        if types:
+            resource_types = [t.strip() for t in types.split(",")]
+
+        console.print(f"[dim]Generating {count} guardrails for: {description}[/dim]")
+        if resource_types:
+            console.print(f"[dim]Focusing on: {', '.join(resource_types)}[/dim]")
+        console.print()
+
+        guardrails_result = generate_guardrails_batch(
+            description=description,
+            count=count,
+            resource_types=resource_types,
+            bedrock_client=bedrock,
+        )
+
+    if not guardrails_result:
         console.print("[red]Error:[/red] Failed to generate guardrails")
         raise typer.Exit(1)
 
-    console.print(f"[green]Generated {len(guardrails)} guardrails:[/green]")
+    console.print(f"[green]Generated {len(guardrails_result)} guardrail(s):[/green]")
     console.print()
 
     yaml_parts = []
-    for g in guardrails:
+    for g in guardrails_result:
         yaml_output = guardrail_to_yaml(g)
         yaml_parts.append(yaml_output)
         console.print(yaml_output)
@@ -864,7 +884,6 @@ def generate_guardrails(
     if output:
         output_path = Path(output)
 
-        # Create policy structure if new file
         if not output_path.exists():
             header = """name: generated-policy
 version: "1.0"
@@ -874,7 +893,6 @@ guardrails:
 """
             content = header + "\n".join(yaml_parts)
         else:
-            # Append to existing
             content = "\n" + "\n".join(yaml_parts)
 
         with open(output_path, "a" if output_path.exists() else "w") as f:

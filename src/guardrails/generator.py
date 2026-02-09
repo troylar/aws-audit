@@ -92,6 +92,105 @@ Respond ONLY with valid JSON array (no markdown):
 ]"""
 
 
+TRANSLATE_RULES_PROMPT = """You are an AWS security expert creating guardrails for infrastructure compliance.
+
+Translate the following rules into guardrails. Each rule becomes exactly one guardrail.
+{instructions}
+Rules:
+{rules}
+
+Use formula-based conditions with this syntax:
+- Simple checks: "Encryption exists", "Tags.Environment == 'prod'"
+- Boolean logic: "Encryption exists and Versioning.Status == 'Enabled'"
+- If/then: "if PublicAccess then Encryption exists"
+- Array iteration: "all(rule.Description exists for rule in IpPermissions)"
+- Counts: "count(AvailabilityZones) >= 2"
+
+For complex logic that can't be expressed in formula, use ai_fail_if/ai_warn_if/ai_notify_if.
+
+Respond ONLY with valid JSON array (no markdown):
+[
+  {{
+    "id": "GR-XXX-NNN",
+    "short_description": "Brief description",
+    "severity": "CRITICAL|HIGH|MEDIUM|LOW|INFO",
+    "action": "BLOCK|WARN|AUTO-FIX",
+    "applies_to": ["resource:type"],
+    "condition": "formula OR null",
+    "ai_fail_if": "AI rule OR null",
+    "ai_context": "WHY + HOW TO FIX",
+    "tags": ["tag1", "tag2"]
+  }},
+  ...
+]"""
+
+_TRANSLATE_BATCH_SIZE = 10
+
+
+def translate_rules_to_guardrails(
+    rules: List[str],
+    instructions: Optional[str] = None,
+    bedrock_client: Optional[Any] = None,
+) -> List[Guardrail]:
+    """Translate a list of rule strings into guardrails using AI.
+
+    Processes rules in batches of 10 per API call.
+
+    Args:
+        rules: List of rule strings to translate.
+        instructions: Optional instructions for interpretation.
+        bedrock_client: Bedrock client for AI generation.
+
+    Returns:
+        List of successfully translated Guardrail objects.
+    """
+    if bedrock_client is None:
+        logger.error("Bedrock client required for guardrail generation")
+        return []
+
+    if not rules:
+        return []
+
+    all_guardrails: List[Guardrail] = []
+    instructions_text = f"\nAdditional instructions: {instructions}" if instructions else ""
+
+    for i in range(0, len(rules), _TRANSLATE_BATCH_SIZE):
+        batch = rules[i : i + _TRANSLATE_BATCH_SIZE]
+        numbered_rules = "\n".join(f"{idx + 1}. {rule}" for idx, rule in enumerate(batch))
+
+        prompt = TRANSLATE_RULES_PROMPT.format(
+            instructions=instructions_text,
+            rules=numbered_rules,
+        )
+
+        try:
+            response = bedrock_client.invoke_model(
+                modelId="anthropic.claude-3-haiku-20240307-v1:0",
+                contentType="application/json",
+                accept="application/json",
+                body=json.dumps(
+                    {
+                        "anthropic_version": "bedrock-2023-05-31",
+                        "max_tokens": 4096,
+                        "messages": [{"role": "user", "content": prompt}],
+                    }
+                ),
+            )
+
+            response_body = json.loads(response["body"].read())
+            content = response_body.get("content", [{}])[0].get("text", "[]")
+
+            guardrails_list = json.loads(content)
+            for g_dict in guardrails_list:
+                guardrail = _dict_to_guardrail(g_dict)
+                if guardrail:
+                    all_guardrails.append(guardrail)
+        except Exception as e:
+            logger.warning(f"Failed to translate batch starting at rule {i + 1}: {e}")
+
+    return all_guardrails
+
+
 def generate_guardrail(
     requirement: str,
     bedrock_client: Optional[Any] = None,
