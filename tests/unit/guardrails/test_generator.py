@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from src.guardrails.generator import translate_rules_to_guardrails
 
