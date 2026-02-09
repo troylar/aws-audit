@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
@@ -41,23 +40,27 @@ def make_source_snapshot(resources=None, name="source-snap"):
     snapshot.collection_name = "default"
     snapshot.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
     snapshot.regions = ["us-east-1", "us-west-2"]
-    snapshot.resources = resources if resources is not None else [
-        make_resource(),
-        make_resource(
-            arn="arn:aws:s3:::my-bucket",
-            resource_type="AWS::S3::Bucket",
-            name="my-bucket",
-            region="us-east-1",
-            tags={"Name": "my-bucket", "Environment": "prod"},
-        ),
-        make_resource(
-            arn="arn:aws:lambda:us-west-2:123456789012:function:my-func",
-            resource_type="AWS::Lambda::Function",
-            name="my-func",
-            region="us-west-2",
-            tags={"Name": "my-func", "Environment": "dev"},
-        ),
-    ]
+    snapshot.resources = (
+        resources
+        if resources is not None
+        else [
+            make_resource(),
+            make_resource(
+                arn="arn:aws:s3:::my-bucket",
+                resource_type="AWS::S3::Bucket",
+                name="my-bucket",
+                region="us-east-1",
+                tags={"Name": "my-bucket", "Environment": "prod"},
+            ),
+            make_resource(
+                arn="arn:aws:lambda:us-west-2:123456789012:function:my-func",
+                resource_type="AWS::Lambda::Function",
+                name="my-func",
+                region="us-west-2",
+                tags={"Name": "my-func", "Environment": "dev"},
+            ),
+        ]
+    )
     snapshot.resource_count = len(snapshot.resources)
     return snapshot
 
@@ -80,9 +83,7 @@ class TestFromSnapshotHappyPath:
         mock_coll.get_or_create_default.return_value = MagicMock(description=None)
         mock_coll_cls.return_value = mock_coll
 
-        result = runner.invoke(
-            app, ["snapshot", "create", "derived-snap", "--from-snapshot", "source-snap"]
-        )
+        result = runner.invoke(app, ["snapshot", "create", "derived-snap", "--from-snapshot", "source-snap"])
 
         assert result.exit_code == 0
         assert "Derived snapshot created" in result.stdout
@@ -107,9 +108,7 @@ class TestFromSnapshotHappyPath:
         mock_coll.get_or_create_default.return_value = MagicMock(description=None)
         mock_coll_cls.return_value = mock_coll
 
-        result = runner.invoke(
-            app, ["snapshot", "create", "--from-snapshot", "source-snap"]
-        )
+        result = runner.invoke(app, ["snapshot", "create", "--from-snapshot", "source-snap"])
 
         assert result.exit_code == 0
         saved_snapshot = mock_storage.save_snapshot.call_args[0][0]
@@ -130,9 +129,7 @@ class TestFromSnapshotHappyPath:
         mock_coll.get_or_create_default.return_value = MagicMock(description=None)
         mock_coll_cls.return_value = mock_coll
 
-        result = runner.invoke(
-            app, ["snapshot", "create", "my-derived", "--from-snapshot", "source-snap"]
-        )
+        result = runner.invoke(app, ["snapshot", "create", "my-derived", "--from-snapshot", "source-snap"])
 
         assert result.exit_code == 0
         saved_snapshot = mock_storage.save_snapshot.call_args[0][0]
@@ -347,8 +344,15 @@ class TestFromSnapshotFilters:
         result = runner.invoke(
             app,
             [
-                "snapshot", "create", "ec2-john", "--from-snapshot", "source-snap",
-                "--type", "ec2", "--created-by", "john",
+                "snapshot",
+                "create",
+                "ec2-john",
+                "--from-snapshot",
+                "source-snap",
+                "--type",
+                "ec2",
+                "--created-by",
+                "john",
             ],
         )
 
@@ -415,9 +419,7 @@ class TestFromSnapshotEdgeCases:
         mock_coll.get_or_create_default.return_value = MagicMock(description=None)
         mock_coll_cls.return_value = mock_coll
 
-        result = runner.invoke(
-            app, ["snapshot", "create", "derived", "--from-snapshot", "source-snap"]
-        )
+        result = runner.invoke(app, ["snapshot", "create", "derived", "--from-snapshot", "source-snap"])
 
         assert result.exit_code == 0
         saved_snapshot = mock_storage.save_snapshot.call_args[0][0]

@@ -1210,7 +1210,7 @@ def snapshot_create(
             collection_storage.save(active_collection)
 
             # Print summary
-            console.print(f"\n✓ Derived snapshot created!", style="bold green")
+            console.print("\n✓ Derived snapshot created!", style="bold green")
             console.print(f"  Name: {name}")
             console.print(f"  Source: {from_snapshot}")
             console.print(f"  Resources: {len(filtered_resources)} / {total_before}")
