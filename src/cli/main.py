@@ -1923,6 +1923,13 @@ def snapshot_enrich_creators(
                 creator_info = creators.get(key)
                 tried_keys.append(key)
 
+            # For task definitions, strip :revision suffix and match by family
+            if not creator_info and normalized_type == "AWS::ECS::TaskDefinition":
+                family = resource.name.rsplit(":", 1)[0] if ":" in resource.name else resource.name
+                family_key = f"{normalized_type}:{family}"
+                creator_info = creators.get(family_key)
+                tried_keys.append(family_key)
+
             if debug:
                 if normalized_type not in debug_match_stats:
                     debug_match_stats[normalized_type] = {"matched": 0, "total": 0, "unmatched": []}
@@ -1943,16 +1950,41 @@ def snapshot_enrich_creators(
                 )
 
         if debug:
+            # Collect creator keys by type for cross-reference
+            creator_keys_by_type: dict = {}
+            for ck in creators:
+                ctype = ck.rsplit(":", 1)[0] if ":" in ck else ck
+                creator_keys_by_type.setdefault(ctype, []).append(ck)
+
             console.print("\n[DEBUG] === Matching Results by Type ===", style="dim")
+            total_matched_debug = 0
+            total_unmatched_debug = 0
             for rtype in sorted(debug_match_stats.keys()):
                 stats = debug_match_stats[rtype]
+                total_matched_debug += stats["matched"]
+                total_unmatched_debug += len(stats["unmatched"])
+                pct = (stats["matched"] / stats["total"] * 100) if stats["total"] else 0
                 console.print(
-                    f"[DEBUG] {rtype}: {stats['matched']}/{stats['total']} matched",
+                    f"[DEBUG] {rtype}: {stats['matched']}/{stats['total']} matched ({pct:.0f}%)",
                     style="dim",
                 )
+                # Show available creator keys for this type if there are unmatched
+                if stats["unmatched"]:
+                    ct_keys = creator_keys_by_type.get(rtype, [])
+                    if ct_keys:
+                        console.print(
+                            f"[DEBUG]   CloudTrail has keys: {', '.join(sorted(ct_keys)[:10])}"
+                            f"{'...' if len(ct_keys) > 10 else ''}",
+                            style="dim",
+                        )
+                    else:
+                        console.print(
+                            "[DEBUG]   CloudTrail returned NO creator keys for this type",
+                            style="dim",
+                        )
                 for um in stats["unmatched"][:5]:
                     console.print(
-                        f"[DEBUG]   Unmatched: {um['name']} (tried keys: {', '.join(um['tried_keys'])})",
+                        f"[DEBUG]   Unmatched: {um['name']} (tried: {', '.join(um['tried_keys'])})",
                         style="dim",
                     )
                 if len(stats["unmatched"]) > 5:
@@ -1960,6 +1992,14 @@ def snapshot_enrich_creators(
                         f"[DEBUG]   ... and {len(stats['unmatched']) - 5} more unmatched",
                         style="dim",
                     )
+
+            console.print("\n[DEBUG] === Summary ===", style="dim")
+            console.print(
+                f"[DEBUG] Total: {total_matched_debug} matched, "
+                f"{total_unmatched_debug} unmatched, "
+                f"{len(creators)} CloudTrail creator entries",
+                style="dim",
+            )
 
         # Save updated snapshot by deleting old and re-saving
         from ..storage import SnapshotStore

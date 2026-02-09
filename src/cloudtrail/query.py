@@ -391,6 +391,8 @@ class CloudTrailQuery:
             "logGroupName",
             "alarmName",
             "nodegroupName",
+            "backupVaultName",
+            "family",
             "databaseName",
             "crawlerName",
             "jobName",
@@ -458,9 +460,10 @@ class CloudTrailQuery:
             resource_name = request_params.get("fargateProfileName")
         elif event_name == "PutCompositeAlarm" and not resource_name:
             resource_name = request_params.get("alarmName")
-
-        if not resource_name:
-            logger.debug(f"Could not extract resource name from {event_name} event")
+        elif event_name == "CreateBackupPlan" and not resource_name:
+            backup_plan = request_params.get("backupPlan", {})
+            if isinstance(backup_plan, dict):
+                resource_name = backup_plan.get("backupPlanName")
 
         return resource_name, resource_arn
 
@@ -784,11 +787,6 @@ class CloudTrailQuery:
             if not account_id:
                 account_id = user_identity.get("accountId", "")
 
-            logger.debug(
-                f"Parsed event {event_name}: resource_type={resource_type}, "
-                f"resource_name={resource_name}, resource_arn={resource_arn_extracted}"
-            )
-
             return ResourceCreationEvent(
                 event_time=event.get("EventTime", datetime.now(timezone.utc)),
                 event_name=event_name,
@@ -840,7 +838,11 @@ class CloudTrailQuery:
         )
 
         creators: Dict[str, Dict[str, str]] = {}
+        unnamed_counts: Dict[str, int] = {}
         for event in events:
+            if not event.resource_name:
+                unnamed_counts[event.event_name] = unnamed_counts.get(event.event_name, 0) + 1
+                continue
             if event.resource_name:
                 key = f"{event.resource_type}:{event.resource_name}"
                 logger.debug(f"Creator key built: {key} (event={event.event_name})")
@@ -854,5 +856,10 @@ class CloudTrailQuery:
                         "created_at": event.event_time.isoformat(),
                     }
 
+        if unnamed_counts:
+            logger.debug(
+                f"Events with no extractable resource name: "
+                f"{', '.join(f'{name}={count}' for name, count in sorted(unnamed_counts.items()))}"
+            )
         logger.debug(f"Total unique creator keys: {len(creators)}")
         return creators
