@@ -1084,99 +1084,52 @@ class TestPrintErrorTip:
         _print_error_tip("some completely unrelated error xyzzy", con)
 
 
-class TestCreateCommand:
-    """Tests for `awsinv guardrails create` command."""
-
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_create_no_bedrock_client(self, mock_get_client: MagicMock) -> None:
-        """Create command exits 1 when Bedrock client is unavailable."""
-        mock_get_client.return_value = None
-
-        result = runner.invoke(app, ["guardrails", "create", "S3 buckets must have encryption"])
-        assert result.exit_code == 1
-
-    @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_create_generation_fails(self, mock_get_client: MagicMock, mock_generate: MagicMock) -> None:
-        """Create command exits 1 when generation returns None."""
-        mock_get_client.return_value = MagicMock()
-        mock_generate.return_value = None
-
-        result = runner.invoke(app, ["guardrails", "create", "S3 buckets must have encryption"])
-        assert result.exit_code == 1
-        assert "failed" in result.stdout.lower()
-
-    @patch("src.guardrails.generator.guardrail_to_yaml")
-    @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_create_success_stdout(
-        self,
-        mock_get_client: MagicMock,
-        mock_generate: MagicMock,
-        mock_to_yaml: MagicMock,
-    ) -> None:
-        """Create command outputs YAML to stdout on success."""
-        mock_get_client.return_value = MagicMock()
-        mock_generate.return_value = MagicMock()
-        mock_to_yaml.return_value = "- id: GR-ENC-099\n  description: test\n"
-
-        result = runner.invoke(app, ["guardrails", "create", "S3 buckets must have encryption"])
-        assert result.exit_code == 0
-        assert "GR-ENC-099" in result.stdout
-
-    @patch("src.guardrails.generator.guardrail_to_yaml")
-    @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_create_output_to_file(
-        self,
-        mock_get_client: MagicMock,
-        mock_generate: MagicMock,
-        mock_to_yaml: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Create command appends to file with --output."""
-        mock_get_client.return_value = MagicMock()
-        mock_generate.return_value = MagicMock()
-        mock_to_yaml.return_value = "- id: GR-ENC-099\n  description: test\n"
-
-        output_file = tmp_path / "policy.yaml"
-        output_file.write_text("guardrails:\n")
-
-        result = runner.invoke(
-            app,
-            ["guardrails", "create", "S3 must be encrypted", "--output", str(output_file)],
-        )
-        assert result.exit_code == 0
-        content = output_file.read_text()
-        assert "GR-ENC-099" in content
-
-    @patch("src.guardrails.generator.guardrail_to_yaml")
-    @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_create_output_to_new_file(
-        self,
-        mock_get_client: MagicMock,
-        mock_generate: MagicMock,
-        mock_to_yaml: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Create command writes new file when --output path does not exist."""
-        mock_get_client.return_value = MagicMock()
-        mock_generate.return_value = MagicMock()
-        mock_to_yaml.return_value = "- id: GR-ENC-099\n"
-
-        output_file = tmp_path / "new-policy.yaml"
-
-        result = runner.invoke(
-            app,
-            ["guardrails", "create", "S3 encryption", "--output", str(output_file)],
-        )
-        assert result.exit_code == 0
-        assert output_file.exists()
-
-
 class TestGenerateCommand:
     """Tests for `awsinv guardrails generate` command."""
+
+    # --- Validation ---
+
+    def test_generate_no_description_no_file(self) -> None:
+        """Exits 1 when neither description nor --from-file is given."""
+        result = runner.invoke(app, ["guardrails", "generate"])
+        assert result.exit_code == 1
+        assert "provide a description" in result.stdout.lower() or "error" in result.stdout.lower()
+
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_both_description_and_file(self, mock_get_client: MagicMock, tmp_path: Path) -> None:
+        """Exits 1 when both description and --from-file are given."""
+        mock_get_client.return_value = MagicMock()
+        rules_file = tmp_path / "rules.txt"
+        rules_file.write_text("rule 1\n")
+
+        result = runner.invoke(
+            app,
+            ["guardrails", "generate", "S3 encryption", "--from-file", str(rules_file)],
+        )
+        assert result.exit_code == 1
+        assert "cannot use both" in result.stdout.lower()
+
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_format_without_from_file(self, mock_get_client: MagicMock) -> None:
+        """Exits 1 when --format used without --from-file."""
+        mock_get_client.return_value = MagicMock()
+        result = runner.invoke(
+            app,
+            ["guardrails", "generate", "S3 encryption", "--format", "txt"],
+        )
+        assert result.exit_code == 1
+        assert "only valid with --from-file" in result.stdout.lower()
+
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_instructions_without_from_file(self, mock_get_client: MagicMock) -> None:
+        """Exits 1 when --instructions used without --from-file."""
+        mock_get_client.return_value = MagicMock()
+        result = runner.invoke(
+            app,
+            ["guardrails", "generate", "S3 encryption", "--instructions", "custom"],
+        )
+        assert result.exit_code == 1
+        assert "only valid with --from-file" in result.stdout.lower()
 
     @patch("src.cli.guardrails._get_bedrock_client")
     def test_generate_no_bedrock_client(self, mock_get_client: MagicMock) -> None:
@@ -1186,34 +1139,68 @@ class TestGenerateCommand:
         result = runner.invoke(app, ["guardrails", "generate", "production security baseline"])
         assert result.exit_code == 1
 
-    @patch("src.guardrails.generator.generate_guardrails_batch")
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_generate_batch_fails(self, mock_get_client: MagicMock, mock_batch: MagicMock) -> None:
-        """Generate command exits 1 when batch generation returns None."""
-        mock_get_client.return_value = MagicMock()
-        mock_batch.return_value = None
+    # --- Mode 1: Single requirement (count=1, default) ---
 
-        result = runner.invoke(app, ["guardrails", "generate", "security baseline"])
+    @patch("src.guardrails.generator.guardrail_to_yaml")
+    @patch("src.guardrails.generator.generate_guardrail")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_single_requirement(
+        self,
+        mock_get_client: MagicMock,
+        mock_gen: MagicMock,
+        mock_to_yaml: MagicMock,
+    ) -> None:
+        """Single description with default count=1 calls generate_guardrail."""
+        mock_get_client.return_value = MagicMock()
+        mock_gen.return_value = MagicMock()
+        mock_to_yaml.return_value = "- id: GR-ENC-099\n"
+
+        result = runner.invoke(app, ["guardrails", "generate", "S3 must be encrypted"])
+        assert result.exit_code == 0
+        assert "GR-ENC-099" in result.stdout
+        mock_gen.assert_called_once()
+
+    @patch("src.guardrails.generator.generate_guardrail")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_single_fails(self, mock_get_client: MagicMock, mock_gen: MagicMock) -> None:
+        """Single mode exits 1 when generation returns None."""
+        mock_get_client.return_value = MagicMock()
+        mock_gen.return_value = None
+
+        result = runner.invoke(app, ["guardrails", "generate", "S3 encryption"])
         assert result.exit_code == 1
         assert "failed" in result.stdout.lower()
+
+    # --- Mode 2: Batch (count > 1) ---
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrails_batch")
     @patch("src.cli.guardrails._get_bedrock_client")
-    def test_generate_success_stdout(
+    def test_generate_batch_success(
         self,
         mock_get_client: MagicMock,
         mock_batch: MagicMock,
         mock_to_yaml: MagicMock,
     ) -> None:
-        """Generate command outputs generated guardrails to stdout."""
+        """Batch mode outputs generated guardrails to stdout."""
         mock_get_client.return_value = MagicMock()
         mock_batch.return_value = [MagicMock(), MagicMock()]
         mock_to_yaml.return_value = "- id: GR-GEN-001\n"
 
-        result = runner.invoke(app, ["guardrails", "generate", "security baseline"])
+        result = runner.invoke(app, ["guardrails", "generate", "security baseline", "--count", "5"])
         assert result.exit_code == 0
-        assert "generated 2 guardrails" in result.stdout.lower()
+        assert "generated 2 guardrail" in result.stdout.lower()
+
+    @patch("src.guardrails.generator.generate_guardrails_batch")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_batch_fails(self, mock_get_client: MagicMock, mock_batch: MagicMock) -> None:
+        """Batch mode exits 1 when batch generation returns empty/None."""
+        mock_get_client.return_value = MagicMock()
+        mock_batch.return_value = None
+
+        result = runner.invoke(app, ["guardrails", "generate", "security baseline", "--count", "5"])
+        assert result.exit_code == 1
+        assert "failed" in result.stdout.lower()
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrails_batch")
@@ -1231,63 +1218,10 @@ class TestGenerateCommand:
 
         result = runner.invoke(
             app,
-            ["guardrails", "generate", "secure S3 and RDS", "--types", "s3,rds"],
+            ["guardrails", "generate", "secure S3 and RDS", "--count", "3", "--types", "s3,rds"],
         )
         assert result.exit_code == 0
         assert mock_batch.call_args.kwargs.get("resource_types") == ["s3", "rds"]
-
-    @patch("src.guardrails.generator.guardrail_to_yaml")
-    @patch("src.guardrails.generator.generate_guardrails_batch")
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_generate_output_to_new_file(
-        self,
-        mock_get_client: MagicMock,
-        mock_batch: MagicMock,
-        mock_to_yaml: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Generate command creates new policy file with --output."""
-        mock_get_client.return_value = MagicMock()
-        mock_batch.return_value = [MagicMock()]
-        mock_to_yaml.return_value = "- id: GR-GEN-001\n  description: test\n"
-
-        output_file = tmp_path / "generated.yaml"
-
-        result = runner.invoke(
-            app,
-            ["guardrails", "generate", "baseline", "--output", str(output_file)],
-        )
-        assert result.exit_code == 0
-        assert output_file.exists()
-        content = output_file.read_text()
-        assert "generated-policy" in content or "GR-GEN-001" in content
-
-    @patch("src.guardrails.generator.guardrail_to_yaml")
-    @patch("src.guardrails.generator.generate_guardrails_batch")
-    @patch("src.cli.guardrails._get_bedrock_client")
-    def test_generate_output_append_to_existing(
-        self,
-        mock_get_client: MagicMock,
-        mock_batch: MagicMock,
-        mock_to_yaml: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Generate command appends to existing file with --output."""
-        mock_get_client.return_value = MagicMock()
-        mock_batch.return_value = [MagicMock()]
-        mock_to_yaml.return_value = "- id: GR-GEN-002\n"
-
-        output_file = tmp_path / "existing.yaml"
-        output_file.write_text("name: existing\nguardrails:\n")
-
-        result = runner.invoke(
-            app,
-            ["guardrails", "generate", "add more rules", "--output", str(output_file)],
-        )
-        assert result.exit_code == 0
-        content = output_file.read_text()
-        assert "existing" in content
-        assert "GR-GEN-002" in content
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrails_batch")
@@ -1309,6 +1243,148 @@ class TestGenerateCommand:
         )
         assert result.exit_code == 0
         assert mock_batch.call_args.kwargs.get("count") == 10
+
+    # --- Mode 3: From file ---
+
+    @patch("src.guardrails.generator.guardrail_to_yaml")
+    @patch("src.guardrails.generator.translate_rules_to_guardrails")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_from_file_txt(
+        self,
+        mock_get_client: MagicMock,
+        mock_translate: MagicMock,
+        mock_to_yaml: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """From-file mode with TXT parses and translates rules."""
+        mock_get_client.return_value = MagicMock()
+        mock_translate.return_value = [MagicMock()]
+        mock_to_yaml.return_value = "- id: GR-ENC-001\n"
+
+        rules_file = tmp_path / "rules.txt"
+        rules_file.write_text("S3 must be encrypted\nRDS must have backups\n")
+
+        result = runner.invoke(app, ["guardrails", "generate", "--from-file", str(rules_file)])
+        assert result.exit_code == 0
+        assert mock_translate.call_args.kwargs.get("rules") == ["S3 must be encrypted", "RDS must have backups"]
+
+    @patch("src.guardrails.generator.guardrail_to_yaml")
+    @patch("src.guardrails.generator.translate_rules_to_guardrails")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_from_file_with_instructions(
+        self,
+        mock_get_client: MagicMock,
+        mock_translate: MagicMock,
+        mock_to_yaml: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """From-file mode passes instructions to translate function."""
+        mock_get_client.return_value = MagicMock()
+        mock_translate.return_value = [MagicMock()]
+        mock_to_yaml.return_value = "- id: GR-ENC-001\n"
+
+        rules_file = tmp_path / "rules.csv"
+        rules_file.write_text("rule\nA1234: S3 encryption\n")
+
+        result = runner.invoke(
+            app,
+            [
+                "guardrails",
+                "generate",
+                "--from-file",
+                str(rules_file),
+                "--instructions",
+                "format is 'ID: description'",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock_translate.call_args.kwargs.get("instructions") == "format is 'ID: description'"
+
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_from_file_not_found(self, mock_get_client: MagicMock) -> None:
+        """From-file mode exits 1 when file not found."""
+        mock_get_client.return_value = MagicMock()
+
+        result = runner.invoke(app, ["guardrails", "generate", "--from-file", "/nonexistent/rules.txt"])
+        assert result.exit_code == 1
+        assert "not found" in result.stdout.lower() or "error" in result.stdout.lower()
+
+    @patch("src.guardrails.generator.guardrail_to_yaml")
+    @patch("src.guardrails.generator.translate_rules_to_guardrails")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_from_file_partial_failures(
+        self,
+        mock_get_client: MagicMock,
+        mock_translate: MagicMock,
+        mock_to_yaml: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """From-file mode prints warnings on partial failure."""
+        mock_get_client.return_value = MagicMock()
+        mock_translate.return_value = [MagicMock()]  # 1 of 3 succeeded
+        mock_to_yaml.return_value = "- id: GR-ENC-001\n"
+
+        rules_file = tmp_path / "rules.txt"
+        rules_file.write_text("rule one\nrule two\nrule three\n")
+
+        result = runner.invoke(app, ["guardrails", "generate", "--from-file", str(rules_file)])
+        assert result.exit_code == 0
+        assert "2 of 3 rules failed" in result.stdout.lower()
+
+    # --- Output file handling ---
+
+    @patch("src.guardrails.generator.guardrail_to_yaml")
+    @patch("src.guardrails.generator.generate_guardrail")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_output_to_new_file(
+        self,
+        mock_get_client: MagicMock,
+        mock_gen: MagicMock,
+        mock_to_yaml: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Generate command creates new policy file with --output."""
+        mock_get_client.return_value = MagicMock()
+        mock_gen.return_value = MagicMock()
+        mock_to_yaml.return_value = "- id: GR-GEN-001\n  description: test\n"
+
+        output_file = tmp_path / "generated.yaml"
+
+        result = runner.invoke(
+            app,
+            ["guardrails", "generate", "baseline", "--output", str(output_file)],
+        )
+        assert result.exit_code == 0
+        assert output_file.exists()
+        content = output_file.read_text()
+        assert "generated-policy" in content or "GR-GEN-001" in content
+
+    @patch("src.guardrails.generator.guardrail_to_yaml")
+    @patch("src.guardrails.generator.generate_guardrail")
+    @patch("src.cli.guardrails._get_bedrock_client")
+    def test_generate_output_append_to_existing(
+        self,
+        mock_get_client: MagicMock,
+        mock_gen: MagicMock,
+        mock_to_yaml: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Generate command appends to existing file with --output."""
+        mock_get_client.return_value = MagicMock()
+        mock_gen.return_value = MagicMock()
+        mock_to_yaml.return_value = "- id: GR-GEN-002\n"
+
+        output_file = tmp_path / "existing.yaml"
+        output_file.write_text("name: existing\nguardrails:\n")
+
+        result = runner.invoke(
+            app,
+            ["guardrails", "generate", "add more rules", "--output", str(output_file)],
+        )
+        assert result.exit_code == 0
+        content = output_file.read_text()
+        assert "existing" in content
+        assert "GR-GEN-002" in content
 
 
 class TestGetBedrockClient:
