@@ -960,6 +960,32 @@ def snapshot_create(
         help="Max Lambda code size (MB) to store inline. Larger packages stored to files. "
         "Default: 10. Use 0 for external-only, -1 for unlimited inline.",
     ),
+    from_snapshot: Optional[str] = typer.Option(
+        None,
+        "--from-snapshot",
+        help="Source snapshot to derive from (no AWS API calls needed)",
+    ),
+    filter_type: Optional[List[str]] = typer.Option(
+        None,
+        "--type",
+        "-t",
+        help="Filter by resource type (repeatable, flexible matching). Requires --from-snapshot.",
+    ),
+    filter_tag: Optional[List[str]] = typer.Option(
+        None,
+        "--tag",
+        help="Filter by tag Key=Value (repeatable, AND logic). Requires --from-snapshot.",
+    ),
+    search: Optional[str] = typer.Option(
+        None,
+        "--search",
+        help="Filter by ARN substring (case-insensitive). Requires --from-snapshot.",
+    ),
+    created_by: Optional[str] = typer.Option(
+        None,
+        "--created-by",
+        help="Filter by creator (substring match on _created_by or _created_by_role tags). Requires --from-snapshot.",
+    ),
 ):
     """Create a new snapshot of AWS resources.
 
@@ -999,8 +1025,209 @@ def snapshot_create(
     - Production only: --include-tags Environment=production
     - Exclude test/dev: --exclude-tags Environment=test,Environment=dev
     - Multiple filters: --include-tags Team=platform,Environment=prod --exclude-tags Status=archived
+
+    Derived Snapshots:
+    Use --from-snapshot to create a new snapshot from an existing one (no AWS API calls).
+    Combine with filters to extract subsets:
+    - EC2 only: --from-snapshot base --type ec2
+    - By creator: --from-snapshot base --created-by "admin-role"
+    - Combined: --from-snapshot base --type s3 --region us-east-1 --tag Environment=prod
     """
     try:
+        # --- Validate --from-snapshot conflicts ---
+        conflicting_with_from_snapshot = {
+            "--config": use_config,
+            "--config-aggregator": config_aggregator,
+            "--track-creators": track_creators,
+            "--created-by-role": created_by_role,
+            "--before-date": before_date,
+            "--after-date": after_date,
+            "--include-tags": include_tags,
+            "--exclude-tags": exclude_tags,
+            "--filter-tags": filter_tags,
+        }
+        filter_only_options = {
+            "--type": filter_type,
+            "--tag": filter_tag,
+            "--search": search,
+            "--created-by": created_by,
+        }
+
+        if from_snapshot:
+            active_conflicts = [k for k, v in conflicting_with_from_snapshot.items() if v]
+            if active_conflicts:
+                console.print(
+                    f"✗ Error: Cannot use {', '.join(active_conflicts)} with --from-snapshot\n"
+                    "  --from-snapshot creates a derived snapshot from an existing one (no AWS API calls).\n"
+                    "  These options only apply when collecting from AWS.",
+                    style="bold red",
+                )
+                raise typer.Exit(code=1)
+
+        else:
+            active_filter_only = [k for k, v in filter_only_options.items() if v]
+            if active_filter_only:
+                console.print(
+                    f"✗ Error: {', '.join(active_filter_only)} requires --from-snapshot\n"
+                    "  These filters apply to an existing snapshot. Example:\n"
+                    "  awsinv snapshot create --from-snapshot <name> --type ec2",
+                    style="bold red",
+                )
+                raise typer.Exit(code=1)
+
+        # --- Handle --from-snapshot (derived snapshot, no AWS API calls) ---
+        if from_snapshot:
+            from ..models.report import FilterCriteria
+
+            storage = SnapshotStorage(config.storage_path)
+
+            # Load source snapshot
+            try:
+                source = storage.load_snapshot(from_snapshot)
+            except FileNotFoundError:
+                console.print(f"✗ Snapshot '{from_snapshot}' not found", style="bold red")
+                console.print("\nAvailable snapshots:")
+                for snap_meta in storage.list_snapshots()[:5]:
+                    console.print(f"  • {snap_meta['name']}")
+                raise typer.Exit(code=1)
+
+            account_id = source.account_id
+
+            # Resolve collection
+            from ..snapshot.collection_storage import CollectionStorage
+
+            collection_storage = CollectionStorage(config.storage_path)
+            collection_name = "default"
+
+            if collection:
+                try:
+                    active_collection = collection_storage.get_by_name(collection, account_id)
+                    collection_name = collection
+                except Exception:
+                    console.print(
+                        f"✗ Collection '{collection}' not found for account {account_id}",
+                        style="bold red",
+                    )
+                    raise typer.Exit(code=1)
+            else:
+                active_collection = collection_storage.get_or_create_default(account_id)
+
+            # Auto-generate name if not provided
+            if not name:
+                timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+                name = f"{account_id}-{collection_name}-{timestamp}"
+
+            console.print(f"📸 Creating derived snapshot: [bold]{name}[/bold]")
+            console.print(f"   Source: {from_snapshot} ({len(source.resources)} resources)")
+
+            # Parse --tag filters
+            tag_filters: Optional[Dict[str, str]] = None
+            if filter_tag:
+                tag_filters = {}
+                for t in filter_tag:
+                    if "=" not in t:
+                        console.print(
+                            f"✗ Invalid tag filter '{t}'. Use Key=Value format.",
+                            style="bold red",
+                        )
+                        raise typer.Exit(code=1)
+                    key, value = t.split("=", 1)
+                    tag_filters[key] = value
+
+            # Build FilterCriteria (reuse from snapshot export)
+            criteria = FilterCriteria(
+                resource_types=list(filter_type) if filter_type else None,
+                regions=list(region) if region else None,
+                tags=tag_filters,
+                search=search,
+            )
+
+            # Filter resources
+            total_before = len(source.resources)
+            filtered_resources = []
+            for resource in source.resources:
+                # Apply FilterCriteria (type, region, tag, search)
+                if criteria.has_filters and not criteria.matches_resource_full(resource):
+                    continue
+                # Apply --created-by filter (OR on _created_by and _created_by_role)
+                if created_by:
+                    cb_lower = created_by.lower()
+                    r_created_by = (resource.tags or {}).get("_created_by", "")
+                    r_created_by_role = (resource.tags or {}).get("_created_by_role", "")
+                    if cb_lower not in r_created_by.lower() and cb_lower not in r_created_by_role.lower():
+                        continue
+                filtered_resources.append(resource)
+
+            # Zero results check
+            if not filtered_resources:
+                console.print(
+                    "⚠️  Warning: No resources matched the filters. Snapshot was not saved.",
+                    style="bold yellow",
+                )
+                raise typer.Exit(code=0)
+
+            # Derive regions from filtered resources
+            derived_regions = sorted(set(r.region for r in filtered_resources))
+
+            # Build filters_applied metadata
+            filters_applied_meta: Dict[str, Any] = {"from_snapshot": from_snapshot}
+            if filter_type:
+                filters_applied_meta["resource_types"] = list(filter_type)
+            if region:
+                filters_applied_meta["regions"] = list(region)
+            if tag_filters:
+                filters_applied_meta["tags"] = tag_filters
+            if search:
+                filters_applied_meta["search"] = search
+            if created_by:
+                filters_applied_meta["created_by"] = created_by
+
+            # Build new Snapshot
+            from ..models.snapshot import Snapshot as SnapshotModel
+
+            new_snapshot = SnapshotModel(
+                name=name,
+                created_at=datetime.now(),
+                account_id=account_id,
+                regions=derived_regions,
+                resources=filtered_resources,
+                is_active=set_active,
+                metadata={
+                    "derived_from": from_snapshot,
+                    "source_resource_count": total_before,
+                },
+                filters_applied=filters_applied_meta,
+                total_resources_before_filter=total_before,
+                collection_name=collection_name,
+            )
+
+            # Save
+            filepath = storage.save_snapshot(new_snapshot, compress=compress)
+
+            # Register with collection
+            snapshot_filename = filepath.name
+            active_collection.add_snapshot(snapshot_filename, set_active=set_active)
+            collection_storage.save(active_collection)
+
+            # Print summary
+            console.print("\n✓ Derived snapshot created!", style="bold green")
+            console.print(f"  Name: {name}")
+            console.print(f"  Source: {from_snapshot}")
+            console.print(f"  Resources: {len(filtered_resources)} / {total_before}")
+            console.print(f"  Regions: {', '.join(derived_regions)}")
+            console.print(f"  Collection: {collection_name}")
+
+            if new_snapshot.service_counts:
+                console.print("\nResources by service:")
+                table = Table(show_header=True)
+                table.add_column("Service", style="cyan")
+                table.add_column("Count", justify="right", style="green")
+                for service, count in sorted(new_snapshot.service_counts.items()):
+                    table.add_row(service, str(count))
+                console.print(table)
+
+            return
+
         # Use profile parameter if provided, otherwise use config
         aws_profile = profile if profile else config.aws_profile
 
