@@ -1,5 +1,6 @@
 """AWS Glue resource collector."""
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from ...models.resource import Resource
@@ -20,21 +21,38 @@ class GlueCollector(BaseResourceCollector):
         Returns:
             List of Glue resources (databases, tables, crawlers, jobs)
         """
-        resources = []
         client = self._create_client()
         account_id = self._get_account_id()
 
-        # Collect databases and tables
-        resources.extend(self._collect_databases(client, account_id))
+        # Run all Glue sub-collectors in parallel
+        def _collect_databases_wrapper() -> List[Resource]:
+            self._report_progress("databases")
+            return self._collect_databases(client, account_id)
 
-        # Collect crawlers
-        resources.extend(self._collect_crawlers(client, account_id))
+        def _collect_crawlers_wrapper() -> List[Resource]:
+            self._report_progress("crawlers")
+            return self._collect_crawlers(client, account_id)
 
-        # Collect jobs
-        resources.extend(self._collect_jobs(client, account_id))
+        def _collect_jobs_wrapper() -> List[Resource]:
+            self._report_progress("jobs")
+            return self._collect_jobs(client, account_id)
 
-        # Collect connections
-        resources.extend(self._collect_connections(client, account_id))
+        def _collect_connections_wrapper() -> List[Resource]:
+            self._report_progress("connections")
+            return self._collect_connections(client, account_id)
+
+        collectors = [
+            _collect_databases_wrapper,
+            _collect_crawlers_wrapper,
+            _collect_jobs_wrapper,
+            _collect_connections_wrapper,
+        ]
+
+        resources: List[Resource] = []
+        with ThreadPoolExecutor(max_workers=len(collectors)) as executor:
+            futures = [executor.submit(fn) for fn in collectors]
+            for future in futures:
+                resources.extend(future.result())
 
         self.logger.debug(f"Collected {len(resources)} Glue resources in {self.region}")
         return resources
@@ -63,6 +81,7 @@ class GlueCollector(BaseResourceCollector):
                     resources.append(resource)
 
                     # Collect tables for this database
+                    self._report_progress(f"tables/{db_name}")
                     resources.extend(self._collect_tables(client, account_id, db_name))
 
         except Exception as e:

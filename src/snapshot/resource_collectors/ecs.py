@@ -27,13 +27,13 @@ class ECSCollector(BaseResourceCollector):
         """
         resources = []
 
-        # Collect clusters
+        self._report_progress("clusters")
         resources.extend(self._collect_clusters())
 
-        # Collect services (across all clusters)
+        self._report_progress("services")
         resources.extend(self._collect_services())
 
-        # Collect task definitions
+        self._report_progress("task-definitions")
         resources.extend(self._collect_task_definitions())
 
         self.logger.debug(f"Collected {len(resources)} ECS resources in {self.region}")
@@ -168,48 +168,58 @@ class ECSCollector(BaseResourceCollector):
         Returns:
             List of ECS task definition resources
         """
-        resources = []
         client = self._create_client()
 
         try:
+            # First list all task definition ARNs
+            task_def_arns = []
             paginator = client.get_paginator("list_task_definitions")
             for page in paginator.paginate(status="ACTIVE"):
-                for task_def_arn in page.get("taskDefinitionArns", []):
-                    try:
-                        # Get task definition details
-                        response = client.describe_task_definition(taskDefinition=task_def_arn, include=["TAGS"])
-                        task_def = response.get("taskDefinition", {})
+                task_def_arns.extend(page.get("taskDefinitionArns", []))
 
-                        # Extract family and revision
-                        family = task_def.get("family", "unknown")
-                        revision = task_def.get("revision", 0)
-                        name = f"{family}:{revision}"
+            if not task_def_arns:
+                return []
 
-                        # Extract tags
-                        tags = {}
-                        for tag in response.get("tags", []):
-                            tags[tag["key"]] = tag["value"]
+            # Describe each task definition in parallel
+            from concurrent.futures import ThreadPoolExecutor
+            from typing import Optional
 
-                        # Task definitions don't have creation timestamp
-                        created_at = None
+            def _describe_task_def(task_def_arn: str) -> Optional[Resource]:
+                try:
+                    response = client.describe_task_definition(taskDefinition=task_def_arn, include=["TAGS"])
+                    task_def = response.get("taskDefinition", {})
 
-                        # Create resource
-                        resource = Resource(
-                            arn=task_def_arn,
-                            resource_type="AWS::ECS::TaskDefinition",
-                            name=name,
-                            region=self.region,
-                            tags=tags,
-                            config_hash=compute_config_hash(task_def),
-                            created_at=created_at,
-                            raw_config=task_def,
-                        )
+                    family = task_def.get("family", "unknown")
+                    revision = task_def.get("revision", 0)
+                    name = f"{family}:{revision}"
+
+                    tags = {}
+                    for tag in response.get("tags", []):
+                        tags[tag["key"]] = tag["value"]
+
+                    return Resource(
+                        arn=task_def_arn,
+                        resource_type="AWS::ECS::TaskDefinition",
+                        name=name,
+                        region=self.region,
+                        tags=tags,
+                        config_hash=compute_config_hash(task_def),
+                        created_at=None,
+                        raw_config=task_def,
+                    )
+
+                except Exception as e:
+                    self.logger.debug(f"Error describing task definition {task_def_arn}: {e}")
+                    return None
+
+            resources: list = []
+            with ThreadPoolExecutor(max_workers=min(10, len(task_def_arns))) as executor:
+                for resource in executor.map(_describe_task_def, task_def_arns):
+                    if resource:
                         resources.append(resource)
 
-                    except Exception as e:
-                        self.logger.debug(f"Error describing task definition {task_def_arn}: {e}")
+            return resources
 
         except Exception as e:
             self.logger.error(f"Error collecting ECS task definitions in {self.region}: {e}")
-
-        return resources
+            return []

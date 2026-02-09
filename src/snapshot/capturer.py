@@ -138,19 +138,24 @@ def create_snapshot(
 
     if use_config:
         logger.debug("Detecting AWS Config availability...")
-        for region in regions:
+
+        def _detect_config_for_region(r: str) -> tuple:
             try:
-                availability = detect_config_availability(session, region, profile_name)
-                config_availability[region] = availability
+                availability = detect_config_availability(session, r, profile_name)
                 if availability.is_enabled:
                     logger.debug(
-                        f"  {region}: Config enabled (all_supported={availability.recording_group_all_supported})"
+                        f"  {r}: Config enabled (all_supported={availability.recording_group_all_supported})"
                     )
                 else:
-                    logger.debug(f"  {region}: Config not available ({availability.error_message})")
+                    logger.debug(f"  {r}: Config not available ({availability.error_message})")
+                return (r, availability)
             except Exception as e:
-                logger.debug(f"  {region}: Config detection failed ({e})")
-                config_availability[region] = ConfigAvailability(region=region, error_message=str(e))
+                logger.debug(f"  {r}: Config detection failed ({e})")
+                return (r, ConfigAvailability(region=r, error_message=str(e)))
+
+        with ThreadPoolExecutor(max_workers=len(regions)) as config_executor:
+            for r, avail in config_executor.map(_detect_config_for_region, regions):
+                config_availability[r] = avail
 
     # Collect resources
     all_resources = []
@@ -199,6 +204,24 @@ def create_snapshot(
         # Thread-safe lock for updating shared state
         lock = Lock()
 
+        # Track in-flight collectors for progress display
+        in_flight: Dict[str, str] = {}  # key -> "SERVICE • region (substep)"
+
+        def _update_progress_description():
+            """Update progress bar to show in-flight collectors (call with lock held)."""
+            if not in_flight:
+                return
+            items = list(in_flight.values())
+            if len(items) == 1:
+                progress.update(main_task, description=f"📦 {items[0]}")
+            elif len(items) <= 3:
+                progress.update(main_task, description=f"📦 {' | '.join(items)}")
+            else:
+                progress.update(
+                    main_task,
+                    description=f"📦 {' | '.join(items[:2])} [dim]+{len(items)-2} more[/dim]",
+                )
+
         def collect_service(collector_class: Type[BaseResourceCollector], region: str, is_global: bool = False) -> Dict:
             """Collect resources for a single service in a region (thread-safe)."""
             try:
@@ -209,15 +232,26 @@ def create_snapshot(
                         region,
                         max_inline_code_size=lambda_code_max_size,
                         snapshot_name=name,
+                        account_id=account_id,
                     )
                 else:
-                    collector = collector_class(session, region)
+                    collector = collector_class(session, region, account_id=account_id)
                 service_name = collector.service_name.upper()
                 region_label = "global" if is_global else region
+                task_key = f"{service_name}_{region_label}"
 
-                # Update progress (thread-safe)
+                # Set up sub-step progress callback
+                def _on_substep(step: str):
+                    with lock:
+                        in_flight[task_key] = f"{service_name} • {region_label}: {step}"
+                        _update_progress_description()
+
+                collector.set_progress_callback(_on_substep)
+
+                # Register as in-flight
                 with lock:
-                    progress.update(main_task, description=f"📦 {service_name} • {region_label}")
+                    in_flight[task_key] = f"{service_name} • {region_label}"
+                    _update_progress_description()
 
                 resources = []
                 source = "direct_api"
@@ -271,22 +305,25 @@ def create_snapshot(
                     "service": service_name,
                     "region": region_label,
                     "source": source,
+                    "task_key": task_key,
                 }
 
             except Exception as e:
                 error_msg = str(e)
                 service_name = collector_class.__name__.replace("Collector", "").upper()
                 region_label = "global" if is_global else region
+                task_key = f"{service_name}_{region_label}"
 
                 if not is_expected_error(error_msg):
                     logger.debug(f"Collection error - {service_name} ({region_label}): {error_msg[:80]}")
                     return {
                         "success": False,
+                        "task_key": task_key,
                         "error": {"service": service_name, "region": region_label, "error": error_msg[:100]},
                     }
                 else:
                     logger.debug(f"Skipping {service_name} in {region_label} (not available): {error_msg[:80]}")
-                    return {"success": False, "expected": True}
+                    return {"success": False, "task_key": task_key, "expected": True}
 
         # Create list of collection tasks
         collection_tasks = []
@@ -328,9 +365,13 @@ def create_snapshot(
                     with lock:
                         collection_errors.append(result["error"])
 
-                # Advance progress (thread-safe)
+                # Remove from in-flight and advance progress (thread-safe)
                 with lock:
+                    task_key = result.get("task_key")
+                    if task_key:
+                        in_flight.pop(task_key, None)
                     progress.advance(main_task)
+                    _update_progress_description()
 
         progress.update(main_task, description=f"[bold green]✓ Successfully collected {len(all_resources)} resources")
 

@@ -1,5 +1,6 @@
 """EC2 resource collector."""
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from ...models.resource import Resource
@@ -20,23 +21,28 @@ class EC2Collector(BaseResourceCollector):
         Returns:
             List of EC2 resources
         """
-        resources = []
         account_id = self._get_account_id()
 
-        # Collect instances
-        resources.extend(self._collect_instances(account_id))
+        # Run all EC2 sub-collectors in parallel
+        def _wrap(name, fn):
+            def wrapper(aid):
+                self._report_progress(name)
+                return fn(aid)
+            return wrapper
 
-        # Collect volumes
-        resources.extend(self._collect_volumes(account_id))
+        collectors = [
+            _wrap("instances", self._collect_instances),
+            _wrap("volumes", self._collect_volumes),
+            _wrap("vpcs", self._collect_vpcs),
+            _wrap("security-groups", self._collect_security_groups),
+            _wrap("subnets", self._collect_subnets),
+        ]
 
-        # Collect VPCs
-        resources.extend(self._collect_vpcs(account_id))
-
-        # Collect security groups
-        resources.extend(self._collect_security_groups(account_id))
-
-        # Collect subnets
-        resources.extend(self._collect_subnets(account_id))
+        resources: List[Resource] = []
+        with ThreadPoolExecutor(max_workers=len(collectors)) as executor:
+            futures = [executor.submit(fn, account_id) for fn in collectors]
+            for future in futures:
+                resources.extend(future.result())
 
         self.logger.debug(f"Collected {len(resources)} EC2 resources in {self.region}")
         return resources

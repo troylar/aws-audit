@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -452,6 +453,7 @@ class CloudTrailQuery:
         regions: Optional[List[str]] = None,
         progress_callback: Optional[Callable] = None,
         resource_types: Optional[Set[str]] = None,
+        target_resource_keys: Optional[Set[str]] = None,
     ) -> List[ResourceCreationEvent]:
         """Get all resource creation events from CloudTrail.
 
@@ -461,6 +463,8 @@ class CloudTrailQuery:
             progress_callback: Optional callback(event_name, events_found) for progress updates
             resource_types: Optional set of resource types to filter (e.g., {"AWS::Lambda::Function"})
                            If provided, only queries event types that create these resource types.
+            target_resource_keys: Optional set of "resource_type:resource_name" keys. When all
+                                  targets are found, remaining queries are cancelled early.
 
         Returns:
             List of ResourceCreationEvent objects
@@ -490,27 +494,79 @@ class CloudTrailQuery:
         else:
             filtered_event_names = None
 
-        # Process all regions in parallel for speed
-        with ThreadPoolExecutor(max_workers=len(query_regions)) as executor:
+        # Determine event names to query
+        if filtered_event_names:
+            event_names = filtered_event_names
+        else:
+            event_names = list(EVENT_TO_RESOURCE_TYPE.keys()) + list(MULTI_SERVICE_EVENTS.keys())
+
+        # Early termination support
+        cancel_event = threading.Event()
+        found_keys: Set[str] = set()
+        found_lock = threading.Lock()
+
+        # Pre-create one boto3 client per region
+        clients: Dict[str, object] = {}
+        for region in query_regions:
+            try:
+                clients[region] = create_boto_client(
+                    service_name="cloudtrail",
+                    region_name=region,
+                    profile_name=self.profile_name,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to create CloudTrail client for {region}: {e}")
+
+        start_time = datetime.now(timezone.utc) - timedelta(days=days_back)
+        end_time = datetime.now(timezone.utc)
+
+        # Flat thread pool over all (region, event_type) pairs
+        work_items = [
+            (region, event_name)
+            for region in query_regions
+            if region in clients
+            for event_name in event_names
+        ]
+
+        # Match old concurrency: 20 workers per region, capped by actual work items
+        max_workers = min(20 * len(query_regions), len(work_items)) if work_items else 1
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(
-                    self._query_all_creation_events_fast,
-                    days_back,
+                    self._query_single_event_type,
+                    clients[region],
+                    event_name,
+                    start_time,
+                    end_time,
                     region,
-                    progress_callback,
-                    filtered_event_names,
-                ): region
-                for region in query_regions
+                    cancel_event,
+                ): (region, event_name)
+                for region, event_name in work_items
             }
 
             for future in as_completed(futures):
-                region = futures[future]
+                region, event_name = futures[future]
                 try:
-                    region_events = future.result()
-                    events.extend(region_events)
-                    logger.debug(f"Found {len(region_events)} creation events in {region}")
+                    result = future.result()
+                    events.extend(result)
+
+                    # Check early termination
+                    if target_resource_keys and result:
+                        with found_lock:
+                            for ev in result:
+                                if ev.resource_name:
+                                    found_keys.add(f"{ev.resource_type}:{ev.resource_name}")
+                            if target_resource_keys <= found_keys:
+                                cancel_event.set()
+                                logger.info("All target resources found, cancelling remaining queries")
+
+                    if progress_callback:
+                        progress_callback(event_name, len(result))
                 except Exception as e:
-                    logger.warning(f"Error querying CloudTrail in {region}: {e}")
+                    logger.warning(f"Error querying {event_name} in {region}: {e}")
+                    if progress_callback:
+                        progress_callback(event_name, 0)
 
         logger.info(f"Total creation events found: {len(events)}")
         return events
@@ -522,10 +578,13 @@ class CloudTrailQuery:
         start_time: datetime,
         end_time: datetime,
         region: str,
+        cancel_event: Optional[threading.Event] = None,
     ) -> List[ResourceCreationEvent]:
         """Query CloudTrail for a single event type."""
         events = []
         try:
+            if cancel_event and cancel_event.is_set():
+                return events
             paginator = client.get_paginator("lookup_events")
             for page in paginator.paginate(
                 LookupAttributes=[{"AttributeKey": "EventName", "AttributeValue": event_name}],
@@ -533,6 +592,8 @@ class CloudTrailQuery:
                 EndTime=end_time,
                 MaxResults=50,
             ):
+                if cancel_event and cancel_event.is_set():
+                    break
                 for event in page.get("Events", []):
                     parsed = self._parse_creation_event(event, region)
                     if parsed:
@@ -666,6 +727,7 @@ class CloudTrailQuery:
         regions: Optional[List[str]] = None,
         progress_callback: Optional[Callable] = None,
         resource_types: Optional[Set[str]] = None,
+        target_resource_keys: Optional[Set[str]] = None,
     ) -> Dict[str, Dict[str, str]]:
         """Build a mapping of resources to their creators.
 
@@ -675,6 +737,8 @@ class CloudTrailQuery:
             progress_callback: Optional callback(event_name, events_found) for progress updates
             resource_types: Optional set of resource types to filter queries
                            (speeds up queries by only looking for relevant event types)
+            target_resource_keys: Optional set of "resource_type:resource_name" keys for
+                                  early termination once all targets are found
 
         Returns:
             Dict mapping (resource_type, resource_name) key to creator info:
@@ -686,7 +750,9 @@ class CloudTrailQuery:
                 }
             }
         """
-        events = self.get_all_creation_events(days_back, regions, progress_callback, resource_types)
+        events = self.get_all_creation_events(
+            days_back, regions, progress_callback, resource_types, target_resource_keys
+        )
 
         creators: Dict[str, Dict[str, str]] = {}
         for event in events:

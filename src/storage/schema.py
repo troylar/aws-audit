@@ -1,6 +1,6 @@
 """SQLite schema definitions for AWS Inventory Manager."""
 
-SCHEMA_VERSION = "1.3.0"
+SCHEMA_VERSION = "1.4.0"
 
 # Schema creation SQL
 SCHEMA_SQL = """
@@ -177,6 +177,19 @@ CREATE TABLE IF NOT EXISTS resource_group_members (
     FOREIGN KEY (group_id) REFERENCES resource_groups(id) ON DELETE CASCADE,
     UNIQUE (group_id, resource_name, resource_type)
 );
+
+-- Creator cache for CloudTrail enrichment results
+CREATE TABLE IF NOT EXISTS creator_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id TEXT NOT NULL,
+    resource_type TEXT NOT NULL,
+    resource_name TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_by_type TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cached_at TIMESTAMP NOT NULL,
+    UNIQUE(account_id, resource_type, resource_name)
+);
 """
 
 # Indexes for common queries (created separately for better error handling)
@@ -244,6 +257,10 @@ CREATE INDEX IF NOT EXISTS idx_groups_created ON resource_groups(created_at DESC
 CREATE INDEX IF NOT EXISTS idx_group_members_group ON resource_group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_group_members_name_type ON resource_group_members(resource_name, resource_type);
 CREATE INDEX IF NOT EXISTS idx_group_members_strategy ON resource_group_members(match_strategy);
+
+-- Creator cache indexes
+CREATE INDEX IF NOT EXISTS idx_creator_cache_account ON creator_cache(account_id);
+CREATE INDEX IF NOT EXISTS idx_creator_cache_lookup ON creator_cache(account_id, resource_type, resource_name);
 """
 
 
@@ -277,6 +294,21 @@ MIGRATIONS = {
         "ALTER TABLE inventory_snapshots RENAME TO collection_snapshots",
         # Rename inventory_name column to collection_name in snapshots
         "ALTER TABLE snapshots RENAME COLUMN inventory_name TO collection_name",
+    ],
+    "1.4.0": [
+        """
+        CREATE TABLE IF NOT EXISTS creator_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id TEXT NOT NULL,
+            resource_type TEXT NOT NULL,
+            resource_name TEXT NOT NULL,
+            created_by TEXT NOT NULL,
+            created_by_type TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            cached_at TIMESTAMP NOT NULL,
+            UNIQUE(account_id, resource_type, resource_name)
+        )
+        """,
     ],
     "1.2.0": [
         # Add normalized_name column for pattern-stripped names

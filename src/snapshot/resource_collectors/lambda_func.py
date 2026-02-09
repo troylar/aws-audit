@@ -51,6 +51,7 @@ class LambdaCollector(BaseResourceCollector):
         max_inline_code_size: int = DEFAULT_MAX_INLINE_CODE_SIZE,
         snapshot_name: Optional[str] = None,
         external_storage_path: Optional[str] = None,
+        account_id: Optional[str] = None,
     ):
         """Initialize Lambda collector.
 
@@ -63,8 +64,9 @@ class LambdaCollector(BaseResourceCollector):
                                   Set to -1 for unlimited inline storage.
             snapshot_name: Snapshot name (required for external storage)
             external_storage_path: Base path for external code storage
+            account_id: AWS account ID (avoids redundant STS calls)
         """
-        super().__init__(session, region)
+        super().__init__(session, region, account_id=account_id)
         self.max_inline_code_size = max_inline_code_size
         self.snapshot_name = snapshot_name
         self.code_storage = LambdaCodeStorage(external_storage_path) if snapshot_name else None
@@ -82,10 +84,10 @@ class LambdaCollector(BaseResourceCollector):
         resources = []
         account_id = self._get_account_id()
 
-        # Collect functions
+        self._report_progress("functions")
         resources.extend(self._collect_functions(account_id))
 
-        # Collect layers
+        self._report_progress("layers")
         resources.extend(self._collect_layers(account_id))
 
         self.logger.debug(f"Collected {len(resources)} Lambda resources in {self.region}")
@@ -93,57 +95,66 @@ class LambdaCollector(BaseResourceCollector):
 
     def _collect_functions(self, account_id: str) -> List[Resource]:
         """Collect Lambda functions including deployment code."""
-        resources = []
         client = self._create_client()
 
         try:
+            # First list all functions
+            functions = []
             paginator = client.get_paginator("list_functions")
             for page in paginator.paginate():
-                for function in page["Functions"]:
-                    function_name = function["FunctionName"]
-                    function_arn = function["FunctionArn"]
+                functions.extend(page["Functions"])
 
-                    # Get full function configuration (includes tags and code location)
-                    try:
-                        full_config = client.get_function(FunctionName=function_name)
-                        tags = full_config.get("Tags", {})
-                        config_data = full_config.get("Configuration", function)
-                        code_info = full_config.get("Code", {})
-                    except Exception as e:
-                        self.logger.debug(f"Could not get full config for {function_name}: {e}")
-                        tags = {}
-                        config_data = function
-                        code_info = {}
+            if not functions:
+                return []
 
-                    # Extract code metadata and download code
-                    code_data = self._get_code_data(function_name, code_info)
+            # Enrich each function in parallel (get_function + code download)
+            from concurrent.futures import ThreadPoolExecutor
 
-                    # Merge code data into config
-                    config_data_with_code = {
-                        **config_data,
-                        "_code": code_data,
-                    }
+            def _enrich_function(function: dict) -> Resource:
+                function_name = function["FunctionName"]
+                function_arn = function["FunctionArn"]
 
-                    # Parse LastModified timestamp (set on creation and updates)
-                    last_modified = _parse_lambda_timestamp(config_data.get("LastModified"))
+                try:
+                    full_config = client.get_function(FunctionName=function_name)
+                    tags = full_config.get("Tags", {})
+                    config_data = full_config.get("Configuration", function)
+                    code_info = full_config.get("Code", {})
+                except Exception as e:
+                    self.logger.debug(f"Could not get full config for {function_name}: {e}")
+                    tags = {}
+                    config_data = function
+                    code_info = {}
 
-                    # Create resource
-                    resource = Resource(
-                        arn=function_arn,
-                        resource_type="AWS::Lambda::Function",
-                        name=function_name,
-                        region=self.region,
-                        tags=tags,
-                        config_hash=compute_config_hash(config_data_with_code),
-                        created_at=last_modified,
-                        raw_config=config_data_with_code,
-                    )
+                code_data = self._get_code_data(function_name, code_info)
+
+                config_data_with_code = {
+                    **config_data,
+                    "_code": code_data,
+                }
+
+                last_modified = _parse_lambda_timestamp(config_data.get("LastModified"))
+
+                return Resource(
+                    arn=function_arn,
+                    resource_type="AWS::Lambda::Function",
+                    name=function_name,
+                    region=self.region,
+                    tags=tags,
+                    config_hash=compute_config_hash(config_data_with_code),
+                    created_at=last_modified,
+                    raw_config=config_data_with_code,
+                )
+
+            resources: list = []
+            with ThreadPoolExecutor(max_workers=min(10, len(functions))) as executor:
+                for resource in executor.map(_enrich_function, functions):
                     resources.append(resource)
+
+            return resources
 
         except Exception as e:
             self.logger.error(f"Error collecting Lambda functions in {self.region}: {e}")
-
-        return resources
+            return []
 
     def _get_code_data(self, function_name: str, code_info: Dict[str, Any]) -> Dict[str, Any]:
         """Extract code metadata and download deployment package.
