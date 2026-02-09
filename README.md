@@ -12,7 +12,7 @@
 
 **Collections** | **Inventory Snapshots** | **Configuration Drift** | **Security Scanning** | **Cost Analysis** | **Resource Cleanup** | **IaC Generation**
 
-[Documentation](https://troylar.github.io/aws-inventory-manager/) | [Quick Start](#quick-start) | [Features](#features) | [Contributing](#contributing)
+[Documentation](https://troylar.github.io/aws-inventory-manager/latest/) | [Quick Start](#quick-start) | [Features](#features) | [Contributing](#contributing)
 
 </div>
 
@@ -66,41 +66,41 @@ awsinv cleanup preview my-baseline
 awsinv cleanup execute my-baseline --yes
 ```
 
-> See the full [Getting Started tutorial](https://troylar.github.io/aws-inventory-manager/getting-started/first-snapshot/) for a complete walkthrough.
+> See the full [Getting Started tutorial](https://troylar.github.io/aws-inventory-manager/latest/getting-started/first-snapshot/) for a complete walkthrough.
 
 ---
 
 ## Features
 
-- **Collections** -- Named containers for organizing snapshots by account, environment, or team ([guide](https://troylar.github.io/aws-inventory-manager/guides/collections/))
-- **Inventory Snapshots** -- 27 AWS services, 80+ resource types, multi-region, Lambda code collection, SQLite storage ([guide](https://troylar.github.io/aws-inventory-manager/guides/snapshots/))
-- **Change Tracking** -- Field-level drift detection with before/after diff ([guide](https://troylar.github.io/aws-inventory-manager/guides/change-tracking/))
-- **Security Scanning** -- 12+ CIS-aligned checks across severity levels ([guide](https://troylar.github.io/aws-inventory-manager/guides/security-scanning/))
-- **Cost Analysis** -- Per-inventory cost tracking, date ranges, service breakdown ([guide](https://troylar.github.io/aws-inventory-manager/guides/cost-analysis/))
-- **Resource Cleanup** -- Baseline cleanup, purge mode, protection rules, 43 deletable types ([guide](https://troylar.github.io/aws-inventory-manager/guides/resource-cleanup/))
-- **AWS Config Integration** -- Auto-detected, up to 5x faster collection ([guide](https://troylar.github.io/aws-inventory-manager/configuration/aws-config-integration/))
-- **Query & Analysis** -- SQL queries, resource search, cross-snapshot history ([guide](https://troylar.github.io/aws-inventory-manager/guides/query-analysis/))
-- **Creator Tracking** -- CloudTrail-based resource provenance ([guide](https://troylar.github.io/aws-inventory-manager/guides/creator-tracking/))
-- **IaC Generation** -- Terraform, CDK TypeScript, CDK Python via AI ([guide](https://troylar.github.io/aws-inventory-manager/guides/iac-generation/))
-- **Guardrails** -- Policy-based compliance checking, AI auto-fix, CI/CD ready ([guide](https://troylar.github.io/aws-inventory-manager/guardrails/))
-- **Web UI** -- Resource Explorer with advanced filtering and export ([guide](https://troylar.github.io/aws-inventory-manager/guides/web-ui/))
-- **Lambda Code** -- List, extract, view, diff, and fetch Lambda deployment code ([guide](https://troylar.github.io/aws-inventory-manager/guides/lambda-code/))
+- **Collections** -- Named containers for organizing snapshots by account, environment, or team ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/collections/))
+- **Inventory Snapshots** -- 27 AWS services, 80+ resource types, multi-region, Lambda code collection, SQLite storage ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/snapshots/))
+- **Change Tracking** -- Field-level drift detection with before/after diff ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/change-tracking/))
+- **Security Scanning** -- 12+ CIS-aligned checks across severity levels ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/security-scanning/))
+- **Cost Analysis** -- Per-inventory cost tracking, date ranges, service breakdown ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/cost-analysis/))
+- **Resource Cleanup** -- Baseline cleanup, purge mode, protection rules, 43 deletable types ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/resource-cleanup/))
+- **AWS Config Integration** -- Auto-detected, up to 5x faster collection ([guide](https://troylar.github.io/aws-inventory-manager/latest/configuration/aws-config-integration/))
+- **Query & Analysis** -- SQL queries, resource search, cross-snapshot history ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/query-analysis/))
+- **Creator Tracking** -- CloudTrail-based resource provenance ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/creator-tracking/))
+- **IaC Generation** -- Terraform, CDK TypeScript, CDK Python via AI ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/iac-generation/))
+- **Guardrails** -- Policy-based compliance checking, AI auto-fix, CI/CD ready ([guide](https://troylar.github.io/aws-inventory-manager/latest/guardrails/))
+- **Web UI** -- Resource Explorer with advanced filtering and export ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/web-ui/))
+- **Lambda Code** -- List, extract, view, diff, and fetch Lambda deployment code ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/lambda-code/))
 
 ---
 
 ## Documentation
 
-Full documentation is available at **[troylar.github.io/aws-inventory-manager](https://troylar.github.io/aws-inventory-manager/)**.
+Full documentation is available at **[troylar.github.io/aws-inventory-manager](https://troylar.github.io/aws-inventory-manager/latest/)**.
 
 | Section | Description |
 |---------|-------------|
-| [Getting Started](https://troylar.github.io/aws-inventory-manager/getting-started/installation/) | Installation, first snapshot, common workflows |
-| [Configuration](https://troylar.github.io/aws-inventory-manager/configuration/environment-variables/) | Environment variables, AWS Config, data storage, multi-account |
-| [Guides](https://troylar.github.io/aws-inventory-manager/guides/collections/) | How-to guides for every feature |
-| [Guardrails](https://troylar.github.io/aws-inventory-manager/guardrails/) | Policy-based compliance checking |
-| [Reference](https://troylar.github.io/aws-inventory-manager/reference/cli/) | CLI reference, IAM permissions, supported resources, database schema |
-| [Development](https://troylar.github.io/aws-inventory-manager/development/contributing/) | Contributing, testing, architecture |
-| [FAQ](https://troylar.github.io/aws-inventory-manager/faq/) | Troubleshooting and frequently asked questions |
+| [Getting Started](https://troylar.github.io/aws-inventory-manager/latest/getting-started/installation/) | Installation, first snapshot, common workflows |
+| [Configuration](https://troylar.github.io/aws-inventory-manager/latest/configuration/environment-variables/) | Environment variables, AWS Config, data storage, multi-account |
+| [Guides](https://troylar.github.io/aws-inventory-manager/latest/guides/collections/) | How-to guides for every feature |
+| [Guardrails](https://troylar.github.io/aws-inventory-manager/latest/guardrails/) | Policy-based compliance checking |
+| [Reference](https://troylar.github.io/aws-inventory-manager/latest/reference/cli/) | CLI reference, IAM permissions, supported resources, database schema |
+| [Development](https://troylar.github.io/aws-inventory-manager/latest/development/contributing/) | Contributing, testing, architecture |
+| [FAQ](https://troylar.github.io/aws-inventory-manager/latest/faq/) | Troubleshooting and frequently asked questions |
 
 ---
 
@@ -122,7 +122,7 @@ awsinv cleanup purge --protect-tag "baseline=true" --preview
 awsinv cleanup purge --protect-tag "baseline=true" --yes
 ```
 
-> See [Common Workflows](https://troylar.github.io/aws-inventory-manager/getting-started/common-workflows/) for more examples.
+> See [Common Workflows](https://troylar.github.io/aws-inventory-manager/latest/getting-started/common-workflows/) for more examples.
 
 ---
 
@@ -142,7 +142,7 @@ awsinv cleanup purge --protect-tag "baseline=true" --yes
 | `awsinv guardrails` | Compliance checking and policy management |
 | `awsinv serve` | Launch web-based Resource Explorer |
 
-> See the full [CLI Reference](https://troylar.github.io/aws-inventory-manager/reference/cli/) for all options.
+> See the full [CLI Reference](https://troylar.github.io/aws-inventory-manager/latest/reference/cli/) for all options.
 
 ---
 
@@ -150,7 +150,7 @@ awsinv cleanup purge --protect-tag "baseline=true" --yes
 
 27 AWS services, 80+ resource types. 43 support deletion via cleanup.
 
-> See [Supported Resource Types](https://troylar.github.io/aws-inventory-manager/reference/supported-resources/) for the full list.
+> See [Supported Resource Types](https://troylar.github.io/aws-inventory-manager/latest/reference/supported-resources/) for the full list.
 
 ---
 
