@@ -349,9 +349,7 @@ class TestEC2ResourceExtraction:
         event = {
             "requestParameters": {"vpcId": "vpc-123", "serviceName": "com.amazonaws.us-east-1.s3"},
             "responseElements": {
-                "CreateVpcEndpointResponse": {
-                    "vpcEndpoint": {"vpcEndpointId": "vpce-0123456789abcdef0"}
-                }
+                "CreateVpcEndpointResponse": {"vpcEndpoint": {"vpcEndpointId": "vpce-0123456789abcdef0"}}
             },
         }
         name, arn = query._extract_resource_info(event, "CreateVpcEndpoint")
@@ -361,9 +359,7 @@ class TestEC2ResourceExtraction:
         query = CloudTrailQuery()
         event = {
             "requestParameters": {},
-            "responseElements": {
-                "instancesSet": {"items": [{"instanceId": "i-0123456789abcdef0"}]}
-            },
+            "responseElements": {"instancesSet": {"items": [{"instanceId": "i-0123456789abcdef0"}]}},
         }
         name, arn = query._extract_resource_info(event, "RunInstances")
         assert name == "i-0123456789abcdef0"

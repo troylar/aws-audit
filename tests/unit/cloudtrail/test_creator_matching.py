@@ -240,13 +240,17 @@ class TestGetResourceCreatorsKeyBuilding:
     def test_most_recent_event_wins(self, mock_get_all):
         """When multiple creation events exist for the same resource, most recent wins."""
         event1 = _make_creation_event(
-            "CreateBucket", "AWS::S3::Bucket", "my-bucket",
+            "CreateBucket",
+            "AWS::S3::Bucket",
+            "my-bucket",
             created_by_arn="arn:aws:iam::123:role/OldRole",
         )
         event1.event_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
 
         event2 = _make_creation_event(
-            "CreateBucket", "AWS::S3::Bucket", "my-bucket",
+            "CreateBucket",
+            "AWS::S3::Bucket",
+            "my-bucket",
             created_by_arn="arn:aws:iam::123:role/NewRole",
         )
         event2.event_time = datetime(2025, 6, 1, tzinfo=timezone.utc)

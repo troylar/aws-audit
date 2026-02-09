@@ -542,9 +542,7 @@ class CloudTrailQuery:
             # Normalize resource types so suffixed types (e.g., ::Application) match base CloudTrail types
             normalized_types = {normalize_resource_type(rt) for rt in resource_types}
             filtered_event_names = [
-                event_name
-                for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items()
-                if res_type in normalized_types
+                event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items() if res_type in normalized_types
             ]
             # Also check multi-service events
             for event_name, source_mapping in MULTI_SERVICE_EVENTS.items():
