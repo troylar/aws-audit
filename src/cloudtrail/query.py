@@ -522,10 +522,7 @@ class CloudTrailQuery:
 
         # Flat thread pool over all (region, event_type) pairs
         work_items = [
-            (region, event_name)
-            for region in query_regions
-            if region in clients
-            for event_name in event_names
+            (region, event_name) for region in query_regions if region in clients for event_name in event_names
         ]
 
         # Match old concurrency: 20 workers per region, capped by actual work items

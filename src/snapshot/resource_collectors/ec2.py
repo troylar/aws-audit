@@ -28,6 +28,7 @@ class EC2Collector(BaseResourceCollector):
             def wrapper(aid):
                 self._report_progress(name)
                 return fn(aid)
+
             return wrapper
 
         collectors = [

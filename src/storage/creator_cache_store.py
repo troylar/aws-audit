@@ -52,9 +52,7 @@ class CreatorCacheStore:
         batch_size = 500
         for i in range(0, len(pairs), batch_size):
             batch = pairs[i : i + batch_size]
-            placeholders = " OR ".join(
-                ["(resource_type = ? AND resource_name = ?)"] * len(batch)
-            )
+            placeholders = " OR ".join(["(resource_type = ? AND resource_name = ?)"] * len(batch))
             params: list = [account_id]
             for rt, rn in batch:
                 params.extend([rt, rn])
@@ -104,15 +102,17 @@ class CreatorCacheStore:
                 if len(parts) != 2:
                     continue
                 resource_type, resource_name = parts
-                data.append((
-                    account_id,
-                    resource_type,
-                    resource_name,
-                    info["created_by"],
-                    info["created_by_type"],
-                    info["created_at"],
-                    now,
-                ))
+                data.append(
+                    (
+                        account_id,
+                        resource_type,
+                        resource_name,
+                        info["created_by"],
+                        info["created_by_type"],
+                        info["created_at"],
+                        now,
+                    )
+                )
 
             cursor.executemany(
                 """

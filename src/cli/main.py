@@ -1700,9 +1700,7 @@ def snapshot_enrich_creators(
                 unenriched_resources.append(r)
 
         if enriched_resources:
-            console.print(
-                f"   Already enriched: {len(enriched_resources)}/{snapshot.resource_count} resources"
-            )
+            console.print(f"   Already enriched: {len(enriched_resources)}/{snapshot.resource_count} resources")
 
         if not unenriched_resources:
             console.print("\n✓ All resources already enriched!", style="bold green")

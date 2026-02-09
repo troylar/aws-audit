@@ -143,9 +143,7 @@ def create_snapshot(
             try:
                 availability = detect_config_availability(session, r, profile_name)
                 if availability.is_enabled:
-                    logger.debug(
-                        f"  {r}: Config enabled (all_supported={availability.recording_group_all_supported})"
-                    )
+                    logger.debug(f"  {r}: Config enabled (all_supported={availability.recording_group_all_supported})")
                 else:
                     logger.debug(f"  {r}: Config not available ({availability.error_message})")
                 return (r, availability)
@@ -219,7 +217,7 @@ def create_snapshot(
             else:
                 progress.update(
                     main_task,
-                    description=f"📦 {' | '.join(items[:2])} [dim]+{len(items)-2} more[/dim]",
+                    description=f"📦 {' | '.join(items[:2])} [dim]+{len(items) - 2} more[/dim]",
                 )
 
         def collect_service(collector_class: Type[BaseResourceCollector], region: str, is_global: bool = False) -> Dict:

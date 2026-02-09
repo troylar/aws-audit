@@ -149,13 +149,16 @@ class TestClear:
 
     def test_clear_by_account(self, store, sample_creators):
         store.save_batch("123456789012", sample_creators)
-        store.save_batch("999999999999", {
-            "AWS::S3::Bucket:other-bucket": {
-                "created_by": "arn:aws:iam::999:role/Role",
-                "created_by_type": "AssumedRole",
-                "created_at": "2025-01-01T00:00:00+00:00",
+        store.save_batch(
+            "999999999999",
+            {
+                "AWS::S3::Bucket:other-bucket": {
+                    "created_by": "arn:aws:iam::999:role/Role",
+                    "created_by_type": "AssumedRole",
+                    "created_at": "2025-01-01T00:00:00+00:00",
+                },
             },
-        })
+        )
         deleted = store.clear("123456789012")
         assert deleted == 3
 

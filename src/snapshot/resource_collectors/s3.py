@@ -43,10 +43,7 @@ class S3Collector(BaseResourceCollector):
 
             # Fetch per-bucket details in parallel
             with ThreadPoolExecutor(max_workers=min(10, len(buckets))) as executor:
-                futures = {
-                    executor.submit(self._collect_bucket_details, client, bucket): bucket
-                    for bucket in buckets
-                }
+                futures = {executor.submit(self._collect_bucket_details, client, bucket): bucket for bucket in buckets}
                 for future in as_completed(futures):
                     result = future.result()
                     if result:
