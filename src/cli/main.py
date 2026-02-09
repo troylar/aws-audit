@@ -1261,7 +1261,7 @@ def snapshot_create(
             )
 
             from ..cloudtrail import CloudTrailQuery
-            from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE, MULTI_SERVICE_EVENTS
+            from ..cloudtrail.query import EVENT_TO_RESOURCE_TYPE, MULTI_SERVICE_EVENTS, normalize_resource_type
 
             console.print("\n🔍 Tracking resource creators from CloudTrail...")
 
@@ -1304,14 +1304,15 @@ def snapshot_create(
             # Match resources to their creators
             matched_count = 0
             for resource in snapshot.resources:
+                normalized_type = normalize_resource_type(resource.resource_type)
                 # Try to find creator by resource type and name
-                key = f"{resource.resource_type}:{resource.name}"
+                key = f"{normalized_type}:{resource.name}"
                 creator_info = creators.get(key)
 
                 # Also try matching by ARN name components
                 if not creator_info and resource.arn:
                     arn_name = resource.arn.split("/")[-1].split(":")[-1]
-                    key = f"{resource.resource_type}:{arn_name}"
+                    key = f"{normalized_type}:{arn_name}"
                     creator_info = creators.get(key)
 
                 if creator_info:
@@ -1715,13 +1716,16 @@ def snapshot_enrich_creators(
         account_id = snapshot.account_id
 
         # Build resource keys for unenriched resources
+        from ..cloudtrail.query import normalize_resource_type
+
         unenriched_keys: set = set()
         for r in unenriched_resources:
-            unenriched_keys.add(f"{r.resource_type}:{r.name}")
+            normalized_type = normalize_resource_type(r.resource_type)
+            unenriched_keys.add(f"{normalized_type}:{r.name}")
             if r.arn:
                 arn_name = r.arn.split("/")[-1].split(":")[-1]
                 if arn_name != r.name:
-                    unenriched_keys.add(f"{r.resource_type}:{arn_name}")
+                    unenriched_keys.add(f"{normalized_type}:{arn_name}")
 
         cached_creators: dict = {}
         if not no_cache:
@@ -1733,11 +1737,12 @@ def snapshot_enrich_creators(
         cache_matched_count = 0
         still_unenriched = []
         for resource in unenriched_resources:
-            key = f"{resource.resource_type}:{resource.name}"
+            normalized_type = normalize_resource_type(resource.resource_type)
+            key = f"{normalized_type}:{resource.name}"
             creator_info = cached_creators.get(key)
             if not creator_info and resource.arn:
                 arn_name = resource.arn.split("/")[-1].split(":")[-1]
-                creator_info = cached_creators.get(f"{resource.resource_type}:{arn_name}")
+                creator_info = cached_creators.get(f"{normalized_type}:{arn_name}")
             if creator_info:
                 cache_matched_count += 1
                 if resource.tags is None:
@@ -1779,8 +1784,8 @@ def snapshot_enrich_creators(
         console.print("🔍 Querying CloudTrail for resource creators...")
         console.print(f"   Looking back {days_back} days...")
 
-        # Extract resource types only from still-unenriched resources
-        snapshot_resource_types = {r.resource_type for r in still_unenriched}
+        # Extract resource types only from still-unenriched resources (normalize suffixed types)
+        snapshot_resource_types = {normalize_resource_type(r.resource_type) for r in still_unenriched}
 
         # Filter event types to only those that create resources in the snapshot
         relevant_event_types = [
@@ -1807,10 +1812,15 @@ def snapshot_enrich_creators(
 
         ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
 
-        # Build target keys for early termination
+        # Build target keys for early termination (normalize types for matching)
         target_keys: set = set()
         for r in still_unenriched:
-            target_keys.add(f"{r.resource_type}:{r.name}")
+            normalized_type = normalize_resource_type(r.resource_type)
+            target_keys.add(f"{normalized_type}:{r.name}")
+            if r.arn:
+                arn_name = r.arn.split("/")[-1].split(":")[-1]
+                if arn_name != r.name:
+                    target_keys.add(f"{normalized_type}:{arn_name}")
 
         # Count total event types to query
         total_queries = event_count * len(region_list)
@@ -1854,14 +1864,15 @@ def snapshot_enrich_creators(
         # Match only still-unenriched resources to their creators
         ct_matched_count = 0
         for resource in still_unenriched:
+            normalized_type = normalize_resource_type(resource.resource_type)
             # Try to find creator by resource type and name
-            key = f"{resource.resource_type}:{resource.name}"
+            key = f"{normalized_type}:{resource.name}"
             creator_info = creators.get(key)
 
             # Also try matching by ARN name components
             if not creator_info and resource.arn:
                 arn_name = resource.arn.split("/")[-1].split(":")[-1]
-                key = f"{resource.resource_type}:{arn_name}"
+                key = f"{normalized_type}:{arn_name}"
                 creator_info = creators.get(key)
 
             if creator_info:
