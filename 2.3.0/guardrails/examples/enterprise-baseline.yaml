@@ -1,0 +1,152 @@
+# Enterprise Security Baseline
+# Comprehensive guardrails for enterprise AWS environments
+
+name: enterprise-baseline
+version: "2.0"
+description: Enterprise security baseline with environment-specific overrides
+
+context:
+  APPROVED_VPC: "vpc-baseline"
+  APPROVED_SUBNETS:
+    - "subnet-private-a"
+    - "subnet-private-b"
+  KMS_KEY_ALIAS: "alias/enterprise-default"
+  REQUIRED_TAGS:
+    - Environment
+    - Owner
+    - CostCenter
+
+context_overrides:
+  production:
+    APPROVED_VPC: "vpc-prod-12345678"
+    APPROVED_SUBNETS:
+      - "subnet-prod-private-a"
+      - "subnet-prod-private-b"
+    KMS_KEY_ALIAS: "alias/production-key"
+  staging:
+    APPROVED_VPC: "vpc-staging-abcdef"
+    KMS_KEY_ALIAS: "alias/staging-key"
+
+guardrails:
+  # === S3 Guardrails ===
+  - id: GR-S3-001
+    short_description: S3 KMS encryption required
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to: ["s3:bucket"]
+    condition: "Encryption exists and get('Encryption.SSEAlgorithm') == 'aws:kms'"
+    auto_fix:
+      Encryption:
+        SSEAlgorithm: "aws:kms"
+        KMSMasterKeyID: "alias/enterprise-default"
+
+  - id: GR-S3-002
+    short_description: S3 public access blocked
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to: ["s3:bucket"]
+    condition: "PublicAccessBlock exists"
+    auto_fix:
+      PublicAccessBlock:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # === EC2 Guardrails ===
+  - id: GR-EC2-001
+    short_description: EC2 must use approved VPC
+    severity: HIGH
+    action: BLOCK
+    applies_to: ["ec2:instance"]
+    condition: "get('VpcId') == env('APPROVED_VPC')"
+
+  - id: GR-EC2-002
+    short_description: No public IP on EC2
+    severity: HIGH
+    action: BLOCK
+    applies_to: ["ec2:instance"]
+    condition: "PublicIpAddress not exists"
+
+  - id: GR-EC2-003
+    short_description: EBS volumes must be encrypted
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to: ["ec2:volume"]
+    condition: "get('Encrypted') == True"
+    auto_fix:
+      Encrypted: true
+
+  # === RDS Guardrails ===
+  - id: GR-RDS-001
+    short_description: RDS encryption required
+    severity: HIGH
+    action: BLOCK
+    applies_to: ["rds:instance", "rds:cluster"]
+    condition: "get('StorageEncrypted') == True"
+
+  - id: GR-RDS-002
+    short_description: RDS not publicly accessible
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to: ["rds:instance"]
+    condition: "get('PubliclyAccessible') == False"
+    auto_fix:
+      PubliclyAccessible: false
+
+  - id: GR-RDS-003
+    short_description: RDS multi-AZ for production
+    severity: HIGH
+    action: WARN
+    applies_to: ["rds:instance"]
+    condition: "get('MultiAZ') == True"
+
+  # === Lambda Guardrails ===
+  - id: GR-LAM-001
+    short_description: Lambda must be in VPC
+    severity: MEDIUM
+    action: WARN
+    applies_to: ["lambda:function"]
+    condition: "VpcConfig exists and exists(get('VpcConfig.VpcId'))"
+
+  - id: GR-LAM-002
+    short_description: No secrets in Lambda environment
+    severity: CRITICAL
+    action: BLOCK
+    applies_to: ["lambda:function"]
+    ai_fail_if: "Lambda environment variables contain hardcoded secrets, API keys, or credentials"
+    ai_context: |
+      Examine the Environment.Variables for:
+      - AWS access keys or secret keys
+      - Database passwords or connection strings with passwords
+      - API tokens or bearer tokens
+      - Private keys or certificates
+
+  # === Security Group Guardrails ===
+  - id: GR-SG-001
+    short_description: No 0.0.0.0/0 SSH access
+    severity: CRITICAL
+    action: BLOCK
+    applies_to: ["ec2:security-group"]
+    ai_fail_if: "Security group allows SSH (port 22) from 0.0.0.0/0 or ::/0"
+    ai_context: "Check IpPermissions for port 22 with open CIDR blocks"
+
+  - id: GR-SG-002
+    short_description: No 0.0.0.0/0 RDP access
+    severity: CRITICAL
+    action: BLOCK
+    applies_to: ["ec2:security-group"]
+    ai_fail_if: "Security group allows RDP (port 3389) from 0.0.0.0/0 or ::/0"
+    ai_context: "Check IpPermissions for port 3389 with open CIDR blocks"
+
+overrides:
+  development:
+    - guardrail_id: GR-EC2-001
+      action: WARN  # Allow non-approved VPCs in dev with warning
+    - guardrail_id: GR-RDS-003
+      action: WARN  # Multi-AZ optional in dev
+      severity: LOW
+  production:
+    - guardrail_id: GR-RDS-003
+      action: BLOCK  # Require multi-AZ in production
+      severity: CRITICAL
