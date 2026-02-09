@@ -2,7 +2,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Callable, Dict, List, Optional
 
 import boto3
 
@@ -18,16 +18,33 @@ class BaseResourceCollector(ABC):
     to provide a consistent way of collecting resources.
     """
 
-    def __init__(self, session: boto3.Session, region: str):
+    def __init__(self, session: boto3.Session, region: str, account_id: Optional[str] = None):
         """Initialize the collector.
 
         Args:
             session: Boto3 session with AWS credentials
             region: AWS region to collect from (may be ignored for global services)
+            account_id: AWS account ID (avoids redundant STS calls if provided)
         """
         self.session = session
         self.region = region
+        self._account_id = account_id
+        self._clients: Dict[str, object] = {}
+        self._progress_callback: Optional[Callable[[str], None]] = None
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+
+    def set_progress_callback(self, callback: Callable[[str], None]) -> None:
+        """Set a callback for reporting sub-step progress.
+
+        Args:
+            callback: Function that accepts a status string (e.g., "databases", "crawlers")
+        """
+        self._progress_callback = callback
+
+    def _report_progress(self, step: str) -> None:
+        """Report current sub-step to the progress callback if set."""
+        if self._progress_callback:
+            self._progress_callback(step)
 
     @abstractmethod
     def collect(self) -> List[Resource]:
@@ -56,26 +73,35 @@ class BaseResourceCollector(ABC):
         return False
 
     def _create_client(self, service_name: Optional[str] = None):  # type: ignore
-        """Create a boto3 client for this service.
+        """Get or create a cached boto3 client for this service.
 
         Args:
             service_name: Service name override (defaults to self.service_name)
 
         Returns:
-            Boto3 client instance
+            Boto3 client instance (cached per service name)
         """
-        from ...aws.client import create_boto_client
-
         svc = service_name or self.service_name
-        profile = self.session.profile_name if hasattr(self.session, "profile_name") else None
 
-        return create_boto_client(service_name=svc, region_name=self.region, profile_name=profile)
+        if svc not in self._clients:
+            from ...aws.client import create_boto_client
+
+            profile = self.session.profile_name if hasattr(self.session, "profile_name") else None
+            self._clients[svc] = create_boto_client(service_name=svc, region_name=self.region, profile_name=profile)
+
+        return self._clients[svc]
 
     def _get_account_id(self) -> str:
-        """Get the AWS account ID from the session.
+        """Get the AWS account ID.
+
+        Returns cached value if account_id was provided at init,
+        otherwise falls back to STS call.
 
         Returns:
             12-digit AWS account ID
         """
+        if self._account_id:
+            return self._account_id
         sts = self._create_client("sts")
-        return sts.get_caller_identity()["Account"]
+        self._account_id = sts.get_caller_identity()["Account"]
+        return self._account_id

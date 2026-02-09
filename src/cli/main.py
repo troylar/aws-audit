@@ -1639,6 +1639,7 @@ def snapshot_enrich_creators(
         envvar=["AWSINV_PROFILE", "AWS_PROFILE"],
     ),
     days_back: int = typer.Option(90, "--days", help="Days to look back in CloudTrail (max 90)"),
+    no_cache: bool = typer.Option(False, "--no-cache", help="Skip creator cache, force fresh CloudTrail queries"),
 ):
     """Enrich an existing snapshot with creator information from CloudTrail.
 
@@ -1689,7 +1690,82 @@ def snapshot_enrich_creators(
 
         console.print(f"   Regions: {', '.join(region_list)}\n")
 
-        # Query CloudTrail for creators with progress
+        # --- Skip already-enriched resources ---
+        enriched_resources = []
+        unenriched_resources = []
+        for r in snapshot.resources:
+            if r.tags and "_created_by" in r.tags:
+                enriched_resources.append(r)
+            else:
+                unenriched_resources.append(r)
+
+        if enriched_resources:
+            console.print(f"   Already enriched: {len(enriched_resources)}/{snapshot.resource_count} resources")
+
+        if not unenriched_resources:
+            console.print("\n✓ All resources already enriched!", style="bold green")
+            raise typer.Exit(code=0)
+
+        console.print(f"   To enrich: {len(unenriched_resources)} resources\n")
+
+        # --- Creator cache lookup ---
+        from ..storage import CreatorCacheStore
+
+        cache_store = CreatorCacheStore(storage.db)
+        account_id = snapshot.account_id
+
+        # Build resource keys for unenriched resources
+        unenriched_keys: set = set()
+        for r in unenriched_resources:
+            unenriched_keys.add(f"{r.resource_type}:{r.name}")
+            if r.arn:
+                arn_name = r.arn.split("/")[-1].split(":")[-1]
+                if arn_name != r.name:
+                    unenriched_keys.add(f"{r.resource_type}:{arn_name}")
+
+        cached_creators: dict = {}
+        if not no_cache:
+            cached_creators = cache_store.lookup(account_id, list(unenriched_keys))
+            if cached_creators:
+                console.print(f"   Cache hit: {len(cached_creators)} creators from local cache")
+
+        # Apply cached hits immediately
+        cache_matched_count = 0
+        still_unenriched = []
+        for resource in unenriched_resources:
+            key = f"{resource.resource_type}:{resource.name}"
+            creator_info = cached_creators.get(key)
+            if not creator_info and resource.arn:
+                arn_name = resource.arn.split("/")[-1].split(":")[-1]
+                creator_info = cached_creators.get(f"{resource.resource_type}:{arn_name}")
+            if creator_info:
+                cache_matched_count += 1
+                if resource.tags is None:
+                    resource.tags = {}
+                resource.tags["_created_by"] = creator_info["created_by"]
+                resource.tags["_created_by_type"] = creator_info["created_by_type"]
+                resource.tags["_created_at"] = creator_info["created_at"]
+            else:
+                still_unenriched.append(resource)
+
+        if cache_matched_count:
+            console.print(f"   Applied {cache_matched_count} cached creators")
+
+        if not still_unenriched:
+            # All resolved from cache, save and exit
+            from ..storage import SnapshotStore
+
+            snapshot_store = SnapshotStore(storage.db)
+            snapshot_store.delete(name)
+            snapshot_store.save(snapshot)
+            console.print("\n✓ Enrichment complete (all from cache)!", style="bold green")
+            console.print(
+                f"\n   Tagged {cache_matched_count + len(enriched_resources)}"
+                f"/{snapshot.resource_count} resources with creator info"
+            )
+            raise typer.Exit(code=0)
+
+        # --- Query CloudTrail for remaining resources ---
         from rich.progress import (
             BarColumn,
             Progress,
@@ -1703,8 +1779,8 @@ def snapshot_enrich_creators(
         console.print("🔍 Querying CloudTrail for resource creators...")
         console.print(f"   Looking back {days_back} days...")
 
-        # Extract unique resource types from snapshot to filter queries (big speedup!)
-        snapshot_resource_types = {r.resource_type for r in snapshot.resources}
+        # Extract resource types only from still-unenriched resources
+        snapshot_resource_types = {r.resource_type for r in still_unenriched}
 
         # Filter event types to only those that create resources in the snapshot
         relevant_event_types = [
@@ -1730,6 +1806,11 @@ def snapshot_enrich_creators(
             event_count = all_event_count
 
         ct_query = CloudTrailQuery(profile_name=aws_profile, regions=region_list)
+
+        # Build target keys for early termination
+        target_keys: set = set()
+        for r in still_unenriched:
+            target_keys.add(f"{r.resource_type}:{r.name}")
 
         # Count total event types to query
         total_queries = event_count * len(region_list)
@@ -1760,13 +1841,19 @@ def snapshot_enrich_creators(
                 regions=region_list,
                 progress_callback=progress_callback,
                 resource_types=snapshot_resource_types,
+                target_resource_keys=target_keys,
             )
 
         console.print(f"   Found {len(creators)} unique resource creators\n")
 
-        # Match resources to their creators
-        matched_count = 0
-        for resource in snapshot.resources:
+        # Save new results to cache
+        if creators and not no_cache:
+            cache_store.save_batch(account_id, creators)
+            console.print(f"   Cached {len(creators)} creator entries for future runs")
+
+        # Match only still-unenriched resources to their creators
+        ct_matched_count = 0
+        for resource in still_unenriched:
             # Try to find creator by resource type and name
             key = f"{resource.resource_type}:{resource.name}"
             creator_info = creators.get(key)
@@ -1778,7 +1865,7 @@ def snapshot_enrich_creators(
                 creator_info = creators.get(key)
 
             if creator_info:
-                matched_count += 1
+                ct_matched_count += 1
                 if resource.tags is None:
                     resource.tags = {}
                 resource.tags["_created_by"] = creator_info["created_by"]
@@ -1786,24 +1873,25 @@ def snapshot_enrich_creators(
                 resource.tags["_created_at"] = creator_info["created_at"]
 
         # Save updated snapshot by deleting old and re-saving
-        # Need to use snapshot store directly since save_snapshot creates new
         from ..storage import SnapshotStore
 
         snapshot_store = SnapshotStore(storage.db)
-
-        # Delete old snapshot and save updated one
         snapshot_store.delete(name)
         snapshot_store.save(snapshot)
 
+        total_matched = len(enriched_resources) + cache_matched_count + ct_matched_count
         console.print("✓ Enrichment complete!", style="bold green")
-        console.print(f"\n   Tagged {matched_count}/{snapshot.resource_count} resources with creator info")
+        console.print(f"\n   Tagged {total_matched}/{snapshot.resource_count} resources with creator info")
+        if cache_matched_count:
+            console.print(f"   ({cache_matched_count} from cache, {ct_matched_count} from CloudTrail)")
         console.print(f"\n   [dim](Resources older than {days_back} days won't appear in CloudTrail)[/dim]")
 
         # Show sample of creators found
-        if matched_count > 0:
+        new_matched = cache_matched_count + ct_matched_count
+        if new_matched > 0:
             console.print("\n📋 Sample of creators found:")
             shown = 0
-            for resource in snapshot.resources:
+            for resource in unenriched_resources:
                 if resource.tags and "_created_by" in resource.tags:
                     creator = resource.tags["_created_by"]
                     # Shorten long ARNs
@@ -1812,13 +1900,15 @@ def snapshot_enrich_creators(
                     console.print(f"   {resource.name}: {creator}")
                     shown += 1
                     if shown >= 5:
-                        if matched_count > 5:
-                            console.print(f"   ... and {matched_count - 5} more")
+                        if new_matched > 5:
+                            console.print(f"   ... and {new_matched - 5} more")
                         break
 
     except FileNotFoundError:
         console.print(f"✗ Snapshot '{name}' not found", style="bold red")
         raise typer.Exit(code=1)
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"✗ Error enriching snapshot: {e}", style="bold red")
         raise typer.Exit(code=1)

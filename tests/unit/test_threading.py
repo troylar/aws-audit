@@ -249,4 +249,5 @@ class TestThreadPoolConfiguration:
                 )
 
                 # Verify ThreadPoolExecutor was created with custom max_workers
-                mock_executor_class.assert_called_once_with(max_workers=15)
+                # (Config detection pool is also created, so check any_call)
+                mock_executor_class.assert_any_call(max_workers=15)
