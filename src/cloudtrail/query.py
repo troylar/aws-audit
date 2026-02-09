@@ -124,6 +124,9 @@ RESOURCE_TYPE_NORMALIZATION: Dict[str, str] = {
     "AWS::WAFv2::WebACL::CloudFront": "AWS::WAFv2::WebACL",
     "AWS::ApiGatewayV2::Api::HTTP": "AWS::ApiGatewayV2::Api",
     "AWS::ApiGatewayV2::Api::WebSocket": "AWS::ApiGatewayV2::Api",
+    # Short-form resource types used by some collectors
+    "efs:file-system": "AWS::EFS::FileSystem",
+    "elasticache:cluster": "AWS::ElastiCache::CacheCluster",
 }
 
 
@@ -385,6 +388,9 @@ class CloudTrailQuery:
             "ruleName",
             "secretId",
             "parameterName",
+            "logGroupName",
+            "alarmName",
+            "nodegroupName",
             "databaseName",
             "crawlerName",
             "jobName",
