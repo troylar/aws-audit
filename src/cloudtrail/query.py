@@ -391,6 +391,8 @@ class CloudTrailQuery:
             "logGroupName",
             "alarmName",
             "nodegroupName",
+            "backupVaultName",
+            "family",
             "databaseName",
             "crawlerName",
             "jobName",
@@ -458,6 +460,10 @@ class CloudTrailQuery:
             resource_name = request_params.get("fargateProfileName")
         elif event_name == "PutCompositeAlarm" and not resource_name:
             resource_name = request_params.get("alarmName")
+        elif event_name == "CreateBackupPlan" and not resource_name:
+            backup_plan = request_params.get("backupPlan", {})
+            if isinstance(backup_plan, dict):
+                resource_name = backup_plan.get("backupPlanName")
 
         return resource_name, resource_arn
 
