@@ -541,6 +541,8 @@ class CloudTrailQuery:
         if resource_types:
             # Normalize resource types so suffixed types (e.g., ::Application) match base CloudTrail types
             normalized_types = {normalize_resource_type(rt) for rt in resource_types}
+            logger.debug(f"Requested resource types: {sorted(resource_types)}")
+            logger.debug(f"Normalized resource types: {sorted(normalized_types)}")
             filtered_event_names = [
                 event_name for event_name, res_type in EVENT_TO_RESOURCE_TYPE.items() if res_type in normalized_types
             ]
@@ -549,6 +551,15 @@ class CloudTrailQuery:
                 for res_type in source_mapping.values():
                     if res_type in normalized_types and event_name not in filtered_event_names:
                         filtered_event_names.append(event_name)
+
+            # Log which resource types were excluded (no event mapping)
+            all_mapped_types = set(EVENT_TO_RESOURCE_TYPE.values())
+            for source_mapping in MULTI_SERVICE_EVENTS.values():
+                all_mapped_types.update(source_mapping.values())
+            excluded_types = normalized_types - all_mapped_types
+            if excluded_types:
+                logger.debug(f"Resource types with NO event mapping (excluded): {sorted(excluded_types)}")
+
             # If no matches found, fall back to querying all event types
             if not filtered_event_names:
                 logger.warning(f"No matching event types found for resource types: {resource_types}")
@@ -556,6 +567,7 @@ class CloudTrailQuery:
                 filtered_event_names = None
             else:
                 logger.info(f"Filtering to {len(filtered_event_names)} event types matching snapshot resources")
+                logger.debug(f"Querying event types: {sorted(filtered_event_names)}")
         else:
             filtered_event_names = None
 
@@ -766,6 +778,11 @@ class CloudTrailQuery:
             if not account_id:
                 account_id = user_identity.get("accountId", "")
 
+            logger.debug(
+                f"Parsed event {event_name}: resource_type={resource_type}, "
+                f"resource_name={resource_name}, resource_arn={resource_arn_extracted}"
+            )
+
             return ResourceCreationEvent(
                 event_time=event.get("EventTime", datetime.now(timezone.utc)),
                 event_name=event_name,
@@ -820,6 +837,7 @@ class CloudTrailQuery:
         for event in events:
             if event.resource_name:
                 key = f"{event.resource_type}:{event.resource_name}"
+                logger.debug(f"Creator key built: {key} (event={event.event_name})")
                 # Keep the most recent creation event for each resource
                 if key not in creators or event.event_time > datetime.fromisoformat(
                     creators[key]["created_at"].replace("Z", "+00:00")
@@ -830,4 +848,5 @@ class CloudTrailQuery:
                         "created_at": event.event_time.isoformat(),
                     }
 
+        logger.debug(f"Total unique creator keys: {len(creators)}")
         return creators

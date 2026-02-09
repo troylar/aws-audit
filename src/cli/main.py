@@ -1641,6 +1641,7 @@ def snapshot_enrich_creators(
     ),
     days_back: int = typer.Option(90, "--days", help="Days to look back in CloudTrail (max 90)"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Skip creator cache, force fresh CloudTrail queries"),
+    debug: bool = typer.Option(False, "--debug", help="Enable verbose debug logging for matching diagnostics"),
 ):
     """Enrich an existing snapshot with creator information from CloudTrail.
 
@@ -1654,7 +1655,16 @@ def snapshot_enrich_creators(
         awsinv snapshot enrich-creators  # uses active snapshot
     """
     try:
+        import logging
+
         from ..cloudtrail import CloudTrailQuery
+
+        if debug:
+            ct_logger = logging.getLogger("src.cloudtrail")
+            ct_logger.setLevel(logging.DEBUG)
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("[DEBUG] %(message)s"))
+            ct_logger.addHandler(handler)
 
         # Validate credentials
         aws_profile = profile if profile else config.aws_profile
@@ -1719,13 +1729,23 @@ def snapshot_enrich_creators(
         from ..cloudtrail.query import normalize_resource_type
 
         unenriched_keys: set = set()
+        if debug:
+            console.print("\n[DEBUG] === Resource Key Building ===", style="dim")
         for r in unenriched_resources:
             normalized_type = normalize_resource_type(r.resource_type)
+            keys_for_resource = [f"{normalized_type}:{r.name}"]
             unenriched_keys.add(f"{normalized_type}:{r.name}")
             if r.arn:
                 arn_name = r.arn.split("/")[-1].split(":")[-1]
                 if arn_name != r.name:
                     unenriched_keys.add(f"{normalized_type}:{arn_name}")
+                    keys_for_resource.append(f"{normalized_type}:{arn_name}")
+            if debug:
+                console.print(
+                    f"[DEBUG] Resource: {r.name} ({r.resource_type}) -> "
+                    f"normalized: {normalized_type} -> keys: {keys_for_resource}",
+                    style="dim",
+                )
 
         cached_creators: dict = {}
         if not no_cache:
@@ -1797,6 +1817,27 @@ def snapshot_enrich_creators(
                 if res_type in snapshot_resource_types and event_name not in relevant_event_types:
                     relevant_event_types.append(event_name)
 
+        if debug:
+            # Build reverse mapping: resource type -> event names
+            all_event_resource_types = set(EVENT_TO_RESOURCE_TYPE.values())
+            for source_mapping in MULTI_SERVICE_EVENTS.values():
+                all_event_resource_types.update(source_mapping.values())
+
+            mapped_types = snapshot_resource_types & all_event_resource_types
+            unmapped_types = snapshot_resource_types - all_event_resource_types
+
+            console.print("\n[DEBUG] === Event Type Filtering ===", style="dim")
+            console.print(f"[DEBUG] Snapshot has {len(snapshot_resource_types)} unique resource types", style="dim")
+            console.print(
+                f"[DEBUG] {len(mapped_types)} types have CloudTrail event mappings", style="dim"
+            )
+            if unmapped_types:
+                console.print(
+                    f"[DEBUG] {len(unmapped_types)} types have NO mapping: "
+                    f"{', '.join(sorted(unmapped_types))}",
+                    style="dim",
+                )
+
         # If no matching event types, fall back to all (don't filter)
         all_event_count = len(EVENT_TO_RESOURCE_TYPE) + len(MULTI_SERVICE_EVENTS)
         if relevant_event_types:
@@ -1856,6 +1897,13 @@ def snapshot_enrich_creators(
 
         console.print(f"   Found {len(creators)} unique resource creators\n")
 
+        if debug:
+            console.print("\n[DEBUG] === CloudTrail Results ===", style="dim")
+            console.print(f"[DEBUG] CloudTrail returned {len(creators)} creator entries", style="dim")
+            if creators:
+                sample_keys = sorted(creators.keys())[:20]
+                console.print(f"[DEBUG] Creator keys (first 20): {', '.join(sample_keys)}", style="dim")
+
         # Save new results to cache
         if creators and not no_cache:
             cache_store.save_batch(account_id, creators)
@@ -1863,6 +1911,7 @@ def snapshot_enrich_creators(
 
         # Match only still-unenriched resources to their creators
         ct_matched_count = 0
+        debug_match_stats: dict = {}  # type -> {"matched": int, "total": int, "unmatched": []}
         for resource in still_unenriched:
             normalized_type = normalize_resource_type(resource.resource_type)
             # Try to find creator by resource type and name
@@ -1870,18 +1919,50 @@ def snapshot_enrich_creators(
             creator_info = creators.get(key)
 
             # Also try matching by ARN name components
+            tried_keys = [key]
             if not creator_info and resource.arn:
                 arn_name = resource.arn.split("/")[-1].split(":")[-1]
                 key = f"{normalized_type}:{arn_name}"
                 creator_info = creators.get(key)
+                tried_keys.append(key)
+
+            if debug:
+                if normalized_type not in debug_match_stats:
+                    debug_match_stats[normalized_type] = {"matched": 0, "total": 0, "unmatched": []}
+                debug_match_stats[normalized_type]["total"] += 1
 
             if creator_info:
                 ct_matched_count += 1
+                if debug:
+                    debug_match_stats[normalized_type]["matched"] += 1
                 if resource.tags is None:
                     resource.tags = {}
                 resource.tags["_created_by"] = creator_info["created_by"]
                 resource.tags["_created_by_type"] = creator_info["created_by_type"]
                 resource.tags["_created_at"] = creator_info["created_at"]
+            elif debug:
+                debug_match_stats[normalized_type]["unmatched"].append(
+                    {"name": resource.name, "tried_keys": tried_keys}
+                )
+
+        if debug:
+            console.print("\n[DEBUG] === Matching Results by Type ===", style="dim")
+            for rtype in sorted(debug_match_stats.keys()):
+                stats = debug_match_stats[rtype]
+                console.print(
+                    f"[DEBUG] {rtype}: {stats['matched']}/{stats['total']} matched",
+                    style="dim",
+                )
+                for um in stats["unmatched"][:5]:
+                    console.print(
+                        f"[DEBUG]   Unmatched: {um['name']} (tried keys: {', '.join(um['tried_keys'])})",
+                        style="dim",
+                    )
+                if len(stats["unmatched"]) > 5:
+                    console.print(
+                        f"[DEBUG]   ... and {len(stats['unmatched']) - 5} more unmatched",
+                        style="dim",
+                    )
 
         # Save updated snapshot by deleting old and re-saving
         from ..storage import SnapshotStore

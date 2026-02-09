@@ -23,6 +23,21 @@ This adds three tags to each resource:
 !!! note
     CloudTrail has a 90-day lookup window. Resources created more than 90 days ago won't have creator information. The `--days-back` option lets you customize the lookup period (default: 90).
 
+## Debugging Low Match Rates
+
+If `enrich-creators` matches fewer resources than expected, use the `--debug` flag to diagnose where the matching pipeline breaks down:
+
+```bash
+awsinv snapshot enrich-creators my-snapshot --debug
+```
+
+Debug output shows:
+
+- **Resource Key Building** -- Each resource's type, normalized type, and lookup keys
+- **Event Type Filtering** -- Which resource types have CloudTrail event mappings and which don't
+- **CloudTrail Results** -- Creator keys returned from CloudTrail queries
+- **Matching Results by Type** -- Per-type match/unmatch counts with the keys that were tried for unmatched resources
+
 ## Listing Creators
 
 View a summary of all resource creators for a snapshot:
