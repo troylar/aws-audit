@@ -1,7 +1,7 @@
 """S3 resource collector."""
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ...models.resource import Resource
 from ...utils.hash import compute_config_hash
@@ -55,7 +55,7 @@ class S3Collector(BaseResourceCollector):
         self.logger.debug(f"Collected {len(resources)} S3 buckets")
         return resources
 
-    def _collect_bucket_details(self, client: object, bucket: Dict) -> Optional[Resource]:
+    def _collect_bucket_details(self, client: Any, bucket: Dict) -> Optional[Resource]:
         """Collect details for a single S3 bucket."""
         bucket_name = bucket["Name"]
         creation_date = bucket.get("CreationDate")
