@@ -17,6 +17,8 @@ Auto-generated from all feature plans. Last updated: 2025-10-26
 - N/A (CLI interface changes only, no data model changes) (001-cli-consistency-review)
 - Python 3.11+ (tested on 3.11, 3.12, 3.13, 3.14) + pytest>=7.0.0, pytest-cov>=4.0.0, pytest-mock>=3.12.0, typer (CLI under test), fastapi (web routes under test) (001-increase-coverage)
 - N/A (testing effort, no storage changes) (001-increase-coverage)
+- Python 3.11+ (tested on 3.11, 3.12, 3.13, 3.14 per pyproject.toml) + yper>=0.9.0 (CLI), rich>=13.0.0 (terminal output), pyyaml>=6.0 (YAML), boto3>=1.28.0 (Bedrock for AI generation/guidance), simpleeval>=0.9.13 (expect field evaluation) (001-infrastructure-patterns)
+- Local YAML files in `.patterns/` directory (configurable via `AWS_INVENTORY_PATTERNS_PATH` env var or CLI option), same convention as `.snapshots/` (001-infrastructure-patterns)
 
 - Python 3.8+ (supports 3.8-3.13 based on project standards) (001-aws-baseline-snapshot)
 
@@ -36,8 +38,8 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.8+ (supports 3.8-3.13 based on project standards): Follow standard conventions
 
 ## Recent Changes
+- 001-infrastructure-patterns: Added Python 3.11+ (tested on 3.11, 3.12, 3.13, 3.14 per pyproject.toml) + yper>=0.9.0 (CLI), rich>=13.0.0 (terminal output), pyyaml>=6.0 (YAML), boto3>=1.28.0 (Bedrock for AI generation/guidance), simpleeval>=0.9.13 (expect field evaluation)
 - 001-increase-coverage: Added Python 3.11+ (tested on 3.11, 3.12, 3.13, 3.14) + pytest>=7.0.0, pytest-cov>=4.0.0, pytest-mock>=3.12.0, typer (CLI under test), fastapi (web routes under test)
-- 001-cli-consistency-review: Added Python 3.8+ (supports 3.8-3.13) + Typer 0.9+, Rich 13.0+
 - 001-cli-consistency-review: Added Python 3.8+ (supports 3.8-3.13) + Typer 0.9+, Rich 13.0+
 
 
