@@ -15,6 +15,10 @@
         <link rel="canonical" href="https://troylar.github.io/aws-inventory-manager/2.5.0/patterns/">
       
       
+        <link rel="prev" href="../guardrails/ci-cd-integration/">
+      
+      
+        <link rel="next" href="../reference/cli/">
       
       
         
@@ -25,7 +29,7 @@
     
     
       
-        <title>Infrastructure Patterns - AWS Inventory Manager</title>
+        <title>Overview - AWS Inventory Manager</title>
       
     
     
@@ -114,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Infrastructure Patterns
+              Overview
             
           </span>
         </div>
@@ -313,6 +317,28 @@
   
   
   Guardrails
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Patterns
 
         </a>
       </li>
@@ -1334,6 +1360,628 @@
       
   
   
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#patterns-vs-guardrails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Patterns vs Guardrails
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Patterns vs Guardrails">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-they-work-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How They Work Together
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-seeing-the-difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Seeing the Difference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-create-a-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Create a Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-compare-against-a-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Compare Against a Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-generate-iac-from-a-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Generate IaC from a Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-run-compliance-across-accounts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Run Compliance Across Accounts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pattern-yaml-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern YAML Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern YAML Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#full-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expect-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expect Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-expect-vs-guardrails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Use Expect vs Guardrails
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ai-pattern-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Pattern Generation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AI Pattern Generation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#from-a-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From a Description
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-an-existing-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From an Existing Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#library-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Library Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Library Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#listing-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Listing Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#viewing-pattern-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewing Pattern Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#versioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exporting-and-deleting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exporting and Deleting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comparison Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-scoring-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Scoring Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threshold
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ai-guidance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI Guidance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#targeting-a-single-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Targeting a Single Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exporting-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exporting Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compliance-reporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compliance Reporting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compliance Reporting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#export-compliance-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Compliance Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generating-iac-from-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generating IaC from Patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#real-world-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-World Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Real-World Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-event-driven-data-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Event-Driven Data Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-container-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: Container Platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-multi-region-dr-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: Multi-Region DR Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#library-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Library Location
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-command-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Command Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further Reading
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
   
   
     
@@ -1352,10 +2000,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   
@@ -1373,8 +2021,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1525,10 +2173,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
             
   
   
@@ -1546,8 +2194,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
