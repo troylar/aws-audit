@@ -12,9 +12,9 @@
 
 One CLI that inventories **27 AWS services and 80+ resource types**, then generates
 production-ready **Terraform, CDK TypeScript, and CDK Python** from what it finds.
-Also: drift detection, security scanning, compliance guardrails, resource cleanup,
-Lambda code management, SQL queries, and more. 60+ commands. Zero agents running
-in your account.
+Also: drift detection, security scanning, compliance guardrails, infrastructure patterns,
+resource cleanup, Lambda code management, SQL queries, and more. 60+ commands. Zero agents
+running in your account.
 
 !!! note
     "Snapshot" in this tool means an *inventory snapshot* (a catalog of what exists), not an AWS EBS or RDS snapshot. No AWS snapshots are created.
@@ -105,6 +105,14 @@ in your account.
     Custom YAML policy rules with BLOCK, AUTO-FIX, and WARN actions. AI-powered auto-fix, severity levels, environment overrides, CI/CD exit codes.
 
     [:octicons-arrow-right-24: Guardrails overview](guardrails/index.md)
+
+-   :material-puzzle:{ .lg .middle } **Infrastructure Patterns**
+
+    ---
+
+    Reusable architecture blueprints that define what your infrastructure should look like. Compare snapshots against patterns, score alignment, generate IaC, and track adoption across accounts.
+
+    [:octicons-arrow-right-24: Patterns guide](patterns/index.md)
 
 -   :material-swap-horizontal:{ .lg .middle } **Change Tracking**
 
@@ -212,6 +220,7 @@ in your account.
 | "How much is each team spending?" | Per-collection cost tracking with tag-based attribution |
 | "What's in that Lambda function?" | Extract, view, and diff deployment packages across snapshots |
 | "Are our guardrails being followed?" | YAML-based compliance policies with BLOCK/WARN/AUTO-FIX |
+| "Does this account follow our reference architecture?" | Pattern comparison with scoring, gap analysis, and compliance reporting |
 | "I need a resource explorer for the team" | Launch a web UI with `awsinv serve` |
 
 ---
