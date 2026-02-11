@@ -1,4 +1,4 @@
-"""Path resolution utilities for snapshot storage."""
+"""Path resolution utilities for snapshot and pattern storage."""
 
 import os
 from pathlib import Path
@@ -49,3 +49,26 @@ def get_snapshot_storage_path(custom_path: Optional[Union[str, Path]] = None) ->
 
     # Priority 3: Default to ~/.snapshots
     return Path.home() / ".snapshots"
+
+
+def get_patterns_path(custom_path: Optional[Union[str, Path]] = None) -> Path:
+    """Resolve pattern library path with precedence: parameter > env var > default.
+
+    Precedence order:
+    1. custom_path parameter (if provided)
+    2. AWS_INVENTORY_PATTERNS_PATH environment variable (if set)
+    3. .patterns/ relative to the snapshot storage root
+    """
+    if custom_path:
+        if isinstance(custom_path, str):
+            if custom_path.strip():
+                return Path(custom_path).expanduser().resolve()
+        else:
+            return custom_path.expanduser().resolve()
+
+    env_path = os.getenv("AWS_INVENTORY_PATTERNS_PATH")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+
+    storage_root = get_snapshot_storage_path().parent
+    return storage_root / ".patterns"

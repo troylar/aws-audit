@@ -33,6 +33,7 @@ One CLI that inventories **27 AWS services and 80+ resource types**, then lets y
 | "I need Terraform for existing resources" | Generate Terraform or CDK from live inventory with guardrails |
 | "What's in that Lambda function?" | Extract, view, and diff deployment packages across snapshots |
 | "Are our guardrails being followed?" | YAML-based compliance policies with BLOCK/WARN/AUTO-FIX |
+| "Does this account follow our reference architecture?" | Pattern comparison with scoring, gap analysis, and compliance |
 | "I need a resource explorer for the team" | Launch a web UI with `awsinv serve` |
 
 ---
@@ -83,6 +84,7 @@ awsinv cleanup execute my-baseline --yes
 - **Creator Tracking** -- CloudTrail-based resource provenance ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/creator-tracking/))
 - **IaC Generation** -- Terraform, CDK TypeScript, CDK Python via AI ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/iac-generation/))
 - **Guardrails** -- Policy-based compliance checking, AI auto-fix, CI/CD ready ([guide](https://troylar.github.io/aws-inventory-manager/latest/guardrails/))
+- **Infrastructure Patterns** -- Reusable architecture blueprints, snapshot comparison, compliance reporting ([guide](https://troylar.github.io/aws-inventory-manager/latest/patterns/))
 - **Web UI** -- Resource Explorer with advanced filtering and export ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/web-ui/))
 - **Lambda Code** -- List, extract, view, diff, and fetch Lambda deployment code ([guide](https://troylar.github.io/aws-inventory-manager/latest/guides/lambda-code/))
 
@@ -98,6 +100,7 @@ Full documentation is available at **[troylar.github.io/aws-inventory-manager](h
 | [Configuration](https://troylar.github.io/aws-inventory-manager/latest/configuration/environment-variables/) | Environment variables, AWS Config, data storage, multi-account |
 | [Guides](https://troylar.github.io/aws-inventory-manager/latest/guides/collections/) | How-to guides for every feature |
 | [Guardrails](https://troylar.github.io/aws-inventory-manager/latest/guardrails/) | Policy-based compliance checking |
+| [Patterns](https://troylar.github.io/aws-inventory-manager/latest/patterns/) | Infrastructure pattern library and comparison |
 | [Reference](https://troylar.github.io/aws-inventory-manager/latest/reference/cli/) | CLI reference, IAM permissions, supported resources, database schema |
 | [Development](https://troylar.github.io/aws-inventory-manager/latest/development/contributing/) | Contributing, testing, architecture |
 | [FAQ](https://troylar.github.io/aws-inventory-manager/latest/faq/) | Troubleshooting and frequently asked questions |
@@ -120,6 +123,11 @@ awsinv delta --snapshot pre-deploy --show-diff
 # Sandbox account cleanup
 awsinv cleanup purge --protect-tag "baseline=true" --preview
 awsinv cleanup purge --protect-tag "baseline=true" --yes
+
+# Pattern-based architecture validation
+awsinv patterns add three-tier-web-app.yaml
+awsinv patterns compare --snapshot prod-account
+awsinv patterns compliance --snapshot prod --snapshot staging --snapshot dev
 ```
 
 > See [Common Workflows](https://troylar.github.io/aws-inventory-manager/latest/getting-started/common-workflows/) for more examples.
@@ -140,6 +148,7 @@ awsinv cleanup purge --protect-tag "baseline=true" --yes
 | `awsinv query` | SQL queries and resource search |
 | `awsinv generate` | Generate Terraform/CDK from snapshots |
 | `awsinv guardrails` | Compliance checking and policy management |
+| `awsinv patterns` | Infrastructure pattern library and comparison |
 | `awsinv serve` | Launch web-based Resource Explorer |
 
 > See the full [CLI Reference](https://troylar.github.io/aws-inventory-manager/latest/reference/cli/) for all options.
@@ -168,7 +177,7 @@ invoke quality --fix     # Auto-fix issues
 invoke build             # Build distributable package
 ```
 
-2400+ tests, 61% overall coverage.
+3300+ tests, 61% overall coverage.
 
 ---
 

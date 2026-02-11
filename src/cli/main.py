@@ -6538,6 +6538,11 @@ from .guardrails import guardrails_app
 
 app.add_typer(guardrails_app, name="guardrails")
 
+# Register patterns commands
+from .patterns import patterns_app
+
+app.add_typer(patterns_app, name="patterns")
+
 
 @copilot_app.command("install")
 def copilot_install(

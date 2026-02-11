@@ -2,6 +2,14 @@
 
 Guardrails are policy rules that validate and auto-fix AWS resources during IaC code generation. They ensure generated code meets your organization's security, compliance, and operational standards.
 
+## Guardrails vs Patterns
+
+Guardrails answer **"how should each resource be configured?"** -- they enforce per-resource rules like "S3 buckets must be encrypted" or "no open SSH access." They evaluate every matching resource individually and can BLOCK, WARN, or AUTO-FIX violations.
+
+[Patterns](../patterns/index.md) answer **"what should the architecture look like?"** -- they define whole-architecture blueprints like "a three-tier web app needs an ALB, Lambda functions, and DynamoDB." Patterns can reference guardrails by ID, so a comparison checks both structure (right resources?) and compliance (right configuration?) in one pass.
+
+See [Patterns vs Guardrails](../patterns/index.md#patterns-vs-guardrails) for a detailed comparison with examples.
+
 ## Quick Start
 
 1. Create a policy file (`policy.yaml`):
@@ -109,8 +117,9 @@ awsinv guardrails list --category ENC
 awsinv guardrails validate ./policy.yaml --verbose
 
 # Generate guardrails from natural language (requires Bedrock)
-awsinv guardrails create "S3 buckets must have encryption"
+awsinv guardrails generate "S3 buckets must have encryption"
 awsinv guardrails generate "production security baseline" --count 10
+awsinv guardrails generate --from-file rules.csv --instructions "format is ID: description"
 ```
 
 ## Custom Policy File Example
@@ -211,4 +220,5 @@ Conflict detected:
 - [Policy Reference](policy-reference.md) -- Complete schema for policy files
 - [Formula Syntax](formula-syntax.md) -- Expression language for conditions
 - [CI/CD Integration](ci-cd-integration.md) -- Using guardrails in pipelines
+- [Infrastructure Patterns](../patterns/index.md) -- Reusable architecture blueprints that reference guardrails
 - Example Policies -- Ready-to-use policy templates in `docs/guardrails/examples/`
