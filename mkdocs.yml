@@ -105,6 +105,8 @@ nav:
     - Policy Reference: guardrails/policy-reference.md
     - Formula Syntax: guardrails/formula-syntax.md
     - CI/CD Integration: guardrails/ci-cd-integration.md
+  - Patterns:
+    - Overview: patterns/index.md
   - Reference:
     - CLI Reference: reference/cli.md
     - Supported Resources: reference/supported-resources.md
