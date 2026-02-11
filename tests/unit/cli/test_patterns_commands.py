@@ -8,12 +8,11 @@ import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import yaml
 from typer.testing import CliRunner
 
 from src.cli.main import app
-from src.patterns.models import Pattern, PatternResource
+from src.patterns.models import Pattern
 
 runner = CliRunner()
 

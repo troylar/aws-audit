@@ -18,13 +18,10 @@ from src.patterns.comparator import (
 )
 from src.patterns.models import (
     ComparisonReport,
-    ExpectViolation,
-    GuardrailViolationRef,
     Pattern,
     PatternMatch,
     PatternResource,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
