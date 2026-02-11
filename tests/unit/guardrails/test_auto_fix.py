@@ -39,7 +39,7 @@ class TestAttemptAutoFix:
             guardrail=guardrail,
             resource=resource,
             output_format="terraform",
-            bedrock_client=None,
+            llm_client=None,
         )
 
         # Without ai_context, auto-fix should fail
@@ -47,7 +47,7 @@ class TestAttemptAutoFix:
         assert fix == {}
         assert "ai_context" in description.lower() or "context" in description.lower()
 
-    def test_attempt_auto_fix_no_bedrock_client(self) -> None:
+    def test_attempt_auto_fix_no_llm_client(self) -> None:
         from src.guardrails.auto_fix import attempt_auto_fix
 
         guardrail = self._create_mock_guardrail(ai_context="WHY: Compliance\nHOW TO FIX: Add encryption")
@@ -57,13 +57,13 @@ class TestAttemptAutoFix:
             guardrail=guardrail,
             resource=resource,
             output_format="terraform",
-            bedrock_client=None,
+            llm_client=None,
         )
 
         # Without Bedrock client, auto-fix should fail gracefully
         assert success is False
 
-    @patch("src.guardrails.auto_fix._call_bedrock_for_fix")
+    @patch("src.guardrails.auto_fix._call_llm_for_fix")
     def test_attempt_auto_fix_success(self, mock_bedrock) -> None:
         from src.guardrails.auto_fix import attempt_auto_fix
 
@@ -82,14 +82,14 @@ class TestAttemptAutoFix:
             guardrail=guardrail,
             resource=resource,
             output_format="terraform",
-            bedrock_client=mock_client,
+            llm_client=mock_client,
         )
 
         assert success is True
         assert "server_side_encryption_configuration" in fix
         assert "AES256" in description or "encryption" in description.lower()
 
-    @patch("src.guardrails.auto_fix._call_bedrock_for_fix")
+    @patch("src.guardrails.auto_fix._call_llm_for_fix")
     def test_attempt_auto_fix_bedrock_error(self, mock_bedrock) -> None:
         from src.guardrails.auto_fix import attempt_auto_fix
 
@@ -108,7 +108,7 @@ class TestAttemptAutoFix:
             guardrail=guardrail,
             resource=resource,
             output_format="terraform",
-            bedrock_client=mock_client,
+            llm_client=mock_client,
         )
 
         assert success is False

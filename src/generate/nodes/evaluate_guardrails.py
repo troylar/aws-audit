@@ -11,18 +11,18 @@ from ..state import GenerationState, emit_progress
 logger = logging.getLogger(__name__)
 
 
-def _get_bedrock_client() -> Optional[Any]:
-    """Get a Bedrock runtime client for auto-fix.
+def _get_llm_client() -> Optional[Any]:
+    """Get an LLM client for AI operations (auto-fix, AI rules).
 
     Returns:
-        boto3 Bedrock runtime client, or None if unavailable.
+        LLMClient instance, or None if unavailable.
     """
     try:
-        import boto3
+        from src.llm import LLMClient, LLMConfig
 
-        return boto3.client("bedrock-runtime")
+        return LLMClient(LLMConfig.from_env())
     except Exception as e:
-        logger.warning(f"Failed to create Bedrock client for auto-fix: {e}")
+        logger.warning(f"Failed to create LLM client for auto-fix: {e}")
         return None
 
 
@@ -91,19 +91,19 @@ def evaluate_guardrails(state: GenerationState) -> Dict[str, Any]:
                 guardrails=builtin,
             )
 
-        # Get Bedrock client for auto-fix if enabled
-        bedrock_client = None
+        # Get LLM client for auto-fix if enabled
+        llm_client = None
         if auto_fix_enabled:
-            bedrock_client = _get_bedrock_client()
-            if bedrock_client:
-                logger.info("Auto-fix enabled with Bedrock AI")
+            llm_client = _get_llm_client()
+            if llm_client:
+                logger.info(f"Auto-fix enabled with {llm_client.provider} AI")
             else:
-                logger.warning("Auto-fix requested but Bedrock client unavailable")
+                logger.warning("Auto-fix requested but LLM client unavailable")
 
         evaluator = GuardrailEvaluator(
             policy=policy,
-            auto_fix_enabled=auto_fix_enabled and bedrock_client is not None,
-            bedrock_client=bedrock_client,
+            auto_fix_enabled=auto_fix_enabled and llm_client is not None,
+            llm_client=llm_client,
             environment=environment,
             output_format=output_format,
         )

@@ -15,7 +15,7 @@ def attempt_auto_fix(
     guardrail: Guardrail,
     resource: Any,
     output_format: str,
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> Tuple[bool, Dict[str, Any], str]:
     """Attempt to auto-fix a guardrail violation using AI.
 
@@ -23,7 +23,7 @@ def attempt_auto_fix(
         guardrail: The violated guardrail (must have ai_context).
         resource: The resource that violated.
         output_format: Target format (terraform, cdk-typescript, cdk-python).
-        bedrock_client: Bedrock client for AI call.
+        llm_client: LLMClient instance for AI call.
 
     Returns:
         Tuple of:
@@ -39,11 +39,11 @@ def attempt_auto_fix(
             "Cannot auto-fix: guardrail has no ai_context defined",
         )
 
-    if bedrock_client is None:
+    if llm_client is None:
         return (
             False,
             {},
-            "Cannot auto-fix: Bedrock client not available",
+            "Cannot auto-fix: LLM client not available",
         )
 
     # Get resource config
@@ -52,8 +52,8 @@ def attempt_auto_fix(
     resource_name = getattr(resource, "name", "unknown")
 
     try:
-        result = _call_bedrock_for_fix(
-            bedrock_client=bedrock_client,
+        result = _call_llm_for_fix(
+            llm_client=llm_client,
             guardrail=guardrail,
             resource_type=resource_type,
             resource_name=resource_name,
@@ -83,18 +83,18 @@ def attempt_auto_fix(
         )
 
 
-def _call_bedrock_for_fix(
-    bedrock_client: Any,
+def _call_llm_for_fix(
+    llm_client: Any,
     guardrail: Guardrail,
     resource_type: str,
     resource_name: str,
     resource_config: Dict[str, Any],
     output_format: str,
 ) -> Dict[str, Any]:
-    """Call Bedrock to generate a fix for the violation.
+    """Call LLM to generate a fix for the violation.
 
     Args:
-        bedrock_client: Initialized Bedrock client.
+        llm_client: LLMClient instance.
         guardrail: The violated guardrail.
         resource_type: Type of the resource.
         resource_name: Name of the resource.
@@ -104,7 +104,6 @@ def _call_bedrock_for_fix(
     Returns:
         Dict with success, fix, and description keys.
     """
-    # Build the prompt
     system_prompt = """You are an infrastructure remediation expert. Your task is to generate
 configuration changes that fix security/compliance violations.
 
@@ -143,34 +142,18 @@ OUTPUT FORMAT: {output_format}
 Generate the configuration changes needed to fix this violation."""
 
     try:
-        # Call Bedrock
-        response = bedrock_client.invoke_model(
-            modelId="us.anthropic.claude-opus-4-20250514-v1:0",
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(
-                {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 2048,
-                    "temperature": 0.2,
-                    "system": system_prompt,
-                    "messages": [
-                        {"role": "user", "content": user_prompt},
-                    ],
-                }
-            ),
+        content = llm_client.complete(
+            messages=[{"role": "user", "content": user_prompt}],
+            system=system_prompt,
+            max_tokens=2048,
+            temperature=0.2,
+            model_override=llm_client.config.get_default_model("auto_fix"),
         )
 
-        # Parse response
-        response_body = json.loads(response["body"].read())
-        content = response_body.get("content", [{}])[0].get("text", "{}")
-
-        # Try to parse the JSON response
         try:
             result = json.loads(content)
             return result
         except json.JSONDecodeError:
-            # Try to extract JSON from the response
             import re
 
             json_match = re.search(r"\{[\s\S]*\}", content)
@@ -183,11 +166,11 @@ Generate the configuration changes needed to fix this violation."""
             }
 
     except Exception as e:
-        logger.error(f"Bedrock API call failed: {e}")
+        logger.error(f"LLM API call failed: {e}")
         return {
             "success": False,
             "fix": {},
-            "description": f"Bedrock API error: {str(e)}",
+            "description": f"LLM API error: {str(e)}",
         }
 
 

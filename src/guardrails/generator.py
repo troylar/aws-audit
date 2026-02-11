@@ -127,10 +127,23 @@ Respond ONLY with valid JSON array (no markdown):
 _TRANSLATE_BATCH_SIZE = 10
 
 
+def _invoke_llm(
+    llm_client: Any,
+    prompt: str,
+    max_tokens: int = 4096,
+) -> str:
+    """Invoke LLM and return the text content."""
+    return llm_client.complete(
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_tokens,
+        model_override=llm_client.config.get_default_model("evaluation"),
+    )
+
+
 def translate_rules_to_guardrails(
     rules: List[str],
     instructions: Optional[str] = None,
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> List[Guardrail]:
     """Translate a list of rule strings into guardrails using AI.
 
@@ -139,13 +152,13 @@ def translate_rules_to_guardrails(
     Args:
         rules: List of rule strings to translate.
         instructions: Optional instructions for interpretation.
-        bedrock_client: Bedrock client for AI generation.
+        llm_client: LLMClient instance for AI generation.
 
     Returns:
         List of successfully translated Guardrail objects.
     """
-    if bedrock_client is None:
-        logger.error("Bedrock client required for guardrail generation")
+    if llm_client is None:
+        logger.error("LLM client required for guardrail generation")
         return []
 
     if not rules:
@@ -164,21 +177,7 @@ def translate_rules_to_guardrails(
         )
 
         try:
-            response = bedrock_client.invoke_model(
-                modelId="anthropic.claude-3-haiku-20240307-v1:0",
-                contentType="application/json",
-                accept="application/json",
-                body=json.dumps(
-                    {
-                        "anthropic_version": "bedrock-2023-05-31",
-                        "max_tokens": 4096,
-                        "messages": [{"role": "user", "content": prompt}],
-                    }
-                ),
-            )
-
-            response_body = json.loads(response["body"].read())
-            content = response_body.get("content", [{}])[0].get("text", "[]")
+            content = _invoke_llm(llm_client, prompt, max_tokens=4096)
 
             guardrails_list = json.loads(content)
             for g_dict in guardrails_list:
@@ -193,41 +192,25 @@ def translate_rules_to_guardrails(
 
 def generate_guardrail(
     requirement: str,
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> Optional[Guardrail]:
     """Generate a single guardrail from a natural language requirement.
 
     Args:
         requirement: Natural language description of the requirement.
-        bedrock_client: Bedrock client for AI generation.
+        llm_client: LLMClient instance for AI generation.
 
     Returns:
         Guardrail object or None if generation fails.
     """
-    if bedrock_client is None:
-        logger.error("Bedrock client required for guardrail generation")
+    if llm_client is None:
+        logger.error("LLM client required for guardrail generation")
         return None
 
     try:
         prompt = GENERATE_GUARDRAIL_PROMPT.format(requirement=requirement)
+        content = _invoke_llm(llm_client, prompt, max_tokens=1024)
 
-        response = bedrock_client.invoke_model(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(
-                {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 1024,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-            ),
-        )
-
-        response_body = json.loads(response["body"].read())
-        content = response_body.get("content", [{}])[0].get("text", "{}")
-
-        # Parse JSON response
         guardrail_dict = json.loads(content)
         return _dict_to_guardrail(guardrail_dict)
 
@@ -240,7 +223,7 @@ def generate_guardrails_batch(
     description: str,
     count: int = 5,
     resource_types: Optional[List[str]] = None,
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> List[Guardrail]:
     """Generate multiple guardrails from a policy description.
 
@@ -248,13 +231,13 @@ def generate_guardrails_batch(
         description: High-level policy description.
         count: Number of guardrails to generate.
         resource_types: Optional list of resource types to focus on.
-        bedrock_client: Bedrock client for AI generation.
+        llm_client: LLMClient instance for AI generation.
 
     Returns:
         List of Guardrail objects.
     """
-    if bedrock_client is None:
-        logger.error("Bedrock client required for guardrail generation")
+    if llm_client is None:
+        logger.error("LLM client required for guardrail generation")
         return []
 
     try:
@@ -268,23 +251,8 @@ def generate_guardrails_batch(
             context=context,
         )
 
-        response = bedrock_client.invoke_model(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(
-                {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 4096,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-            ),
-        )
+        content = _invoke_llm(llm_client, prompt, max_tokens=4096)
 
-        response_body = json.loads(response["body"].read())
-        content = response_body.get("content", [{}])[0].get("text", "[]")
-
-        # Parse JSON response
         guardrails_list = json.loads(content)
         return [_dict_to_guardrail(g) for g in guardrails_list if g]
 
@@ -297,7 +265,7 @@ def generate_guardrail_from_violation(
     resource_type: str,
     resource_config: Dict[str, Any],
     violation_description: str,
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> Optional[Guardrail]:
     """Generate a guardrail based on an observed violation.
 
@@ -307,13 +275,13 @@ def generate_guardrail_from_violation(
         resource_type: Type of the resource with the violation.
         resource_config: Configuration of the violating resource.
         violation_description: Description of what's wrong.
-        bedrock_client: Bedrock client for AI generation.
+        llm_client: LLMClient instance for AI generation.
 
     Returns:
         Guardrail object that would catch this violation.
     """
-    if bedrock_client is None:
-        logger.error("Bedrock client required for guardrail generation")
+    if llm_client is None:
+        logger.error("LLM client required for guardrail generation")
         return None
 
     try:
@@ -339,21 +307,7 @@ Respond ONLY with valid JSON:
   "tags": ["tag1", "tag2"]
 }}"""
 
-        response = bedrock_client.invoke_model(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(
-                {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 1024,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-            ),
-        )
-
-        response_body = json.loads(response["body"].read())
-        content = response_body.get("content", [{}])[0].get("text", "{}")
+        content = _invoke_llm(llm_client, prompt, max_tokens=1024)
 
         guardrail_dict = json.loads(content)
         return _dict_to_guardrail(guardrail_dict)

@@ -5,8 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any, Callable, Dict, List, Tuple
 
-import boto3
-
+from ...llm import LLMClient
 from ...models.generation import Layer, ResourceMap
 from ..layers import LayerStatus
 from ..prompts.cdk_python import (
@@ -235,16 +234,21 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
     )
 
     try:
-        # Emit progress: creating Bedrock client
+        # Emit progress: creating LLM client
+        provider_label = config.provider.capitalize()
+        if config.provider == "bedrock":
+            connect_msg = f"Connecting to Bedrock ({config.bedrock_region})"
+        else:
+            connect_msg = f"Connecting to {provider_label}"
         emit_progress(
             "activity",
             {
-                "message": f"Connecting to Bedrock ({config.bedrock_region})",
+                "message": connect_msg,
                 "layer": layer_name,
             },
         )
 
-        client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
+        llm_client = LLMClient(config.to_llm_config())
 
         # Emit progress: building prompt
         format_label = _get_format_label(output_format)
@@ -267,12 +271,16 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
         )
 
         # Emit progress: calling AI
+        if config.provider == "bedrock":
+            model_label = config.bedrock_model_id.split("/")[-1]
+        else:
+            model_label = config.openai_model
         emit_progress(
             "activity",
             {
-                "message": f"Calling AI to generate {format_label} ({config.bedrock_model_id.split('/')[-1]})",
+                "message": f"Calling AI to generate {format_label} ({model_label})",
                 "layer": layer_name,
-                "model": config.bedrock_model_id,
+                "model": model_label,
             },
         )
 
@@ -281,62 +289,35 @@ def generate_layer(state: GenerationState) -> Dict[str, Any]:
         token_count = 0
 
         try:
-            stream_response = client.converse_stream(
-                modelId=config.bedrock_model_id,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [{"text": user_prompt}],
-                    }
-                ],
-                system=[{"text": system_prompt}],
-                inferenceConfig={
-                    "temperature": config.temperature,
-                    "maxTokens": config.max_tokens,
-                },
-            )
+            for chunk in llm_client.stream(
+                messages=[{"role": "user", "content": user_prompt}],
+                system=system_prompt,
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
+            ):
+                generated_code += chunk
+                token_count += 1
+                if token_count % 50 == 0:
+                    emit_progress(
+                        "activity",
+                        {
+                            "message": f"Generating code... ({token_count} tokens)",
+                            "layer": layer_name,
+                            "tokens": token_count,
+                        },
+                    )
 
-            # Stream is an EventStream object
-            event_stream = stream_response.get("stream")
-            if event_stream:
-                for event in event_stream:
-                    if "contentBlockDelta" in event:
-                        delta = event["contentBlockDelta"].get("delta", {})
-                        if "text" in delta:
-                            generated_code += delta["text"]
-                            token_count += 1
-                            # Emit progress every 50 tokens
-                            if token_count % 50 == 0:
-                                emit_progress(
-                                    "activity",
-                                    {
-                                        "message": f"Generating code... ({token_count} tokens)",
-                                        "layer": layer_name,
-                                        "tokens": token_count,
-                                    },
-                                )
-
-            # If streaming didn't produce any code, fall back to non-streaming
             if not generated_code:
                 raise ValueError("Streaming produced no output")
 
         except Exception:
             # Fall back to non-streaming if streaming fails
-            response = client.converse(
-                modelId=config.bedrock_model_id,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [{"text": user_prompt}],
-                    }
-                ],
-                system=[{"text": system_prompt}],
-                inferenceConfig={
-                    "temperature": config.temperature,
-                    "maxTokens": config.max_tokens,
-                },
+            generated_code = llm_client.complete(
+                messages=[{"role": "user", "content": user_prompt}],
+                system=system_prompt,
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
             )
-            generated_code = response["output"]["message"]["content"][0]["text"] or ""
 
         # Emit progress: processing response
         emit_progress(

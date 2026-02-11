@@ -104,6 +104,10 @@ class CDKGenerator:
             bedrock_region=region or base_config.bedrock_region,
             max_retries=base_config.max_retries,
             output_format=output_format,
+            provider=base_config.provider,
+            openai_model=base_config.openai_model,
+            openai_api_key=base_config.openai_api_key,
+            openai_base_url=base_config.openai_base_url,
         )
 
         self.agent = compile_cdk_agent()

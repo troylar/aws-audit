@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import json
 from unittest.mock import MagicMock, patch
 
@@ -45,32 +44,26 @@ SAMPLE_PATTERN_DICT = {
 }
 
 
-def _make_bedrock_response(content_dict: dict) -> MagicMock:
-    """Create a mock Bedrock invoke_model response."""
-    body_bytes = json.dumps({"content": [{"text": json.dumps(content_dict)}]}).encode()
-    response = MagicMock()
-    response.__getitem__ = lambda self, key: {"body": io.BytesIO(body_bytes)}[key]
-    return response
-
-
-def _make_bedrock_text_response(text: str) -> MagicMock:
-    """Create a mock Bedrock response with raw text content."""
-    body_bytes = json.dumps({"content": [{"text": text}]}).encode()
-    response = MagicMock()
-    response.__getitem__ = lambda self, key: {"body": io.BytesIO(body_bytes)}[key]
-    return response
+def _make_llm_client(response_data: dict | str) -> MagicMock:
+    """Create a mock LLMClient that returns content from complete()."""
+    client = MagicMock()
+    if isinstance(response_data, dict):
+        client.complete.return_value = json.dumps(response_data)
+    else:
+        client.complete.return_value = response_data
+    client.config.get_default_model.return_value = "mock-model"
+    return client
 
 
 class TestGenerateFromDescription:
     """Tests for generate_from_description (T016)."""
 
     def test_valid_response_returns_pattern(self) -> None:
-        mock_client = MagicMock()
-        mock_client.invoke_model.return_value = _make_bedrock_response(SAMPLE_PATTERN_DICT)
+        mock_client = _make_llm_client(SAMPLE_PATTERN_DICT)
 
         pattern = generate_from_description(
             description="A serverless web API with Lambda and API Gateway",
-            bedrock_client=mock_client,
+            llm_client=mock_client,
         )
 
         assert isinstance(pattern, Pattern)
@@ -79,28 +72,26 @@ class TestGenerateFromDescription:
         assert len(pattern.resources) == 2
         assert pattern.resources[0].type == "lambda:function"
         assert pattern.resources[0].count == 2
-        mock_client.invoke_model.assert_called_once()
+        mock_client.complete.assert_called_once()
 
     def test_instructions_included_in_prompt(self) -> None:
-        mock_client = MagicMock()
-        mock_client.invoke_model.return_value = _make_bedrock_response(SAMPLE_PATTERN_DICT)
+        mock_client = _make_llm_client(SAMPLE_PATTERN_DICT)
 
         generate_from_description(
             description="A web API",
             instructions="Use Python 3.12 runtime and ARM64 architecture",
-            bedrock_client=mock_client,
+            llm_client=mock_client,
         )
 
-        call_args = mock_client.invoke_model.call_args
-        body = json.loads(call_args.kwargs.get("body", call_args[1].get("body", "")))
-        prompt_text = body["messages"][0]["content"]
+        call_kwargs = mock_client.complete.call_args.kwargs
+        prompt_text = call_kwargs["messages"][0]["content"]
         assert "Use Python 3.12 runtime and ARM64 architecture" in prompt_text
 
-    def test_no_bedrock_client_raises_value_error(self) -> None:
-        with pytest.raises(ValueError, match="Bedrock credentials required"):
+    def test_no_llm_client_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="LLM credentials required"):
             generate_from_description(
                 description="A web API",
-                bedrock_client=None,
+                llm_client=None,
             )
 
 
@@ -121,12 +112,11 @@ class TestGenerateFromSnapshot:
         mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_cls.return_value = mock_storage
 
-        mock_client = MagicMock()
-        mock_client.invoke_model.return_value = _make_bedrock_response(SAMPLE_PATTERN_DICT)
+        mock_client = _make_llm_client(SAMPLE_PATTERN_DICT)
 
         pattern = generate_from_snapshot(
             snapshot_name="test-snapshot",
-            bedrock_client=mock_client,
+            llm_client=mock_client,
         )
 
         assert isinstance(pattern, Pattern)
@@ -152,17 +142,15 @@ class TestGenerateFromSnapshot:
         mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_cls.return_value = mock_storage
 
-        mock_client = MagicMock()
-        mock_client.invoke_model.return_value = _make_bedrock_response(SAMPLE_PATTERN_DICT)
+        mock_client = _make_llm_client(SAMPLE_PATTERN_DICT)
 
         generate_from_snapshot(
             snapshot_name="test-snapshot",
-            bedrock_client=mock_client,
+            llm_client=mock_client,
         )
 
-        call_args = mock_client.invoke_model.call_args
-        body = json.loads(call_args.kwargs.get("body", call_args[1].get("body", "")))
-        prompt_text = body["messages"][0]["content"]
+        call_kwargs = mock_client.complete.call_args.kwargs
+        prompt_text = call_kwargs["messages"][0]["content"]
         assert "lambda:function" in prompt_text
         assert "s3:bucket" in prompt_text
         assert "1 instance(s)" in prompt_text
@@ -181,27 +169,25 @@ class TestGenerateFromSnapshot:
         mock_storage.load_snapshot.return_value = mock_snapshot
         mock_storage_cls.return_value = mock_storage
 
-        mock_client = MagicMock()
-        mock_client.invoke_model.return_value = _make_bedrock_response(SAMPLE_PATTERN_DICT)
+        mock_client = _make_llm_client(SAMPLE_PATTERN_DICT)
 
         generate_from_snapshot(
             snapshot_name="test-snapshot",
             guardrail_names=["encryption-at-rest", "public-access-block"],
-            bedrock_client=mock_client,
+            llm_client=mock_client,
         )
 
-        call_args = mock_client.invoke_model.call_args
-        body = json.loads(call_args.kwargs.get("body", call_args[1].get("body", "")))
-        prompt_text = body["messages"][0]["content"]
+        call_kwargs = mock_client.complete.call_args.kwargs
+        prompt_text = call_kwargs["messages"][0]["content"]
         assert "encryption-at-rest" in prompt_text
         assert "public-access-block" in prompt_text
         assert "Do NOT include expect fields" in prompt_text
 
-    def test_no_bedrock_client_raises_value_error(self) -> None:
-        with pytest.raises(ValueError, match="Bedrock credentials required"):
+    def test_no_llm_client_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="LLM credentials required"):
             generate_from_snapshot(
                 snapshot_name="test-snapshot",
-                bedrock_client=None,
+                llm_client=None,
             )
 
 
@@ -209,10 +195,7 @@ class TestGenerateGuidance:
     """Tests for generate_guidance (T017)."""
 
     def test_returns_guidance_string(self) -> None:
-        mock_client = MagicMock()
-        mock_client.invoke_model.return_value = _make_bedrock_text_response(
-            "You should fix the encryption settings on your S3 buckets."
-        )
+        mock_client = _make_llm_client("You should fix the encryption settings on your S3 buckets.")
 
         report = ComparisonReport(
             snapshot_name="test-snapshot",
@@ -239,22 +222,23 @@ class TestGenerateGuidance:
             threshold=0.25,
         )
 
-        result = generate_guidance(report, bedrock_client=mock_client)
+        result = generate_guidance(report, llm_client=mock_client)
         assert "encryption" in result.lower() or len(result) > 0
-        mock_client.invoke_model.assert_called_once()
+        mock_client.complete.assert_called_once()
 
-    def test_no_bedrock_returns_empty_string(self) -> None:
+    def test_no_llm_client_returns_empty_string(self) -> None:
         report = ComparisonReport(
             snapshot_name="test",
             matches=[],
             threshold=0.25,
         )
-        result = generate_guidance(report, bedrock_client=None)
+        result = generate_guidance(report, llm_client=None)
         assert result == ""
 
-    def test_bedrock_error_returns_empty_string(self) -> None:
+    def test_llm_error_returns_empty_string(self) -> None:
         mock_client = MagicMock()
-        mock_client.invoke_model.side_effect = RuntimeError("Connection timeout")
+        mock_client.config.get_default_model.return_value = "mock-model"
+        mock_client.complete.side_effect = RuntimeError("Connection timeout")
 
         report = ComparisonReport(
             snapshot_name="test",
@@ -294,5 +278,5 @@ class TestGenerateGuidance:
             threshold=0.25,
         )
 
-        result = generate_guidance(report, bedrock_client=mock_client)
+        result = generate_guidance(report, llm_client=mock_client)
         assert result == ""

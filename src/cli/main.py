@@ -6776,6 +6776,26 @@ def generate(
         help="AWS region for Bedrock (default: from AWSINV_BEDROCK_REGION)",
         envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        help="LLM provider: bedrock or openai (default: from AWSINV_LLM_PROVIDER or bedrock)",
+    ),
+    openai_model: Optional[str] = typer.Option(
+        None,
+        "--openai-model",
+        help="OpenAI model name (default: gpt-4o)",
+    ),
+    openai_api_key: Optional[str] = typer.Option(
+        None,
+        "--openai-api-key",
+        help="OpenAI API key (default: from AWSINV_OPENAI_API_KEY)",
+    ),
+    openai_base_url: Optional[str] = typer.Option(
+        None,
+        "--openai-base-url",
+        help="OpenAI-compatible base URL (default: from AWSINV_OPENAI_BASE_URL)",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed progress"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be generated without creating files"),
     no_best_practices: bool = typer.Option(
@@ -6802,7 +6822,7 @@ def generate(
     guardrails_auto_fix: bool = typer.Option(
         True,
         "--guardrails-auto-fix/--no-guardrails-auto-fix",
-        help="Enable AI auto-fix for AUTO-FIX guardrails (requires Bedrock access)",
+        help="Enable AI auto-fix for AUTO-FIX guardrails",
     ),
     guardrails_report: Optional[str] = typer.Option(
         None,
@@ -6812,7 +6832,7 @@ def generate(
 ) -> None:
     """Generate IaC (Terraform/CDK) from an inventory snapshot or export file.
 
-    Uses AWS Bedrock for AI-powered code generation.
+    Uses AI (AWS Bedrock or OpenAI) for code generation.
 
     Formats:
         terraform      - HashiCorp Terraform (.tf files)
@@ -6838,6 +6858,18 @@ def generate(
     if format not in ["terraform", "cdk-typescript", "cdk-python"]:
         console.print(f"[red]Error:[/red] Unknown format '{format}'. Use: terraform, cdk-typescript, cdk-python")
         raise typer.Exit(1)
+
+    # Set LLM provider env vars from CLI flags
+    import os
+
+    if provider:
+        os.environ["AWSINV_LLM_PROVIDER"] = provider
+    if openai_model:
+        os.environ["AWSINV_OPENAI_MODEL"] = openai_model
+    if openai_api_key:
+        os.environ["AWSINV_OPENAI_API_KEY"] = openai_api_key
+    if openai_base_url:
+        os.environ["AWSINV_OPENAI_BASE_URL"] = openai_base_url
 
     # Validate input - need either snapshot_name or from_file
     if not snapshot_name and not from_file:
@@ -7265,6 +7297,26 @@ def compare(
         help="AWS region for Bedrock (default: from AWSINV_BEDROCK_REGION)",
         envvar=["AWSINV_REGION", "AWS_REGION"],
     ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        help="LLM provider: bedrock or openai (default: from AWSINV_LLM_PROVIDER or bedrock)",
+    ),
+    openai_model: Optional[str] = typer.Option(
+        None,
+        "--openai-model",
+        help="OpenAI model name (default: gpt-4o)",
+    ),
+    openai_api_key: Optional[str] = typer.Option(
+        None,
+        "--openai-api-key",
+        help="OpenAI API key (default: from AWSINV_OPENAI_API_KEY)",
+    ),
+    openai_base_url: Optional[str] = typer.Option(
+        None,
+        "--openai-base-url",
+        help="OpenAI-compatible base URL (default: from AWSINV_OPENAI_BASE_URL)",
+    ),
     output_json: bool = typer.Option(False, "--json", help="Output results as JSON"),
 ) -> None:
     """Compare inventory coverage against existing IaC code.
@@ -7295,13 +7347,21 @@ def compare(
         console.print(f"Details: {e}")
         raise typer.Exit(1)
 
-    # Set environment variables for model/region if provided
+    # Set environment variables for model/region/provider if provided
     import os
 
     if model_id:
         os.environ["AWSINV_BEDROCK_MODEL_ID"] = model_id
     if region:
         os.environ["AWSINV_BEDROCK_REGION"] = region
+    if provider:
+        os.environ["AWSINV_LLM_PROVIDER"] = provider
+    if openai_model:
+        os.environ["AWSINV_OPENAI_MODEL"] = openai_model
+    if openai_api_key:
+        os.environ["AWSINV_OPENAI_API_KEY"] = openai_api_key
+    if openai_base_url:
+        os.environ["AWSINV_OPENAI_BASE_URL"] = openai_base_url
 
     source_name = from_file if from_file else snapshot_name or ""
 

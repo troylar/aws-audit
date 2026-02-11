@@ -1095,7 +1095,7 @@ class TestGenerateCommand:
         assert result.exit_code == 1
         assert "provide a description" in result.stdout.lower() or "error" in result.stdout.lower()
 
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_both_description_and_file(self, mock_get_client: MagicMock, tmp_path: Path) -> None:
         """Exits 1 when both description and --from-file are given."""
         mock_get_client.return_value = MagicMock()
@@ -1109,7 +1109,7 @@ class TestGenerateCommand:
         assert result.exit_code == 1
         assert "cannot use both" in result.stdout.lower()
 
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_format_without_from_file(self, mock_get_client: MagicMock) -> None:
         """Exits 1 when --format used without --from-file."""
         mock_get_client.return_value = MagicMock()
@@ -1120,7 +1120,7 @@ class TestGenerateCommand:
         assert result.exit_code == 1
         assert "only valid with --from-file" in result.stdout.lower()
 
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_instructions_without_from_file(self, mock_get_client: MagicMock) -> None:
         """Exits 1 when --instructions used without --from-file."""
         mock_get_client.return_value = MagicMock()
@@ -1131,7 +1131,7 @@ class TestGenerateCommand:
         assert result.exit_code == 1
         assert "only valid with --from-file" in result.stdout.lower()
 
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_no_bedrock_client(self, mock_get_client: MagicMock) -> None:
         """Generate command exits 1 when Bedrock client unavailable."""
         mock_get_client.return_value = None
@@ -1143,7 +1143,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_single_requirement(
         self,
         mock_get_client: MagicMock,
@@ -1161,7 +1161,7 @@ class TestGenerateCommand:
         mock_gen.assert_called_once()
 
     @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_single_fails(self, mock_get_client: MagicMock, mock_gen: MagicMock) -> None:
         """Single mode exits 1 when generation returns None."""
         mock_get_client.return_value = MagicMock()
@@ -1175,7 +1175,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrails_batch")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_batch_success(
         self,
         mock_get_client: MagicMock,
@@ -1192,7 +1192,7 @@ class TestGenerateCommand:
         assert "generated 2 guardrail" in result.stdout.lower()
 
     @patch("src.guardrails.generator.generate_guardrails_batch")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_batch_fails(self, mock_get_client: MagicMock, mock_batch: MagicMock) -> None:
         """Batch mode exits 1 when batch generation returns empty/None."""
         mock_get_client.return_value = MagicMock()
@@ -1204,7 +1204,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrails_batch")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_with_types_filter(
         self,
         mock_get_client: MagicMock,
@@ -1225,7 +1225,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrails_batch")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_with_count(
         self,
         mock_get_client: MagicMock,
@@ -1248,7 +1248,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.translate_rules_to_guardrails")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_from_file_txt(
         self,
         mock_get_client: MagicMock,
@@ -1270,7 +1270,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.translate_rules_to_guardrails")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_from_file_with_instructions(
         self,
         mock_get_client: MagicMock,
@@ -1300,7 +1300,7 @@ class TestGenerateCommand:
         assert result.exit_code == 0
         assert mock_translate.call_args.kwargs.get("instructions") == "format is 'ID: description'"
 
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_from_file_not_found(self, mock_get_client: MagicMock) -> None:
         """From-file mode exits 1 when file not found."""
         mock_get_client.return_value = MagicMock()
@@ -1311,7 +1311,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.translate_rules_to_guardrails")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_from_file_partial_failures(
         self,
         mock_get_client: MagicMock,
@@ -1335,7 +1335,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_output_to_new_file(
         self,
         mock_get_client: MagicMock,
@@ -1361,7 +1361,7 @@ class TestGenerateCommand:
 
     @patch("src.guardrails.generator.guardrail_to_yaml")
     @patch("src.guardrails.generator.generate_guardrail")
-    @patch("src.cli.guardrails._get_bedrock_client")
+    @patch("src.cli.guardrails._get_llm_client")
     def test_generate_output_append_to_existing(
         self,
         mock_get_client: MagicMock,
@@ -1387,25 +1387,22 @@ class TestGenerateCommand:
         assert "GR-GEN-002" in content
 
 
-class TestGetBedrockClient:
-    """Tests for _get_bedrock_client helper."""
+class TestGetLLMClient:
+    """Tests for _get_llm_client helper."""
 
-    @patch("boto3.client")
-    def test_get_bedrock_client_success(self, mock_client_fn: MagicMock) -> None:
-        """Returns Bedrock client on success."""
-        from src.cli.guardrails import _get_bedrock_client
+    @patch("src.llm.client.LLMClient")
+    @patch("src.llm.client.LLMConfig")
+    def test_get_llm_client_success(self, mock_config_cls: MagicMock, mock_client_cls: MagicMock) -> None:
+        """Returns LLMClient on success."""
+        from src.cli.guardrails import _get_llm_client
 
-        mock_client = MagicMock()
-        mock_client_fn.return_value = mock_client
+        result = _get_llm_client()
+        assert result is not None
 
-        result = _get_bedrock_client()
-        assert result == mock_client
-        mock_client_fn.assert_called_once_with("bedrock-runtime")
+    @patch("src.llm.client.LLMConfig.from_env", side_effect=Exception("No credentials"))
+    def test_get_llm_client_failure(self, mock_from_env: MagicMock) -> None:
+        """Returns None when LLMClient creation fails."""
+        from src.cli.guardrails import _get_llm_client
 
-    @patch("boto3.client", side_effect=Exception("No credentials"))
-    def test_get_bedrock_client_failure(self, mock_client_fn: MagicMock) -> None:
-        """Returns None when boto3 client creation fails."""
-        from src.cli.guardrails import _get_bedrock_client
-
-        result = _get_bedrock_client()
+        result = _get_llm_client()
         assert result is None

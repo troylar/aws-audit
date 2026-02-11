@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import json
 import re
 from pathlib import Path
@@ -52,14 +51,6 @@ SAMPLE_AI_PATTERN_DICT = {
 
 def _strip_ansi(text: str) -> str:
     return re.sub(r"\x1b\[[0-9;]*m", "", text)
-
-
-def _make_bedrock_response(content_dict: dict) -> MagicMock:
-    """Create a mock Bedrock invoke_model response."""
-    body_bytes = json.dumps({"content": [{"text": json.dumps(content_dict)}]}).encode()
-    response = MagicMock()
-    response.__getitem__ = lambda self, key: {"body": io.BytesIO(body_bytes)}[key]
-    return response
 
 
 class TestPatternsAdd:
@@ -163,36 +154,26 @@ class TestPatternsGenerate:
     """Tests for `awsinv patterns generate` command (T015)."""
 
     def test_generate_from_description(self) -> None:
-        mock_boto3 = MagicMock()
-        mock_client = MagicMock()
-        mock_boto3.client.return_value = mock_client
-
         pattern = Pattern.from_dict(SAMPLE_AI_PATTERN_DICT)
 
-        with patch.dict("sys.modules", {"boto3": mock_boto3}):
-            with patch(
-                "src.patterns.generator.generate_from_description",
-                return_value=pattern,
-            ):
-                result = runner.invoke(app, ["patterns", "generate", "A serverless web API"])
+        with patch(
+            "src.patterns.generator.generate_from_description",
+            return_value=pattern,
+        ):
+            result = runner.invoke(app, ["patterns", "generate", "A serverless web API"])
 
         assert result.exit_code == 0
         output = result.output
         assert "generated-pattern" in output or "lambda:function" in output
 
     def test_generate_from_snapshot(self) -> None:
-        mock_boto3 = MagicMock()
-        mock_client = MagicMock()
-        mock_boto3.client.return_value = mock_client
-
         pattern = Pattern.from_dict(SAMPLE_AI_PATTERN_DICT)
 
-        with patch.dict("sys.modules", {"boto3": mock_boto3}):
-            with patch(
-                "src.patterns.generator.generate_from_snapshot",
-                return_value=pattern,
-            ):
-                result = runner.invoke(app, ["patterns", "generate", "--from-snapshot", "my-snapshot"])
+        with patch(
+            "src.patterns.generator.generate_from_snapshot",
+            return_value=pattern,
+        ):
+            result = runner.invoke(app, ["patterns", "generate", "--from-snapshot", "my-snapshot"])
 
         assert result.exit_code == 0
         output = result.output
@@ -215,34 +196,26 @@ class TestPatternsGenerate:
         output = _strip_ansi(result.output)
         assert "provide a description" in output.lower() or "from-snapshot" in output.lower()
 
-    def test_no_bedrock_credentials_exit_1(self) -> None:
-        mock_boto3 = MagicMock()
-        mock_boto3.client.side_effect = Exception("No credentials")
-
-        with patch.dict("sys.modules", {"boto3": mock_boto3}):
+    def test_no_llm_credentials_exit_1(self) -> None:
+        with patch("src.llm.client.LLMConfig.from_env", side_effect=Exception("No credentials")):
             result = runner.invoke(app, ["patterns", "generate", "A web API"])
 
         assert result.exit_code == 1
         output = _strip_ansi(result.output)
-        assert "bedrock" in output.lower() or "credentials" in output.lower()
+        assert "credentials" in output.lower() or "error" in output.lower()
 
     def test_generate_with_output_file(self, tmp_path: Path) -> None:
-        mock_boto3 = MagicMock()
-        mock_client = MagicMock()
-        mock_boto3.client.return_value = mock_client
-
         pattern = Pattern.from_dict(SAMPLE_AI_PATTERN_DICT)
 
-        with patch.dict("sys.modules", {"boto3": mock_boto3}):
-            with patch(
-                "src.patterns.generator.generate_from_description",
-                return_value=pattern,
-            ):
-                output_file = tmp_path / "output.yaml"
-                result = runner.invoke(
-                    app,
-                    ["patterns", "generate", "A web API", "--output", str(output_file)],
-                )
+        with patch(
+            "src.patterns.generator.generate_from_description",
+            return_value=pattern,
+        ):
+            output_file = tmp_path / "output.yaml"
+            result = runner.invoke(
+                app,
+                ["patterns", "generate", "A web API", "--output", str(output_file)],
+            )
 
         assert result.exit_code == 0
         assert output_file.exists()

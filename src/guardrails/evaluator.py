@@ -76,9 +76,9 @@ def evaluate_ai_rule(
     resource_name: str,
     resource_arn: str,
     resource_config: Dict[str, Any],
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> Tuple[bool, str]:
-    """Evaluate an AI rule against a resource using Bedrock.
+    """Evaluate an AI rule against a resource using an LLM.
 
     Args:
         rule_text: The AI rule text describing what to check.
@@ -86,15 +86,15 @@ def evaluate_ai_rule(
         resource_name: Name of the resource.
         resource_arn: ARN of the resource.
         resource_config: Resource configuration dictionary.
-        bedrock_client: Bedrock client for AI evaluation.
+        llm_client: LLMClient instance for AI evaluation.
 
     Returns:
         Tuple of (matches: bool, reason: str).
         matches=True means the rule condition matched (potential violation).
     """
-    if bedrock_client is None:
-        logger.warning("No Bedrock client provided for AI rule evaluation")
-        return False, "AI evaluation skipped - no Bedrock client"
+    if llm_client is None:
+        logger.warning("No LLM client provided for AI rule evaluation")
+        return False, "AI evaluation skipped - no LLM client"
 
     try:
         prompt = AI_EVAL_PROMPT.format(
@@ -105,21 +105,11 @@ def evaluate_ai_rule(
             config=_truncate_config(resource_config),
         )
 
-        response = bedrock_client.invoke_model(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(
-                {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 256,
-                    "messages": [{"role": "user", "content": prompt}],
-                }
-            ),
+        content = llm_client.complete(
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=256,
+            model_override=llm_client.config.get_default_model("evaluation"),
         )
-
-        response_body = json.loads(response["body"].read())
-        content = response_body.get("content", [{}])[0].get("text", "{}")
 
         # Parse JSON response
         try:
@@ -146,7 +136,7 @@ class GuardrailEvaluator:
         self,
         policy: GuardrailPolicy,
         auto_fix_enabled: bool = True,
-        bedrock_client: Optional[Any] = None,
+        llm_client: Optional[Any] = None,
         environment: str = "default",
         output_format: str = "terraform",
     ) -> None:
@@ -155,13 +145,13 @@ class GuardrailEvaluator:
         Args:
             policy: GuardrailPolicy to evaluate against.
             auto_fix_enabled: Whether to attempt AI auto-fixes.
-            bedrock_client: Optional Bedrock client for AI rules and auto-fix.
+            llm_client: Optional LLMClient for AI rules and auto-fix.
             environment: Environment name for policy overrides.
             output_format: Target IaC format (terraform, cdk-typescript, cdk-python).
         """
         self._policy = policy
         self._auto_fix_enabled = auto_fix_enabled
-        self._bedrock_client = bedrock_client
+        self._llm_client = llm_client
         self._environment = environment
         self._output_format = output_format
         self._auto_fixes: Dict[str, Dict[str, Any]] = {}
@@ -317,7 +307,7 @@ class GuardrailEvaluator:
             resource_name=resource_name,
             resource_arn=resource_arn,
             resource_config=resource_config,
-            bedrock_client=self._bedrock_client,
+            llm_client=self._llm_client,
         )
 
         # Determine result based on rule type
@@ -377,7 +367,7 @@ class GuardrailEvaluator:
             guardrail=guardrail,
             resource=ResourceProxy(),
             output_format=self._output_format,
-            bedrock_client=self._bedrock_client,
+            llm_client=self._llm_client,
         )
 
     def evaluate_all(

@@ -10,8 +10,7 @@ import json
 import re
 from typing import Any, Dict, List
 
-import boto3
-
+from ...llm import LLMClient
 from ...models.generation import TrackedResource
 from ..state import GenerationConfig, GenerationState, emit_progress
 
@@ -95,25 +94,34 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
     )
 
     try:
+        provider_label = config.provider.capitalize()
+        if config.provider == "bedrock":
+            connect_msg = f"Connecting to Bedrock ({config.bedrock_region})"
+        else:
+            connect_msg = f"Connecting to {provider_label}"
         emit_progress(
             "activity",
             {
-                "message": f"Connecting to Bedrock ({config.bedrock_region})",
+                "message": connect_msg,
                 "step": "compare_inventory",
             },
         )
 
-        client = boto3.client("bedrock-runtime", region_name=config.bedrock_region)
+        llm_client = LLMClient(config.to_llm_config())
 
         system_prompt = _get_comparison_system_prompt()
         user_prompt = _format_comparison_prompt(inventory_text, terraform_text, len(resources))
 
+        if config.provider == "bedrock":
+            model_label = config.bedrock_model_id
+        else:
+            model_label = config.openai_model
         emit_progress(
             "activity",
             {
                 "message": "Calling AI to analyze coverage",
                 "step": "compare_inventory",
-                "model": config.bedrock_model_id,
+                "model": model_label,
             },
         )
 
@@ -122,61 +130,35 @@ def compare_inventory(state: GenerationState) -> Dict[str, Any]:
         token_count = 0
 
         try:
-            stream_response = client.converse_stream(
-                modelId=config.bedrock_model_id,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [{"text": user_prompt}],
-                    }
-                ],
-                system=[{"text": system_prompt}],
-                inferenceConfig={
-                    "temperature": 0.1,
-                    "maxTokens": config.max_tokens,
-                },
-            )
+            for chunk in llm_client.stream(
+                messages=[{"role": "user", "content": user_prompt}],
+                system=system_prompt,
+                temperature=0.1,
+                max_tokens=config.max_tokens,
+            ):
+                response_text += chunk
+                token_count += 1
+                if token_count % 50 == 0:
+                    emit_progress(
+                        "activity",
+                        {
+                            "message": f"Analyzing... ({token_count} tokens)",
+                            "step": "compare_inventory",
+                            "tokens": token_count,
+                        },
+                    )
 
-            # Stream is an EventStream object
-            event_stream = stream_response.get("stream")
-            if event_stream:
-                for event in event_stream:
-                    if "contentBlockDelta" in event:
-                        delta = event["contentBlockDelta"].get("delta", {})
-                        if "text" in delta:
-                            response_text += delta["text"]
-                            token_count += 1
-                            if token_count % 50 == 0:
-                                emit_progress(
-                                    "activity",
-                                    {
-                                        "message": f"Analyzing... ({token_count} tokens)",
-                                        "step": "compare_inventory",
-                                        "tokens": token_count,
-                                    },
-                                )
-
-            # If streaming didn't produce any text, fall back to non-streaming
             if not response_text:
                 raise ValueError("Streaming produced no output")
 
         except Exception:
             # Fall back to non-streaming
-            response = client.converse(
-                modelId=config.bedrock_model_id,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [{"text": user_prompt}],
-                    }
-                ],
-                system=[{"text": system_prompt}],
-                inferenceConfig={
-                    "temperature": 0.1,
-                    "maxTokens": config.max_tokens,
-                },
+            response_text = llm_client.complete(
+                messages=[{"role": "user", "content": user_prompt}],
+                system=system_prompt,
+                temperature=0.1,
+                max_tokens=config.max_tokens,
             )
-            response_text = response["output"]["message"]["content"][0]["text"] or ""
 
         emit_progress(
             "activity",

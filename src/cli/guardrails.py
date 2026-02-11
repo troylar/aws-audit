@@ -536,15 +536,17 @@ def list_guardrails(
     raise typer.Exit(0)
 
 
-def _get_bedrock_client():
-    """Get Bedrock client for AI operations."""
+def _get_llm_client():
+    """Get LLM client for AI operations."""
     try:
-        import boto3
+        from ..llm import LLMClient, LLMConfig
 
-        return boto3.client("bedrock-runtime")
+        return LLMClient(LLMConfig.from_env())
     except Exception as e:
-        console.print(f"[red]Error:[/red] Failed to create Bedrock client: {e}")
-        console.print("Make sure you have AWS credentials configured.")
+        console.print(f"[red]Error:[/red] Failed to create LLM client: {e}")
+        console.print(
+            "Check your provider configuration (AWS credentials for Bedrock, or AWSINV_OPENAI_API_KEY for OpenAI)."
+        )
         return None
 
 
@@ -805,8 +807,8 @@ def generate_guardrails(
         console.print("[red]Error:[/red] --format and --instructions are only valid with --from-file")
         raise typer.Exit(1)
 
-    bedrock = _get_bedrock_client()
-    if not bedrock:
+    llm = _get_llm_client()
+    if not llm:
         raise typer.Exit(1)
 
     guardrails_result = []
@@ -831,7 +833,7 @@ def generate_guardrails(
         guardrails_result = translate_rules_to_guardrails(
             rules=rules,
             instructions=instructions,
-            bedrock_client=bedrock,
+            llm_client=llm,
         )
 
         if len(guardrails_result) < len(rules):
@@ -845,7 +847,7 @@ def generate_guardrails(
         console.print(f"[dim]Generating guardrail for: {description}[/dim]")
         console.print()
 
-        guardrail = generate_guardrail(description, bedrock_client=bedrock)
+        guardrail = generate_guardrail(description, llm_client=llm)
         if guardrail:
             guardrails_result = [guardrail]
 
@@ -864,7 +866,7 @@ def generate_guardrails(
             description=description,
             count=count,
             resource_types=resource_types,
-            bedrock_client=bedrock,
+            llm_client=llm,
         )
 
     if not guardrails_result:

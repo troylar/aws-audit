@@ -920,19 +920,27 @@ resource "aws_subnet" "public_1" {
 }
 ```"""
 
-    def test_calls_bedrock_client(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
-        """Test that generate_layer calls Bedrock client."""
+    def _mock_llm_client(self, response_text: str, stream_fails: bool = True) -> MagicMock:
+        """Create a mock LLMClient for generate_layer tests."""
+        mock_instance = MagicMock()
+        if stream_fails:
+            mock_instance.stream.side_effect = Exception("Streaming not available")
+            mock_instance.complete.return_value = response_text
+        else:
+            mock_instance.stream.return_value = iter([response_text])
+            mock_instance.complete.return_value = response_text
+        return mock_instance
+
+    def test_calls_llm_client(self, state_with_current_layer: Dict[str, Any], tmp_path: Path) -> None:
+        """Test that generate_layer calls LLM client."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
-        mock_client = MagicMock()
-        mock_response = {"output": {"message": {"content": [{"text": "```hcl\n# test\n```"}]}}}
-        mock_client.converse.return_value = mock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = self._mock_llm_client("```hcl\n# test\n```")
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             generate_layer(state_with_current_layer)
 
-            mock_client.converse.assert_called_once()
+            mock_instance.complete.assert_called_once()
 
     def test_response_parsing_removes_markdown(
         self, state_with_current_layer: Dict[str, Any], mock_ai_response: str, tmp_path: Path
@@ -940,12 +948,9 @@ resource "aws_subnet" "public_1" {
         """Test that AI response has markdown code blocks stripped."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
-        mock_client = MagicMock()
-        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
-        mock_client.converse.return_value = mock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = self._mock_llm_client(mock_ai_response)
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             result = generate_layer(state_with_current_layer)
 
             if "generated_code" in result:
@@ -967,12 +972,9 @@ resource "aws_subnet" "public_1" {
 }
 ```"""
 
-        mock_client = MagicMock()
-        mock_response = {"output": {"message": {"content": [{"text": ai_response_with_hardcoded_ids}]}}}
-        mock_client.converse.return_value = mock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = self._mock_llm_client(ai_response_with_hardcoded_ids)
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             result = generate_layer(state_with_current_layer)
 
             if "generated_code" in result:
@@ -984,11 +986,11 @@ resource "aws_subnet" "public_1" {
         """Test handling of AI API errors."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
-        mock_client = MagicMock()
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
-        mock_client.converse.side_effect = Exception("Bedrock API Error")
+        mock_instance = MagicMock()
+        mock_instance.stream.side_effect = Exception("Streaming not available")
+        mock_instance.complete.side_effect = Exception("LLM API Error")
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             result = generate_layer(state_with_current_layer)
 
             assert "errors" in result or "current_layer_status" in result
@@ -1001,12 +1003,9 @@ resource "aws_subnet" "public_1" {
         """Test that layer status is updated on successful generation."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
-        mock_client = MagicMock()
-        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
-        mock_client.converse.return_value = mock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = self._mock_llm_client(mock_ai_response)
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             result = generate_layer(state_with_current_layer)
 
             if "current_layer_status" in result:
@@ -1018,12 +1017,9 @@ resource "aws_subnet" "public_1" {
         """Test that current_layer_index is incremented on success."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
-        mock_client = MagicMock()
-        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
-        mock_client.converse.return_value = mock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = self._mock_llm_client(mock_ai_response)
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             result = generate_layer(state_with_current_layer)
 
             if "current_layer_index" in result:
@@ -1035,12 +1031,9 @@ resource "aws_subnet" "public_1" {
         """Test that generated Terraform file is written to output directory."""
         state_with_current_layer["output_dir"] = str(tmp_path)
 
-        mock_client = MagicMock()
-        mock_response = {"output": {"message": {"content": [{"text": mock_ai_response}]}}}
-        mock_client.converse.return_value = mock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = self._mock_llm_client(mock_ai_response)
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             result = generate_layer(state_with_current_layer)
 
             if "generated_files" in result:
@@ -1182,10 +1175,9 @@ class TestNodeReturnTypes:
 
     def test_generate_layer_returns_dict(self, tmp_path: Path) -> None:
         """Test generate_layer returns a dict for state update."""
-        mock_client = MagicMock()
-        mock_response = {"output": {"message": {"content": [{"text": "```hcl\n# test\n```"}]}}}
-        mock_client.converse.return_value = mock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = MagicMock()
+        mock_instance.stream.side_effect = Exception("Streaming not available")
+        mock_instance.complete.return_value = "```hcl\n# test\n```"
 
         state: Dict[str, Any] = {
             "snapshot_name": "test",
@@ -1201,7 +1193,7 @@ class TestNodeReturnTypes:
             "max_attempts": 3,
         }
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.generate_layer.LLMClient", return_value=mock_instance):
             result = generate_layer(state)
 
             assert isinstance(result, dict)
