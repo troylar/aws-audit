@@ -1,0 +1,64 @@
+# Minimal Compliance Policy
+# Basic encryption and access controls for all resources
+
+name: compliance-minimal
+version: "1.0"
+description: Minimum compliance requirements - encryption and access controls
+
+guardrails:
+  # Encryption at rest
+  - id: GR-ENC-001
+    short_description: S3 encryption required
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to: ["s3:bucket"]
+    condition: "Encryption exists"
+    auto_fix:
+      Encryption:
+        SSEAlgorithm: "AES256"
+
+  - id: GR-ENC-002
+    short_description: EBS encryption required
+    severity: HIGH
+    action: AUTO-FIX
+    applies_to: ["ec2:volume"]
+    condition: "get('Encrypted') == True"
+    auto_fix:
+      Encrypted: true
+
+  - id: GR-ENC-003
+    short_description: RDS encryption required
+    severity: HIGH
+    action: BLOCK
+    applies_to: ["rds:instance", "rds:cluster"]
+    condition: "get('StorageEncrypted') == True"
+
+  # Access controls
+  - id: GR-ACC-001
+    short_description: S3 public access blocked
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to: ["s3:bucket"]
+    condition: "PublicAccessBlock exists"
+    auto_fix:
+      PublicAccessBlock:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  - id: GR-ACC-002
+    short_description: RDS not publicly accessible
+    severity: CRITICAL
+    action: AUTO-FIX
+    applies_to: ["rds:instance"]
+    condition: "get('PubliclyAccessible') == False"
+    auto_fix:
+      PubliclyAccessible: false
+
+  - id: GR-ACC-003
+    short_description: No public IP on EC2
+    severity: HIGH
+    action: WARN
+    applies_to: ["ec2:instance"]
+    condition: "PublicIpAddress not exists"
