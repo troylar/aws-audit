@@ -56,6 +56,23 @@ awsinv generate terraform my-snapshot --guardrails --guardrails-strict --guardra
 
 See [Guardrails Overview](../guardrails/index.md) for details.
 
+## From a Pattern
+
+Generate IaC from a reusable architecture pattern instead of a live snapshot:
+
+```bash
+# Generate Terraform from a pattern in the library
+awsinv patterns generate-iac three-tier-web-app --format terraform
+
+# Generate CDK from a pattern YAML file
+awsinv patterns generate-iac ./my-pattern.yaml --format cdk-typescript
+
+# With guardrails applied
+awsinv patterns generate-iac three-tier-web-app --format terraform --guardrails
+```
+
+See [Infrastructure Patterns](../patterns/index.md) for details on creating and managing patterns.
+
 ## How It Works
 
 ```mermaid
