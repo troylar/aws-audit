@@ -319,9 +319,7 @@ class TestEvaluateExpects:
         fn2 = _make_resource(name="fn-bad1", raw_config={"Runtime": "python3.9"})
         fn3 = _make_resource(name="fn-bad2", raw_config={"Runtime": "nodejs18.x"})
 
-        violations = evaluate_expects(
-            pattern, {"lambda:function": [fn1, fn2, fn3]}
-        )
+        violations = evaluate_expects(pattern, {"lambda:function": [fn1, fn2, fn3]})
         assert len(violations) == 2
         violated_names = {v.resource_name for v in violations}
         assert violated_names == {"fn-bad1", "fn-bad2"}
@@ -481,9 +479,7 @@ class TestEvaluatePatternGuardrails:
         pattern = _make_pattern(guardrails=["GR-ENC-001"])
         resource = _make_resource(resource_type="s3:bucket", name="my-bucket")
 
-        violations = evaluate_pattern_guardrails(
-            pattern, {"s3:bucket": [resource]}
-        )
+        violations = evaluate_pattern_guardrails(pattern, {"s3:bucket": [resource]})
 
         assert len(violations) == 1
         assert violations[0].guardrail_name == "GR-ENC-001"
@@ -543,9 +539,7 @@ class TestEvaluatePatternGuardrails:
         pattern = _make_pattern(guardrails=["GR-ENC-001"])
         resource = _make_resource(resource_type="s3:bucket", name="my-bucket")
 
-        violations = evaluate_pattern_guardrails(
-            pattern, {"s3:bucket": [resource]}
-        )
+        violations = evaluate_pattern_guardrails(pattern, {"s3:bucket": [resource]})
         assert violations == []
 
     @patch("src.guardrails.loader.load_policy")
@@ -721,9 +715,7 @@ class TestCompareSnapshot:
         )
         mock_load_pat.return_value = target
 
-        report = compare_snapshot(
-            "snap", "/lib", target_pattern="/patterns/specific.yaml"
-        )
+        report = compare_snapshot("snap", "/lib", target_pattern="/patterns/specific.yaml")
 
         mock_load_pat.assert_called_once_with("/patterns/specific.yaml")
         assert len(report.matches) == 1

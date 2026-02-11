@@ -191,9 +191,7 @@ def show_pattern(
 
 @patterns_app.command("compare")
 def compare_patterns(
-    snapshot: str = typer.Option(
-        ..., "--snapshot", envvar="AWSINV_SNAPSHOT_ID", help="Snapshot to compare"
-    ),
+    snapshot: str = typer.Option(..., "--snapshot", envvar="AWSINV_SNAPSHOT_ID", help="Snapshot to compare"),
     pattern_name: Optional[str] = typer.Option(None, "--pattern", help="Target single pattern"),
     threshold: float = typer.Option(0.25, "--threshold", help="Minimum score threshold"),
     output: Optional[str] = typer.Option(None, "--output", help="Export results to file"),

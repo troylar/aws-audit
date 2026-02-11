@@ -47,9 +47,7 @@ SAMPLE_PATTERN_DICT = {
 
 def _make_bedrock_response(content_dict: dict) -> MagicMock:
     """Create a mock Bedrock invoke_model response."""
-    body_bytes = json.dumps(
-        {"content": [{"text": json.dumps(content_dict)}]}
-    ).encode()
+    body_bytes = json.dumps({"content": [{"text": json.dumps(content_dict)}]}).encode()
     response = MagicMock()
     response.__getitem__ = lambda self, key: {"body": io.BytesIO(body_bytes)}[key]
     return response
@@ -57,9 +55,7 @@ def _make_bedrock_response(content_dict: dict) -> MagicMock:
 
 def _make_bedrock_text_response(text: str) -> MagicMock:
     """Create a mock Bedrock response with raw text content."""
-    body_bytes = json.dumps(
-        {"content": [{"text": text}]}
-    ).encode()
+    body_bytes = json.dumps({"content": [{"text": text}]}).encode()
     response = MagicMock()
     response.__getitem__ = lambda self, key: {"body": io.BytesIO(body_bytes)}[key]
     return response

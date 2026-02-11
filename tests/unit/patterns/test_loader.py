@@ -499,14 +499,18 @@ class TestLoadLibrary:
     def test_ignores_non_yaml_files(self, tmp_path: Path) -> None:
         """load_library() skips files without .yaml/.yml extension."""
         (tmp_path / "readme.txt").write_text("not a pattern")
-        (tmp_path / "pattern-v1.yaml").write_text(yaml.dump({
-            "name": "pattern",
-            "description": "A pattern",
-            "version": 1,
-            "tags": [],
-            "owner": "o",
-            "resources": [{"type": "s3:bucket", "count": 1}],
-        }))
+        (tmp_path / "pattern-v1.yaml").write_text(
+            yaml.dump(
+                {
+                    "name": "pattern",
+                    "description": "A pattern",
+                    "version": 1,
+                    "tags": [],
+                    "owner": "o",
+                    "resources": [{"type": "s3:bucket", "count": 1}],
+                }
+            )
+        )
         patterns = load_library(tmp_path)
         assert len(patterns) == 1
 

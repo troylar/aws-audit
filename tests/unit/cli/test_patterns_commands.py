@@ -57,9 +57,7 @@ def _strip_ansi(text: str) -> str:
 
 def _make_bedrock_response(content_dict: dict) -> MagicMock:
     """Create a mock Bedrock invoke_model response."""
-    body_bytes = json.dumps(
-        {"content": [{"text": json.dumps(content_dict)}]}
-    ).encode()
+    body_bytes = json.dumps({"content": [{"text": json.dumps(content_dict)}]}).encode()
     response = MagicMock()
     response.__getitem__ = lambda self, key: {"body": io.BytesIO(body_bytes)}[key]
     return response
@@ -284,11 +282,13 @@ class TestPatternsList:
     ) -> None:
         mock_get_lib.return_value = "/lib"
         p1 = Pattern.from_dict(VALID_PATTERN_DATA)
-        p2 = Pattern.from_dict({
-            **VALID_PATTERN_DATA,
-            "name": "other",
-            "tags": ["production"],
-        })
+        p2 = Pattern.from_dict(
+            {
+                **VALID_PATTERN_DATA,
+                "name": "other",
+                "tags": ["production"],
+            }
+        )
         mock_load_lib.return_value = [p1, p2]
 
         result = runner.invoke(app, ["patterns", "list", "--tag", "production"])
@@ -593,9 +593,12 @@ class TestPatternsCompare:
         result = runner.invoke(
             app,
             [
-                "patterns", "compare",
-                "--snapshot", "snap",
-                "--output", str(output_file),
+                "patterns",
+                "compare",
+                "--snapshot",
+                "snap",
+                "--output",
+                str(output_file),
                 "--no-guidance",
             ],
         )
@@ -630,10 +633,14 @@ class TestPatternsCompare:
         result = runner.invoke(
             app,
             [
-                "patterns", "compare",
-                "--snapshot", "snap",
-                "--output", str(output_file),
-                "--format", "yaml",
+                "patterns",
+                "compare",
+                "--snapshot",
+                "snap",
+                "--output",
+                str(output_file),
+                "--format",
+                "yaml",
                 "--no-guidance",
             ],
         )
