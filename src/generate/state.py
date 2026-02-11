@@ -3,9 +3,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from operator import add
-from typing import Any, Callable, Dict, List, Optional  # noqa: F401 - Optional used in TypedDict
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional  # noqa: F401 - Optional used in TypedDict
 
 from typing_extensions import Annotated, TypedDict
+
+if TYPE_CHECKING:
+    from ..llm import LLMConfig
 
 # Type for progress callback: (event_name, event_data) -> None
 ProgressCallback = Callable[[str, Dict[str, Any]], None]
@@ -97,15 +100,23 @@ class GenerationConfig:
     parameterize_env_values: bool = True
     parameterize_sizing: bool = True
     parameterize_naming: bool = True
+    provider: str = "bedrock"
+    openai_model: str = "gpt-4o"
+    openai_api_key: Optional[str] = None
+    openai_base_url: Optional[str] = None
 
     @classmethod
     def from_env(cls) -> GenerationConfig:
         """Create a GenerationConfig from environment variables.
 
         Reads:
-            AWSINV_BEDROCK_MODEL_ID: Bedrock model ID (default: anthropic.claude-sonnet-4-20250514-v1:0)
+            AWSINV_LLM_PROVIDER: LLM provider ("bedrock" or "openai")
+            AWSINV_BEDROCK_MODEL_ID: Bedrock model ID
             AWSINV_BEDROCK_REGION: AWS region for Bedrock (default: us-east-1)
             AWS_DEFAULT_REGION: Fallback for Bedrock region
+            AWSINV_OPENAI_API_KEY: OpenAI API key
+            AWSINV_OPENAI_MODEL: OpenAI model name
+            AWSINV_OPENAI_BASE_URL: OpenAI-compatible base URL
         """
         return cls(
             bedrock_model_id=os.environ.get("AWSINV_BEDROCK_MODEL_ID", "us.anthropic.claude-opus-4-20250514-v1:0"),
@@ -113,4 +124,21 @@ class GenerationConfig:
                 "AWSINV_BEDROCK_REGION",
                 os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
             ),
+            provider=os.environ.get("AWSINV_LLM_PROVIDER", "bedrock"),
+            openai_model=os.environ.get("AWSINV_OPENAI_MODEL", "gpt-4o"),
+            openai_api_key=os.environ.get("AWSINV_OPENAI_API_KEY"),
+            openai_base_url=os.environ.get("AWSINV_OPENAI_BASE_URL"),
+        )
+
+    def to_llm_config(self) -> LLMConfig:
+        """Convert to an LLMConfig for use with LLMClient."""
+        from ..llm import LLMConfig
+
+        return LLMConfig(
+            provider=self.provider,
+            bedrock_model_id=self.bedrock_model_id,
+            bedrock_region=self.bedrock_region,
+            openai_api_key=self.openai_api_key,
+            openai_model=self.openai_model,
+            openai_base_url=self.openai_base_url,
         )

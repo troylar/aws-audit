@@ -38,8 +38,14 @@ pip install aws-inventory-manager[web]
 # IaC Generation (Terraform/CDK)
 pip install aws-inventory-manager[generate]
 
+# OpenAI LLM provider (alternative to AWS Bedrock)
+pip install aws-inventory-manager[openai]
+
+# Multiple extras
+pip install aws-inventory-manager[generate,openai]
+
 # All extras
-pip install aws-inventory-manager[web,generate]
+pip install aws-inventory-manager[web,generate,openai]
 ```
 
 ## Development Installation

@@ -22,6 +22,10 @@ Every command that uses one of these concepts MUST use the canonical name and sh
 | Collection | `--collection` | `-i` | str | Single value | `AWSINV_COLLECTION_ID` |
 | Description | `--description` | `-d` | str | Single value | -- |
 | Storage path | `--storage-path` | -- | str | Single value | `AWSINV_STORAGE_PATH` |
+| LLM provider | `--provider` | -- | str | Choice: bedrock, openai | `AWSINV_LLM_PROVIDER` |
+| OpenAI model | `--openai-model` | -- | str | Single value | `AWSINV_OPENAI_MODEL` |
+| OpenAI API key | `--openai-api-key` | -- | str | Single value | `AWSINV_OPENAI_API_KEY` |
+| OpenAI base URL | `--openai-base-url` | -- | str | Single value | `AWSINV_OPENAI_BASE_URL` |
 
 ## Short Flag Assignments
 

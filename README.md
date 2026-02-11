@@ -83,7 +83,7 @@ awsinv cleanup execute my-baseline --yes
 - **AWS Config Integration** -- Auto-detected, up to 5x faster collection ([guide](https://aws-inventory-manager.readthedocs.io/configuration/aws-config-integration/))
 - **Query & Analysis** -- SQL queries, resource search, cross-snapshot history ([guide](https://aws-inventory-manager.readthedocs.io/guides/query-analysis/))
 - **Creator Tracking** -- CloudTrail-based resource provenance ([guide](https://aws-inventory-manager.readthedocs.io/guides/creator-tracking/))
-- **IaC Generation** -- Terraform, CDK TypeScript, CDK Python via AI ([guide](https://aws-inventory-manager.readthedocs.io/guides/iac-generation/))
+- **IaC Generation** -- Terraform, CDK TypeScript, CDK Python via AI (Bedrock or OpenAI) ([guide](https://aws-inventory-manager.readthedocs.io/guides/iac-generation/))
 - **Guardrails** -- Policy-based compliance checking, AI auto-fix, CI/CD ready ([guide](https://aws-inventory-manager.readthedocs.io/guardrails/))
 - **Infrastructure Patterns** -- Reusable architecture blueprints, snapshot comparison, compliance reporting ([guide](https://aws-inventory-manager.readthedocs.io/patterns/))
 - **Web UI** -- Resource Explorer with advanced filtering and export ([guide](https://aws-inventory-manager.readthedocs.io/guides/web-ui/))

@@ -3,18 +3,9 @@
 from __future__ import annotations
 
 import json
-from io import BytesIO
 from unittest.mock import MagicMock
 
 from src.guardrails.generator import translate_rules_to_guardrails
-
-
-def _make_bedrock_response(guardrails_json: list) -> MagicMock:
-    """Build a mock Bedrock response body."""
-    body_content = json.dumps({"content": [{"text": json.dumps(guardrails_json)}]}).encode()
-    response = MagicMock()
-    response.__getitem__ = lambda self, key: {"body": BytesIO(body_content)}[key]
-    return response
 
 
 def _sample_guardrail_dict(id: str = "GR-ENC-001", desc: str = "Test guardrail") -> dict:
@@ -30,66 +21,70 @@ def _sample_guardrail_dict(id: str = "GR-ENC-001", desc: str = "Test guardrail")
     }
 
 
+def _make_llm_client(response_data: list) -> MagicMock:
+    """Build a mock LLMClient that returns JSON from complete()."""
+    client = MagicMock()
+    client.complete.return_value = json.dumps(response_data)
+    client.config.get_default_model.return_value = "mock-model"
+    return client
+
+
 class TestTranslateRulesToGuardrails:
     """Tests for translate_rules_to_guardrails()."""
 
-    def test_no_bedrock_client_returns_empty(self) -> None:
-        result = translate_rules_to_guardrails(rules=["rule 1"], bedrock_client=None)
+    def test_no_llm_client_returns_empty(self) -> None:
+        result = translate_rules_to_guardrails(rules=["rule 1"], llm_client=None)
         assert result == []
 
     def test_empty_rules_returns_empty(self) -> None:
-        result = translate_rules_to_guardrails(rules=[], bedrock_client=MagicMock())
+        result = translate_rules_to_guardrails(rules=[], llm_client=MagicMock())
         assert result == []
 
     def test_single_rule_success(self) -> None:
-        client = MagicMock()
-        client.invoke_model.return_value = _make_bedrock_response([_sample_guardrail_dict()])
+        client = _make_llm_client([_sample_guardrail_dict()])
 
-        result = translate_rules_to_guardrails(rules=["S3 must be encrypted"], bedrock_client=client)
+        result = translate_rules_to_guardrails(rules=["S3 must be encrypted"], llm_client=client)
         assert len(result) == 1
         assert result[0].id == "GR-ENC-001"
-        client.invoke_model.assert_called_once()
+        client.complete.assert_called_once()
 
     def test_instructions_injected_into_prompt(self) -> None:
-        client = MagicMock()
-        client.invoke_model.return_value = _make_bedrock_response([_sample_guardrail_dict()])
+        client = _make_llm_client([_sample_guardrail_dict()])
 
         translate_rules_to_guardrails(
             rules=["A1234: S3 encryption"],
             instructions="format is 'ID: description'",
-            bedrock_client=client,
+            llm_client=client,
         )
 
-        call_body = json.loads(client.invoke_model.call_args.kwargs["body"])
-        prompt_text = call_body["messages"][0]["content"]
+        call_kwargs = client.complete.call_args.kwargs
+        prompt_text = call_kwargs["messages"][0]["content"]
         assert "format is 'ID: description'" in prompt_text
 
     def test_batch_splitting(self) -> None:
-        client = MagicMock()
-        client.invoke_model.return_value = _make_bedrock_response([_sample_guardrail_dict()])
+        client = _make_llm_client([_sample_guardrail_dict()])
 
         rules = [f"Rule {i}" for i in range(25)]
-        translate_rules_to_guardrails(rules=rules, bedrock_client=client)
+        translate_rules_to_guardrails(rules=rules, llm_client=client)
 
-        assert client.invoke_model.call_count == 3  # 10 + 10 + 5
+        assert client.complete.call_count == 3  # 10 + 10 + 5
 
     def test_partial_failure(self) -> None:
         client = MagicMock()
+        client.config.get_default_model.return_value = "mock-model"
 
-        good_response = _make_bedrock_response([_sample_guardrail_dict()])
-        client.invoke_model.side_effect = [
-            good_response,
+        client.complete.side_effect = [
+            json.dumps([_sample_guardrail_dict()]),
             Exception("API error"),
         ]
 
         rules = [f"Rule {i}" for i in range(15)]  # 2 batches
-        result = translate_rules_to_guardrails(rules=rules, bedrock_client=client)
+        result = translate_rules_to_guardrails(rules=rules, llm_client=client)
 
         assert len(result) == 1  # Only first batch succeeded
 
     def test_multiple_rules_per_batch(self) -> None:
-        client = MagicMock()
-        client.invoke_model.return_value = _make_bedrock_response(
+        client = _make_llm_client(
             [
                 _sample_guardrail_dict("GR-ENC-001", "Rule 1"),
                 _sample_guardrail_dict("GR-ENC-002", "Rule 2"),
@@ -98,7 +93,7 @@ class TestTranslateRulesToGuardrails:
         )
 
         rules = ["Rule 1", "Rule 2", "Rule 3"]
-        result = translate_rules_to_guardrails(rules=rules, bedrock_client=client)
+        result = translate_rules_to_guardrails(rules=rules, llm_client=client)
 
         assert len(result) == 3
         assert result[0].id == "GR-ENC-001"

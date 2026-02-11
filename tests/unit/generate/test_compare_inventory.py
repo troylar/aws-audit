@@ -99,14 +99,9 @@ resource "aws_lambda_function" "my_function" {
         }
 
     @pytest.fixture
-    def mock_bedrock_response(self) -> Dict[str, Any]:
-        """Create mock Bedrock API response."""
-        return {
-            "output": {
-                "message": {
-                    "content": [
-                        {
-                            "text": """{
+    def mock_llm_response_text(self) -> str:
+        """Create mock LLM response text."""
+        return """{
     "coverage_percentage": 100.0,
     "total_resources": 3,
     "represented_count": 3,
@@ -120,11 +115,6 @@ resource "aws_lambda_function" "my_function" {
     "issues": [],
     "summary": "All 3 inventory resources are represented in the generated Terraform code."
 }"""
-                        }
-                    ]
-                }
-            }
-        }
 
     def test_empty_resources_returns_zero_coverage(self) -> None:
         """Test handling of empty resources list."""
@@ -158,48 +148,44 @@ resource "aws_lambda_function" "my_function" {
         assert len(comparison["missing_resources"]) == 3
         assert len(comparison["issues"]) > 0
 
-    def test_calls_bedrock_with_correct_parameters(
+    def test_calls_llm_client(
         self,
         sample_resources: List[TrackedResource],
         sample_generated_code: Dict[str, str],
-        mock_bedrock_response: Dict[str, Any],
+        mock_llm_response_text: str,
     ) -> None:
-        """Test that compare_inventory calls Bedrock with correct parameters."""
+        """Test that compare_inventory calls LLM client."""
         state: Dict[str, Any] = {
             "resources": sample_resources,
             "generated_code": sample_generated_code,
         }
 
-        mock_client = MagicMock()
-        mock_client.converse.return_value = mock_bedrock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = MagicMock()
+        mock_instance.stream.side_effect = Exception("Streaming not available")
+        mock_instance.complete.return_value = mock_llm_response_text
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.compare_inventory.LLMClient", return_value=mock_instance):
             compare_inventory(state)
 
-            mock_client.converse.assert_called_once()
-            call_kwargs = mock_client.converse.call_args[1]
-            assert "modelId" in call_kwargs
-            assert "messages" in call_kwargs
-            assert "system" in call_kwargs
+            mock_instance.complete.assert_called_once()
 
     def test_parses_successful_response(
         self,
         sample_resources: List[TrackedResource],
         sample_generated_code: Dict[str, str],
-        mock_bedrock_response: Dict[str, Any],
+        mock_llm_response_text: str,
     ) -> None:
-        """Test parsing of successful Bedrock response."""
+        """Test parsing of successful LLM response."""
         state: Dict[str, Any] = {
             "resources": sample_resources,
             "generated_code": sample_generated_code,
         }
 
-        mock_client = MagicMock()
-        mock_client.converse.return_value = mock_bedrock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = MagicMock()
+        mock_instance.stream.side_effect = Exception("Streaming not available")
+        mock_instance.complete.return_value = mock_llm_response_text
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.compare_inventory.LLMClient", return_value=mock_instance):
             result = compare_inventory(state)
 
             comparison = result["comparison_result"]
@@ -208,22 +194,22 @@ resource "aws_lambda_function" "my_function" {
             assert comparison["missing_count"] == 0
             assert len(comparison["represented_resources"]) == 3
 
-    def test_handles_bedrock_error(
+    def test_handles_llm_error(
         self,
         sample_resources: List[TrackedResource],
         sample_generated_code: Dict[str, str],
     ) -> None:
-        """Test handling of Bedrock API errors."""
+        """Test handling of LLM API errors."""
         state: Dict[str, Any] = {
             "resources": sample_resources,
             "generated_code": sample_generated_code,
         }
 
-        mock_client = MagicMock()
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
-        mock_client.converse.side_effect = Exception("Bedrock API Error")
+        mock_instance = MagicMock()
+        mock_instance.stream.side_effect = Exception("Streaming not available")
+        mock_instance.complete.side_effect = Exception("LLM API Error")
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.compare_inventory.LLMClient", return_value=mock_instance):
             result = compare_inventory(state)
 
             assert "comparison_result" in result
@@ -236,7 +222,7 @@ resource "aws_lambda_function" "my_function" {
         self,
         sample_resources: List[TrackedResource],
         sample_generated_code: Dict[str, str],
-        mock_bedrock_response: Dict[str, Any],
+        mock_llm_response_text: str,
     ) -> None:
         """Test that compare_inventory returns a dict for state update."""
         state: Dict[str, Any] = {
@@ -244,11 +230,11 @@ resource "aws_lambda_function" "my_function" {
             "generated_code": sample_generated_code,
         }
 
-        mock_client = MagicMock()
-        mock_client.converse.return_value = mock_bedrock_response
-        mock_client.converse_stream.side_effect = Exception("Streaming not available")
+        mock_instance = MagicMock()
+        mock_instance.stream.side_effect = Exception("Streaming not available")
+        mock_instance.complete.return_value = mock_llm_response_text
 
-        with patch("boto3.client", return_value=mock_client):
+        with patch("src.generate.nodes.compare_inventory.LLMClient", return_value=mock_instance):
             result = compare_inventory(state)
 
             assert isinstance(result, dict)

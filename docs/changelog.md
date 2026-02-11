@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-02-11
+
+### Added
+- **OpenAI LLM Provider**: Use OpenAI (or any OpenAI-compatible API) as an alternative to AWS Bedrock for all AI features
+  - New `--provider` flag on `generate` and `compare` commands (`bedrock` or `openai`)
+  - `--openai-model`, `--openai-api-key`, `--openai-base-url` CLI flags
+  - Environment variables: `AWSINV_LLM_PROVIDER`, `AWSINV_OPENAI_API_KEY`, `AWSINV_OPENAI_MODEL`, `AWSINV_OPENAI_BASE_URL`
+  - Works with IaC generation, guardrails (evaluation, auto-fix, generation), and pattern generation/guidance
+  - Optional dependency: `pip install aws-inventory-manager[openai]`
+  - Provider-specific default models per task type (generation, evaluation, auto-fix)
+  - Compatible with Azure OpenAI and other OpenAI-compatible endpoints via `--openai-base-url`
+
+### Changed
+- **Unified LLM Abstraction**: All AI features now use a shared `LLMClient` instead of direct boto3 Bedrock calls
+  - Bedrock backend uses the Converse API for both streaming and non-streaming calls
+  - Consistent error handling across providers
+
 ## [2.2.0] - 2026-02-09
 
 ### Added

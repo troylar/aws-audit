@@ -1,4 +1,4 @@
-"""AI-powered pattern generation using Bedrock."""
+"""AI-powered pattern generation using LLM providers."""
 
 from __future__ import annotations
 
@@ -14,8 +14,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
-ANTHROPIC_VERSION = "bedrock-2023-05-31"
 MAX_TOKENS = 2048
 
 GENERATE_FROM_DESCRIPTION_PROMPT = """\
@@ -107,48 +105,39 @@ Provide concise, actionable guidance on:
 Keep your response under 500 words. Be specific and reference resource types and config keys where relevant."""
 
 
-def _invoke_bedrock(
-    bedrock_client: Any,
+def _invoke_llm(
+    llm_client: Any,
     prompt: str,
     max_tokens: int = MAX_TOKENS,
 ) -> str:
-    """Invoke Bedrock model and return the text content."""
-    response = bedrock_client.invoke_model(
-        modelId=MODEL_ID,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps(
-            {
-                "anthropic_version": ANTHROPIC_VERSION,
-                "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-        ),
+    """Invoke LLM and return the text content."""
+    return llm_client.complete(
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_tokens,
+        model_override=llm_client.config.get_default_model("evaluation"),
     )
-    response_body = json.loads(response["body"].read())
-    return response_body.get("content", [{}])[0].get("text", "")
 
 
 def generate_from_description(
     description: str,
     instructions: Optional[str] = None,
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> Pattern:
     """Generate a pattern from a text description using Bedrock.
 
     Args:
         description: Natural language description of the desired pattern.
         instructions: Optional additional instructions for the AI.
-        bedrock_client: Bedrock runtime client.
+        llm_client: LLMClient instance.
 
     Returns:
         Generated Pattern object.
 
     Raises:
-        ValueError: If bedrock_client is None or generation fails.
+        ValueError: If llm_client is None or generation fails.
     """
-    if bedrock_client is None:
-        raise ValueError("Bedrock credentials required for pattern generation.")
+    if llm_client is None:
+        raise ValueError("LLM credentials required for pattern generation.")
 
     instructions_block = ""
     if instructions:
@@ -159,7 +148,7 @@ def generate_from_description(
         instructions_block=instructions_block,
     )
 
-    content = _invoke_bedrock(bedrock_client, prompt)
+    content = _invoke_llm(llm_client, prompt)
     pattern_dict = json.loads(content)
     return Pattern.from_dict(pattern_dict)
 
@@ -168,7 +157,7 @@ def generate_from_snapshot(
     snapshot_name: str,
     instructions: Optional[str] = None,
     guardrail_names: Optional[List[str]] = None,
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> Pattern:
     """Generate a pattern from an existing snapshot using Bedrock.
 
@@ -177,16 +166,16 @@ def generate_from_snapshot(
         instructions: Optional additional instructions for the AI.
         guardrail_names: Guardrail names whose covered properties should be
             excluded from expect fields.
-        bedrock_client: Bedrock runtime client.
+        llm_client: LLMClient instance.
 
     Returns:
         Generated Pattern object.
 
     Raises:
-        ValueError: If bedrock_client is None or generation fails.
+        ValueError: If llm_client is None or generation fails.
     """
-    if bedrock_client is None:
-        raise ValueError("Bedrock credentials required for pattern generation.")
+    if llm_client is None:
+        raise ValueError("LLM credentials required for pattern generation.")
 
     from ..snapshot.storage import SnapshotStorage
 
@@ -228,7 +217,7 @@ def generate_from_snapshot(
         instructions_block=instructions_block,
     )
 
-    content = _invoke_bedrock(bedrock_client, prompt)
+    content = _invoke_llm(llm_client, prompt)
     pattern_dict = json.loads(content)
     pattern = Pattern.from_dict(pattern_dict)
     pattern.source_snapshot = snapshot_name
@@ -239,18 +228,18 @@ def generate_from_snapshot(
 
 def generate_guidance(
     report: "ComparisonReport",
-    bedrock_client: Optional[Any] = None,
+    llm_client: Optional[Any] = None,
 ) -> str:
     """Generate actionable guidance text from a ComparisonReport.
 
     Args:
         report: The comparison report to generate guidance for.
-        bedrock_client: Bedrock runtime client.
+        llm_client: LLMClient instance.
 
     Returns:
         Guidance string. Empty string if Bedrock is unavailable or call fails.
     """
-    if bedrock_client is None:
+    if llm_client is None:
         return ""
 
     try:
@@ -283,7 +272,7 @@ def generate_guidance(
             matches_summary=matches_summary,
         )
 
-        return _invoke_bedrock(bedrock_client, prompt)
+        return _invoke_llm(llm_client, prompt)
     except Exception:
-        logger.debug("Bedrock guidance generation failed", exc_info=True)
+        logger.debug("LLM guidance generation failed", exc_info=True)
         return ""

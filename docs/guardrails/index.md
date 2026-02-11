@@ -116,7 +116,7 @@ awsinv guardrails list --category ENC
 # Validate a policy file
 awsinv guardrails validate ./policy.yaml --verbose
 
-# Generate guardrails from natural language (requires Bedrock)
+# Generate guardrails from natural language (requires Bedrock or OpenAI)
 awsinv guardrails generate "S3 buckets must have encryption"
 awsinv guardrails generate "production security baseline" --count 10
 awsinv guardrails generate --from-file rules.csv --instructions "format is ID: description"

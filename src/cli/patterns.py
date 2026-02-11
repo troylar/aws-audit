@@ -92,11 +92,11 @@ def generate_pattern(
         raise typer.Exit(code=1)
 
     try:
-        import boto3
+        from ..llm import LLMClient, LLMConfig
 
-        bedrock_client = boto3.client("bedrock-runtime")
-    except Exception:
-        console.print("[red]Error:[/red] Bedrock credentials required for pattern generation.")
+        llm_client = LLMClient(LLMConfig.from_env())
+    except Exception as e:
+        console.print(f"[red]Error:[/red] LLM credentials required for pattern generation: {e}")
         raise typer.Exit(code=1)
 
     guardrail_names = None
@@ -111,13 +111,13 @@ def generate_pattern(
                 snapshot_name=from_snapshot,
                 instructions=instructions,
                 guardrail_names=guardrail_names,
-                bedrock_client=bedrock_client,
+                llm_client=llm_client,
             )
         else:
             pattern = generate_from_description(
                 description=description,  # type: ignore[arg-type]
                 instructions=instructions,
-                bedrock_client=bedrock_client,
+                llm_client=llm_client,
             )
     except Exception as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -221,13 +221,12 @@ def compare_patterns(
 
     if not no_guidance and report.matches:
         try:
-            import boto3
-
-            bedrock_client = boto3.client("bedrock-runtime")
+            from ..llm import LLMClient, LLMConfig
             from ..patterns.generator import generate_guidance
 
+            llm_client = LLMClient(LLMConfig.from_env())
             for match in report.matches:
-                guidance = generate_guidance(report, bedrock_client=bedrock_client)
+                guidance = generate_guidance(report, llm_client=llm_client)
                 if guidance:
                     match.guidance = guidance
                     break

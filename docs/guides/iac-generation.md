@@ -1,6 +1,6 @@
 # IaC Generation
 
-Generate Infrastructure as Code from your inventory snapshots using AWS Bedrock. Supports Terraform, CDK TypeScript, and CDK Python.
+Generate Infrastructure as Code from your inventory snapshots using AI. Supports Terraform, CDK TypeScript, and CDK Python. Choose between AWS Bedrock (default) or OpenAI as your LLM provider.
 
 ## Quick Start
 
@@ -32,10 +32,21 @@ awsinv generate terraform --from-file export.yaml --output ./infra
 # Specify output directory and project name
 awsinv generate cdk-typescript my-snapshot --output ./my-cdk-app
 
-# Use different model or region
+# Use different Bedrock model or region
 awsinv generate terraform my-snapshot \
   --model-id anthropic.claude-opus-4-20250514-v1:0 \
   --region us-west-2
+
+# Use OpenAI instead of Bedrock
+awsinv generate terraform my-snapshot --provider openai --openai-api-key sk-...
+
+# Use a specific OpenAI model
+awsinv generate terraform my-snapshot \
+  --provider openai --openai-model gpt-4o --openai-api-key sk-...
+
+# Use an OpenAI-compatible endpoint (e.g., Azure OpenAI)
+awsinv generate terraform my-snapshot \
+  --provider openai --openai-base-url https://your-endpoint/v1 --openai-api-key your-key
 
 # Dry run (show what would be generated)
 awsinv generate terraform my-snapshot --dry-run
@@ -183,10 +194,24 @@ Resources are generated in dependency sequence:
 
 ## Requirements
 
-- AWS credentials with Bedrock access (uses your configured AWS profile)
-- Default model: `anthropic.claude-opus-4-20250514-v1:0` (Claude Opus 4)
+=== "Bedrock (default)"
+
+    - AWS credentials with Bedrock access (uses your configured AWS profile)
+    - Default model: `anthropic.claude-opus-4-20250514-v1:0` (Claude Opus 4)
+
+=== "OpenAI"
+
+    - OpenAI API key (set via `--openai-api-key` or `AWSINV_OPENAI_API_KEY`)
+    - Default model: `gpt-4o`
+    - Install the optional dependency: `pip install aws-inventory-manager[openai]`
+
+**Common requirements:**
+
 - For CDK TypeScript: Node.js 18+ and npm (for validation)
 - For CDK Python: Python 3.8+ (for validation)
 
 !!! note
     IaC generation requires the `langgraph` optional dependency: `pip install aws-inventory-manager[generate]`
+
+!!! tip
+    All LLM provider settings can be configured via environment variables. See [Environment Variables](../configuration/environment-variables.md#llm-provider) for details.

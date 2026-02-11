@@ -312,7 +312,7 @@ expect:
 
 ## AI Pattern Generation
 
-Generate patterns using AWS Bedrock (requires Bedrock access).
+Generate patterns using AI (requires AWS Bedrock or OpenAI access).
 
 ### From a Description
 
@@ -443,10 +443,10 @@ awsinv patterns compare --snapshot my-snapshot --threshold 0.75
 
 ### AI Guidance
 
-By default, the comparison engine generates AI-powered guidance using Bedrock for the top match. This adds remediation suggestions based on the gaps found. Disable it if you don't have Bedrock access or want faster results:
+By default, the comparison engine generates AI-powered guidance for the top match using your configured LLM provider (Bedrock or OpenAI). This adds remediation suggestions based on the gaps found. Disable it if you don't have LLM access or want faster results:
 
 ```bash
-# Skip AI guidance (deterministic only, no Bedrock needed)
+# Skip AI guidance (deterministic only, no LLM needed)
 awsinv patterns compare --snapshot my-snapshot --no-guidance
 ```
 
@@ -726,7 +726,7 @@ Each pattern is saved as `{name}-v{version}.yaml` in the library directory:
 | Command | Description |
 |---------|-------------|
 | `patterns add <file>` | Add a pattern YAML file to the library |
-| `patterns generate <description>` | Generate a pattern using AI (Bedrock) |
+| `patterns generate <description>` | Generate a pattern using AI (Bedrock or OpenAI) |
 | `patterns list` | List all patterns (with filtering options) |
 | `patterns show <name>` | Show detailed pattern information |
 | `patterns compare --snapshot <name>` | Compare a snapshot against the pattern library |
